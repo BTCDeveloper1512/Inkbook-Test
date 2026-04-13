@@ -31,7 +31,7 @@ api_router = APIRouter(prefix="/api")
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "*"],
+    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "https://artist-connect-82.preview.emergentagent.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -918,6 +918,20 @@ async def startup_event():
         logger.info(f"Admin user created: {admin_email}")
     elif not verify_password(admin_password, existing.get("password_hash", "")):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+    
+    # Seed test studio owner
+    studio_owner_email = "studioowner@inkbook.com"
+    existing_owner = await db.users.find_one({"email": studio_owner_email})
+    if not existing_owner:
+        await db.users.insert_one({
+            "email": studio_owner_email,
+            "password_hash": hash_password("studio123"),
+            "name": "Test Studio Owner",
+            "role": "studio_owner",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "auth_provider": "email"
+        })
+        logger.info(f"Studio owner seeded: {studio_owner_email}")
     
     await seed_demo_data()
     logger.info("InkBook API started")

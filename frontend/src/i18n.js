@@ -14,6 +14,7 @@ const resources = {
       "nav.myBookings": "Meine Buchungen",
       // Hero
       "hero.title": "Dein perfektes Tattoo",
+      "hero.titleSuffix": "wartet.",
       "hero.subtitle": "Finde erstklassige Tattoo-Studios und Artists in deiner Nähe",
       "hero.searchPlaceholder": "Stadt, Stil oder Studio...",
       "hero.searchBtn": "Studios finden",
@@ -109,6 +110,7 @@ const resources = {
       "nav.logout": "Logout",
       "nav.myBookings": "My Bookings",
       "hero.title": "Your Perfect Tattoo",
+      "hero.titleSuffix": "awaits.",
       "hero.subtitle": "Find top tattoo studios and artists near you",
       "hero.searchPlaceholder": "City, style or studio...",
       "hero.searchBtn": "Find Studios",

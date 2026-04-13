@@ -82,7 +82,7 @@ export default function LandingPage() {
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-playfair font-bold leading-none mb-6">
               {t("hero.title")}
-              <span className="block text-gray-400">wartet.</span>
+              <span className="block text-gray-400">{t("hero.titleSuffix")}</span>
             </h1>
 
             <p className="text-lg text-gray-300 font-outfit mb-10 max-w-lg">
