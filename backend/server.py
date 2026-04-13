@@ -1,89 +1,929 @@
-from fastapi import FastAPI, APIRouter
 from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
+from pydantic import BaseModel, Field, EmailStr, BeforeValidator
+from typing import Optional, List, Annotated, Dict, Any
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
 import uuid
-from datetime import datetime, timezone
+import bcrypt
+import jwt
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+import base64
+import httpx
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
 
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
-
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+# ─── Database ────────────────────────────────────────────────────────────────
+mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ["DB_NAME"]]
 
-# Create the main app without a prefix
-app = FastAPI()
-
-# Create a router with the /api prefix
+app = FastAPI(title="InkBook API")
 api_router = APIRouter(prefix="/api")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
-
-# Include the router in the main app
-app.include_router(api_router)
-
+# ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "*"],
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# ─── Logging ──────────────────────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ─── PyObjectId ───────────────────────────────────────────────────────────────
+def coerce_objectid(v):
+    if isinstance(v, ObjectId):
+        return str(v)
+    return v
+
+PyObjectId = Annotated[str, BeforeValidator(coerce_objectid)]
+
+# ─── Auth helpers ─────────────────────────────────────────────────────────────
+JWT_ALGORITHM = "HS256"
+
+def get_jwt_secret() -> str:
+    return os.environ["JWT_SECRET"]
+
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+
+def create_access_token(user_id: str, email: str) -> str:
+    payload = {"sub": user_id, "email": email, "exp": datetime.now(timezone.utc) + timedelta(hours=24), "type": "access"}
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+def create_refresh_token(user_id: str) -> str:
+    payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(days=7), "type": "refresh"}
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+async def get_current_user(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        # Try JWT auth users first
+        user = await db.users.find_one({"_id": ObjectId(user_id)}, {"_id": 0, "password_hash": 0})
+        if not user:
+            # Try Google auth users
+            user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_current_user_optional(request: Request):
+    try:
+        return await get_current_user(request)
+    except:
+        return None
+
+# ─── Pydantic Models ──────────────────────────────────────────────────────────
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    role: str = "customer"  # customer | studio_owner
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class StudioCreate(BaseModel):
+    name: str
+    description: str
+    address: str
+    city: str
+    country: str = "DE"
+    phone: str = ""
+    email: str = ""
+    website: str = ""
+    styles: List[str] = []
+    price_range: str = "medium"  # budget | medium | premium | luxury
+    images: List[str] = []
+
+class StudioUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    styles: Optional[List[str]] = None
+    price_range: Optional[str] = None
+    images: Optional[List[str]] = None
+
+class SlotCreate(BaseModel):
+    date: str  # YYYY-MM-DD
+    start_time: str  # HH:MM
+    end_time: str  # HH:MM
+    slot_type: str = "tattoo"  # consultation | tattoo | full_day
+    duration_minutes: int = 60
+    notes: str = ""
+
+class BookingCreate(BaseModel):
+    studio_id: str
+    slot_id: str
+    booking_type: str = "tattoo"  # consultation | tattoo
+    notes: str = ""
+    reference_images: List[str] = []
+
+class ReviewCreate(BaseModel):
+    studio_id: str
+    rating: int  # 1-5
+    comment: str = ""
+
+class MessageCreate(BaseModel):
+    recipient_id: str
+    content: str
+    image_url: str = ""
+
+class AIStyleRequest(BaseModel):
+    image_base64: Optional[str] = None
+    description: str = ""
+    language: str = "de"
+
+class PaymentCreateRequest(BaseModel):
+    booking_id: str
+    origin_url: str
+
+# ─── Auth Endpoints ───────────────────────────────────────────────────────────
+@api_router.post("/auth/register")
+async def register(data: UserRegister, response: JSONResponse = None):
+    from fastapi.responses import JSONResponse as JR
+    email = data.email.lower()
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user_doc = {
+        "email": email,
+        "password_hash": hash_password(data.password),
+        "name": data.name,
+        "role": data.role,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "avatar": "",
+        "auth_provider": "email"
+    }
+    result = await db.users.insert_one(user_doc)
+    user_id = str(result.inserted_id)
+    
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id)
+    
+    resp = JR(content={
+        "id": user_id,
+        "email": email,
+        "name": data.name,
+        "role": data.role,
+        "avatar": ""
+    })
+    resp.set_cookie("access_token", access_token, httponly=True, samesite="lax", max_age=86400, path="/")
+    resp.set_cookie("refresh_token", refresh_token, httponly=True, samesite="lax", max_age=604800, path="/")
+    return resp
+
+@api_router.post("/auth/login")
+async def login(data: UserLogin):
+    from fastapi.responses import JSONResponse as JR
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email})
+    if not user or not verify_password(data.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    user_id = str(user["_id"])
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id)
+    
+    resp = JR(content={
+        "id": user_id,
+        "email": email,
+        "name": user.get("name", ""),
+        "role": user.get("role", "customer"),
+        "avatar": user.get("avatar", "")
+    })
+    resp.set_cookie("access_token", access_token, httponly=True, samesite="lax", max_age=86400, path="/")
+    resp.set_cookie("refresh_token", refresh_token, httponly=True, samesite="lax", max_age=604800, path="/")
+    return resp
+
+@api_router.post("/auth/logout")
+async def logout():
+    from fastapi.responses import JSONResponse as JR
+    resp = JR(content={"message": "Logged out"})
+    resp.delete_cookie("access_token", path="/")
+    resp.delete_cookie("refresh_token", path="/")
+    return resp
+
+@api_router.get("/auth/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return current_user
+
+# Google OAuth (Emergent-managed)
+class GoogleSessionRequest(BaseModel):
+    session_id: str
+
+@api_router.post("/auth/google/session")
+async def google_session(data: GoogleSessionRequest):
+    from fastapi.responses import JSONResponse as JR
+    async with httpx.AsyncClient() as client_http:
+        r = await client_http.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": data.session_id}
+        )
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail="Invalid session")
+        session_data = r.json()
+    
+    email = session_data["email"].lower()
+    existing = await db.users.find_one({"email": email})
+    
+    if existing:
+        user_id = str(existing["_id"])
+        await db.users.update_one(
+            {"email": email},
+            {"$set": {"name": session_data.get("name", ""), "avatar": session_data.get("picture", ""), "auth_provider": "google"}}
+        )
+        role = existing.get("role", "customer")
+        name = session_data.get("name", existing.get("name", ""))
+    else:
+        user_doc = {
+            "email": email,
+            "name": session_data.get("name", ""),
+            "avatar": session_data.get("picture", ""),
+            "role": "customer",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "auth_provider": "google"
+        }
+        result = await db.users.insert_one(user_doc)
+        user_id = str(result.inserted_id)
+        role = "customer"
+        name = session_data.get("name", "")
+    
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id)
+    
+    resp = JR(content={
+        "id": user_id,
+        "email": email,
+        "name": name,
+        "role": role,
+        "avatar": session_data.get("picture", "")
+    })
+    resp.set_cookie("access_token", access_token, httponly=True, samesite="lax", max_age=86400, path="/")
+    resp.set_cookie("refresh_token", refresh_token, httponly=True, samesite="lax", max_age=604800, path="/")
+    return resp
+
+# ─── Studios ──────────────────────────────────────────────────────────────────
+@api_router.get("/studios")
+async def list_studios(
+    city: Optional[str] = None,
+    style: Optional[str] = None,
+    price_range: Optional[str] = None,
+    min_rating: Optional[float] = None,
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20
+):
+    query: Dict[str, Any] = {}
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if style:
+        query["styles"] = {"$in": [style]}
+    if price_range:
+        query["price_range"] = price_range
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+            {"city": {"$regex": search, "$options": "i"}}
+        ]
+    
+    studios = await db.studios.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    if min_rating:
+        studios = [s for s in studios if s.get("avg_rating", 0) >= min_rating]
+    
+    return studios
+
+@api_router.get("/studios/{studio_id}")
+async def get_studio(studio_id: str):
+    studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    return studio
+
+@api_router.post("/studios")
+async def create_studio(data: StudioCreate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") not in ["studio_owner", "admin"]:
+        raise HTTPException(status_code=403, detail="Only studio owners can create studios")
+    
+    existing = await db.studios.find_one({"owner_id": current_user.get("id") or current_user.get("user_id")})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have a studio")
+    
+    studio_id = f"studio_{uuid.uuid4().hex[:12]}"
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio_doc = {
+        "studio_id": studio_id,
+        "owner_id": owner_id,
+        "owner_name": current_user.get("name", ""),
+        **data.model_dump(),
+        "avg_rating": 0.0,
+        "review_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "is_verified": False,
+        "is_active": True
+    }
+    await db.studios.insert_one(studio_doc)
+    studio_doc.pop("_id", None)
+    return studio_doc
+
+@api_router.put("/studios/{studio_id}")
+async def update_studio(studio_id: str, data: StudioUpdate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    await db.studios.update_one({"studio_id": studio_id}, {"$set": update_data})
+    return {"message": "Studio updated"}
+
+@api_router.get("/studios/{studio_id}/reviews")
+async def get_studio_reviews(studio_id: str):
+    reviews = await db.reviews.find({"studio_id": studio_id}, {"_id": 0}).to_list(100)
+    return reviews
+
+@api_router.post("/studios/{studio_id}/reviews")
+async def create_review(studio_id: str, data: ReviewCreate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    
+    user_id = current_user.get("id") or current_user.get("user_id")
+    existing = await db.reviews.find_one({"studio_id": studio_id, "user_id": user_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already reviewed this studio")
+    
+    review_doc = {
+        "review_id": f"rev_{uuid.uuid4().hex[:12]}",
+        "studio_id": studio_id,
+        "user_id": user_id,
+        "user_name": current_user.get("name", "Anonymous"),
+        "rating": data.rating,
+        "comment": data.comment,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.reviews.insert_one(review_doc)
+    
+    all_reviews = await db.reviews.find({"studio_id": studio_id}).to_list(1000)
+    avg = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+    await db.studios.update_one({"studio_id": studio_id}, {"$set": {"avg_rating": round(avg, 1), "review_count": len(all_reviews)}})
+    
+    review_doc.pop("_id", None)
+    return review_doc
+
+# ─── Slots / Availability ─────────────────────────────────────────────────────
+@api_router.get("/studios/{studio_id}/slots")
+async def get_slots(studio_id: str, date: Optional[str] = None):
+    query: Dict[str, Any] = {"studio_id": studio_id, "is_booked": False}
+    if date:
+        query["date"] = date
+    slots = await db.slots.find(query, {"_id": 0}).to_list(200)
+    return slots
+
+@api_router.post("/studios/{studio_id}/slots")
+async def create_slot(studio_id: str, data: SlotCreate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    slot_doc = {
+        "slot_id": f"slot_{uuid.uuid4().hex[:12]}",
+        "studio_id": studio_id,
+        **data.model_dump(),
+        "is_booked": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.slots.insert_one(slot_doc)
+    slot_doc.pop("_id", None)
+    return slot_doc
+
+@api_router.delete("/studios/{studio_id}/slots/{slot_id}")
+async def delete_slot(studio_id: str, slot_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    await db.slots.delete_one({"slot_id": slot_id, "studio_id": studio_id})
+    return {"message": "Slot deleted"}
+
+# ─── Bookings ─────────────────────────────────────────────────────────────────
+@api_router.post("/bookings")
+async def create_booking(data: BookingCreate, current_user: dict = Depends(get_current_user)):
+    slot = await db.slots.find_one({"slot_id": data.slot_id, "studio_id": data.studio_id})
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    if slot.get("is_booked"):
+        raise HTTPException(status_code=400, detail="Slot already booked")
+    
+    studio = await db.studios.find_one({"studio_id": data.studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    
+    user_id = current_user.get("id") or current_user.get("user_id")
+    booking_doc = {
+        "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "user_name": current_user.get("name", ""),
+        "user_email": current_user.get("email", ""),
+        "studio_id": data.studio_id,
+        "studio_name": studio.get("name", ""),
+        "slot_id": data.slot_id,
+        "date": slot.get("date"),
+        "start_time": slot.get("start_time"),
+        "end_time": slot.get("end_time"),
+        "booking_type": data.booking_type,
+        "notes": data.notes,
+        "reference_images": data.reference_images,
+        "status": "pending",
+        "payment_status": "unpaid",
+        "deposit_amount": 50.0,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.bookings.insert_one(booking_doc)
+    await db.slots.update_one({"slot_id": data.slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
+    
+    booking_doc.pop("_id", None)
+    return booking_doc
+
+@api_router.get("/bookings")
+async def get_bookings(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role")
+    
+    if role == "studio_owner":
+        studio = await db.studios.find_one({"owner_id": user_id})
+        if studio:
+            bookings = await db.bookings.find({"studio_id": studio["studio_id"]}, {"_id": 0}).to_list(200)
+        else:
+            bookings = []
+    else:
+        bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).to_list(200)
+    
+    return bookings
+
+@api_router.get("/bookings/{booking_id}")
+async def get_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if booking.get("user_id") != user_id and (not studio or studio.get("owner_id") != user_id):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return booking
+
+@api_router.put("/bookings/{booking_id}/status")
+async def update_booking_status(booking_id: str, status: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if booking.get("user_id") != user_id and (not studio or studio.get("owner_id") != user_id):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"status": status}})
+    if status == "cancelled":
+        await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
+    return {"message": "Booking updated"}
+
+# ─── Messages / Chat ──────────────────────────────────────────────────────────
+@api_router.get("/messages")
+async def get_conversations(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    convs = await db.conversations.find(
+        {"participants": user_id}, {"_id": 0}
+    ).to_list(100)
+    return convs
+
+@api_router.get("/messages/{other_user_id}")
+async def get_messages(other_user_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    messages = await db.messages.find(
+        {"$or": [
+            {"sender_id": user_id, "recipient_id": other_user_id},
+            {"sender_id": other_user_id, "recipient_id": user_id}
+        ]},
+        {"_id": 0}
+    ).sort("created_at", 1).to_list(500)
+    return messages
+
+@api_router.post("/messages")
+async def send_message(data: MessageCreate, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    msg_doc = {
+        "message_id": f"msg_{uuid.uuid4().hex[:12]}",
+        "sender_id": user_id,
+        "sender_name": current_user.get("name", ""),
+        "recipient_id": data.recipient_id,
+        "content": data.content,
+        "image_url": data.image_url,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False
+    }
+    await db.messages.insert_one(msg_doc)
+    
+    participants = sorted([user_id, data.recipient_id])
+    conv_id = f"conv_{'_'.join(participants)}"
+    await db.conversations.update_one(
+        {"conv_id": conv_id},
+        {"$set": {
+            "conv_id": conv_id,
+            "participants": participants,
+            "last_message": data.content,
+            "last_message_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    msg_doc.pop("_id", None)
+    return msg_doc
+
+# ─── Payments (Stripe) ────────────────────────────────────────────────────────
+@api_router.post("/payments/create-session")
+async def create_payment_session(data: PaymentCreateRequest, request: Request, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": data.booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if booking.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    origin = data.origin_url
+    success_url = f"{origin}/dashboard?payment=success&session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/dashboard?payment=cancelled"
+    
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=f"{str(request.base_url)}api/webhook/stripe")
+    
+    checkout_req = CheckoutSessionRequest(
+        amount=float(booking.get("deposit_amount", 50.0)),
+        currency="eur",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"booking_id": data.booking_id, "user_id": user_id}
+    )
+    session = await stripe_checkout.create_checkout_session(checkout_req)
+    
+    await db.payment_transactions.insert_one({
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
+        "booking_id": data.booking_id,
+        "user_id": user_id,
+        "session_id": session.session_id,
+        "amount": float(booking.get("deposit_amount", 50.0)),
+        "currency": "eur",
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"url": session.url, "session_id": session.session_id}
+
+@api_router.get("/payments/status/{session_id}")
+async def get_payment_status(session_id: str, request: Request, current_user: dict = Depends(get_current_user)):
+    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=f"{str(request.base_url)}api/webhook/stripe")
+    status = await stripe_checkout.get_checkout_status(session_id)
+    
+    if status.payment_status == "paid":
+        txn = await db.payment_transactions.find_one({"session_id": session_id})
+        if txn and txn.get("payment_status") != "paid":
+            await db.payment_transactions.update_one(
+                {"session_id": session_id},
+                {"$set": {"payment_status": "paid"}}
+            )
+            if txn.get("booking_id"):
+                await db.bookings.update_one(
+                    {"booking_id": txn["booking_id"]},
+                    {"$set": {"payment_status": "paid", "status": "confirmed"}}
+                )
+    
+    return {"status": status.status, "payment_status": status.payment_status}
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
+    try:
+        webhook_response = await stripe_checkout.handle_webhook(body, request.headers.get("Stripe-Signature", ""))
+        if webhook_response.payment_status == "paid":
+            booking_id = webhook_response.metadata.get("booking_id")
+            if booking_id:
+                await db.bookings.update_one(
+                    {"booking_id": booking_id},
+                    {"$set": {"payment_status": "paid", "status": "confirmed"}}
+                )
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+    return {"received": True}
+
+# ─── AI Style Advisor ─────────────────────────────────────────────────────────
+@api_router.post("/ai/style-advisor")
+async def ai_style_advisor(data: AIStyleRequest, current_user: dict = Depends(get_current_user)):
+    api_key = os.environ.get("EMERGENT_LLM_KEY", "")
+    
+    if data.language == "de":
+        system_msg = """Du bist ein erfahrener Tattoo-Künstler und Stilberater mit über 15 Jahren Erfahrung. 
+        Analysiere Bilder und Beschreibungen und gib detaillierte Empfehlungen für Tattoo-Stile.
+        Antworte auf Deutsch. Strukturiere deine Antwort in: 
+        1. Empfohlene Stile (mit Erklärung)
+        2. Passende Künstler/Studios für diesen Stil
+        3. Wichtige Hinweise für das Gespräch mit dem Künstler
+        4. Pflege-Tipps für den gewählten Stil"""
+    else:
+        system_msg = """You are an experienced tattoo artist and style consultant with 15+ years of experience.
+        Analyze images and descriptions and provide detailed tattoo style recommendations.
+        Structure your response in:
+        1. Recommended Styles (with explanation)
+        2. Suitable artists/studios for this style
+        3. Important notes for the conversation with the artist
+        4. Care tips for the chosen style"""
+    
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"style_{uuid.uuid4().hex[:8]}",
+        system_message=system_msg
+    ).with_model("openai", "gpt-4o")
+    
+    user_text = data.description if data.description else (
+        "Analysiere bitte dieses Bild und empfehle passende Tattoo-Stile." if data.language == "de"
+        else "Please analyze this image and recommend suitable tattoo styles."
+    )
+    
+    if data.image_base64:
+        image_content = ImageContent(image_base64=data.image_base64)
+        user_message = UserMessage(text=user_text, file_contents=[image_content])
+    else:
+        user_message = UserMessage(text=user_text)
+    
+    response = await chat.send_message(user_message)
+    
+    await db.ai_consultations.insert_one({
+        "consultation_id": f"ai_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.get("id") or current_user.get("user_id"),
+        "description": data.description,
+        "response": response,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"recommendation": response}
+
+# ─── Upload Image ──────────────────────────────────────────────────────────────
+@api_router.post("/upload/image")
+async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    content = await file.read()
+    b64 = base64.b64encode(content).decode("utf-8")
+    mime = file.content_type or "image/jpeg"
+    data_url = f"data:{mime};base64,{b64}"
+    return {"url": data_url, "base64": b64, "mime_type": mime}
+
+# ─── Studio Dashboard Stats ───────────────────────────────────────────────────
+@api_router.get("/dashboard/stats")
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role")
+    
+    if role == "studio_owner":
+        studio = await db.studios.find_one({"owner_id": user_id}, {"_id": 0})
+        if not studio:
+            return {"has_studio": False}
+        
+        studio_id = studio["studio_id"]
+        total_bookings = await db.bookings.count_documents({"studio_id": studio_id})
+        pending = await db.bookings.count_documents({"studio_id": studio_id, "status": "pending"})
+        confirmed = await db.bookings.count_documents({"studio_id": studio_id, "status": "confirmed"})
+        revenue_docs = await db.payment_transactions.find({"payment_status": "paid"}).to_list(1000)
+        
+        # Filter by studio bookings
+        studio_bookings = await db.bookings.find({"studio_id": studio_id, "payment_status": "paid"}, {"booking_id": 1, "_id": 0}).to_list(1000)
+        studio_booking_ids = {b["booking_id"] for b in studio_bookings}
+        revenue = sum(t.get("amount", 0) for t in revenue_docs if t.get("booking_id") in studio_booking_ids)
+        
+        upcoming = await db.bookings.find(
+            {"studio_id": studio_id, "status": {"$in": ["pending", "confirmed"]}},
+            {"_id": 0}
+        ).sort("date", 1).limit(5).to_list(5)
+        
+        return {
+            "has_studio": True,
+            "studio": studio,
+            "total_bookings": total_bookings,
+            "pending_bookings": pending,
+            "confirmed_bookings": confirmed,
+            "revenue": revenue,
+            "upcoming_bookings": upcoming
+        }
+    else:
+        bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).to_list(200)
+        upcoming = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
+        return {
+            "total_bookings": len(bookings),
+            "upcoming_bookings": upcoming[:5],
+            "all_bookings": bookings
+        }
+
+# ─── Seed Data ────────────────────────────────────────────────────────────────
+async def seed_demo_data():
+    count = await db.studios.count_documents({})
+    if count > 0:
+        return
+    
+    studios_data = [
+        {
+            "studio_id": "studio_demo001",
+            "owner_id": "demo_owner_1",
+            "owner_name": "Max Müller",
+            "name": "Black Needle Studio",
+            "description": "Spezialisiert auf Fine-Line und Blackwork Tattoos im Herzen von Berlin. Unser Team aus erfahrenen Künstlern bringt deine Ideen mit präzisen Linien zum Leben.",
+            "address": "Mitte, Unter den Linden 15",
+            "city": "Berlin",
+            "country": "DE",
+            "phone": "+49 30 12345678",
+            "email": "info@blackneedle.de",
+            "website": "www.blackneedle.de",
+            "styles": ["Fine Line", "Blackwork", "Minimalist", "Geometric"],
+            "price_range": "premium",
+            "images": [
+                "https://images.unsplash.com/photo-1753259789341-808371092e19?w=800&q=80",
+                "https://images.unsplash.com/photo-1646582679733-df910660e97f?w=400&q=80"
+            ],
+            "avg_rating": 4.8,
+            "review_count": 124,
+            "is_verified": True,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "studio_id": "studio_demo002",
+            "owner_id": "demo_owner_2",
+            "owner_name": "Sophie Schneider",
+            "name": "Ink & Soul Hamburg",
+            "description": "Traditional und Neo-Traditional Tattoos mit Soul. Wir leben für die klassische Tattoo-Kunst und verleihen ihr modernen Touch.",
+            "address": "Altona, Große Bergstraße 44",
+            "city": "Hamburg",
+            "country": "DE",
+            "phone": "+49 40 98765432",
+            "email": "hello@inkandsoul.de",
+            "website": "www.inkandsoul.de",
+            "styles": ["Traditional", "Neo-Traditional", "Japanese", "Color"],
+            "price_range": "medium",
+            "images": [
+                "https://images.unsplash.com/photo-1753259669126-660f46975072?w=800&q=80",
+                "https://images.unsplash.com/photo-1547754145-ef9ff306e3f3?w=400&q=80"
+            ],
+            "avg_rating": 4.6,
+            "review_count": 89,
+            "is_verified": True,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "studio_id": "studio_demo003",
+            "owner_id": "demo_owner_3",
+            "owner_name": "Jonas Weber",
+            "name": "Realismus Atelier München",
+            "description": "Realistisch wie ein Foto auf der Haut. Unser Atelier ist bekannt für fotorealistische Portraits und hyperdetaillierte Tattoos.",
+            "address": "Schwabing, Leopoldstraße 88",
+            "city": "München",
+            "country": "DE",
+            "phone": "+49 89 55544433",
+            "email": "kontakt@realismusatelier.de",
+            "website": "www.realismusatelier.de",
+            "styles": ["Realism", "Portrait", "Black & Grey", "Watercolor"],
+            "price_range": "luxury",
+            "images": [
+                "https://static.prod-images.emergentagent.com/jobs/fb00eb6e-6246-4f6c-a06b-60ac2c5daad3/images/cf804c7f5972bdc1c3d43b1412ac2a5ede08617136c3cb6cc4242e80caad2940.png",
+                "https://images.unsplash.com/photo-1646582679733-df910660e97f?w=400&q=80"
+            ],
+            "avg_rating": 4.9,
+            "review_count": 67,
+            "is_verified": True,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "studio_id": "studio_demo004",
+            "owner_id": "demo_owner_4",
+            "owner_name": "Lena Fischer",
+            "name": "Ink Rebels Köln",
+            "description": "Alternative und Underground Tattoo-Kunst. Wir sind für alle da, die etwas Einzigartiges suchen – von Tribal bis Surrealism.",
+            "address": "Ehrenfeld, Venloer Straße 120",
+            "city": "Köln",
+            "country": "DE",
+            "phone": "+49 221 33344455",
+            "email": "rebels@inkrebels.de",
+            "website": "www.inkrebels.de",
+            "styles": ["Tribal", "Surrealism", "Abstract", "Illustrative"],
+            "price_range": "medium",
+            "images": [
+                "https://images.unsplash.com/photo-1547754145-ef9ff306e3f3?w=800&q=80"
+            ],
+            "avg_rating": 4.5,
+            "review_count": 45,
+            "is_verified": False,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    ]
+    
+    for studio in studios_data:
+        await db.studios.insert_one(studio)
+    
+    # Seed slots for demo studios
+    from datetime import date, timedelta as td
+    today = date.today()
+    slot_types = [
+        {"slot_type": "consultation", "duration_minutes": 30, "start_time": "10:00", "end_time": "10:30"},
+        {"slot_type": "tattoo", "duration_minutes": 120, "start_time": "11:00", "end_time": "13:00"},
+        {"slot_type": "tattoo", "duration_minutes": 180, "start_time": "14:00", "end_time": "17:00"},
+        {"slot_type": "consultation", "duration_minutes": 30, "start_time": "09:00", "end_time": "09:30"},
+    ]
+    
+    for studio in studios_data[:2]:
+        for day_offset in range(1, 15):
+            slot_date = (today + td(days=day_offset)).isoformat()
+            for slot_tmpl in slot_types[:2]:
+                slot = {
+                    "slot_id": f"slot_{uuid.uuid4().hex[:12]}",
+                    "studio_id": studio["studio_id"],
+                    "date": slot_date,
+                    **slot_tmpl,
+                    "is_booked": False,
+                    "notes": "",
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.slots.insert_one(slot)
+    
+    logger.info("Demo data seeded successfully")
+
+@app.on_event("startup")
+async def startup_event():
+    await db.users.create_index("email", unique=True)
+    await db.studios.create_index("studio_id", unique=True)
+    await db.bookings.create_index("booking_id", unique=True)
+    await db.slots.create_index("slot_id", unique=True)
+    
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@inkbook.com")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    existing = await db.users.find_one({"email": admin_email})
+    if not existing:
+        await db.users.insert_one({
+            "email": admin_email,
+            "password_hash": hash_password(admin_password),
+            "name": "InkBook Admin",
+            "role": "admin",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "auth_provider": "email"
+        })
+        logger.info(f"Admin user created: {admin_email}")
+    elif not verify_password(admin_password, existing.get("password_hash", "")):
+        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+    
+    await seed_demo_data()
+    logger.info("InkBook API started")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+app.include_router(api_router)
