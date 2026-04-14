@@ -44,6 +44,16 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April/Mai 2026 (Letzte Session – Iteration 10)
+- **GSAP Landingpage verifiziert** ✅ (100% Frontend-Tests bestanden)
+  - Hero-Sektion: 3 iPhone-Mockups mit echten App-Screenshots (search.jpg, booking.jpg, chat.jpg)
+  - GSAP ScrollTrigger: Title-Char-Animation, Barrel-Roll-Phones, Text-Reveal-Animationen
+  - Wetter-Übergänge (Dunkel→Hell→Dunkel) zwischen allen Feature-Sektionen
+  - Feature-Sektionen: Search (weiß), Booking (dunkel), Chat (weiß) mit je einem Phone-Mockup
+  - Stats-Sektion: 500+ Studios, 10k+ Buchungen, 4.9★ Bewertung
+  - Doppelter /search-Route-Eintrag in App.js bereinigt
+  - Keine JS-Fehler, keine GSAP-Memory-Leaks (ctx.revert() korrekt implementiert)
+
 ### Mai 2026 (Diese Session – Iteration 7 & 8)
 - **Chat-Fix verifiziert** ✅
   - Enter-Taste sendet Nachricht (stale-closure-Fix via useRef funktioniert korrekt)
