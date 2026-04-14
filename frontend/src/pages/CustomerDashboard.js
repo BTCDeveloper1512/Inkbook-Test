@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, ChevronRight, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -16,6 +16,118 @@ const statusConfig = {
   cancelled: { label: "Storniert",     cls: "bg-red-50 text-red-700 border-red-200" },
   completed: { label: "Abgeschlossen", cls: "bg-zinc-100 text-zinc-500 border-zinc-200" }
 };
+
+function ReviewModal({ booking, onClose, onSubmitted }) {
+  const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [comment, setComment] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    if (rating === 0) { setError("Bitte wähle eine Bewertung aus."); return; }
+    setLoading(true);
+    setError("");
+    try {
+      await axios.post(`${API}/studios/${booking.studio_id}/reviews`, {
+        studio_id: booking.studio_id,
+        rating,
+        comment: comment.trim(),
+        booking_id: booking.booking_id
+      }, { withCredentials: true });
+      onSubmitted();
+      onClose();
+    } catch (e) {
+      setError(e.response?.data?.detail || "Bewertung konnte nicht gespeichert werden.");
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4"
+      data-testid="review-modal"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-zinc-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-playfair font-semibold text-lg text-zinc-900">Bewertung abgeben</h3>
+            <p className="text-xs text-zinc-400 font-inter mt-0.5">{booking.studio_name}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors" data-testid="review-modal-close">
+            <X size={16} strokeWidth={1.5} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Context */}
+          <div className="bg-zinc-50 rounded-xl px-4 py-3 text-sm font-inter text-zinc-500">
+            Termin am <strong className="text-zinc-800">{booking.date}</strong> um <strong className="text-zinc-800">{booking.start_time}</strong>
+          </div>
+
+          {/* Stars */}
+          <div>
+            <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3">Deine Bewertung</p>
+            <div className="flex gap-2" data-testid="star-rating">
+              {[1, 2, 3, 4, 5].map(star => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHovered(star)}
+                  onMouseLeave={() => setHovered(0)}
+                  className="p-1 transition-transform hover:scale-110"
+                  data-testid={`star-${star}`}
+                >
+                  <Star
+                    size={32}
+                    strokeWidth={1.5}
+                    className={`transition-colors ${star <= (hovered || rating) ? "fill-amber-400 text-amber-400" : "text-zinc-200"}`}
+                  />
+                </button>
+              ))}
+            </div>
+            {rating > 0 && (
+              <p className="text-xs text-zinc-500 font-inter mt-1.5">
+                {["", "Sehr schlecht", "Nicht gut", "Ok", "Gut", "Ausgezeichnet"][rating]}
+              </p>
+            )}
+          </div>
+
+          {/* Comment */}
+          <div>
+            <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">Kommentar (optional)</p>
+            <textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Erzähl anderen von deiner Erfahrung..."
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all resize-none"
+              data-testid="review-comment"
+            />
+            <p className="text-xs text-zinc-400 font-inter text-right mt-1">{comment.length}/500</p>
+          </div>
+
+          {error && <p className="text-xs text-red-600 font-inter bg-red-50 px-3 py-2 rounded-xl">{error}</p>}
+
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={handleSubmit}
+            disabled={loading || rating === 0}
+            className="btn-primary w-full justify-center disabled:opacity-40"
+            data-testid="submit-review-btn"
+          >
+            {loading ? "Wird gespeichert..." : "Bewertung senden"}
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function CustomerDashboard() {
   const { t } = useTranslation();
@@ -30,6 +142,8 @@ export default function CustomerDashboard() {
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState("");
+  const [reviewBooking, setReviewBooking] = useState(null);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -317,6 +431,21 @@ export default function CustomerDashboard() {
                             {cancelLoading === booking.booking_id ? "..." : "Absagen"}
                           </button>
                         )}
+                        {/* Review button for past confirmed bookings */}
+                        {booking.status === "confirmed" && new Date(booking.date) < new Date() && !reviewedBookingIds.has(booking.booking_id) && (
+                          <button
+                            onClick={() => setReviewBooking(booking)}
+                            className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-xs font-inter text-amber-700 rounded-full hover:bg-amber-100 transition-all flex items-center gap-1"
+                            data-testid={`review-btn-${booking.booking_id}`}
+                          >
+                            <Star size={11} strokeWidth={2} className="fill-amber-400 text-amber-400" /> Bewerten
+                          </button>
+                        )}
+                        {reviewedBookingIds.has(booking.booking_id) && (
+                          <span className="text-xs text-zinc-400 font-inter flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-500" strokeWidth={2} /> Bewertet
+                          </span>
+                        )}
                       </div>
                     </motion.div>
                   );
@@ -327,8 +456,21 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
-      {/* Reschedule Modal */}
+      {/* Review Modal */}
       <AnimatePresence>
+        {reviewBooking && (
+          <ReviewModal
+            booking={reviewBooking}
+            onClose={() => setReviewBooking(null)}
+            onSubmitted={() => {
+              setReviewedBookingIds(prev => new Set([...prev, reviewBooking.booking_id]));
+              fetchStats();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Reschedule Modal */}      <AnimatePresence>
         {rescheduleBooking && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4"

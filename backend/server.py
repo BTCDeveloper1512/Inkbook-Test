@@ -232,6 +232,7 @@ class ReviewCreate(BaseModel):
     studio_id: str
     rating: int  # 1-5
     comment: str = ""
+    booking_id: Optional[str] = None
 
 class MessageCreate(BaseModel):
     recipient_id: str
@@ -489,15 +490,24 @@ async def create_review(studio_id: str, data: ReviewCreate, current_user: dict =
     studio = await db.studios.find_one({"studio_id": studio_id})
     if not studio:
         raise HTTPException(status_code=404, detail="Studio not found")
-    
+
     user_id = current_user.get("id") or current_user.get("user_id")
-    existing = await db.reviews.find_one({"studio_id": studio_id, "user_id": user_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="Already reviewed this studio")
-    
+
+    # Check if booking_id is already reviewed
+    booking_id = getattr(data, "booking_id", None)
+    if booking_id:
+        existing = await db.reviews.find_one({"booking_id": booking_id})
+        if existing:
+            raise HTTPException(status_code=400, detail="Already reviewed this booking")
+    else:
+        existing = await db.reviews.find_one({"studio_id": studio_id, "user_id": user_id})
+        if existing:
+            raise HTTPException(status_code=400, detail="Already reviewed this studio")
+
     review_doc = {
         "review_id": f"rev_{uuid.uuid4().hex[:12]}",
         "studio_id": studio_id,
+        "booking_id": booking_id,
         "user_id": user_id,
         "user_name": current_user.get("name", "Anonymous"),
         "rating": data.rating,
@@ -505,11 +515,11 @@ async def create_review(studio_id: str, data: ReviewCreate, current_user: dict =
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.reviews.insert_one(review_doc)
-    
+
     all_reviews = await db.reviews.find({"studio_id": studio_id}).to_list(1000)
     avg = sum(r["rating"] for r in all_reviews) / len(all_reviews)
     await db.studios.update_one({"studio_id": studio_id}, {"$set": {"avg_rating": round(avg, 1), "review_count": len(all_reviews)}})
-    
+
     review_doc.pop("_id", None)
     return review_doc
 
@@ -685,6 +695,12 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     return {"message": "Booking updated"}
 
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
+@api_router.post("/messages/unread-count")
+async def get_unread_count_post(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    count = await db.messages.count_documents({"recipient_id": user_id, "read": False})
+    return {"count": count}
+
 @api_router.get("/messages/unread-count")
 async def get_unread_count(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
@@ -699,6 +715,28 @@ async def mark_messages_read(other_user_id: str, current_user: dict = Depends(ge
         {"$set": {"read": True}}
     )
     return {"message": "Marked as read"}
+
+@api_router.post("/messages/{recipient_id}/typing")
+async def set_typing(recipient_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    await db.typing_states.update_one(
+        {"sender_id": user_id, "recipient_id": recipient_id},
+        {"$set": {"sender_id": user_id, "recipient_id": recipient_id, "ts": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"ok": True}
+
+@api_router.get("/messages/{other_user_id}/typing-status")
+async def get_typing_status(other_user_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    state = await db.typing_states.find_one(
+        {"sender_id": other_user_id, "recipient_id": user_id}, {"_id": 0}
+    )
+    if not state:
+        return {"is_typing": False}
+    ts = datetime.fromisoformat(state["ts"].replace("Z", "+00:00"))
+    age = (datetime.now(timezone.utc) - ts).total_seconds()
+    return {"is_typing": age < 4}
 
 @api_router.get("/messages")
 async def get_conversations(current_user: dict = Depends(get_current_user)):

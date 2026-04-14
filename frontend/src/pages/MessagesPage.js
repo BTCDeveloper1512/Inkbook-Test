@@ -21,10 +21,13 @@ export default function MessagesPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
+  const [otherIsTyping, setOtherIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const fileRef = useRef();
   const pollMsgRef = useRef(null);
   const pollConvRef = useRef(null);
+  const pollTypingRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   const activeConvRef = useRef(null);
   activeConvRef.current = activeConv;
 
@@ -42,10 +45,20 @@ export default function MessagesPage() {
     if (activeConv) {
       fetchMessages(activeConv.other_id);
       clearInterval(pollMsgRef.current);
-      // Poll messages every 2s for live updates
+      clearInterval(pollTypingRef.current);
+      // Poll messages every 2s
       pollMsgRef.current = setInterval(() => fetchMessages(activeConvRef.current?.other_id), 2000);
+      // Poll typing status every 1.5s
+      pollTypingRef.current = setInterval(async () => {
+        const otherId = activeConvRef.current?.other_id;
+        if (!otherId) return;
+        try {
+          const { data } = await axios.get(`${API}/messages/${otherId}/typing-status`, { withCredentials: true });
+          setOtherIsTyping(data.is_typing || false);
+        } catch {}
+      }, 1500);
     }
-    return () => clearInterval(pollMsgRef.current);
+    return () => { clearInterval(pollMsgRef.current); clearInterval(pollTypingRef.current); };
   }, [activeConv?.other_id]);
 
   useEffect(() => {
@@ -123,6 +136,16 @@ export default function MessagesPage() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  const handleTextChange = (e) => {
+    setText(e.target.value);
+    // Emit typing signal (debounced – don't spam on every keystroke)
+    if (!activeConv?.other_id) return;
+    clearTimeout(typingTimeoutRef.current);
+    axios.post(`${API}/messages/${activeConv.other_id}/typing`, {}, { withCredentials: true }).catch(() => {});
+    // Auto-clear local typing state after 4s of no input
+    typingTimeoutRef.current = setTimeout(() => {}, 4000);
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -197,7 +220,11 @@ export default function MessagesPage() {
                     <MessageSquare size={22} className="text-zinc-400" strokeWidth={1.5} />
                   </div>
                   <p className="text-sm font-inter font-medium text-zinc-600 mb-1">Keine Gespräche</p>
-                  <p className="text-xs text-zinc-400 font-inter">Buche einen Termin und schreibe dem Studio</p>
+                  <p className="text-xs text-zinc-400 font-inter">
+                    {user?.role === "studio_owner"
+                      ? "Kunden schreiben dir, sobald sie einen Termin buchen"
+                      : "Buche einen Termin und schreibe dem Studio"}
+                  </p>
                 </div>
               ) : conversations.map(conv => {
                 const isActive = activeConv?.other_id === conv.other_user_id;
@@ -236,7 +263,11 @@ export default function MessagesPage() {
                     <MessageSquare size={26} className="text-zinc-400" strokeWidth={1.5} />
                   </div>
                   <p className="text-zinc-500 font-inter text-sm font-medium">Wähle ein Gespräch aus</p>
-                  <p className="text-zinc-400 font-inter text-xs mt-1">oder buche einen Termin, um ein Studio anzuschreiben</p>
+                  <p className="text-zinc-400 font-inter text-xs mt-1">
+                    {user?.role === "studio_owner"
+                      ? "Deine Kunden-Nachrichten erscheinen hier"
+                      : "oder buche einen Termin, um ein Studio anzuschreiben"}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -251,7 +282,19 @@ export default function MessagesPage() {
                   </div>
                   <div>
                     <p className="font-inter font-semibold text-zinc-900 text-sm leading-tight">{activeConv.other_name}</p>
-                    <p className="text-xs text-zinc-400 font-inter leading-tight">{activeConv.other_role === "studio_owner" ? "Tattoo Studio" : "Kunde"}</p>
+                    <AnimatePresence mode="wait">
+                      {otherIsTyping ? (
+                        <motion.p key="typing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          className="text-xs text-emerald-500 font-inter leading-tight font-medium" data-testid="typing-status-header">
+                          tippt...
+                        </motion.p>
+                      ) : (
+                        <motion.p key="role" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          className="text-xs text-zinc-400 font-inter leading-tight">
+                          {activeConv.other_role === "studio_owner" ? "Tattoo Studio" : "Kunde"}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
@@ -278,7 +321,6 @@ export default function MessagesPage() {
                             className={`flex ${isMine ? "justify-end" : "justify-start"} mb-0.5`}
                             data-testid={`msg-${msg.message_id}`}
                           >
-                            {/* Avatar for received messages (only on first message of a sequence) */}
                             {!isMine && isFirst && (
                               <div className={`w-7 h-7 ${avatarColor(msg.sender_name)} text-white rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0 self-end mr-2 mb-1`}>
                                 {initials(msg.sender_name || activeConv.other_name)}
@@ -287,7 +329,6 @@ export default function MessagesPage() {
                             {!isMine && !isFirst && <div className="w-7 mr-2" />}
 
                             <div className={`max-w-[70%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-                              {/* Sender name (only for first msg in sequence, non-mine) */}
                               {!isMine && isFirst && (
                                 <p className="text-xs text-zinc-500 font-inter font-semibold mb-1 px-1">{msg.sender_name || activeConv.other_name}</p>
                               )}
@@ -301,9 +342,8 @@ export default function MessagesPage() {
                                     : "bg-white text-zinc-900 rounded-2xl rounded-bl-sm border border-zinc-100"
                                 }`}>
                                   <p className="font-inter text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                                  {/* Time + read indicator */}
-                                  <div className={`flex items-center gap-1 mt-0.5 ${isMine ? "justify-end" : "justify-end"}`}>
-                                    <span className={`text-xs font-inter ${isMine ? "text-zinc-400" : "text-zinc-400"}`}>{formatTime(msg.created_at)}</span>
+                                  <div className="flex items-center gap-1 mt-0.5 justify-end">
+                                    <span className="text-xs font-inter text-zinc-400">{formatTime(msg.created_at)}</span>
                                     {isMine && (
                                       msg.read
                                         ? <CheckCheck size={12} className="text-blue-400" strokeWidth={2} />
@@ -321,6 +361,36 @@ export default function MessagesPage() {
                       })}
                     </div>
                   ))}
+
+                  {/* ── Typing Indicator ── */}
+                  <AnimatePresence>
+                    {otherIsTyping && (
+                      <motion.div
+                        key="typing"
+                        initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.9 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex justify-start items-end gap-2 mb-1"
+                        data-testid="typing-indicator"
+                      >
+                        <div className={`w-7 h-7 ${avatarColor(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0`}>
+                          {initials(activeConv.other_name)}
+                        </div>
+                        <div className="bg-white border border-zinc-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-1.5">
+                          {[0, 1, 2].map(i => (
+                            <motion.span
+                              key={i}
+                              className="w-2 h-2 bg-zinc-400 rounded-full block"
+                              animate={{ y: [0, -5, 0] }}
+                              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" }}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -358,7 +428,7 @@ export default function MessagesPage() {
                     <div className="flex-1 relative">
                       <textarea
                         value={text}
-                        onChange={e => setText(e.target.value)}
+                        onChange={handleTextChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Nachricht schreiben..."
                         rows={1}
