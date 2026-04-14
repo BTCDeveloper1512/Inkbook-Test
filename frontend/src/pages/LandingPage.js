@@ -1,257 +1,443 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { useAuth } from "../context/AuthContext";
+import React, { useRef } from "react";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useSpring,
+  AnimatePresence,
+} from "framer-motion";
+import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
-import { Search, Star, MapPin, ChevronRight, CheckCircle, Sparkles, Calendar } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 
-const FEATURED_STUDIOS = [
-  {
-    studio_id: "studio_demo001",
-    name: "Black Needle Studio",
-    city: "Berlin",
-    avg_rating: 4.8,
-    review_count: 124,
-    price_range: "premium",
-    styles: ["Fine Line", "Blackwork", "Geometric"],
-    images: ["https://images.unsplash.com/photo-1753259789341-808371092e19?w=600&q=80"],
-    is_verified: true,
-    description: "Spezialisiert auf Fine-Line und Blackwork Tattoos im Herzen von Berlin."
-  },
-  {
-    studio_id: "studio_demo002",
-    name: "Ink & Soul Hamburg",
-    city: "Hamburg",
-    avg_rating: 4.6,
-    review_count: 89,
-    price_range: "medium",
-    styles: ["Traditional", "Japanese", "Color"],
-    images: ["https://images.unsplash.com/photo-1753259669126-660f46975072?w=600&q=80"],
-    is_verified: true,
-    description: "Traditional und Neo-Traditional Tattoos mit Soul."
-  },
-  {
-    studio_id: "studio_demo003",
-    name: "Realismus Atelier München",
-    city: "München",
-    avg_rating: 4.9,
-    review_count: 67,
-    price_range: "luxury",
-    styles: ["Realism", "Portrait", "Black & Grey"],
-    images: ["https://static.prod-images.emergentagent.com/jobs/fb00eb6e-6246-4f6c-a06b-60ac2c5daad3/images/cf804c7f5972bdc1c3d43b1412ac2a5ede08617136c3cb6cc4242e80caad2940.png"],
-    is_verified: true,
-    description: "Fotorealistische Portraits und hyperdetaillierte Tattoos."
-  }
-];
-
-const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
-
-export default function LandingPage() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [searchInput, setSearchInput] = useState("");
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    navigate(`/search${searchInput ? `?search=${encodeURIComponent(searchInput)}` : ""}`);
-  };
+/* ─────────────────────────────────────────────
+   Abstract orbital object – pure SVG / CSS
+   Receives a framer-motion MotionValue (0→1)
+───────────────────────────────────────────── */
+function OrbitalCore({ progress }) {
+  const rotate      = useTransform(progress, [0, 1], [0, 210]);
+  const innerRotate = useTransform(progress, [0, 1], [0, -140]);
+  const outerRotate = useTransform(progress, [0, 1], [0,  290]);
+  const scl         = useTransform(progress, [0, 0.3, 0.7, 1], [0.82, 1.06, 1.0, 0.65]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <motion.div style={{ rotate, scale: scl }} className="pointer-events-none">
+      <svg width="580" height="580" viewBox="0 0 580 580" fill="none">
+        <defs>
+          <radialGradient id="coreRg" cx="36%" cy="30%" r="65%">
+            <stop offset="0%"   stopColor="#282828"/>
+            <stop offset="100%" stopColor="#040404"/>
+          </radialGradient>
+          <radialGradient id="coreSheen" cx="28%" cy="22%" r="60%">
+            <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.13"/>
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0"/>
+          </radialGradient>
+          <filter id="coreShadow" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="18" stdDeviation="28" floodColor="rgba(0,0,0,0.16)"/>
+          </filter>
+          <filter id="nodeShadow">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="rgba(0,0,0,0.18)"/>
+          </filter>
+        </defs>
+
+        {/* ── very faint technical grid ── */}
+        <g opacity="0.028" stroke="#000" strokeWidth="0.5">
+          {Array.from({ length: 12 }, (_, i) => (
+            <g key={i}>
+              <line x1={0}   y1={i * 52} x2={580} y2={i * 52}/>
+              <line x1={i * 52} y1={0}   x2={i * 52} y2={580}/>
+            </g>
+          ))}
+        </g>
+
+        {/* ── Outer dashed measurement ring ── */}
+        <motion.g style={{ rotate: outerRotate }} transform-origin="290 290"
+          className="[transform-box:fill-box] [transform-origin:center]">
+          <circle cx="290" cy="290" r="248"
+            stroke="#d6d6d6" strokeWidth="0.7" strokeDasharray="3.5 9"/>
+          {/* tick marks at every 30° */}
+          {Array.from({ length: 12 }, (_, i) => {
+            const a = (i * 30 - 90) * (Math.PI / 180);
+            return (
+              <line key={i}
+                x1={290 + 242 * Math.cos(a)} y1={290 + 242 * Math.sin(a)}
+                x2={290 + 254 * Math.cos(a)} y2={290 + 254 * Math.sin(a)}
+                stroke="#bbb" strokeWidth="1" strokeLinecap="round"/>
+            );
+          })}
+          {/* 4 orbital nodes */}
+          {[0, 90, 180, 270].map((deg, i) => {
+            const a = (deg - 90) * (Math.PI / 180);
+            const x = 290 + 248 * Math.cos(a);
+            const y = 290 + 248 * Math.sin(a);
+            const labels = ["01", "02", "03", "04"];
+            return (
+              <g key={i} filter="url(#nodeShadow)">
+                <circle cx={x} cy={y} r="7"   fill="#111"/>
+                <circle cx={x} cy={y} r="3.5" fill="#555"/>
+                <text x={290 + 265 * Math.cos(a)} y={290 + 265 * Math.sin(a)}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontFamily="-apple-system,'Inter',sans-serif"
+                  fontSize="7.5" fill="#aaa" letterSpacing="0.08em">
+                  {labels[i]}
+                </text>
+              </g>
+            );
+          })}
+        </motion.g>
+
+        {/* ── Middle ring + 8 radial spokes ── */}
+        <motion.g style={{ rotate: innerRotate }}
+          className="[transform-box:fill-box] [transform-origin:center]">
+          <circle cx="290" cy="290" r="172"
+            stroke="#c8c8c8" strokeWidth="0.6" strokeDasharray="2 6"/>
+          {/* Radial lines from inner-ring edge to middle-ring edge */}
+          {Array.from({ length: 8 }, (_, i) => {
+            const a = (i * 45 - 90) * (Math.PI / 180);
+            return (
+              <line key={i}
+                x1={290 + 112 * Math.cos(a)} y1={290 + 112 * Math.sin(a)}
+                x2={290 + 168 * Math.cos(a)} y2={290 + 168 * Math.sin(a)}
+                stroke="#ccc" strokeWidth="0.55" strokeLinecap="round"/>
+            );
+          })}
+        </motion.g>
+
+        {/* ── Inner ring ── */}
+        <circle cx="290" cy="290" r="108"
+          stroke="#999" strokeWidth="0.9" strokeDasharray="1 4"/>
+
+        {/* ── Quadrant accent arcs (bold, clockwise alternating) ── */}
+        {[0, 90, 180, 270].map((startDeg, i) => {
+          const s = (startDeg - 90)       * (Math.PI / 180);
+          const e = (startDeg - 90 + 40)  * (Math.PI / 180);
+          const r = 108;
+          return (
+            <path key={i}
+              d={`M${290 + r * Math.cos(s)},${290 + r * Math.sin(s)}
+                  A${r},${r} 0 0,1 ${290 + r * Math.cos(e)},${290 + r * Math.sin(e)}`}
+              stroke="#111" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+          );
+        })}
+
+        {/* ── Core rectangle (the "chip") ── */}
+        <rect x="255" y="255" width="70" height="70" rx="9"
+          fill="url(#coreRg)" filter="url(#coreShadow)"/>
+        <rect x="255" y="255" width="70" height="70" rx="9"
+          fill="url(#coreSheen)"/>
+        {/* inner grid lines */}
+        {[1, 2, 3].map(i => (
+          <line key={`h${i}`}
+            x1="258" y1={255 + i * 14} x2="322" y2={255 + i * 14}
+            stroke="rgba(255,255,255,0.06)" strokeWidth="0.6"/>
+        ))}
+        {[1, 2, 3].map(i => (
+          <line key={`v${i}`}
+            x1={255 + i * 14} y1="258" x2={255 + i * 14} y2="322"
+            stroke="rgba(255,255,255,0.06)" strokeWidth="0.6"/>
+        ))}
+        {/* sheen strip */}
+        <rect x="258" y="258" width="30" height="7" rx="2"
+          fill="rgba(255,255,255,0.11)"/>
+        {/* center dot */}
+        <circle cx="290" cy="290" r="4.5" fill="#4a4a4a"/>
+        <circle cx="290" cy="290" r="1.8" fill="#888"/>
+
+        {/* ── Corner extension lines ── */}
+        {[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([dx, dy], i) => (
+          <line key={i}
+            x1={290 + dx * 35} y1={290 + dy * 35}
+            x2={290 + dx * 92} y2={290 + dy * 92}
+            stroke="#ddd" strokeWidth="0.5" strokeLinecap="round"/>
+        ))}
+      </svg>
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Feature pill (fades in on scroll)
+───────────────────────────────────────────── */
+function Pill({ opacity, y, label, sub }) {
+  return (
+    <motion.div style={{ opacity, y }} className="text-center">
+      <p className="font-playfair text-base font-semibold text-zinc-900 leading-tight">{label}</p>
+      <p className="text-[11px] text-zinc-400 mt-0.5 tracking-wide"
+        style={{ fontFamily: "'Inter',sans-serif" }}>{sub}</p>
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Landing Page
+───────────────────────────────────────────── */
+export default function LandingPage() {
+  const containerRef = useRef(null);
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  });
+
+  /* smooth spring so every transform feels silky */
+  const s = useSpring(scrollYProgress, { stiffness: 55, damping: 22, restDelta: 0.0001 });
+
+  /* ── object ── */
+  const objY  = useTransform(s, [0, 0.5, 0.88], [0, -24, -220]);
+  const objOp = useTransform(s, [0.72, 0.9],     [1, 0]);
+
+  /* ── phase 1: tagline ── */
+  const p1Op = useTransform(s, [0, 0.09, 0.2],  [0, 1, 0]);
+  const p1Y  = useTransform(s, [0, 0.09, 0.2],  [18, 0, -18]);
+
+  /* ── phase 2: main wordmark ── */
+  const p2Op = useTransform(s, [0.13, 0.3, 0.56], [0, 1, 0]);
+  const p2Y  = useTransform(s, [0.13, 0.3, 0.56], [30, 0, -30]);
+  const p2Sc = useTransform(s, [0.13, 0.3],       [0.94, 1]);
+
+  /* ── phase 3: three feature pills ── */
+  const f1Op = useTransform(s, [0.43, 0.57], [0, 1]);
+  const f1Y  = useTransform(s, [0.43, 0.57], [22, 0]);
+  const f2Op = useTransform(s, [0.49, 0.63], [0, 1]);
+  const f2Y  = useTransform(s, [0.49, 0.63], [22, 0]);
+  const f3Op = useTransform(s, [0.55, 0.69], [0, 1]);
+  const f3Y  = useTransform(s, [0.55, 0.69], [22, 0]);
+
+  /* ── phase 4: CTA ── */
+  const ctaOp = useTransform(s, [0.72, 0.88], [0, 1]);
+  const ctaY  = useTransform(s, [0.72, 0.88], [38, 0]);
+
+  /* ── scroll arrow ── */
+  const arrOp = useTransform(s, [0, 0.06], [1, 0]);
+
+  return (
+    <div className="bg-white">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-black text-white min-h-[90vh] flex items-center">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1753259789341-808371092e19?w=1400&q=80"
-            alt="Tattoo Studio"
-            className="w-full h-full object-cover opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
-        </div>
+      {/* ════════════════════════════════════════
+          CINEMATIC SCROLL ZONE  (350vh tall)
+          Sticky inner panel stays at top
+          ════════════════════════════════════════ */}
+      <div ref={containerRef} style={{ height: "350vh" }}>
+        <div className="sticky top-0 h-screen w-full bg-white overflow-hidden flex items-center justify-center">
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 py-24">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 border border-white/20 text-xs font-outfit tracking-widest uppercase mb-8 text-gray-300">
-              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-              Premium Tattoo-Buchungsplattform
-            </div>
+          {/* Abstract orbital object */}
+          <motion.div
+            style={{ y: objY, opacity: objOp }}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <OrbitalCore progress={s} />
+          </motion.div>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-playfair font-bold leading-none mb-6">
-              {t("hero.title")}
-              <span className="block text-gray-400">{t("hero.titleSuffix")}</span>
-            </h1>
+          {/* Phase 1 – eyebrow tagline */}
+          <motion.p
+            style={{ opacity: p1Op, y: p1Y }}
+            className="absolute text-center text-[11px] tracking-[0.3em] uppercase text-zinc-400 pointer-events-none"
+            style={{ fontFamily: "'Inter',sans-serif", letterSpacing: "0.3em" }}
+          >
+            Premium Tattoo Buchungsplattform
+          </motion.p>
 
-            <p className="text-lg text-gray-300 font-outfit mb-10 max-w-lg">
-              {t("hero.subtitle")} – von Fine Line bis Realism, von Berlin bis München.
-            </p>
-
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex gap-2 mb-8">
-              <div className="flex-1 relative">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
-                  placeholder={t("hero.searchPlaceholder")}
-                  className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-white font-outfit backdrop-blur-sm"
-                  data-testid="hero-search-input"
-                />
-              </div>
-              <button
-                type="submit"
-                className="px-8 py-4 bg-white text-black font-outfit font-semibold hover:bg-gray-100 transition-colors"
-                data-testid="hero-search-btn"
-              >
-                {t("hero.searchBtn")}
-              </button>
-            </form>
-
-            {/* Stats */}
-            <div className="flex gap-8">
-              {[
-                { value: "500+", label: t("hero.stats.studios") },
-                { value: "12k+", label: t("hero.stats.bookings") },
-                { value: "300+", label: t("hero.stats.artists") }
-              ].map((stat, i) => (
-                <div key={i} data-testid={`stat-${i}`}>
-                  <p className="text-2xl font-playfair font-bold">{stat.value}</p>
-                  <p className="text-xs text-gray-400 font-outfit uppercase tracking-widest">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-3">So funktioniert es</p>
-            <h2 className="text-4xl font-playfair font-bold">In 3 Schritten zum Termin</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { step: "01", title: "Studio finden", desc: "Suche nach Stil, Stadt und Verfügbarkeit. Vergleiche Profile und Bewertungen.", icon: <Search size={24} /> },
-              { step: "02", title: "Termin buchen", desc: "Wähle direkt einen freien Slot und buche mit Anzahlung in Sekunden.", icon: <Calendar size={24} /> },
-              { step: "03", title: "Tattoo genießen", desc: "Erscheine zum Termin – dein Künstler wartet bereits auf dich.", icon: <CheckCircle size={24} /> }
-            ].map((step, i) => (
-              <div key={i} className="relative" data-testid={`step-${i}`}>
-                <div className="text-5xl font-playfair font-bold text-gray-100 mb-4">{step.step}</div>
-                <div className="w-10 h-10 border border-gray-200 flex items-center justify-center text-gray-600 mb-4">{step.icon}</div>
-                <h3 className="font-playfair font-bold text-lg mb-2">{step.title}</h3>
-                <p className="text-gray-500 font-outfit text-sm leading-relaxed">{step.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Studios */}
-      <section className="py-20 px-6 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-2">Top Studios</p>
-              <h2 className="text-4xl font-playfair font-bold">Empfohlene Studios</h2>
-            </div>
-            <Link to="/search" className="flex items-center gap-2 text-sm font-outfit hover:gap-3 transition-all" data-testid="view-all-studios-btn">
-              {t("common.viewAll")} <ChevronRight size={16} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {FEATURED_STUDIOS.map(studio => (
-              <div
-                key={studio.studio_id}
-                className="group bg-white border border-gray-200 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-pointer"
-                onClick={() => navigate(`/studios/${studio.studio_id}`)}
-                data-testid={`featured-studio-${studio.studio_id}`}
-              >
-                <div className="relative h-52 overflow-hidden">
-                  <img src={studio.images[0]} alt={studio.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  {studio.is_verified && (
-                    <div className="absolute top-3 right-3 bg-white/90 px-2 py-1 flex items-center gap-1">
-                      <CheckCircle size={10} className="text-black" />
-                      <span className="text-xs font-outfit font-semibold">Verifiziert</span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-playfair font-bold text-lg">{studio.name}</h3>
-                    <span className="text-sm font-bold text-gray-500 font-outfit">{priceLabels[studio.price_range]}</span>
-                  </div>
-                  <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 font-outfit">
-                    <span className="flex items-center gap-1"><MapPin size={12} />{studio.city}</span>
-                    <span className="flex items-center gap-1"><Star size={12} className="fill-amber-400 text-amber-400" />{studio.avg_rating}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 font-outfit line-clamp-2 mb-3">{studio.description}</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {studio.styles.map(s => <span key={s} className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 font-outfit">{s}</span>)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* AI Feature Banner */}
-      <section className="py-20 px-6 bg-black text-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 border border-white/20 text-xs font-outfit tracking-widest uppercase mb-6 text-gray-300">
-                <Sparkles size={12} /> KI-Feature
-              </div>
-              <h2 className="text-4xl font-playfair font-bold mb-4">KI-Stilberater</h2>
-              <p className="text-gray-300 font-outfit leading-relaxed mb-8">
-                Nicht sicher, welcher Tattoo-Stil zu dir passt? Unser KI-Stilberater analysiert deine Referenzbilder und gibt dir professionelle Empfehlungen.
-              </p>
-              <Link
-                to="/ai-advisor"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black font-outfit font-medium hover:bg-gray-100 transition-colors"
-                data-testid="ai-advisor-cta-btn"
-              >
-                Jetzt ausprobieren <ChevronRight size={16} />
-              </Link>
-            </div>
-            <div className="relative">
-              <img
-                src="https://static.prod-images.emergentagent.com/jobs/fb00eb6e-6246-4f6c-a06b-60ac2c5daad3/images/e1125944dcae8af3e2d20f5bca294493ae515f1d80eae1e9fbcd05482c067a20.png"
-                alt="AI Tattoo Advisor"
-                className="w-full h-72 object-cover opacity-60"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* For Studios Banner */}
-      {!user && (
-        <section className="py-16 px-6 bg-white border-t border-gray-100">
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-3">Für Studios</p>
-            <h2 className="text-3xl font-playfair font-bold mb-4">Bist du Tattoo-Artist oder Studio-Inhaber?</h2>
-            <p className="text-gray-500 font-outfit mb-8">Verwalte dein Studio, Termine und Kunden – alles an einem Ort.</p>
-            <Link
-              to="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-black text-white font-outfit font-medium hover:bg-neutral-800 transition-colors"
-              data-testid="studio-register-cta-btn"
+          {/* Phase 2 – main wordmark + subtitle */}
+          <motion.div
+            style={{ opacity: p2Op, y: p2Y, scale: p2Sc }}
+            className="absolute text-center pointer-events-none select-none"
+          >
+            <h1
+              className="font-playfair font-bold text-zinc-950 leading-none tracking-tight"
+              style={{ fontSize: "clamp(72px, 12vw, 116px)" }}
             >
-              Studio registrieren <ChevronRight size={16} />
-            </Link>
-          </div>
-        </section>
-      )}
+              InkBook
+            </h1>
+            <p
+              className="text-[11px] text-zinc-400 mt-5 tracking-[0.22em] uppercase"
+              style={{ fontFamily: "'Inter',sans-serif" }}
+            >
+              Engineered for Tattoo Artists
+            </p>
+          </motion.div>
 
-      <Footer />
+          {/* Phase 3 – feature pills */}
+          <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-14 sm:gap-20 pointer-events-none">
+            <Pill opacity={f1Op} y={f1Y} label="Kalender"  sub="Smarte Terminplanung" />
+            <Pill opacity={f2Op} y={f2Y} label="Studios"   sub="Kuratierte Auswahl"   />
+            <Pill opacity={f3Op} y={f3Y} label="Chat"      sub="Direkte Kommunikation" />
+          </div>
+
+          {/* Phase 4 – CTA */}
+          <motion.div
+            style={{ opacity: ctaOp, y: ctaY }}
+            className="absolute text-center"
+          >
+            <p
+              className="text-[11px] text-zinc-400 tracking-[0.22em] uppercase mb-7"
+              style={{ fontFamily: "'Inter',sans-serif" }}
+            >
+              Bereit loszulegen?
+            </p>
+            <Link
+              to="/search"
+              className="inline-flex items-center gap-3 px-9 py-3.5 bg-zinc-950 text-white rounded-full
+                         text-[13px] font-medium hover:bg-zinc-700 transition-all duration-300
+                         hover:gap-5 group"
+              style={{ fontFamily: "'Inter',sans-serif" }}
+            >
+              Studios entdecken
+              <ArrowRight size={14} strokeWidth={1.5}
+                className="transition-transform duration-300 group-hover:translate-x-1"/>
+            </Link>
+            <p
+              className="text-[11px] text-zinc-300 mt-4"
+              style={{ fontFamily: "'Inter',sans-serif" }}
+            >
+              Kostenlos für Kunden · Flexible Pläne für Studios
+            </p>
+          </motion.div>
+
+          {/* Scroll indicator */}
+          <motion.div
+            style={{ opacity: arrOp }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          >
+            <motion.div
+              animate={{ y: [0, 7, 0] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+            >
+              <ChevronDown size={18} className="text-zinc-300" strokeWidth={1.5}/>
+            </motion.div>
+          </motion.div>
+
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════
+          POST-SCROLL: Content sections
+          ════════════════════════════════════════ */}
+
+      {/* Section divider */}
+      <div className="h-px bg-zinc-100"/>
+
+      {/* What is InkBook */}
+      <section className="py-36 px-6">
+        <div className="max-w-5xl mx-auto">
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+            className="text-center mb-24"
+          >
+            <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-400 mb-5"
+              style={{ fontFamily: "'Inter',sans-serif" }}>Was ist InkBook?</p>
+            <h2 className="font-playfair text-4xl sm:text-5xl text-zinc-950 leading-tight">
+              Tattoo-Buchungen<br/>neu definiert.
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+            {[
+              {
+                num: "01",
+                title: "Finde dein Studio",
+                body: "Durchsuche kuratierte Tattoo-Studios in deiner Nähe. Vergleiche Stile, Bewertungen und Preise auf einen Blick.",
+              },
+              {
+                num: "02",
+                title: "Buche deinen Termin",
+                body: "Direkte Buchung, kein Telefonieren. Wähle deinen Wunschtermin in Echtzeit aus verfügbaren Slots.",
+              },
+              {
+                num: "03",
+                title: "Dein perfektes Tattoo",
+                body: "Kommuniziere direkt mit dem Studio, teile Referenzbilder und erhalte professionelle Beratung.",
+              },
+            ].map(({ num, title, body }, i) => (
+              <motion.div
+                key={num}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.7, delay: i * 0.12, ease: [0.4, 0, 0.2, 1] }}
+                className="group"
+              >
+                <p className="text-[10px] text-zinc-300 tracking-[0.2em] mb-4"
+                  style={{ fontFamily: "'Inter',sans-serif" }}>{num}</p>
+                <div className="w-6 h-[1px] bg-zinc-200 mb-7
+                                transition-all duration-500 group-hover:w-14"/>
+                <h3 className="font-playfair text-xl text-zinc-900 mb-3">{title}</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed"
+                  style={{ fontFamily: "'Inter',sans-serif" }}>{body}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* CTA row */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.7, delay: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="mt-28 text-center"
+          >
+            <Link
+              to="/search"
+              className="inline-flex items-center gap-3 px-10 py-4 bg-zinc-950 text-white rounded-full
+                         text-sm font-medium hover:bg-zinc-700 transition-all duration-300
+                         hover:gap-5 group"
+              style={{ fontFamily: "'Inter',sans-serif" }}
+            >
+              Jetzt Studios entdecken
+              <ArrowRight size={14} strokeWidth={1.5}
+                className="transition-transform duration-300 group-hover:translate-x-1"/>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Stats bar */}
+      <section className="border-t border-b border-zinc-100 py-14 px-6">
+        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
+          {[
+            { value: "500+", label: "Studios" },
+            { value: "10k+", label: "Buchungen" },
+            { value: "4.9★", label: "Bewertung" },
+          ].map(({ value, label }, i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: i * 0.1, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <p className="font-playfair text-3xl sm:text-4xl text-zinc-950 font-bold">{value}</p>
+              <p className="text-xs text-zinc-400 mt-1 tracking-wide"
+                style={{ fontFamily: "'Inter',sans-serif" }}>{label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-10 px-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="font-playfair text-zinc-900 font-semibold text-sm">InkBook</p>
+          <p className="text-[11px] text-zinc-400" style={{ fontFamily: "'Inter',sans-serif" }}>
+            © 2026 InkBook · Alle Rechte vorbehalten
+          </p>
+          <div className="flex gap-5">
+            {[
+              { to: "/login",    label: "Anmelden"    },
+              { to: "/register", label: "Registrieren" },
+              { to: "/search",   label: "Studios"      },
+            ].map(({ to, label }) => (
+              <Link key={to} to={to}
+                className="text-[11px] text-zinc-400 hover:text-zinc-900 transition-colors"
+                style={{ fontFamily: "'Inter',sans-serif" }}>{label}</Link>
+            ))}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

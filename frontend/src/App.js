@@ -26,12 +26,13 @@ function AppRouter() {
 
   return (
     <Routes>
-      <Route path="/" element={<SearchPage />} />
-      <Route path="/home" element={<LandingPage />} />
+      <Route path="/"       element={<LandingPage />} />
+      <Route path="/home"   element={<LandingPage />} />
+      <Route path="/search" element={<SearchPage />} />
+      <Route path="/search" element={<SearchPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/search" element={<SearchPage />} />
       <Route path="/studios/:studioId" element={<StudioPage />} />
       <Route path="/ai-advisor" element={<AIAdvisorPage />} />
       <Route path="/messages" element={
