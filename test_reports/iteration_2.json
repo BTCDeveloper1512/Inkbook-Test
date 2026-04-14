@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 2 testing of new features: messaging, profile edit, reference image upload, PWA. Backend: 9/10 passed (1 skipped - no studio for owner). Fixed critical bug in get_current_user (user_id was None for JWT users). All UI features working.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/messages",
+        "issue": "FIXED: get_current_user returned dict without 'id' or 'user_id' field for email-registered users (MongoDB _id excluded, no id field in user doc). Caused 500 error with sorted([None, str]). Fix: added user['id'] = user_id from JWT payload when neither id nor user_id present.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Messages page - conversation list",
+        "issues": ["First conversation shows 'Nutzer' as name for demo_owner_1 recipient (not a real user in DB). Expected behavior for demo data."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_messages_features.py",
+    "/app/test_reports/pytest/pytest_results_iter2.xml"
+  ],
+  "action_items": [
+    "No critical action items - all features working after the get_current_user fix"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: get_current_user did not inject 'id' field into returned user dict for email-registered users (only _id excluded but no id field stored). This caused user_id=None in all endpoints using current_user.get('id'). Fix was to add user['id'] = payload sub when no id or user_id present.",
+    "BookingCreate model uses 'reference_images' (list) not 'reference_image_url' (string) - frontend sends list correctly",
+    "Studio owner test account (studioowner@inkbook.com) still not pre-seeded with a studio - requires manual creation to test profile edit tab"
+  ],
+  "updated_files": [
+    "/app/backend/server.py (get_current_user fix - inject user id from JWT payload)",
+    "/app/backend/tests/test_messages_features.py"
+  ],
+  "success_rate": {
+    "backend": "90% (9/10, 1 skipped)",
+    "frontend": "100% - all features working"
+  },
+  "test_credentials": {
+    "customer": "testuser@inkbook.com / test123",
+    "studio_owner": "studioowner@inkbook.com / studio123",
+    "studio_created": "studio_fa1e05f9ff66 (Test Profile Studio, Berlin)"
+  },
+  "seed_data_creation": "Created Test Profile Studio for studioowner@inkbook.com via API (studio_fa1e05f9ff66)",
+  "mocked_apis": "Email via Resend is MOCKED - RESEND_API_KEY empty, emails are only logged not sent",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 5 new features tested and working: 1) Messages/Chat UI fully functional with real-time polling, 2) Nachrichten nav link and customer dashboard card working, 3) Studio kontaktieren button on studio page works for logged-in users, 4) Reference image upload (REFERENZBILDER section) appears after selecting date+time slot, 5) Studio profile edit tab (Profil bearbeiten) works with style toggles, gallery upload, save button. Critical backend bug fixed: get_current_user now injects id from JWT payload. Email notifications are MOCKED (no RESEND_API_KEY).",
+  "rca_of_issues": "Root cause of POST /api/messages 500: user documents inserted via email registration don't store 'id' or 'user_id' as explicit fields - only MongoDB ObjectId _id. When get_current_user fetches user with {'_id': 0}, _id is excluded, leaving no id field. All endpoints using current_user.get('id') or current_user.get('user_id') got None. Fix: inject user_id from JWT payload['sub'] into the returned user dict when no id or user_id field present."
+}

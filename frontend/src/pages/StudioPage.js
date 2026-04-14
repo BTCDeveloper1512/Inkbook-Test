@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, ChevronLeft, ChevronRight, X, ImagePlus, MessageSquare } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
@@ -28,6 +28,9 @@ export default function StudioPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
+  const [refImages, setRefImages] = useState([]);
+  const [uploadingRef, setUploadingRef] = useState(false);
+  const fileRef = useRef();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,7 +67,8 @@ export default function StudioPage() {
         studio_id: studioId,
         slot_id: selectedSlot.slot_id,
         booking_type: bookingType,
-        notes: bookingNotes
+        notes: bookingNotes,
+        reference_images: refImages
       }, { withCredentials: true });
       setBookingSuccess(data);
     } catch (e) {
@@ -72,6 +76,18 @@ export default function StudioPage() {
     } finally {
       setBookingLoading(false);
     }
+  };
+
+  const handleRefImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingRef(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
+      setRefImages(prev => [...prev, data.url]);
+    } catch {} finally { setUploadingRef(false); }
   };
 
   // Date helpers
@@ -291,6 +307,43 @@ export default function StudioPage() {
                 </div>
               )}
 
+              {/* Reference Images Upload */}
+              {selectedSlot && (
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">{t("booking.refImages")}</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {refImages.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img src={img} alt="" className="w-14 h-14 object-cover border border-gray-200" />
+                        <button
+                          type="button"
+                          onClick={() => setRefImages(prev => prev.filter((_, idx) => idx !== i))}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={8} />
+                        </button>
+                      </div>
+                    ))}
+                    {refImages.length < 5 && (
+                      <label className={`w-14 h-14 border-2 border-dashed border-gray-300 hover:border-black flex flex-col items-center justify-center cursor-pointer transition-colors ${uploadingRef ? "opacity-50" : ""}`}>
+                        <ImagePlus size={16} className="text-gray-400" />
+                        <span className="text-xs text-gray-400 font-outfit">{uploadingRef ? "..." : "+"}</span>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleRefImageUpload}
+                          disabled={uploadingRef}
+                          className="hidden"
+                          data-testid="ref-image-input"
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 font-outfit">Max. 5 Bilder</p>
+                </div>
+              )}
+
               <div className="text-xs text-gray-500 font-outfit mb-4">
                 {t("booking.deposit")}: <span className="font-bold text-black">€50</span>
               </div>
@@ -314,6 +367,17 @@ export default function StudioPage() {
                   data-testid="confirm-booking-btn"
                 >
                   {bookingLoading ? t("common.loading") : t("booking.confirm")}
+                </button>
+              )}
+
+              {/* Contact Studio */}
+              {user && (
+                <button
+                  onClick={() => navigate(`/messages/${studio.owner_id}`)}
+                  className="w-full mt-3 py-2.5 border border-gray-300 hover:border-black text-sm font-outfit flex items-center justify-center gap-2 transition-colors"
+                  data-testid="contact-studio-btn"
+                >
+                  <MessageSquare size={14} /> Studio kontaktieren
                 </button>
               )}
             </div>

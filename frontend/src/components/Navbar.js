@@ -51,6 +51,15 @@ export default function Navbar() {
             >
               {t("nav.aiAdvisor")}
             </Link>
+            {user && (
+              <Link
+                to="/messages"
+                className="text-sm font-medium text-gray-700 hover:text-black transition-colors font-outfit"
+                data-testid="nav-messages-link"
+              >
+                {t("nav.messages")}
+              </Link>
+            )}
           </div>
 
           {/* Right Side */}
@@ -147,6 +156,8 @@ export default function Navbar() {
           <div className="md:hidden border-t border-gray-100 py-4 space-y-3">
             <Link to="/search" className="block text-sm font-outfit text-gray-700 py-2" onClick={() => setMobileOpen(false)}>{t("nav.search")}</Link>
             <Link to="/ai-advisor" className="block text-sm font-outfit text-gray-700 py-2" onClick={() => setMobileOpen(false)}>{t("nav.aiAdvisor")}</Link>
+            {user && <Link to="/messages" className="block text-sm font-outfit text-gray-700 py-2" onClick={() => setMobileOpen(false)}>{t("nav.messages")}</Link>}
+            {user && <Link to={dashboardPath} className="block text-sm font-outfit text-gray-700 py-2" onClick={() => setMobileOpen(false)}>{t("nav.dashboard")}</Link>}
             {!user && (
               <>
                 <Link to="/login" className="block text-sm font-outfit py-2" onClick={() => setMobileOpen(false)}>{t("nav.login")}</Link>

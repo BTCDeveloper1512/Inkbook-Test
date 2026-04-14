@@ -11,6 +11,7 @@ import StudioPage from "./pages/StudioPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import StudioDashboard from "./pages/StudioDashboard";
 import AIAdvisorPage from "./pages/AIAdvisorPage";
+import MessagesPage from "./pages/MessagesPage";
 import "./App.css";
 
 function AppRouter() {
@@ -30,6 +31,12 @@ function AppRouter() {
       <Route path="/search" element={<SearchPage />} />
       <Route path="/studios/:studioId" element={<StudioPage />} />
       <Route path="/ai-advisor" element={<AIAdvisorPage />} />
+      <Route path="/messages" element={
+        <ProtectedRoute><MessagesPage /></ProtectedRoute>
+      } />
+      <Route path="/messages/:recipientId" element={
+        <ProtectedRoute><MessagesPage /></ProtectedRoute>
+      } />
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <CustomerDashboard />

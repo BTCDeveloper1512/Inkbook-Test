@@ -17,8 +17,76 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import base64
 import httpx
+import asyncio
+import resend
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+
+# ─── Resend Email ─────────────────────────────────────────────────────────────
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
+
+async def send_email(to: str, subject: str, html: str):
+    if not RESEND_API_KEY:
+        logger.info(f"[EMAIL SKIPPED - no RESEND_API_KEY] To: {to}, Subject: {subject}")
+        return
+    try:
+        resend.api_key = RESEND_API_KEY
+        params = {"from": SENDER_EMAIL, "to": [to], "subject": subject, "html": html}
+        await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Email sent to {to}: {subject}")
+    except Exception as e:
+        logger.error(f"Email send failed: {e}")
+
+def booking_confirmation_html(booking: dict, lang: str = "de") -> str:
+    type_label = "Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session"
+    if lang == "en":
+        type_label = "Consultation" if booking.get("booking_type") == "consultation" else "Tattoo Session"
+        subject_line = f"Booking Confirmation – {booking.get('studio_name', '')}"
+        greeting = f"Your appointment at <strong>{booking.get('studio_name', '')}</strong> has been booked."
+        details = "Appointment Details"
+        footer = "See you soon! Your InkBook Team"
+    else:
+        subject_line = f"Buchungsbestätigung – {booking.get('studio_name', '')}"
+        greeting = f"Dein Termin bei <strong>{booking.get('studio_name', '')}</strong> wurde gebucht."
+        details = "Termindetails"
+        footer = "Wir freuen uns auf dich! Dein InkBook Team"
+
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#fff;">
+      <div style="border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px;">
+        <h1 style="font-size:24px;font-weight:bold;margin:0;letter-spacing:-0.5px;">InkBook</h1>
+      </div>
+      <h2 style="font-size:20px;font-weight:bold;margin-bottom:8px;">{subject_line}</h2>
+      <p style="color:#555;font-size:14px;margin-bottom:24px;">{greeting}</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr><td style="padding:12px;background:#f9f9f9;border:1px solid #eee;font-size:13px;font-weight:600;width:40%;">{details}</td><td style="padding:12px;background:#f9f9f9;border:1px solid #eee;font-size:13px;"></td></tr>
+        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Studio</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;font-weight:600;">{booking.get('studio_name', '')}</td></tr>
+        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Datum</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;">{booking.get('date', '')}</td></tr>
+        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Zeit</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;">{booking.get('start_time', '')} – {booking.get('end_time', '')}</td></tr>
+        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Art</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;">{type_label}</td></tr>
+        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Buchungs-ID</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;font-family:monospace;">{booking.get('booking_id', '')}</td></tr>
+      </table>
+      <div style="background:#000;color:#fff;padding:16px 20px;font-size:13px;">{footer}</div>
+    </div>
+    """
+
+def booking_status_html(booking: dict, status: str) -> str:
+    status_de = {"confirmed": "Bestätigt ✓", "cancelled": "Abgesagt"}.get(status, status)
+    color = "#16a34a" if status == "confirmed" else "#dc2626"
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#fff;">
+      <div style="border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px;">
+        <h1 style="font-size:24px;font-weight:bold;margin:0;">InkBook</h1>
+      </div>
+      <div style="border-left:4px solid {color};padding-left:16px;margin-bottom:24px;">
+        <h2 style="font-size:18px;font-weight:bold;color:{color};margin:0 0 4px 0;">Dein Termin wurde {status_de}</h2>
+        <p style="color:#555;font-size:14px;margin:0;">Studio: <strong>{booking.get('studio_name', '')}</strong> | {booking.get('date', '')} um {booking.get('start_time', '')}</p>
+      </div>
+      <p style="font-size:13px;color:#777;">Buchungs-ID: {booking.get('booking_id', '')}</p>
+      <div style="background:#000;color:#fff;padding:16px 20px;font-size:13px;margin-top:24px;">Dein InkBook Team</div>
+    </div>
+    """
 
 # ─── Database ────────────────────────────────────────────────────────────────
 mongo_url = os.environ["MONGO_URL"]
@@ -90,6 +158,9 @@ async def get_current_user(request: Request):
             user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        # Ensure id is always available in returned user dict
+        if not user.get("id") and not user.get("user_id"):
+            user["id"] = user_id
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -481,6 +552,15 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
     await db.bookings.insert_one(booking_doc)
     await db.slots.update_one({"slot_id": data.slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
     
+    # Send confirmation email (fire & forget)
+    user_email = current_user.get("email", "")
+    if user_email:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"Buchungsbestätigung – {studio.get('name', '')}",
+            html=booking_confirmation_html(booking_doc)
+        ))
+    
     booking_doc.pop("_id", None)
     return booking_doc
 
@@ -524,6 +604,16 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"status": status}})
     if status == "cancelled":
         await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
+    
+    # Send status update email
+    user_email = booking.get("user_email", "")
+    if user_email and status in ["confirmed", "cancelled"]:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"Termin {'bestätigt' if status == 'confirmed' else 'abgesagt'} – {booking.get('studio_name', '')}",
+            html=booking_status_html(booking, status)
+        ))
+    
     return {"message": "Booking updated"}
 
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
@@ -533,7 +623,21 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
     convs = await db.conversations.find(
         {"participants": user_id}, {"_id": 0}
     ).to_list(100)
-    return convs
+    
+    # Enrich with other participant's name
+    enriched = []
+    for conv in convs:
+        other_id = next((p for p in conv.get("participants", []) if p != user_id), None)
+        other_name = "Nutzer"
+        if other_id:
+            other_user = await db.users.find_one({"$or": [
+                {"_id": ObjectId(other_id)} if len(other_id) == 24 else {"user_id": other_id},
+                {"user_id": other_id}
+            ]}, {"name": 1, "_id": 0})
+            if other_user:
+                other_name = other_user.get("name", "Nutzer")
+        enriched.append({**conv, "last_sender_name": other_name, "other_user_id": other_id})
+    return enriched
 
 @api_router.get("/messages/{other_user_id}")
 async def get_messages(other_user_id: str, current_user: dict = Depends(get_current_user)):

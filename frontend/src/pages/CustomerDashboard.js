@@ -148,11 +148,13 @@ export default function CustomerDashboard() {
             </div>
             <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
           </Link>
-          <div className="bg-white border border-gray-200 p-5">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-1">Profil</p>
-            <p className="font-playfair font-semibold">{user?.email}</p>
-            <p className="text-xs text-gray-400 font-outfit mt-1">{user?.role === "customer" ? "Kunde" : "Studio-Inhaber"}</p>
-          </div>
+          <Link to="/messages" className="bg-white border border-gray-200 p-5 flex items-center justify-between hover:border-black transition-colors group" data-testid="messages-btn">
+            <div>
+              <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-1">Chat</p>
+              <p className="font-playfair font-semibold">Nachrichten</p>
+            </div>
+            <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+          </Link>
         </div>
 
         {/* Bookings */}

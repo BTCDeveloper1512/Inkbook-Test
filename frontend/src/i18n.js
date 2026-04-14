@@ -12,6 +12,7 @@ const resources = {
       "nav.dashboard": "Dashboard",
       "nav.logout": "Abmelden",
       "nav.myBookings": "Meine Buchungen",
+      "nav.messages": "Nachrichten",
       // Hero
       "hero.title": "Dein perfektes Tattoo",
       "hero.titleSuffix": "wartet.",
@@ -109,6 +110,7 @@ const resources = {
       "nav.dashboard": "Dashboard",
       "nav.logout": "Logout",
       "nav.myBookings": "My Bookings",
+      "nav.messages": "Messages",
       "hero.title": "Your Perfect Tattoo",
       "hero.titleSuffix": "awaits.",
       "hero.subtitle": "Find top tattoo studios and artists near you",
