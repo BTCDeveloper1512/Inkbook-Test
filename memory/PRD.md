@@ -1,77 +1,119 @@
-# InkBook - PRD (Product Requirements Document)
+# InkBook – Product Requirements Document (PRD)
 
-## Problem Statement
-Doctolib-style tattoo booking platform for tattoo studios and artists. Customers can find, compare, and book tattoo studios/artists. Studios get professional booking & management tools.
+## Original Problem Statement
+Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios and Artists.
+- Customers can search, compare, and book appointments (consultation/sessions)
+- Studios get admin dashboard for calendar management, customer management, and automated reminders
+- Business model: Free for customers, monthly Stripe subscription for studios (~€49/mo)
 
 ## Architecture
-- **Frontend**: React (CRA + Craco), Tailwind CSS, react-router-dom, react-i18next, lucide-react
-- **Backend**: FastAPI, Motor (async MongoDB), bcrypt, PyJWT, Stripe (emergentintegrations), GPT-4o AI
-- **Database**: MongoDB (tattoo_booking)
-- **Auth**: JWT (email/password) + Emergent-managed Google OAuth
-- **Payments**: Stripe via emergentintegrations
-- **AI**: OpenAI GPT-4o via emergentintegrations (EMERGENT_LLM_KEY)
+```
+/app/
+├── backend/
+│   ├── server.py              # Main FastAPI application
+│   ├── requirements.txt
+│   └── .env
+├── frontend/
+│   ├── src/
+│   │   ├── App.js / App.css
+│   │   ├── i18n.js
+│   │   ├── components/        # Navbar, StudioCard, Footer, ProtectedRoute
+│   │   ├── pages/             # All pages
+│   │   └── utils/
+│   │       └── pushNotifications.js
+│   ├── public/
+│   │   ├── sw.js              # Service Worker for Push
+│   │   └── manifest.json      # PWA config
+│   ├── tailwind.config.js
+│   └── package.json
+└── memory/
+    ├── test_credentials.md
+    └── PRD.md
+```
 
-## User Personas
-1. **Tattoo Enthusiasts** (18-45, style-conscious, urban) - find and book studios
-2. **Studio Owners / Artists** - manage bookings, calendar, clients
+## Tech Stack
+- **Frontend**: React, TailwindCSS, framer-motion, i18n, shadcn/ui, PWA
+- **Backend**: FastAPI, MongoDB (Motor Async), JWT Auth (cookie-based)
+- **Integrations**: Stripe (Subscriptions), Resend (Emails), pywebpush (Push Notifications)
 
-## Core Requirements (Static)
-- Studio search with filters (style, price, city, rating)
-- Studio/Artist profiles with gallery, reviews, booking
-- Real-time slot booking (consultation, tattoo session)
-- Stripe deposit payments for appointments
-- Customer & Studio dashboards
-- Secure auth (JWT + Google OAuth)
-- AI tattoo style advisor (GPT-4o vision)
-- Multilingual (DE/EN)
+## DB Schema
+- `users`: id, email, role (customer/studio/admin), password_hash, push_subscriptions
+- `studios`: id, owner_id, name, location, styles, images, is_active, is_verified
+- `artists`: id, studio_id, name, styles
+- `bookings`: id, studio_id, customer_id, artist_id, status, type, date
+- `messages`: id, sender_id, receiver_id, content, timestamp, image_url
+- `subscriptions`: studio_id, plan, status, expires_at
 
-## What's Been Implemented (Updated 2025-04 – v3)
+## What's Been Implemented
 
-### Backend
-- ✅ All auth (JWT + Google OAuth), Studios, Slots, Bookings, Reviews, Messages
-- ✅ Stripe deposits + Subscription checkout (Basic €29/Pro €79)
-- ✅ Subscription verify/cancel/status endpoints
-- ✅ Artists CRUD (per studio): name, bio, styles, experience, instagram, portfolio
-- ✅ Booking reschedule (PUT /api/bookings/{id}/reschedule)
-- ✅ Email notifications via Resend (confirmation, status, reschedule) – non-blocking
-- ✅ AI Style Advisor (GPT-4o)
+### 2025 Initial MVP
+- Base FastAPI + React + MongoDB setup ✅
+- JWT Cookie Auth + Multi-language (i18n DE/EN) ✅
+- Studio Search + Booking System ✅
+- Artist profiles within studios ✅
 
-### Frontend
-- ✅ SubscriptionPage (/subscription): Basic €29 / Pro €79 plan cards + compare table
-- ✅ Studio Dashboard: 5 tabs (Übersicht, Slots, Buchungen, Artists, Profil)
-  - Artists tab: create/edit/delete artists with portfolio images
-  - Subscription badge + Abo button in header
-- ✅ Customer Dashboard: Umbuchen-Button + Reschedule-Modal with date/slot picker
-- ✅ Studio detail page: 4 tabs (About, Artists, Gallery, Reviews)
-- ✅ All previous features intact
+### Q1 2026 Feature Set
+- Stripe Subscriptions (~€49/mo, Basic €29, Pro €79) ✅
+- Booking Rescheduling Flow ✅
+- Resend Email Notifications ✅
+- Chat/Messaging UI with image upload ✅
+- Reference image upload for bookings ✅
+- PWA (manifest.json + sw.js) ✅
+- AI Advisor Page ✅
 
-## Resend Email Status
-- API key is set and active
-- Emails currently only deliverable to verified Resend account email
-- For production: verify domain at resend.com/domains, update SENDER_EMAIL in .env
+### April 2026 (Latest Session)
+- **UI Redesign "Premium Light Minimalist (Apple-like)"** ✅
+  - Playfair Display headings, Inter body text
+  - Soft shadows, rounded-2xl corners
+  - framer-motion animations on all pages
+  - All pages updated: Landing, Search, Studio, Dashboards, Messages, Subscription
+- **Push Notifications** ✅
+  - VAPID keys generated and saved to .env
+  - Backend: /api/notifications/subscribe, /api/notifications/unsubscribe, /api/notifications/vapid-public-key
+  - Frontend: pushNotifications.js utility + sw.js service worker
+- **Admin Panel for InkBook Operators** ✅
+  - Route: /admin (protected, admin role only)
+  - 4 tabs: Übersicht (stats), Studios (CRUD), Nutzer, Buchungen
+  - Studio management: activate/deactivate, verify, delete
+  - Platform stats: total studios, users, bookings, revenue, subscriptions
 
-## P0 Backlog
-- Resend domain verification (user action needed at resend.com)
-- Admin panel
-- Push notifications (Web Push API)
+## Key API Endpoints
+- `/api/auth/register`, `/api/auth/login`, `/api/auth/me`
+- `/api/studios`, `/api/studios/{id}`
+- `/api/bookings`, `/api/bookings/{id}/reschedule`
+- `/api/messages`, `/api/messages/{recipient_id}`
+- `/api/subscriptions/create-checkout-session`, `/api/webhook/stripe`
+- `/api/notifications/subscribe`, `/api/notifications/vapid-public-key`
+- `/api/admin/stats`, `/api/admin/studios`, `/api/admin/users`
 
-## P1 Backlog  
-- Monthly subscription auto-renewal (Stripe recurring billing)
-- Booking analytics for studios
-- Social sharing
+## 3rd Party Integrations
+- **Stripe** (test mode) – Studio subscriptions
+- **Resend** (API key set) – Email notifications
+- **pywebpush** – Browser push notifications (VAPID keys in .env)
 
-## P2 Backlog
-- Deposit refund management
-- Customer tattoo history/portfolio
-- Multiple artists per booking slot
+## Design System
+- Based on `/app/design_guidelines.json`
+- Fonts: Playfair Display (headings), Inter (body)
+- Colors: zinc-900 (primary), zinc-50 (background), white (cards)
+- Shadows: `shadow-[0_4px_16px_rgb(0,0,0,0.04)]`
+- Radii: rounded-2xl (cards), rounded-full (pills/buttons)
 
-## Test Accounts
-- Admin: admin@inkbook.com / admin123
-- Customer: testuser@inkbook.com / test123
-- Studio Owner: studioowner@inkbook.com / studio123
+## Prioritized Backlog
+### P0 (Must Have)
+- None pending — all core features implemented
 
-## Demo Studios
-- studio_demo001: Black Needle Studio (Berlin, Fine Line/Blackwork)
-- studio_demo002: Ink & Soul Hamburg (Traditional/Japanese)
-- studio_demo003: Realismus Atelier München (Realism/Portrait)
-- studio_demo004: Ink Rebels Köln (Tribal/Abstract)
+### P1 (High Priority)
+- Real-time push notification delivery trigger (on booking confirm, new message)
+- Stripe Connect for studio payouts/revenue tracking
+
+### P2 (Nice to Have)
+- Rating/Review system for studios
+- Social sharing / QR codes for studios
+- Dark mode toggle
+- Advanced analytics per studio (heatmap, conversion rates)
+- Google Maps integration for studio location
+- Mobile app (React Native or PWA-enhanced)
+
+## Testing Status
+- Iteration 1-4 all passed (100% backend + frontend)
+- Test credentials in /app/memory/test_credentials.md
