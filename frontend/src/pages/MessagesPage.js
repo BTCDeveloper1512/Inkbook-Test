@@ -13,6 +13,7 @@ export default function MessagesPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { recipientId } = useParams();
+
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -22,80 +23,177 @@ export default function MessagesPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
+
+  // Refs – avoid stale closures in intervals
+  const textRef = useRef("");               // always current text value
+  const imageUrlRef = useRef("");           // always current imageUrl
+  const activeConvRef = useRef(null);       // always current active conv
   const messagesEndRef = useRef(null);
   const fileRef = useRef();
   const pollMsgRef = useRef(null);
   const pollConvRef = useRef(null);
   const pollTypingRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const activeConvRef = useRef(null);
-  activeConvRef.current = activeConv;
+
+  // Keep refs in sync with state
+  useEffect(() => { textRef.current = text; }, [text]);
+  useEffect(() => { imageUrlRef.current = imageUrl; }, [imageUrl]);
+  useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
   const userId = user?.id || user?.user_id;
 
-  useEffect(() => {
-    if (!user) { navigate("/login"); return; }
-    fetchConversations(true);
-    // Poll conversations every 3s for new convs
-    pollConvRef.current = setInterval(() => fetchConversations(false), 3000);
-    return () => { clearInterval(pollConvRef.current); clearInterval(pollMsgRef.current); };
-  }, []);
-
-  useEffect(() => {
-    if (activeConv) {
-      fetchMessages(activeConv.other_id);
-      clearInterval(pollMsgRef.current);
-      clearInterval(pollTypingRef.current);
-      // Poll messages every 2s
-      pollMsgRef.current = setInterval(() => fetchMessages(activeConvRef.current?.other_id), 2000);
-      // Poll typing status every 1.5s
-      pollTypingRef.current = setInterval(async () => {
-        const otherId = activeConvRef.current?.other_id;
-        if (!otherId) return;
-        try {
-          const { data } = await axios.get(`${API}/messages/${otherId}/typing-status`, { withCredentials: true });
-          setOtherIsTyping(data.is_typing || false);
-        } catch {}
-      }, 1500);
-    }
-    return () => { clearInterval(pollMsgRef.current); clearInterval(pollTypingRef.current); };
-  }, [activeConv?.other_id]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const fetchConversations = async (initialLoad = false) => {
+  // ─── Fetch conversations (polling-safe: no navigate on failure) ───────────
+  const fetchConversations = useCallback(async (initialLoad = false) => {
     try {
       const { data } = await axios.get(`${API}/messages`, { withCredentials: true });
       setConversations(data);
-      if (loading) setLoading(false);
-
-      if (initialLoad && recipientId) {
-        // Open conversation from URL param
-        const existingConv = data.find(c => c.other_user_id === recipientId);
-        if (existingConv) {
-          openConvFromData(existingConv);
-        } else {
-          // New conversation – look up recipient name from state or fetch
-          const passedName = location.state?.recipientName || null;
-          if (passedName) {
-            setActiveConv({ other_id: recipientId, other_name: passedName, other_role: location.state?.recipientRole || "studio_owner" });
+      if (initialLoad) {
+        setLoading(false);
+        // Open conversation from URL
+        if (recipientId) {
+          const existing = data.find(c => c.other_user_id === recipientId);
+          if (existing) {
+            setActiveConv({ other_id: existing.other_user_id, other_name: existing.other_name || "Nutzer", other_role: existing.other_role || "customer" });
           } else {
-            // Try to look up studio name
-            try {
-              const studioRes = await axios.get(`${API}/studios`, { params: { owner_id: recipientId } });
-              const studio = studioRes.data?.[0];
-              setActiveConv({ other_id: recipientId, other_name: studio?.name || "Studio", other_role: "studio_owner" });
-            } catch {
-              setActiveConv({ other_id: recipientId, other_name: "Studio", other_role: "studio_owner" });
-            }
+            const name = location.state?.recipientName || "Studio";
+            const role = location.state?.recipientRole || "studio_owner";
+            setActiveConv({ other_id: recipientId, other_name: name, other_role: role });
           }
         }
       }
-    } catch { navigate("/login"); }
+    } catch (err) {
+      // Only redirect on auth error, not network blips
+      if (initialLoad && err?.response?.status === 401) navigate("/login");
+      if (initialLoad) setLoading(false);
+    }
+  }, [recipientId, location.state]);
+
+  // ─── Fetch messages for active conversation ───────────────────────────────
+  const fetchMessages = useCallback(async (otherId) => {
+    if (!otherId) return;
+    try {
+      const { data } = await axios.get(`${API}/messages/${otherId}`, { withCredentials: true });
+      setMessages(data);
+    } catch {}
+  }, []);
+
+  // ─── Init: start conversation polling ─────────────────────────────────────
+  useEffect(() => {
+    if (!user) { navigate("/login"); return; }
+    fetchConversations(true);
+    pollConvRef.current = setInterval(() => fetchConversations(false), 2500);
+    return () => {
+      clearInterval(pollConvRef.current);
+      clearInterval(pollMsgRef.current);
+      clearInterval(pollTypingRef.current);
+    };
+  }, []);
+
+  // ─── When active conversation changes: start message + typing polling ─────
+  useEffect(() => {
+    clearInterval(pollMsgRef.current);
+    clearInterval(pollTypingRef.current);
+    setOtherIsTyping(false);
+
+    if (!activeConv?.other_id) return;
+
+    fetchMessages(activeConv.other_id);
+
+    // Poll messages every 2s using ref to avoid stale closure
+    pollMsgRef.current = setInterval(() => {
+      if (activeConvRef.current?.other_id) fetchMessages(activeConvRef.current.other_id);
+    }, 2000);
+
+    // Poll typing every 1.5s
+    pollTypingRef.current = setInterval(async () => {
+      const otherId = activeConvRef.current?.other_id;
+      if (!otherId) return;
+      try {
+        const { data } = await axios.get(`${API}/messages/${otherId}/typing-status`, { withCredentials: true });
+        setOtherIsTyping(data.is_typing || false);
+      } catch {}
+    }, 1500);
+
+    return () => {
+      clearInterval(pollMsgRef.current);
+      clearInterval(pollTypingRef.current);
+    };
+  }, [activeConv?.other_id]);
+
+  // ─── Scroll to bottom on new messages ────────────────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, otherIsTyping]);
+
+  // ─── Send message (uses refs to avoid stale closure) ─────────────────────
+  const sendMessage = useCallback(async () => {
+    const currentText = textRef.current.trim();
+    const currentImage = imageUrlRef.current;
+    const conv = activeConvRef.current;
+
+    if (!currentText && !currentImage) return;
+    if (!conv?.other_id) return;
+
+    setSending(true);
+    // Optimistic clear
+    setText("");
+    textRef.current = "";
+    setImageUrl("");
+    imageUrlRef.current = "";
+    setImagePreview(null);
+
+    try {
+      await axios.post(`${API}/messages`, {
+        recipient_id: conv.other_id,
+        content: currentText,
+        image_url: currentImage || null
+      }, { withCredentials: true });
+      // Fetch updated messages immediately
+      await fetchMessages(conv.other_id);
+      fetchConversations(false);
+    } catch {
+      // On error, restore text
+      setText(currentText);
+      textRef.current = currentText;
+    } finally {
+      setSending(false);
+    }
+  }, [fetchMessages, fetchConversations]);
+
+  // ─── Enter key: send (Shift+Enter = newline) ──────────────────────────────
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }, [sendMessage]);
+
+  // ─── Typing indicator ─────────────────────────────────────────────────────
+  const handleTextChange = (e) => {
+    setText(e.target.value);
+    const conv = activeConvRef.current;
+    if (!conv?.other_id) return;
+    clearTimeout(typingTimeoutRef.current);
+    axios.post(`${API}/messages/${conv.other_id}/typing`, {}, { withCredentials: true }).catch(() => {});
   };
 
+  // ─── Image upload ─────────────────────────────────────────────────────────
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
+      setImageUrl(data.url);
+      imageUrlRef.current = data.url;
+      const reader = new FileReader();
+      reader.onload = ev => setImagePreview(ev.target.result);
+      reader.readAsDataURL(file);
+    } catch {}
+  };
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   const openConvFromData = (conv) => {
     setActiveConv({
       other_id: conv.other_user_id,
@@ -105,86 +203,30 @@ export default function MessagesPage() {
     });
   };
 
-  const fetchMessages = async (otherId) => {
-    if (!otherId) return;
-    try {
-      const { data } = await axios.get(`${API}/messages/${otherId}`, { withCredentials: true });
-      setMessages(data);
-    } catch {}
-  };
-
-  const handleSend = async (e) => {
-    e?.preventDefault();
-    if (!text.trim() && !imageUrl) return;
-    if (!activeConv?.other_id) return;
-    setSending(true);
-    try {
-      await axios.post(`${API}/messages`, {
-        recipient_id: activeConv.other_id,
-        content: text.trim(),
-        image_url: imageUrl || null
-      }, { withCredentials: true });
-      setText("");
-      setImageUrl("");
-      setImagePreview(null);
-      await fetchMessages(activeConv.other_id);
-      fetchConversations(false);
-    } catch {} finally { setSending(false); }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
-
-  const handleTextChange = (e) => {
-    setText(e.target.value);
-    // Emit typing signal (debounced – don't spam on every keystroke)
-    if (!activeConv?.other_id) return;
-    clearTimeout(typingTimeoutRef.current);
-    axios.post(`${API}/messages/${activeConv.other_id}/typing`, {}, { withCredentials: true }).catch(() => {});
-    // Auto-clear local typing state after 4s of no input
-    typingTimeoutRef.current = setTimeout(() => {}, 4000);
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
-      setImageUrl(data.url);
-      const reader = new FileReader();
-      reader.onload = ev => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
-    } catch {}
-  };
-
-  const formatTime = (iso) => {
-    const d = new Date(iso);
-    return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-  };
-  const formatConvTime = (iso) => {
+  const fmt = (iso) => new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const fmtConv = (iso) => {
     if (!iso) return "";
-    const d = new Date(iso);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+    const d = new Date(iso), now = new Date();
+    return d.toDateString() === now.toDateString()
+      ? d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
   };
-  const formatDateSep = (iso) => {
+  const fmtDateSep = (iso) => {
     const d = new Date(iso);
     if (d.toDateString() === new Date().toDateString()) return "Heute";
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) return "Gestern";
+    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+    if (d.toDateString() === yd.toDateString()) return "Gestern";
     return d.toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
   };
+  const initials = (n) => n?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+  const avatarBg = (n) => ["bg-zinc-800","bg-stone-700","bg-neutral-700","bg-slate-700"][(n?.charCodeAt(0)||0)%4];
 
-  // Group messages by date for date separators
-  const groupedMessages = messages.reduce((groups, msg) => {
-    const dateKey = new Date(msg.created_at).toDateString();
-    if (!groups[dateKey]) groups[dateKey] = { date: msg.created_at, msgs: [] };
-    groups[dateKey].msgs.push(msg);
-    return groups;
+  // Group messages by date
+  const grouped = messages.reduce((acc, msg) => {
+    const key = new Date(msg.created_at).toDateString();
+    if (!acc[key]) acc[key] = { date: msg.created_at, msgs: [] };
+    acc[key].msgs.push(msg);
+    return acc;
   }, {});
 
   if (loading) return (
@@ -195,24 +237,17 @@ export default function MessagesPage() {
     </div>
   );
 
-  const initials = (name) => name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
-  const avatarColor = (name) => {
-    const colors = ["bg-zinc-800", "bg-stone-700", "bg-neutral-800", "bg-slate-700"];
-    return colors[(name?.charCodeAt(0) || 0) % colors.length];
-  };
-
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-stretch max-w-6xl mx-auto w-full px-4 md:px-6 py-4 md:py-6" style={{ minHeight: 0 }}>
         <div className="flex w-full rounded-2xl overflow-hidden border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white" style={{ height: "calc(100vh - 130px)" }}>
 
-          {/* ── Sidebar ── */}
+          {/* ── Sidebar ─────────────────────────────────────────────────────── */}
           <div className={`flex-shrink-0 border-r border-zinc-100 flex flex-col bg-white ${activeConv ? "hidden md:flex" : "flex"}`} style={{ width: 300 }}>
-            <div className="px-5 py-4 border-b border-zinc-100 bg-white">
+            <div className="px-5 py-4 border-b border-zinc-100">
               <h2 className="font-playfair font-semibold text-xl text-zinc-900">Nachrichten</h2>
             </div>
-
             <div className="flex-1 overflow-y-auto">
               {conversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full px-6 py-10 text-center">
@@ -228,22 +263,20 @@ export default function MessagesPage() {
                 </div>
               ) : conversations.map(conv => {
                 const isActive = activeConv?.other_id === conv.other_user_id;
-                const name = conv.other_name || conv.last_sender_name || "Nutzer";
+                const name = conv.other_name || "Nutzer";
                 return (
-                  <button
-                    key={conv.conv_id}
-                    onClick={() => openConvFromData(conv)}
+                  <button key={conv.conv_id} onClick={() => openConvFromData(conv)}
                     className={`w-full text-left px-4 py-3.5 border-b border-zinc-50 transition-all duration-150 ${isActive ? "bg-zinc-100" : "hover:bg-zinc-50"}`}
-                    data-testid={`conv-item-${conv.conv_id}`}
+                    data-testid={`conv-${conv.conv_id}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 ${avatarColor(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
+                      <div className={`w-10 h-10 ${avatarBg(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
                         {initials(name)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{name}</p>
-                          <span className="text-xs text-zinc-400 font-inter flex-shrink-0 ml-2">{formatConvTime(conv.last_message_at)}</span>
+                          <span className="text-xs text-zinc-400 font-inter flex-shrink-0 ml-2">{fmtConv(conv.last_message_at)}</span>
                         </div>
                         <p className="text-xs text-zinc-400 font-inter truncate">{conv.last_message || "Starte eine Unterhaltung"}</p>
                       </div>
@@ -254,8 +287,8 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* ── Chat ── */}
-          <div className={`flex flex-col flex-1 min-w-0 bg-zinc-50 ${!activeConv ? "hidden md:flex" : "flex"}`}>
+          {/* ── Chat Area ───────────────────────────────────────────────────── */}
+          <div className={`flex flex-col flex-1 min-w-0 ${!activeConv ? "hidden md:flex" : "flex"}`} style={{ background: "rgba(249,249,249,1)" }}>
             {!activeConv ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
@@ -273,23 +306,23 @@ export default function MessagesPage() {
             ) : (
               <>
                 {/* Chat Header */}
-                <div className="px-5 py-3.5 bg-white border-b border-zinc-100 flex items-center gap-3 shadow-[0_2px_8px_rgb(0,0,0,0.04)]">
+                <div className="px-5 py-3.5 bg-white border-b border-zinc-100 flex items-center gap-3 shadow-[0_2px_8px_rgb(0,0,0,0.04)] flex-shrink-0">
                   <button onClick={() => setActiveConv(null)} className="md:hidden p-1.5 rounded-xl hover:bg-zinc-100 transition-colors text-zinc-500">
                     <ArrowLeft size={16} strokeWidth={1.5} />
                   </button>
-                  <div className={`w-9 h-9 ${avatarColor(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
+                  <div className={`w-9 h-9 ${avatarBg(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
                     {initials(activeConv.other_name)}
                   </div>
                   <div>
                     <p className="font-inter font-semibold text-zinc-900 text-sm leading-tight">{activeConv.other_name}</p>
                     <AnimatePresence mode="wait">
                       {otherIsTyping ? (
-                        <motion.p key="typing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        <motion.p key="t" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                           className="text-xs text-emerald-500 font-inter leading-tight font-medium" data-testid="typing-status-header">
                           tippt...
                         </motion.p>
                       ) : (
-                        <motion.p key="role" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        <motion.p key="r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                           className="text-xs text-zinc-400 font-inter leading-tight">
                           {activeConv.other_role === "studio_owner" ? "Tattoo Studio" : "Kunde"}
                         </motion.p>
@@ -298,31 +331,31 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
-                {/* Messages area */}
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)", backgroundSize: "20px 20px" }}>
-                  {Object.values(groupedMessages).map(group => (
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+                  style={{ backgroundImage: "radial-gradient(circle at 1px 1px,rgba(0,0,0,0.03) 1px,transparent 0)", backgroundSize: "20px 20px" }}>
+
+                  {Object.values(grouped).map(group => (
                     <div key={group.date}>
-                      {/* Date separator */}
-                      <div className="flex items-center justify-center my-3">
+                      <div className="flex justify-center my-3">
                         <span className="text-xs text-zinc-500 font-inter bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-zinc-100">
-                          {formatDateSep(group.date)}
+                          {fmtDateSep(group.date)}
                         </span>
                       </div>
+
                       {group.msgs.map((msg, i) => {
                         const isMine = msg.sender_id === userId;
-                        const isLast = i === group.msgs.length - 1;
-                        const isFirst = i === 0 || group.msgs[i-1]?.sender_id !== msg.sender_id;
+                        const isFirst = i === 0 || group.msgs[i - 1]?.sender_id !== msg.sender_id;
                         return (
-                          <motion.div
-                            key={msg.message_id}
-                            initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                          <motion.div key={msg.message_id}
+                            initial={{ opacity: 0, y: 4, scale: 0.96 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ duration: 0.15 }}
                             className={`flex ${isMine ? "justify-end" : "justify-start"} mb-0.5`}
                             data-testid={`msg-${msg.message_id}`}
                           >
                             {!isMine && isFirst && (
-                              <div className={`w-7 h-7 ${avatarColor(msg.sender_name)} text-white rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0 self-end mr-2 mb-1`}>
+                              <div className={`w-7 h-7 ${avatarBg(msg.sender_name)} text-white rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0 self-end mr-2 mb-1`}>
                                 {initials(msg.sender_name || activeConv.other_name)}
                               </div>
                             )}
@@ -330,30 +363,31 @@ export default function MessagesPage() {
 
                             <div className={`max-w-[70%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
                               {!isMine && isFirst && (
-                                <p className="text-xs text-zinc-500 font-inter font-semibold mb-1 px-1">{msg.sender_name || activeConv.other_name}</p>
+                                <p className="text-xs text-zinc-500 font-inter font-semibold mb-1 px-1">
+                                  {msg.sender_name || activeConv.other_name}
+                                </p>
                               )}
                               {msg.image_url && (
                                 <img src={msg.image_url} alt="" className="max-w-[220px] max-h-[220px] object-cover rounded-2xl mb-1 shadow-sm" />
                               )}
                               {msg.content && (
-                                <div className={`relative px-3.5 py-2.5 shadow-sm ${
+                                <div className={`px-3.5 py-2.5 shadow-sm ${
                                   isMine
                                     ? "bg-zinc-900 text-white rounded-2xl rounded-br-sm"
                                     : "bg-white text-zinc-900 rounded-2xl rounded-bl-sm border border-zinc-100"
                                 }`}>
                                   <p className="font-inter text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                                   <div className="flex items-center gap-1 mt-0.5 justify-end">
-                                    <span className="text-xs font-inter text-zinc-400">{formatTime(msg.created_at)}</span>
-                                    {isMine && (
-                                      msg.read
-                                        ? <CheckCheck size={12} className="text-blue-400" strokeWidth={2} />
-                                        : <Check size={12} className="text-zinc-400" strokeWidth={2} />
+                                    <span className="text-xs font-inter text-zinc-400">{fmt(msg.created_at)}</span>
+                                    {isMine && (msg.read
+                                      ? <CheckCheck size={12} className="text-blue-400" strokeWidth={2} />
+                                      : <Check size={12} className="text-zinc-400" strokeWidth={2} />
                                     )}
                                   </div>
                                 </div>
                               )}
                               {!msg.content && msg.image_url && (
-                                <span className="text-xs text-zinc-400 font-inter mt-0.5">{formatTime(msg.created_at)}</span>
+                                <span className="text-xs text-zinc-400 font-inter mt-0.5">{fmt(msg.created_at)}</span>
                               )}
                             </div>
                           </motion.div>
@@ -362,11 +396,10 @@ export default function MessagesPage() {
                     </div>
                   ))}
 
-                  {/* ── Typing Indicator ── */}
+                  {/* Typing indicator */}
                   <AnimatePresence>
                     {otherIsTyping && (
-                      <motion.div
-                        key="typing"
+                      <motion.div key="typing"
                         initial={{ opacity: 0, y: 8, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.9 }}
@@ -374,17 +407,14 @@ export default function MessagesPage() {
                         className="flex justify-start items-end gap-2 mb-1"
                         data-testid="typing-indicator"
                       >
-                        <div className={`w-7 h-7 ${avatarColor(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0`}>
+                        <div className={`w-7 h-7 ${avatarBg(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0`}>
                           {initials(activeConv.other_name)}
                         </div>
                         <div className="bg-white border border-zinc-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-1.5">
                           {[0, 1, 2].map(i => (
-                            <motion.span
-                              key={i}
-                              className="w-2 h-2 bg-zinc-400 rounded-full block"
+                            <motion.span key={i} className="w-2 h-2 bg-zinc-400 rounded-full block"
                               animate={{ y: [0, -5, 0] }}
-                              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" }}
-                            />
+                              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" }} />
                           ))}
                         </div>
                       </motion.div>
@@ -398,13 +428,13 @@ export default function MessagesPage() {
                 <AnimatePresence>
                   {imagePreview && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                      className="px-4 py-2 bg-white border-t border-zinc-100"
-                    >
+                      className="px-4 py-2 bg-white border-t border-zinc-100 flex-shrink-0">
                       <div className="inline-flex items-center gap-2 p-2 bg-zinc-50 rounded-xl border border-zinc-200">
                         <img src={imagePreview} alt="" className="w-12 h-12 object-cover rounded-lg" />
                         <div>
                           <p className="text-xs font-inter text-zinc-600 font-medium">Bild ausgewählt</p>
-                          <button onClick={() => { setImagePreview(null); setImageUrl(""); }} className="text-xs text-red-500 font-inter flex items-center gap-1 mt-0.5">
+                          <button onClick={() => { setImagePreview(null); setImageUrl(""); imageUrlRef.current = ""; }}
+                            className="text-xs text-red-500 font-inter flex items-center gap-1 mt-0.5">
                             <X size={10} /> Entfernen
                           </button>
                         </div>
@@ -414,40 +444,37 @@ export default function MessagesPage() {
                 </AnimatePresence>
 
                 {/* Input Area */}
-                <div className="px-4 py-3 bg-white border-t border-zinc-100">
-                  <form onSubmit={handleSend} className="flex items-end gap-2">
+                <div className="px-4 py-3 bg-white border-t border-zinc-100 flex-shrink-0">
+                  <div className="flex items-end gap-2">
                     <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" data-testid="chat-file-input" />
-                    <button
-                      type="button"
-                      onClick={() => fileRef.current?.click()}
+                    <button type="button" onClick={() => fileRef.current?.click()}
                       className="p-2.5 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all flex-shrink-0 mb-0.5"
-                      data-testid="chat-image-btn"
-                    >
+                      data-testid="chat-image-btn">
                       <ImageIcon size={18} strokeWidth={1.5} />
                     </button>
-                    <div className="flex-1 relative">
+                    <div className="flex-1">
                       <textarea
                         value={text}
                         onChange={handleTextChange}
                         onKeyDown={handleKeyDown}
-                        placeholder="Nachricht schreiben..."
+                        placeholder="Nachricht schreiben... (Enter senden, Shift+Enter neue Zeile)"
                         rows={1}
-                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all resize-none max-h-28 overflow-y-auto"
-                        style={{ lineHeight: "1.5" }}
+                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all resize-none overflow-hidden"
+                        style={{ lineHeight: "1.5", maxHeight: "112px", overflowY: "auto" }}
                         data-testid="chat-input"
                       />
                     </div>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      type="submit"
+                      type="button"
+                      onClick={sendMessage}
                       disabled={sending || (!text.trim() && !imageUrl)}
                       className="p-2.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 disabled:opacity-40 transition-all flex-shrink-0 mb-0.5"
                       data-testid="chat-send-btn"
                     >
                       <Send size={16} strokeWidth={1.5} />
                     </motion.button>
-                  </form>
-                  <p className="text-xs text-zinc-400 font-inter mt-1.5 px-1">Enter senden · Shift+Enter neue Zeile</p>
+                  </div>
                 </div>
               </>
             )}
