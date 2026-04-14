@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
 import { Users, Scissors } from "lucide-react";
+import TattooAnimation from "../components/TattooAnimation";
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -91,15 +92,7 @@ export default function RegisterPage() {
 
       {/* Animation side */}
       <div className="hidden lg:flex flex-1 relative overflow-hidden bg-zinc-950 items-center justify-center">
-        <iframe
-          src="https://omma.build/p/minimal-tattoo-machine-logo-animation-8wjp1g"
-          title=""
-          aria-hidden="true"
-          tabIndex="-1"
-          scrolling="no"
-          className="w-full h-full border-0 absolute inset-0"
-          style={{ pointerEvents: "none", overflow: "hidden" }}
-        />
+        <TattooAnimation />
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent flex items-end p-14 pointer-events-none">
           <div>
             <h2 className="text-4xl font-playfair text-white mb-2 leading-tight">Teil werden.<br />Sofort loslegen.</h2>
