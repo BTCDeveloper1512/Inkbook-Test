@@ -53,7 +53,8 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - **3 neue UI-Features** ✅
   - Schließen-Button (X) für Stornierung-Banner im CustomerDashboard
   - Bild-Lightbox im Chat – Klick öffnet Vollbild-Overlay
-  - Voller Monatskalender für Terminauswahl statt horizontalem Scroll (Mo–So Grid, Navigation, heute-Highlight, vergangene Tage deaktiviert)
+  - Voller Monatskalender für Terminauswahl (Mo–So Grid, Navigation, heute-Highlight, vergangene Tage deaktiviert)
+  - Kalender-Verfügbarkeitsanzeige: grüner Punkt = freie Slots, grauer Punkt = ausgebucht/keine Slots (API: GET /studios/{id}/available-dates)
 
 ### 2025 Initial MVP
 - Base FastAPI + React + MongoDB setup ✅

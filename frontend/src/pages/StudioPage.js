@@ -35,6 +35,7 @@ export default function StudioPage() {
   const fileRef = useRef();
   const today = new Date();
   const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const [availableDates, setAvailableDates] = useState(new Set());
 
   // Calendar helpers
   const getCalendarDays = () => {
@@ -61,6 +62,16 @@ export default function StudioPage() {
     const d = new Date(m.year, m.month + 1, 1);
     return { year: d.getFullYear(), month: d.getMonth() };
   });
+
+  // Fetch available dates whenever month or studio changes
+  useEffect(() => {
+    if (!studioId) return;
+    axios.get(`${API}/studios/${studioId}/available-dates`, {
+      params: { year: calMonth.year, month: calMonth.month + 1 }
+    }).then(({ data }) => {
+      setAvailableDates(new Set(data.available_dates));
+    }).catch(() => {});
+  }, [studioId, calMonth]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -423,13 +434,14 @@ export default function StudioPage() {
                     const isPast = iso < todayISO;
                     const isToday = iso === todayISO;
                     const isSelected = iso === selectedDate;
+                    const hasSlots = availableDates.has(iso);
                     return (
                       <button
                         key={iso}
                         disabled={isPast}
                         onClick={() => { setSelectedDate(iso); setSelectedSlot(null); }}
                         className={`
-                          relative aspect-square flex items-center justify-center rounded-xl text-sm font-inter font-medium transition-all
+                          relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all
                           ${isPast ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"}
                           ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""}
                           ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""}
@@ -437,7 +449,13 @@ export default function StudioPage() {
                         `}
                         data-testid={`date-btn-${iso}`}
                       >
-                        {day.getDate()}
+                        <span>{day.getDate()}</span>
+                        {!isPast && (
+                          <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${
+                            isSelected ? "bg-white/60" :
+                            hasSlots ? "bg-emerald-400" : "bg-zinc-200"
+                          }`} />
+                        )}
                       </button>
                     );
                   })}

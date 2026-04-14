@@ -535,6 +535,23 @@ async def get_slots(studio_id: str, date: Optional[str] = None, slot_type: Optio
     slots = await db.slots.find(query, {"_id": 0}).to_list(200)
     return slots
 
+@api_router.get("/studios/{studio_id}/available-dates")
+async def get_available_dates(studio_id: str, year: int, month: int):
+    """Returns dates within a given month that have at least one free slot."""
+    import calendar as cal_mod
+    first_day = f"{year}-{month:02d}-01"
+    last_day_num = cal_mod.monthrange(year, month)[1]
+    last_day = f"{year}-{month:02d}-{last_day_num:02d}"
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    from_date = max(first_day, today_iso)
+    pipeline = [
+        {"$match": {"studio_id": studio_id, "is_booked": False, "date": {"$gte": from_date, "$lte": last_day}}},
+        {"$group": {"_id": "$date"}},
+        {"$sort": {"_id": 1}}
+    ]
+    result = await db.slots.aggregate(pipeline).to_list(100)
+    return {"available_dates": [r["_id"] for r in result]}
+
 @api_router.post("/studios/{studio_id}/slots")
 async def create_slot(studio_id: str, data: SlotCreate, current_user: dict = Depends(get_current_user)):
     studio = await db.studios.find_one({"studio_id": studio_id})
