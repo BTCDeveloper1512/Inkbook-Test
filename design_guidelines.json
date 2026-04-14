@@ -1,97 +1,128 @@
 {
-  "theme": "Light Mode",
-  "archetype": "Archetype 4 (Swiss & High-Contrast) - Modified for Editorial Art",
-  "typography": {
-    "heading_font": "Playfair Display",
-    "body_font": "Outfit",
-    "hierarchy": {
-      "h1": "text-5xl sm:text-6xl tracking-tight leading-none",
-      "h2": "text-3xl sm:text-4xl tracking-tight",
-      "h3": "text-xl sm:text-2xl",
-      "body": "text-base leading-relaxed text-gray-800",
-      "overline": "text-xs tracking-[0.2em] uppercase font-semibold text-gray-500"
-    },
-    "rules": "Never use Inter for headings. Use Playfair Display for massive, artistic headings (the 'tattoo/art' vibe). Use Outfit for highly legible, modern tech UI (dashboards, forms). Gap between heading and subtitle must not exceed 2 Tailwind steps."
-  },
+  "theme": "light",
+  "archetype": "Premium Light Minimalist (Apple-like)",
+  "design_philosophy": "A very light, minimalist, high-quality Apple-like design. The UI is the invisible frame; the tattoo art is the masterpiece. We use off-white backgrounds, soft diffuse shadows, generous whitespace, and subtle typography to create a calming, premium, and trustworthy booking experience.",
   "colors": {
-    "background": "#FFFFFF",
-    "surface": "#FAFAFA",
-    "primary": "#0A0A0A",
-    "primary_foreground": "#FFFFFF",
-    "secondary": "#F3F4F6",
-    "secondary_foreground": "#0A0A0A",
-    "accent": "#E53935",
-    "accent_muted": "#FDE8E8",
-    "border": "#E5E7EB",
-    "text_main": "#111827",
-    "text_muted": "#6B7280",
-    "rules": "Use the 'Tinted Grey' rule. Never use pure black/gray, always tint with warmth for skin/ink vibes. Contrast ratio MUST be APCA compliant. Always set hover states explicitly (e.g., hover:bg-neutral-800 hover:text-white)."
-  },
-  "layout_spacing": {
-    "strategy": "Generous Spacing Philosophy. Use 2-3x more spacing for high-end editorial feel.",
-    "container_padding": "p-8 md:p-12 lg:p-24",
-    "component_gap": "gap-8 lg:gap-12",
-    "grids": {
-      "marketing": "Mode A: The 'Tetris' Grid. Asymmetrical spans (col-span-8 for hero images, col-span-4 for supporting text) to create visual tension.",
-      "dashboard": "Mode B: The 'Control Room' Grid for studio management (gap-6, high density)."
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#FAFAFA",
+      "tertiary": "#F4F4F5"
+    },
+    "text": {
+      "primary": "#09090B",
+      "secondary": "#52525B",
+      "tertiary": "#A1A1AA",
+      "inverse": "#FFFFFF"
+    },
+    "accent": {
+      "primary": "#18181B",
+      "hover": "#27272A",
+      "subtle": "#F4F4F5"
+    },
+    "border": {
+      "default": "rgba(0,0,0,0.06)",
+      "focus": "rgba(0,0,0,0.15)"
+    },
+    "status": {
+      "success": "#3F6212",
+      "warning": "#B45309",
+      "error": "#991B1B"
     }
+  },
+  "typography": {
+    "font_family": {
+      "heading": "Playfair Display, serif",
+      "body": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-5xl md:text-6xl font-normal tracking-tight leading-tight",
+      "h2": "text-3xl md:text-4xl font-normal tracking-tight leading-snug",
+      "h3": "text-xl md:text-2xl font-medium tracking-tight",
+      "h4": "text-lg font-medium",
+      "body": "text-base leading-relaxed text-zinc-600",
+      "small": "text-sm text-zinc-500",
+      "overline": "text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400"
+    }
+  },
+  "spacing_and_layout": {
+    "container": "max-w-7xl mx-auto px-6 md:px-12",
+    "section_gap": "py-24 md:py-32",
+    "element_gap": "gap-6 md:gap-8",
+    "card_padding": "p-6 md:p-8",
+    "grid_strategy": "Bento Grid for marketing pages (grid-cols-1 md:grid-cols-12 gap-6), Control Room Grid for dashboards (grid-cols-1 md:grid-cols-4 gap-6)"
+  },
+  "surfaces_and_elevation": {
+    "cards": "bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300",
+    "cards_hover": "-translate-y-1 shadow-[0_20px_40px_rgb(0,0,0,0.08)] border-black/[0.08]",
+    "glass_header": "bg-white/70 backdrop-blur-xl border-b border-black/[0.04] backdrop-saturate-150",
+    "inputs": "bg-zinc-50 border border-transparent rounded-xl px-4 py-3 focus:bg-white focus:border-zinc-300 focus:ring-4 focus:ring-zinc-100 transition-all duration-200 outline-none",
+    "buttons": {
+      "primary": "bg-zinc-900 text-white rounded-full px-6 py-3 font-medium hover:bg-zinc-800 hover:shadow-[0_8px_20px_rgb(0,0,0,0.12)] transition-all duration-300 active:scale-95",
+      "secondary": "bg-white text-zinc-900 rounded-full px-6 py-3 font-medium border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-300 active:scale-95",
+      "ghost": "bg-transparent text-zinc-600 rounded-full px-4 py-2 hover:bg-zinc-100 hover:text-zinc-900 transition-all duration-200"
+    },
+    "radii": {
+      "small": "rounded-lg",
+      "default": "rounded-xl",
+      "large": "rounded-2xl",
+      "pill": "rounded-full"
+    }
+  },
+  "animations": {
+    "page_transition": "Framer Motion: initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}",
+    "scroll_reveal": "Framer Motion: initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={{ duration: 0.7, ease: 'easeOut' }}",
+    "hover_micro": "CSS transition-all duration-300 ease-out",
+    "click_feedback": "Framer Motion: whileTap={{ scale: 0.97 }}"
   },
   "components": {
-    "buttons": "Square edges (rounded-none or rounded-sm). No fully rounded pills. Solid deep black for primary CTA. 1px solid border for secondary.",
-    "cards": "Flat background, 1px subtle border (border-gray-200), no shadow by default. On hover: slight lift (-translate-y-1) and crisp shadow (shadow-md).",
-    "navigation": "Crystal glassmorphism for sticky nav: bg-white/70 backdrop-blur-xl border-b border-black/5. Ensure high-contrast text.",
-    "forms": "Use Shadcn components but heavily customize. Remove the 'Vercel-look'. Use generous padding, 1px black focus rings (focus:ring-2 focus:ring-black focus:border-black), and crisp borders. Strip shadow-sm from inputs.",
-    "file_upload": "For reference images and AI Style Advisor, use dashed borders with a subtle background tint (bg-gray-50 hover:bg-gray-100) and an icon from Phosphor Icons."
+    "navigation": "Sticky top-0 z-50 glass_header. Must have logo, main links, and CTA. Links show subtle underline or background pill on hover.",
+    "hero_section": "Large typography, minimal text. High-quality image with VERY subtle overlay if text is on top. Prefer text on white background next to image.",
+    "studio_cards": "Image takes top 60%, content bottom 40%. Soft shadow, rounded-2xl. Image scales slightly on hover.",
+    "booking_sidebar": "Sticky on desktop. Clean date picker (Shadcn Calendar with rounded corners and soft active states), prominent 'Book Now' primary button.",
+    "dashboard_layout": "Sidebar navigation with light grey background (bg-zinc-50). Main content area pure white. Tab navigation uses pill-shaped active states.",
+    "chat_interface": "Two-panel. Left panel list of chats, right panel conversation. Bubbles are rounded-2xl, soft grey for incoming, dark zinc for outgoing.",
+    "ai_advisor": "Minimalist chat-like interface. Upload area with dashed border and soft background, clear instructions.",
+    "icons": "lucide-react, thin stroke width (1.5px) for an elegant, Apple-like feel."
   },
-  "imagery_and_media": [
-    {
-      "category": "hero_background",
-      "url": "https://static.prod-images.emergentagent.com/jobs/fb00eb6e-6246-4f6c-a06b-60ac2c5daad3/images/e1125944dcae8af3e2d20f5bca294493ae515f1d80eae1e9fbcd05482c067a20.png",
-      "description": "Abstract black ink swirl for landing page hero or AI Style Advisor background. High-end, editorial feel."
-    },
-    {
-      "category": "logo",
-      "url": "https://static.prod-images.emergentagent.com/jobs/fb00eb6e-6246-4f6c-a06b-60ac2c5daad3/images/09f1df0e7aedef9d175cc10299180fc74cec84dd4b74b4303c22b5ea5807303f.png",
-      "description": "Abstract minimalist app logo, to be used in navigation and footer."
-    },
-    {
-      "category": "studio_interior",
-      "url": "https://static.prod-images.emergentagent.com/jobs/fb00eb6e-6246-4f6c-a06b-60ac2c5daad3/images/cf804c7f5972bdc1c3d43b1412ac2a5ede08617136c3cb6cc4242e80caad2940.png",
-      "description": "Clean, minimal tattoo studio interior for 'Featured Studios' or 'About' sections."
-    },
-    {
-      "category": "artist_in_action_1",
-      "url": "https://images.unsplash.com/photo-1753259669126-660f46975072?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwyfHx0YXR0b28lMjBhcnRpc3QlMjBzdHVkaW98ZW58MHx8fHwxNzc2MDg1NDY3fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Artist inking client arm, for featured artists section."
-    },
-    {
-      "category": "artist_in_action_2",
-      "url": "https://images.unsplash.com/photo-1753259789341-808371092e19?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHx0YXR0b28lMjBhcnRpc3QlMjBzdHVkaW98ZW58MHx8fHwxNzc2MDg1NDY3fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Tattoo artist preparing, for artist profile page or dashboard welcome."
-    },
-    {
-      "category": "tattoo_portfolio_1",
-      "url": "https://images.unsplash.com/photo-1646582679733-df910660e97f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHw0fHxtaW5pbWFsaXN0JTIwZmluZSUyMGxpbmUlMjB0YXR0b298ZW58MHx8fHwxNzc2MDg1NDY4fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Minimalist fine line tattoo example for gallery placeholders."
-    },
-    {
-      "category": "tattoo_portfolio_2",
-      "url": "https://images.unsplash.com/photo-1547754145-ef9ff306e3f3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwZmluZSUyMGxpbmUlMjB0YXR0b298ZW58MHx8fHwxNzc2MDg1NDY4fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Fine line bicep tattoo example for gallery placeholders."
-    }
-  ],
-  "accessibility_and_motion": {
-    "motion": "Use smooth, deliberate transitions (transition-all duration-300 ease-out). Avoid bouncy/elastic animations. Keep interactions professional and precise.",
-    "testing": "All interactive elements (buttons, links, inputs, tabs) MUST include a 'data-testid' attribute in kebab-case format (e.g., data-testid='book-appointment-btn')."
+  "media": {
+    "images": [
+      {
+        "url": "https://images.pexels.com/photos/28991540/pexels-photo-28991540.jpeg",
+        "category": "hero",
+        "description": "Modern, clean tattoo studio interior. Use for landing page hero or about section."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1547754145-ef9ff306e3f3",
+        "category": "feature",
+        "description": "Minimalist fine line tattoo on arm. Use for 'Featured Artists' or AI Style Advisor visual."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1761276297550-27567ed50a1e",
+        "category": "feature",
+        "description": "Tattoo artist working with black gloves. Use for 'How it Works' or Studio Registration sections."
+      },
+      {
+        "url": "https://images.pexels.com/photos/6593369/pexels-photo-6593369.jpeg",
+        "category": "studio_gallery",
+        "description": "Tattoo artist in modern studio. Use for Studio Detail Page gallery."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1577357922830-eae2e1c7b4de",
+        "category": "portfolio",
+        "description": "Woman with arm tattoo. Use for portfolio grids or search page placeholders."
+      }
+    ]
   },
   "instructions_to_main_agent": [
-    "NOTE ON FILE TYPES: Implement all frontend components using JavaScript (.js/.jsx), NOT TypeScript (.tsx/.ts).",
-    "ICONOGRAPHY: Install and use @phosphor-icons/react for high-end duotone or thin weight icons.",
-    "TYPOGRAPHY: Import Playfair Display (Headings) and Outfit (Body) from Google Fonts.",
-    "STYLING: Use Archetype 4 Light Theme styling: deep ink black (#0A0A0A) for primary actions, stark white (#FFFFFF) backgrounds, and sharp 1px borders.",
-    "MARKETING VS APP: Use raw HTML/Tailwind for the landing page to achieve overlapping/asymmetric editorial layouts. Use customized Shadcn UI components for the Dashboard and Booking Flow.",
-    "HERO OVERLAYS: If text is placed over the hero image, do not use a heavy black blanket. Use a gradient overlay or keep the text on a solid color block to preserve the image.",
-    "LANGUAGE TOGGLE: Ensure a clear, minimal UI for switching between German (DE) and English (EN) in the navigation bar.",
-    "STRIPE & AI UI: For the Stripe deposit flow, use crisp, minimal input fields. For the AI Style Advisor, style the chat/upload area with an 'editorial tech' vibe (stark borders, generative loading animations)."
+    "Strictly adhere to the 'Premium Light Minimalist' aesthetic. Do NOT introduce dark mode or heavy colors.",
+    "Use Playfair Display for all main headings (h1, h2, h3). Use Inter for body text, UI elements, and buttons.",
+    "Never use pure black borders or harsh shadows. Use `border-black/[0.04]` and the defined soft shadows.",
+    "All interactive elements MUST have `data-testid` attributes.",
+    "Use Framer Motion for page loads and scroll reveals, keeping animations slow, soft, and elegant (ease-out).",
+    "For the Landing Page, ensure generous whitespace between sections (`py-24` or `py-32`).",
+    "For Studio Dashboard, avoid heavy card UI. Use light grey backgrounds and white panels with 1px soft borders.",
+    "Use Shadcn UI but heavily customize it to remove the 'Vercel look'. Increase border radii to `rounded-xl` or `rounded-2xl`, soften borders, and change primary colors to Zinc 900.",
+    "Buttons should have a subtle scale-down effect on click (active:scale-95) and a soft shadow on hover.",
+    "In the Booking Sidebar, ensure the form feels fluid. Use soft grey backgrounds for inputs that turn white on focus with a subtle ring."
   ]
 }
