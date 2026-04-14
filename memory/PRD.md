@@ -44,6 +44,17 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April/Mai 2026 (Diese Session – Iteration 11)
+- **GSAP Landingpage MacBook + Scroll-Fix** ✅
+  - Neue MacBook-CSS-Komponente mit korrekten Proportionen (16:10 Screen, Hinge, Base, Touchpad)
+  - Hero: MacBook (zentriert, hinter iPhones) + 3 iPhones in gestaffelter 3D-Anordnung
+  - MacBook GSAP Entrance: rises from below with rotateX(6→22) + scale-in
+  - Scroll-Fix: `opacity:0` aus allen Hero-Scroll-Animationen entfernt → Geräte bleiben sichtbar beim Scrollen
+  - Neue Screenshots: search.jpg, booking.jpg, chat.jpg (390x844), desktop.jpg (1280x800) – alle mit realistischen Daten
+  - Test-Daten bereinigt: "Test Kunde" → "Sophie Müller", realistische Chat-Nachrichten
+  - Chat zeigt Drachen-Tattoo-Referenzbild (Unsplash) statt Selfie
+  - Doppelter /search-Route in App.js bereinigt
+
 ### April/Mai 2026 (Letzte Session – Iteration 10)
 - **GSAP Landingpage verifiziert** ✅ (100% Frontend-Tests bestanden)
   - Hero-Sektion: 3 iPhone-Mockups mit echten App-Screenshots (search.jpg, booking.jpg, chat.jpg)
