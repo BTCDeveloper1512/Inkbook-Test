@@ -84,7 +84,8 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `/api/messages`, `/api/messages/{recipient_id}`
 - `/api/subscriptions/create-checkout-session`, `/api/webhook/stripe`
 - `/api/notifications/subscribe`, `/api/notifications/vapid-public-key`
-- `/api/admin/stats`, `/api/admin/studios`, `/api/admin/users`
+- `/api/messages/unread-count` – Ungelesene Nachrichten-Zähler
+- `/api/messages/{id}/mark-read` – Nachrichten als gelesen markieren
 
 ## 3rd Party Integrations
 - **Stripe** (test mode) – Studio subscriptions

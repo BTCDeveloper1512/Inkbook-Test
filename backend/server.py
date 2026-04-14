@@ -685,6 +685,21 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     return {"message": "Booking updated"}
 
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
+@api_router.get("/messages/unread-count")
+async def get_unread_count(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    count = await db.messages.count_documents({"recipient_id": user_id, "read": False})
+    return {"count": count}
+
+@api_router.post("/messages/{other_user_id}/mark-read")
+async def mark_messages_read(other_user_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    await db.messages.update_many(
+        {"sender_id": other_user_id, "recipient_id": user_id, "read": False},
+        {"$set": {"read": True}}
+    )
+    return {"message": "Marked as read"}
+
 @api_router.get("/messages")
 async def get_conversations(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
@@ -726,6 +741,11 @@ async def get_messages(other_user_id: str, current_user: dict = Depends(get_curr
         ]},
         {"_id": 0}
     ).sort("created_at", 1).to_list(500)
+    # Mark incoming messages as read automatically
+    await db.messages.update_many(
+        {"sender_id": other_user_id, "recipient_id": user_id, "read": False},
+        {"$set": {"read": True}}
+    )
     return messages
 
 @api_router.post("/messages")
