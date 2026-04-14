@@ -226,9 +226,15 @@ export default function CustomerDashboard() {
     return dates;
   };
 
+  const today = new Date().toISOString().split("T")[0];
   const allBookings = stats?.all_bookings || [];
-  const upcoming = allBookings.filter(b => ["pending", "confirmed"].includes(b.status));
-  const past = allBookings.filter(b => ["cancelled", "completed"].includes(b.status));
+  const upcoming = allBookings.filter(b =>
+    ["pending", "confirmed"].includes(b.status) && (!b.date || b.date >= today)
+  );
+  const past = allBookings.filter(b =>
+    ["cancelled", "completed"].includes(b.status) ||
+    (b.status === "confirmed" && b.date && b.date < today)
+  );
   const justCancelled = allBookings.filter(b => b.status === "cancelled" && b.cancelled_by === "studio");
 
   if (loading) return (
