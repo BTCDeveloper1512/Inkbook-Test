@@ -146,7 +146,7 @@ export default function MessagesPage() {
       await axios.post(`${API}/messages`, {
         recipient_id: conv.other_id,
         content: currentText,
-        image_url: currentImage || null
+        image_url: currentImage || ""
       }, { withCredentials: true });
       // Fetch updated messages immediately
       await fetchMessages(conv.other_id);

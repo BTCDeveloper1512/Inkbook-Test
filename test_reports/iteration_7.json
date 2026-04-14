@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 7: Tested all Chat, Push Notification, and Typing Indicator features after MessagesPage.js rewrite. Found and fixed one critical bug: frontend sent image_url: null causing 422 from backend. After fix, all features work correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/messages", "issue": "Backend model image_url: str = '' does not accept null (422). Frontend was sending null when no image. Fixed in frontend by sending empty string instead."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Send message via Enter/Send button", "issue": "Was failing with 422 because image_url: null was sent. Fixed: changed `currentImage || null` to `currentImage || ''` in MessagesPage.js line 149", "affected_selectors": ["[data-testid='chat-input']", "[data-testid='chat-send-btn']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/pytest_results_iter7.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend MessageCreate model has image_url: str = '' but should be Optional[str] = None or Optional[str] = '' to avoid ambiguity. The current setup rejects null values, which is a footgun."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/MessagesPage.js",
+    "/app/backend/tests/test_iteration7.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests pass)",
+    "frontend": "100% - all features verified"
+  },
+  "seed_data_creation": "Sent test messages: TEST_iter7_hallo vom Kunden, Enter-Taste Test!, Send-Button Test!",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 7 fully verified: 1) Enter key sends message (stale closure fix via useRef works) 2) Send button works 3) Polling every 2s works - studio sees customer messages without page reload 4) Conversation sidebar shows correct name + last message 5) No redirect to /login on polling (fault-tolerant) 6) VAPID key endpoint returns key 7) POST /api/notifications/subscribe accepts subscription 8) Typing POST/GET API works, is_typing=true confirmed 9) BUG FIXED: image_url: null -> image_url: '' in MessagesPage.js sendMessage. Test accounts: test_customer@inkbook.com / Test1234!, test_studio@inkbook.com / Test1234!",
+  "rca_of_issue": "Root cause: MessagesPage.js sendMessage function passed `image_url: currentImage || null` to POST /api/messages. When no image was selected, currentImage was empty string (''), so `'' || null` = `null`. Backend Pydantic model `image_url: str = ''` does not accept null (422 Unprocessable Entity). Fix: `currentImage || ''` ensures empty string is sent instead of null."
+}
