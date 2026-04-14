@@ -23,6 +23,7 @@ export default function MessagesPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState(null);
 
   // Refs – avoid stale closures in intervals
   const textRef = useRef("");               // always current text value
@@ -368,7 +369,12 @@ export default function MessagesPage() {
                                 </p>
                               )}
                               {msg.image_url && (
-                                <img src={msg.image_url} alt="" className="max-w-[220px] max-h-[220px] object-cover rounded-2xl mb-1 shadow-sm" />
+                                <img
+                                  src={msg.image_url} alt=""
+                                  className="max-w-[220px] max-h-[220px] object-cover rounded-2xl mb-1 shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+                                  onClick={() => setLightboxImg(msg.image_url)}
+                                  data-testid={`chat-img-${msg.message_id}`}
+                                />
                               )}
                               {msg.content && (
                                 <div className={`px-3.5 py-2.5 shadow-sm ${
@@ -481,6 +487,38 @@ export default function MessagesPage() {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxImg && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setLightboxImg(null)}
+            data-testid="chat-lightbox"
+          >
+            <motion.img
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              src={lightboxImg}
+              alt=""
+              className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain"
+              onClick={e => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setLightboxImg(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              data-testid="chat-lightbox-close"
+            >
+              <X size={20} strokeWidth={2} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

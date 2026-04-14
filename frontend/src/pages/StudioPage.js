@@ -33,6 +33,34 @@ export default function StudioPage() {
   const [uploadingRef, setUploadingRef] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const fileRef = useRef();
+  const today = new Date();
+  const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
+
+  // Calendar helpers
+  const getCalendarDays = () => {
+    const { year, month } = calMonth;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    // Monday-first: getDay() 0=Sun -> shift
+    const startDow = (firstDay.getDay() + 6) % 7;
+    const days = [];
+    // Leading empty cells
+    for (let i = 0; i < startDow; i++) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
+    return days;
+  };
+  const toISO = (d) => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : "";
+  const todayISO = toISO(today);
+  const calDays = getCalendarDays();
+  const monthLabel = new Date(calMonth.year, calMonth.month, 1).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  const prevMonth = () => setCalMonth(m => {
+    const d = new Date(m.year, m.month - 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+  const nextMonth = () => setCalMonth(m => {
+    const d = new Date(m.year, m.month + 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,15 +112,6 @@ export default function StudioPage() {
       const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
       setRefImages(prev => [...prev, data.url]);
     } catch {} finally { setUploadingRef(false); }
-  };
-
-  const getDates = () => {
-    const dates = [];
-    for (let i = 1; i <= 14; i++) {
-      const d = new Date(); d.setDate(d.getDate() + i);
-      dates.push(d.toISOString().split("T")[0]);
-    }
-    return dates;
   };
 
   if (loading) return (
@@ -365,21 +384,60 @@ export default function StudioPage() {
                 </div>
               </div>
 
-              {/* Date Selection */}
+              {/* Date Selection – Calendar */}
               <div className="mb-5">
-                <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> {t("booking.selectDate")}</p>
-                <div className="flex gap-1.5 overflow-x-auto pb-1.5 -mx-1 px-1">
-                  {getDates().map(d => {
-                    const dateObj = new Date(d + "T12:00:00");
+                <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> {t("booking.selectDate")}</p>
+
+                {/* Month Navigation */}
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    onClick={prevMonth}
+                    disabled={calMonth.year === today.getFullYear() && calMonth.month === today.getMonth()}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    data-testid="cal-prev-month"
+                  >
+                    <ChevronLeft size={16} strokeWidth={2} />
+                  </button>
+                  <span className="font-inter font-semibold text-sm text-zinc-800 capitalize">{monthLabel}</span>
+                  <button
+                    onClick={nextMonth}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition-colors"
+                    data-testid="cal-next-month"
+                  >
+                    <ChevronRight size={16} strokeWidth={2} />
+                  </button>
+                </div>
+
+                {/* Weekday Headers */}
+                <div className="grid grid-cols-7 mb-1">
+                  {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                    <div key={d} className="text-center text-xs font-inter font-semibold text-zinc-400 py-1">{d}</div>
+                  ))}
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {calDays.map((day, idx) => {
+                    if (!day) return <div key={`e-${idx}`} />;
+                    const iso = toISO(day);
+                    const isPast = iso < todayISO;
+                    const isToday = iso === todayISO;
+                    const isSelected = iso === selectedDate;
                     return (
                       <button
-                        key={d}
-                        onClick={() => setSelectedDate(d)}
-                        className={`flex-shrink-0 w-12 py-2.5 text-center rounded-xl border transition-all ${selectedDate === d ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
-                        data-testid={`date-btn-${d}`}
+                        key={iso}
+                        disabled={isPast}
+                        onClick={() => { setSelectedDate(iso); setSelectedSlot(null); }}
+                        className={`
+                          relative aspect-square flex items-center justify-center rounded-xl text-sm font-inter font-medium transition-all
+                          ${isPast ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"}
+                          ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""}
+                          ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""}
+                          ${!isSelected && !isPast && !isToday ? "text-zinc-700" : ""}
+                        `}
+                        data-testid={`date-btn-${iso}`}
                       >
-                        <div className="text-xs font-inter font-semibold">{dateObj.toLocaleDateString("de-DE", { day: "2-digit" })}</div>
-                        <div className="text-xs opacity-60">{dateObj.toLocaleDateString("de-DE", { month: "short" })}</div>
+                        {day.getDate()}
                       </button>
                     );
                   })}

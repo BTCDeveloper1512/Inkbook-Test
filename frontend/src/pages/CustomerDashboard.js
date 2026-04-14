@@ -143,6 +143,7 @@ export default function CustomerDashboard() {
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState("");
   const [reviewBooking, setReviewBooking] = useState(null);
+  const [dismissedCancellations, setDismissedCancellations] = useState([]);
   const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
 
   useEffect(() => {
@@ -235,7 +236,7 @@ export default function CustomerDashboard() {
     ["cancelled", "completed"].includes(b.status) ||
     (b.status === "confirmed" && b.date && b.date < today)
   );
-  const justCancelled = allBookings.filter(b => b.status === "cancelled" && b.cancelled_by === "studio");
+  const justCancelled = allBookings.filter(b => b.status === "cancelled" && b.cancelled_by === "studio" && !dismissedCancellations.includes(b.booking_id));
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-50"><Navbar />
@@ -259,12 +260,12 @@ export default function CustomerDashboard() {
         {/* Cancellation Alert Banner (Studio-seitig storniert) */}
         <AnimatePresence>
           {justCancelled.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3"
               data-testid="cancellation-alert"
             >
               <AlertTriangle size={18} className="text-red-500 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
-              <div>
+              <div className="flex-1">
                 <p className="font-inter font-semibold text-red-800 text-sm">Dein Termin wurde storniert</p>
                 {justCancelled.map(b => (
                   <p key={b.booking_id} className="text-xs text-red-600 font-inter mt-1">
@@ -275,6 +276,14 @@ export default function CustomerDashboard() {
                   Neues Studio finden →
                 </Link>
               </div>
+              <button
+                onClick={() => setDismissedCancellations(prev => [...prev, ...justCancelled.map(b => b.booking_id)])}
+                className="p-1 rounded-lg hover:bg-red-100 text-red-400 hover:text-red-700 transition-colors flex-shrink-0 mt-0.5"
+                data-testid="dismiss-cancellation-btn"
+                aria-label="Meldung schließen"
+              >
+                <X size={16} strokeWidth={2} />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
