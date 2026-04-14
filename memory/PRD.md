@@ -50,11 +50,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
   - Live-Polling alle 2s – Studio sieht Kunden-Nachrichten ohne Reload
   - Bug behoben: `image_url: null` → `image_url: ''` + `Optional[str]` im Backend
 - **Push-Benachrichtigungen verifiziert** ✅
-- **3 neue UI-Features** ✅
+- **5 neue UI-Features** ✅
   - Schließen-Button (X) für Stornierung-Banner im CustomerDashboard
   - Bild-Lightbox im Chat – Klick öffnet Vollbild-Overlay
-  - Voller Monatskalender für Terminauswahl (Mo–So Grid, Navigation, heute-Highlight, vergangene Tage deaktiviert)
-  - Kalender-Verfügbarkeitsanzeige: grüner Punkt = freie Slots, grauer Punkt = ausgebucht/keine Slots (API: GET /studios/{id}/available-dates)
+  - Voller Monatskalender (Mo–So Grid, Navigation, heute-Highlight, vergangene Tage deaktiviert)
+  - Kalender-Verfügbarkeitsanzeige: grüner/grauer Punkt pro Tag (API: GET /studios/{id}/available-dates)
+  - Buchungs-Sidebar zeigt Login/Register-Prompt wenn nicht eingeloggt
+  - Instagram-Button auf Artist-Kachel: Klick öffnet Popup mit Lottie-Animation (lottie-instagram.json in /public/) + @handle
 
 ### 2025 Initial MVP
 - Base FastAPI + React + MongoDB setup ✅

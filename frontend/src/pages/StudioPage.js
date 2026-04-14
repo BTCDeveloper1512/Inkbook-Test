@@ -37,9 +37,9 @@ export default function StudioPage() {
   const [lottieData, setLottieData] = useState(null);
   const [igActive, setIgActive] = useState(null); // artist_id currently showing instagram popup
 
-  // Load lottie animation once
+  // Load lottie animation once (local file to avoid CORS)
   useEffect(() => {
-    fetch("https://customer-assets.emergentagent.com/job_artist-connect-82/artifacts/qhhbpzlv_lottieflow-social-networks-15-5-000000-easey.json")
+    fetch("/lottie-instagram.json")
       .then(r => r.json()).then(setLottieData).catch(() => {});
   }, []);
   const today = new Date();
