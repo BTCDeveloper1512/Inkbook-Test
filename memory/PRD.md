@@ -25,60 +25,58 @@ Doctolib-style tattoo booking platform for tattoo studios and artists. Customers
 - AI tattoo style advisor (GPT-4o vision)
 - Multilingual (DE/EN)
 
-## What's Been Implemented (2025-04)
+## What's Been Implemented (Updated 2025-04)
 
 ### Backend (FastAPI)
-- ✅ JWT auth (register/login/logout/me) with bcrypt
-- ✅ Google OAuth session via Emergent-managed auth
-- ✅ Studios CRUD (create, read, update, list with filters)
-- ✅ Slots management (create, list, delete)
-- ✅ Bookings (create, list, status update, cancel)
-- ✅ Reviews (create, list, avg rating auto-update)
-- ✅ Messages/Chat (send, list conversations)
-- ✅ Stripe deposits (create-session, status, webhook)
-- ✅ AI Style Advisor (GPT-4o vision + text)
+- ✅ JWT auth + Google OAuth (email registration injects `id` from JWT payload - bug fixed)
+- ✅ Studios CRUD with filters
+- ✅ Slots management
+- ✅ Bookings with reference images, email notifications
+- ✅ Reviews with avg rating
+- ✅ Messages/Chat (conversations enriched with other user name)
+- ✅ Stripe deposits
+- ✅ AI Style Advisor (GPT-4o vision)
 - ✅ Image upload (base64 data URLs)
-- ✅ Dashboard stats for both user types
-- ✅ Demo data seeded (4 studios, slots for 14 days)
-- ✅ Admin + Studio Owner + Customer test accounts seeded
+- ✅ Dashboard stats
+- ✅ Email notifications via Resend (booking confirmation + status update, graceful skip if no key)
+- ✅ Demo data seeded
 
-### Frontend (React)
-- ✅ Landing page (hero, featured studios, how-it-works, AI banner)
-- ✅ Search/Discovery page (studios grid + filters)
-- ✅ Studio detail page (tabs: About, Gallery, Reviews + booking sidebar)
-- ✅ Booking flow (select date → slot → type → confirm)
-- ✅ Customer Dashboard (stats, upcoming/past bookings, deposit payment)
-- ✅ Studio Dashboard (create studio, slot management, booking management)
-- ✅ AI Style Advisor page (image upload + description → GPT-4o recommendation)
-- ✅ Auth pages (Login + Register with Google OAuth buttons)
-- ✅ Auth callback (Google OAuth session exchange)
-- ✅ Protected routes
-- ✅ Navbar with language toggle (DE/EN)
-- ✅ Footer
-- ✅ i18n (react-i18next, DE + EN)
-- ✅ Design: Playfair Display + Outfit fonts, editorial light theme
+### Frontend (React + PWA)
+- ✅ Landing page
+- ✅ Search/Discovery + filters
+- ✅ Studio detail + booking sidebar with reference image upload (up to 5)
+- ✅ Studio contact button (links to /messages/owner_id)
+- ✅ Customer Dashboard (stats, bookings, messages quick action)
+- ✅ Studio Dashboard (4 tabs: Übersicht, Slots, Buchungen, Profil bearbeiten)
+  - ✅ Profile edit: name, description, address, city, phone, email, website, price range
+  - ✅ Style toggle (select/deselect from 16 styles)
+  - ✅ Gallery management (upload + remove images)
+- ✅ Chat/Messaging UI (/messages + /messages/:recipientId)
+  - ✅ Conversation list with other user name
+  - ✅ Real-time polling (5s)
+  - ✅ Image upload in chat
+  - ✅ Mobile responsive two-panel layout
+- ✅ AI Style Advisor (GPT-4o)
+- ✅ Auth pages (Login + Register + Google OAuth)
+- ✅ PWA: manifest.json, viewport meta, page title, apple-mobile-web-app tags
+- ✅ Multilingual (DE/EN), Nachrichten nav link
 
-## Prioritized Backlog
+## Priority Backlog (Updated)
+### P0 (Next)
+- Resend API key needed for email (RESEND_API_KEY in .env)
+- Artist/employee profiles within studio
+- Booking reschedule flow
 
-### P0 (Critical - next)
-- Chat/Messaging UI (frontend for conversations)
-- Email notifications (booking confirmations, reminders)
-- Studio profile edit page
-- Reference image upload in booking
-
-### P1 (High priority)
-- Artist profiles (separate from studio)
-- Mobile app / PWA
-- Push notifications
-- Advanced calendar view for studio dashboard
-- Booking reschedule functionality
-
-### P2 (Nice to have)
-- Studio subscription/payment (Stripe monthly plans)
+### P1
+- Push notifications (web push API)
 - Admin panel
-- Social sharing of tattoo appointments
+- Monthly studio subscriptions (Stripe)
+- Advanced calendar view (FullCalendar)
+
+### P2
+- Studio analytics dashboard
+- Social sharing
 - Deposit refund management
-- Customer profile with tattoo history
 
 ## Test Accounts
 - Admin: admin@inkbook.com / admin123
