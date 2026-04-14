@@ -515,10 +515,13 @@ async def create_review(studio_id: str, data: ReviewCreate, current_user: dict =
 
 # ─── Slots / Availability ─────────────────────────────────────────────────────
 @api_router.get("/studios/{studio_id}/slots")
-async def get_slots(studio_id: str, date: Optional[str] = None):
+async def get_slots(studio_id: str, date: Optional[str] = None, slot_type: Optional[str] = None):
     query: Dict[str, Any] = {"studio_id": studio_id, "is_booked": False}
     if date:
         query["date"] = date
+    if slot_type and slot_type != "full_day":
+        # Show matching type AND full_day slots (full_day fits any booking)
+        query["slot_type"] = {"$in": [slot_type, "full_day"]}
     slots = await db.slots.find(query, {"_id": 0}).to_list(200)
     return slots
 
@@ -1075,6 +1078,10 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
 
 # ─── Seed Data ────────────────────────────────────────────────────────────────
 async def seed_demo_data():
+    # Check if seeding is disabled
+    config = await db.config.find_one({"key": "seed_disabled"})
+    if config:
+        return
     count = await db.studios.count_documents({})
     if count > 0:
         return
@@ -1349,20 +1356,6 @@ async def startup_event():
         logger.info(f"Admin user created: {admin_email}")
     elif not verify_password(admin_password, existing.get("password_hash", "")):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
-    
-    # Seed test studio owner
-    studio_owner_email = "studioowner@inkbook.com"
-    existing_owner = await db.users.find_one({"email": studio_owner_email})
-    if not existing_owner:
-        await db.users.insert_one({
-            "email": studio_owner_email,
-            "password_hash": hash_password("studio123"),
-            "name": "Test Studio Owner",
-            "role": "studio_owner",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "auth_provider": "email"
-        })
-        logger.info(f"Studio owner seeded: {studio_owner_email}")
     
     await seed_demo_data()
     logger.info("InkBook API started")

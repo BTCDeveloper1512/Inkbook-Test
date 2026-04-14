@@ -41,7 +41,7 @@ export default function Navbar() {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-1">
             {[
-              { to: "/search", label: t("nav.search") },
+            { to: "/", label: t("nav.search") },
               { to: "/ai-advisor", label: t("nav.aiAdvisor") },
               ...(user ? [{ to: "/messages", label: t("nav.messages") }] : [])
             ].map(link => (
@@ -104,7 +104,7 @@ export default function Navbar() {
           {mobileOpen && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t border-zinc-100 py-3 space-y-1 overflow-hidden">
               {[
-                { to: "/search", label: t("nav.search") },
+                { to: "/", label: t("nav.search") },
                 { to: "/ai-advisor", label: t("nav.aiAdvisor") },
                 ...(user ? [{ to: "/messages", label: t("nav.messages") }, { to: dashboardPath, label: t("nav.dashboard") }] : [
                   { to: "/login", label: t("nav.login") },

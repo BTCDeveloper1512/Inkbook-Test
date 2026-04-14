@@ -209,9 +209,13 @@ export default function MessagesPage() {
                         <motion.div
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                          className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
                           data-testid={`message-${msg.message_id}`}
                         >
+                          {/* Sender name (only for received messages) */}
+                          {!isMine && (
+                            <p className="text-xs text-zinc-400 font-inter mb-1 px-1">{msg.sender_name || activeConv.recipient_name}</p>
+                          )}
                           <div className={`max-w-xs lg:max-w-md flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
                             {msg.image_url && (
                               <img src={msg.image_url} alt="Bild" className="max-w-[200px] max-h-[200px] object-cover rounded-2xl" />

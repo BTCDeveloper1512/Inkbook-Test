@@ -26,7 +26,8 @@ function AppRouter() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<SearchPage />} />
+      <Route path="/home" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
@@ -57,7 +58,7 @@ function AppRouter() {
           <AdminPage />
         </ProtectedRoute>
       } />
-      <Route path="*" element={<LandingPage />} />
+      <Route path="*" element={<SearchPage />} />
     </Routes>
   );
 }
