@@ -75,10 +75,11 @@ code {
 
 @layer base {
     * {
-        @apply border-border;
+        border-color: rgb(228 228 231 / 0.8);
     }
     body {
-        @apply bg-background text-foreground;
+        background-color: #FFFFFF;
+        color: #09090B;
     }
 }
 

@@ -270,6 +270,14 @@ class ArtistUpdate(BaseModel):
 class BookingReschedule(BaseModel):
     new_slot_id: str
 
+class PushSubscription(BaseModel):
+    endpoint: str
+    keys: Dict[str, str]
+
+class AdminStudioUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+
 # ─── Auth Endpoints ───────────────────────────────────────────────────────────
 @api_router.post("/auth/register")
 async def register(data: UserRegister, response: JSONResponse = None):
@@ -1198,6 +1206,126 @@ async def seed_demo_data():
                 await db.slots.insert_one(slot)
     
     logger.info("Demo data seeded successfully")
+
+# ─── Push Notifications ──────────────────────────────────────────────────────
+@api_router.post("/notifications/subscribe")
+async def subscribe_push(data: PushSubscription, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    subscription_info = {"endpoint": data.endpoint, "keys": data.keys}
+    await db.users.update_one(
+        {"$or": [{"_id": ObjectId(user_id)} if len(user_id) == 24 else {"user_id": user_id}]},
+        {"$addToSet": {"push_subscriptions": subscription_info}}
+    )
+    return {"message": "Subscribed successfully"}
+
+@api_router.delete("/notifications/unsubscribe")
+async def unsubscribe_push(data: PushSubscription, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    await db.users.update_one(
+        {"$or": [{"_id": ObjectId(user_id)} if len(user_id) == 24 else {"user_id": user_id}]},
+        {"$pull": {"push_subscriptions": {"endpoint": data.endpoint}}}
+    )
+    return {"message": "Unsubscribed"}
+
+@api_router.get("/notifications/vapid-public-key")
+async def get_vapid_public_key():
+    return {"public_key": os.environ.get("VAPID_PUBLIC_KEY", "")}
+
+async def send_push_notification(user_id: str, title: str, body: str, url: str = "/"):
+    try:
+        from pywebpush import webpush, WebPushException
+        import json as json_lib
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
+        vapid_email = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:admin@inkbook.com")
+        if not vapid_private:
+            return
+        try:
+            user = await db.users.find_one({"_id": ObjectId(user_id)})
+        except Exception:
+            user = await db.users.find_one({"user_id": user_id})
+        if not user or not user.get("push_subscriptions"):
+            return
+        payload = json_lib.dumps({"title": title, "body": body, "url": url})
+        for sub in user["push_subscriptions"]:
+            try:
+                await asyncio.to_thread(
+                    webpush,
+                    subscription_info=sub,
+                    data=payload,
+                    vapid_private_key=vapid_private,
+                    vapid_claims={"sub": vapid_email}
+                )
+            except WebPushException as e:
+                logger.warning(f"Push failed: {e}")
+    except Exception as e:
+        logger.warning(f"Push notification error: {e}")
+
+# ─── Admin Panel Endpoints ────────────────────────────────────────────────────
+async def require_admin(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+@api_router.get("/admin/stats")
+async def admin_stats(current_user: dict = Depends(require_admin)):
+    total_users = await db.users.count_documents({})
+    total_studios = await db.studios.count_documents({})
+    active_studios = await db.studios.count_documents({"is_active": True})
+    total_bookings = await db.bookings.count_documents({})
+    confirmed_bookings = await db.bookings.count_documents({"status": "confirmed"})
+    pending_bookings = await db.bookings.count_documents({"status": "pending"})
+    total_revenue_cursor = db.payment_transactions.aggregate([
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ])
+    revenue_result = await total_revenue_cursor.to_list(1)
+    total_revenue = revenue_result[0]["total"] if revenue_result else 0
+    active_subscriptions = await db.subscriptions.count_documents({"status": "active"})
+    customers = await db.users.count_documents({"role": "customer"})
+    studio_owners = await db.users.count_documents({"role": "studio_owner"})
+    recent_bookings = await db.bookings.find({}, {"_id": 0}).sort("created_at", -1).limit(10).to_list(10)
+    return {
+        "total_users": total_users,
+        "customers": customers,
+        "studio_owners": studio_owners,
+        "total_studios": total_studios,
+        "active_studios": active_studios,
+        "total_bookings": total_bookings,
+        "confirmed_bookings": confirmed_bookings,
+        "pending_bookings": pending_bookings,
+        "total_revenue": round(total_revenue, 2),
+        "active_subscriptions": active_subscriptions,
+        "recent_bookings": recent_bookings
+    }
+
+@api_router.get("/admin/studios")
+async def admin_list_studios(current_user: dict = Depends(require_admin)):
+    studios = await db.studios.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    result = []
+    for s in studios:
+        sub = await db.subscriptions.find_one({"studio_id": s["studio_id"]}, {"_id": 0})
+        booking_count = await db.bookings.count_documents({"studio_id": s["studio_id"]})
+        result.append({**s, "subscription": sub, "booking_count": booking_count})
+    return result
+
+@api_router.patch("/admin/studios/{studio_id}")
+async def admin_update_studio(studio_id: str, data: AdminStudioUpdate, current_user: dict = Depends(require_admin)):
+    update = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    await db.studios.update_one({"studio_id": studio_id}, {"$set": update})
+    return {"message": "Studio updated"}
+
+@api_router.get("/admin/users")
+async def admin_list_users(current_user: dict = Depends(require_admin)):
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(500)
+    return users
+
+@api_router.delete("/admin/studios/{studio_id}")
+async def admin_delete_studio(studio_id: str, current_user: dict = Depends(require_admin)):
+    await db.studios.delete_one({"studio_id": studio_id})
+    await db.slots.delete_many({"studio_id": studio_id})
+    return {"message": "Studio deleted"}
 
 @app.on_event("startup")
 async def startup_event():

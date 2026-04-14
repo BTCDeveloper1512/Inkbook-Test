@@ -13,6 +13,7 @@ import StudioDashboard from "./pages/StudioDashboard";
 import AIAdvisorPage from "./pages/AIAdvisorPage";
 import MessagesPage from "./pages/MessagesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import AdminPage from "./pages/AdminPage";
 import "./App.css";
 
 function AppRouter() {
@@ -49,6 +50,11 @@ function AppRouter() {
       <Route path="/studio-dashboard" element={
         <ProtectedRoute requiredRole="studio_owner">
           <StudioDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <ProtectedRoute requiredRole="admin">
+          <AdminPage />
         </ProtectedRoute>
       } />
       <Route path="*" element={<LandingPage />} />
