@@ -91,14 +91,8 @@ export default function RegisterPage() {
       </div>
 
       {/* Animation side */}
-      <div className="hidden lg:flex flex-1 relative overflow-hidden bg-zinc-950 items-center justify-center">
+      <div className="hidden lg:flex flex-1 relative overflow-hidden bg-white border-l border-zinc-100 items-center justify-center">
         <TattooAnimation />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent flex items-end p-14 pointer-events-none">
-          <div>
-            <h2 className="text-4xl font-playfair text-white mb-2 leading-tight">Teil werden.<br />Sofort loslegen.</h2>
-            <p className="text-white/70 font-inter text-sm">Kostenlos für Kunden · Flexibel für Studios</p>
-          </div>
-        </div>
       </div>
     </div>
   );
