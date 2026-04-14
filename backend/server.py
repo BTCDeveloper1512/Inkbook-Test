@@ -245,6 +245,29 @@ class PaymentCreateRequest(BaseModel):
     booking_id: str
     origin_url: str
 
+class SubscriptionCheckoutRequest(BaseModel):
+    plan: str  # "basic" | "pro"
+    origin_url: str
+
+class ArtistCreate(BaseModel):
+    name: str
+    bio: str = ""
+    styles: List[str] = []
+    experience_years: int = 0
+    instagram: str = ""
+    portfolio_images: List[str] = []
+
+class ArtistUpdate(BaseModel):
+    name: Optional[str] = None
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = None
+    experience_years: Optional[int] = None
+    instagram: Optional[str] = None
+    portfolio_images: Optional[List[str]] = None
+
+class BookingReschedule(BaseModel):
+    new_slot_id: str
+
 # ─── Auth Endpoints ───────────────────────────────────────────────────────────
 @api_router.post("/auth/register")
 async def register(data: UserRegister, response: JSONResponse = None):
@@ -761,7 +784,181 @@ async def stripe_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
     return {"received": True}
 
-# ─── AI Style Advisor ─────────────────────────────────────────────────────────
+# ─── Subscriptions ────────────────────────────────────────────────────────────
+SUBSCRIPTION_PLANS = {
+    "basic": {"name": "Basic", "price": 29.0, "currency": "eur", "features": ["50 Buchungen/Monat", "1 Artist-Profil", "Basis-Analytics", "E-Mail-Support"]},
+    "pro":   {"name": "Pro",   "price": 79.0, "currency": "eur", "features": ["Unbegrenzte Buchungen", "5 Artist-Profile", "Premium-Analytics", "Priority-Listing", "Priority-Support", "Benutzerdefinierte Profilseite"]}
+}
+
+@api_router.get("/subscriptions/plans")
+async def get_plans():
+    return SUBSCRIPTION_PLANS
+
+@api_router.get("/subscriptions/status")
+async def get_subscription_status(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id}, {"_id": 0})
+    if not studio:
+        return {"has_studio": False, "subscription": None}
+    sub = await db.subscriptions.find_one({"studio_id": studio["studio_id"]}, {"_id": 0})
+    if not sub:
+        return {"has_studio": True, "studio_id": studio["studio_id"], "subscription": None}
+    # Check if expired
+    if sub.get("expires_at"):
+        expires = datetime.fromisoformat(sub["expires_at"])
+        if expires < datetime.now(timezone.utc):
+            sub["status"] = "expired"
+            await db.subscriptions.update_one({"studio_id": studio["studio_id"]}, {"$set": {"status": "expired"}})
+    return {"has_studio": True, "studio_id": studio["studio_id"], "subscription": sub}
+
+@api_router.post("/subscriptions/checkout")
+async def create_subscription_checkout(data: SubscriptionCheckoutRequest, request: Request, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") not in ["studio_owner", "admin"]:
+        raise HTTPException(status_code=403, detail="Only studio owners can subscribe")
+    plan = SUBSCRIPTION_PLANS.get(data.plan)
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id})
+    studio_id = studio["studio_id"] if studio else f"pending_{user_id}"
+    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    origin = data.origin_url
+    success_url = f"{origin}/studio-dashboard?sub=success&session_id={{CHECKOUT_SESSION_ID}}&plan={data.plan}"
+    cancel_url = f"{origin}/subscription?sub=cancelled"
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=f"{str(request.base_url)}api/webhook/stripe")
+    checkout_req = CheckoutSessionRequest(
+        amount=float(plan["price"]),
+        currency=plan["currency"],
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"type": "subscription", "plan": data.plan, "studio_id": studio_id, "user_id": user_id}
+    )
+    session = await stripe_checkout.create_checkout_session(checkout_req)
+    await db.payment_transactions.insert_one({
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
+        "type": "subscription",
+        "studio_id": studio_id,
+        "user_id": user_id,
+        "plan": data.plan,
+        "session_id": session.session_id,
+        "amount": float(plan["price"]),
+        "currency": plan["currency"],
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return {"url": session.url, "session_id": session.session_id}
+
+@api_router.get("/subscriptions/verify/{session_id}")
+async def verify_subscription(session_id: str, plan: str, request: Request, current_user: dict = Depends(get_current_user)):
+    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=f"{str(request.base_url)}api/webhook/stripe")
+    status = await stripe_checkout.get_checkout_status(session_id)
+    if status.payment_status == "paid":
+        txn = await db.payment_transactions.find_one({"session_id": session_id})
+        if txn and txn.get("payment_status") != "paid":
+            await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"payment_status": "paid"}})
+            studio_id = txn.get("studio_id", status.metadata.get("studio_id", ""))
+            plan_name = txn.get("plan", plan)
+            expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            await db.subscriptions.update_one(
+                {"studio_id": studio_id},
+                {"$set": {"studio_id": studio_id, "plan": plan_name, "status": "active", "started_at": datetime.now(timezone.utc).isoformat(), "expires_at": expires_at, "session_id": session_id}},
+                upsert=True
+            )
+            # Mark studio as verified for active subscribers
+            await db.studios.update_one({"studio_id": studio_id}, {"$set": {"is_verified": True, "subscription_plan": plan_name}})
+            return {"status": "active", "plan": plan_name, "expires_at": expires_at}
+    return {"status": status.status, "payment_status": status.payment_status}
+
+@api_router.post("/subscriptions/cancel")
+async def cancel_subscription(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    await db.subscriptions.update_one({"studio_id": studio["studio_id"]}, {"$set": {"status": "cancelled"}})
+    return {"message": "Subscription cancelled"}
+
+# ─── Artists ──────────────────────────────────────────────────────────────────
+@api_router.get("/studios/{studio_id}/artists")
+async def get_artists(studio_id: str):
+    artists = await db.artists.find({"studio_id": studio_id}, {"_id": 0}).to_list(50)
+    return artists
+
+@api_router.post("/studios/{studio_id}/artists")
+async def create_artist(studio_id: str, data: ArtistCreate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    artist_doc = {
+        "artist_id": f"artist_{uuid.uuid4().hex[:12]}",
+        "studio_id": studio_id,
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.artists.insert_one(artist_doc)
+    artist_doc.pop("_id", None)
+    return artist_doc
+
+@api_router.put("/studios/{studio_id}/artists/{artist_id}")
+async def update_artist(studio_id: str, artist_id: str, data: ArtistUpdate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    await db.artists.update_one({"artist_id": artist_id, "studio_id": studio_id}, {"$set": update_data})
+    return {"message": "Artist updated"}
+
+@api_router.delete("/studios/{studio_id}/artists/{artist_id}")
+async def delete_artist(studio_id: str, artist_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    await db.artists.delete_one({"artist_id": artist_id, "studio_id": studio_id})
+    return {"message": "Artist deleted"}
+
+# ─── Booking Reschedule ───────────────────────────────────────────────────────
+@api_router.put("/bookings/{booking_id}/reschedule")
+async def reschedule_booking(booking_id: str, data: BookingReschedule, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if booking.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if booking.get("status") == "cancelled":
+        raise HTTPException(status_code=400, detail="Cannot reschedule a cancelled booking")
+    new_slot = await db.slots.find_one({"slot_id": data.new_slot_id, "studio_id": booking["studio_id"]})
+    if not new_slot:
+        raise HTTPException(status_code=404, detail="New slot not found")
+    if new_slot.get("is_booked"):
+        raise HTTPException(status_code=400, detail="This slot is already booked")
+    # Free old slot
+    await db.slots.update_one({"slot_id": booking["slot_id"]}, {"$set": {"is_booked": False, "booking_id": None}})
+    # Book new slot
+    await db.slots.update_one({"slot_id": data.new_slot_id}, {"$set": {"is_booked": True, "booking_id": booking_id}})
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {"slot_id": data.new_slot_id, "date": new_slot["date"], "start_time": new_slot["start_time"], "end_time": new_slot["end_time"], "status": "pending", "rescheduled_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    # Email notification
+    user_email = booking.get("user_email", "")
+    if user_email:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"Termin umgebucht – {booking.get('studio_name', '')}",
+            html=f"""<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                <h2 style="font-weight:bold;">Termin erfolgreich umgebucht</h2>
+                <p>Dein Termin bei <strong>{booking.get('studio_name','')}</strong> wurde umgebucht auf:</p>
+                <p><strong>{new_slot['date']}</strong> um <strong>{new_slot['start_time']} – {new_slot['end_time']}</strong></p>
+                <p style="color:#555;font-size:13px;">Buchungs-ID: {booking_id}</p>
+            </div>"""
+        ))
+    updated = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    return updated
 @api_router.post("/ai/style-advisor")
 async def ai_style_advisor(data: AIStyleRequest, current_user: dict = Depends(get_current_user)):
     api_key = os.environ.get("EMERGENT_LLM_KEY", "")

@@ -12,6 +12,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import StudioDashboard from "./pages/StudioDashboard";
 import AIAdvisorPage from "./pages/AIAdvisorPage";
 import MessagesPage from "./pages/MessagesPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 import "./App.css";
 
 function AppRouter() {
@@ -36,6 +37,9 @@ function AppRouter() {
       } />
       <Route path="/messages/:recipientId" element={
         <ProtectedRoute><MessagesPage /></ProtectedRoute>
+      } />
+      <Route path="/subscription" element={
+        <ProtectedRoute requiredRole="studio_owner"><SubscriptionPage /></ProtectedRoute>
       } />
       <Route path="/dashboard" element={
         <ProtectedRoute>

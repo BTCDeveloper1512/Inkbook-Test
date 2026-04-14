@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, TrendingUp, Clock, CheckCircle, XCircle, CreditCard, ChevronRight } from "lucide-react";
+import { Calendar, MessageSquare, TrendingUp, Clock, CheckCircle, XCircle, CreditCard, ChevronRight, RefreshCw } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -30,6 +30,10 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [paymentSessionId, setPaymentSessionId] = useState(null);
+  const [rescheduleBooking, setRescheduleBooking] = useState(null);
+  const [rescheduleSlots, setRescheduleSlots] = useState([]);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   useEffect(() => {
     // Check for payment return
@@ -91,6 +95,41 @@ export default function CustomerDashboard() {
       });
       fetchStats();
     } catch {}
+  };
+
+  const handleOpenReschedule = async (booking) => {
+    setRescheduleBooking(booking);
+    setRescheduleDate("");
+    setRescheduleSlots([]);
+  };
+
+  const handleRescheduleDate = async (date) => {
+    setRescheduleDate(date);
+    try {
+      const { data } = await axios.get(`${API}/studios/${rescheduleBooking.studio_id}/slots`, { params: { date } });
+      setRescheduleSlots(data);
+    } catch {}
+  };
+
+  const handleReschedule = async (newSlotId) => {
+    setRescheduleLoading(true);
+    try {
+      await axios.put(`${API}/bookings/${rescheduleBooking.booking_id}/reschedule`, { new_slot_id: newSlotId }, { withCredentials: true });
+      setRescheduleBooking(null);
+      fetchStats();
+    } catch (e) {
+      alert(e.response?.data?.detail || "Umbuchung fehlgeschlagen");
+    } finally { setRescheduleLoading(false); }
+  };
+
+  const getDates = () => {
+    const dates = [];
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      dates.push(d.toISOString().split("T")[0]);
+    }
+    return dates;
   };
 
   const allBookings = stats?.all_bookings || [];
@@ -216,6 +255,15 @@ export default function CustomerDashboard() {
                     )}
                     {["pending", "confirmed"].includes(booking.status) && (
                       <button
+                        onClick={() => handleOpenReschedule(booking)}
+                        className="px-3 py-1.5 border border-gray-300 text-xs font-outfit hover:border-black hover:text-black transition-colors flex items-center gap-1"
+                        data-testid={`reschedule-btn-${booking.booking_id}`}
+                      >
+                        <RefreshCw size={11} /> Umbuchen
+                      </button>
+                    )}
+                    {["pending", "confirmed"].includes(booking.status) && (
+                      <button
                         onClick={() => handleCancelBooking(booking.booking_id)}
                         className="px-3 py-1.5 border border-gray-300 text-xs font-outfit hover:border-red-500 hover:text-red-600 transition-colors"
                         data-testid={`cancel-booking-btn-${booking.booking_id}`}
@@ -230,6 +278,56 @@ export default function CustomerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Reschedule Modal */}
+      {rescheduleBooking && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" data-testid="reschedule-modal">
+          <div className="bg-white w-full max-w-md">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="font-playfair font-bold text-lg">Termin umbuchen</h3>
+              <button onClick={() => setRescheduleBooking(null)} className="text-gray-400 hover:text-black"><RefreshCw size={18} /></button>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-gray-600 font-outfit mb-4">
+                Aktueller Termin: <strong>{rescheduleBooking.date}</strong> um <strong>{rescheduleBooking.start_time}</strong> bei <strong>{rescheduleBooking.studio_name}</strong>
+              </p>
+              <div className="mb-4">
+                <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Neues Datum</label>
+                <div className="flex gap-1 overflow-x-auto pb-2">
+                  {getDates().map(d => (
+                    <button key={d} onClick={() => handleRescheduleDate(d)} className={`flex-shrink-0 w-12 py-2 text-xs font-outfit border transition-colors ${rescheduleDate === d ? "bg-black text-white border-black" : "border-gray-300 hover:border-black"}`} data-testid={`reschedule-date-${d}`}>
+                      <div>{new Date(d).toLocaleDateString("de-DE", { day: "2-digit" })}</div>
+                      <div className="opacity-70">{new Date(d).toLocaleDateString("de-DE", { month: "short" })}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {rescheduleDate && (
+                <div>
+                  <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Freie Slots</label>
+                  {rescheduleSlots.length === 0 ? (
+                    <p className="text-sm text-gray-400 font-outfit">Keine freien Slots an diesem Tag</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {rescheduleSlots.map(slot => (
+                        <button
+                          key={slot.slot_id}
+                          onClick={() => handleReschedule(slot.slot_id)}
+                          disabled={rescheduleLoading}
+                          className="py-2.5 border border-gray-300 hover:bg-black hover:text-white hover:border-black text-xs font-outfit transition-colors disabled:opacity-50"
+                          data-testid={`reschedule-slot-${slot.slot_id}`}
+                        >
+                          {slot.start_time} – {slot.end_time}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

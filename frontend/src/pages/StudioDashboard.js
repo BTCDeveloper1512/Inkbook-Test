@@ -5,7 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown } from "lucide-react";
+import ArtistsTab from "../components/ArtistsTab";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -29,8 +30,16 @@ export default function StudioDashboard() {
   const [editLoading, setEditLoading] = useState(false);
   const [editSuccess, setEditSuccess] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [subscription, setSubscription] = useState(null);
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => { fetchStats(); fetchSubscription(); }, []);
+
+  const fetchSubscription = async () => {
+    try {
+      const { data } = await axios.get(`${API}/subscriptions/status`, { withCredentials: true });
+      setSubscription(data?.subscription);
+    } catch {}
+  };
 
   const fetchStats = async () => {
     try {
@@ -208,8 +217,16 @@ export default function StudioDashboard() {
           <div>
             <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-1">Studio Dashboard</p>
             <h1 className="text-3xl font-playfair font-bold text-black">{studio?.name}</h1>
+            {subscription?.status === "active" && (
+              <span className="inline-flex items-center gap-1 mt-1 text-xs bg-black text-white px-2 py-0.5 font-outfit capitalize">
+                <Crown size={10} /> {subscription.plan} Plan
+              </span>
+            )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Link to="/subscription" className="px-3 py-2 bg-black text-white text-sm font-outfit hover:bg-neutral-800 transition-colors flex items-center gap-1" data-testid="subscription-btn">
+              <Crown size={14} /> Abo
+            </Link>
             <Link to="/messages" className="px-3 py-2 border border-gray-300 text-sm font-outfit hover:border-black transition-colors flex items-center gap-2">
               <MessageSquare size={14} /> Nachrichten
             </Link>
@@ -241,6 +258,7 @@ export default function StudioDashboard() {
             { id: "overview", label: "Übersicht" },
             { id: "slots", label: "Slots" },
             { id: "bookings", label: `Buchungen (${stats?.total_bookings || 0})` },
+            { id: "artists", label: "Artists" },
             { id: "profile", label: "Profil bearbeiten" }
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-shrink-0 px-3 py-2 text-sm font-outfit transition-colors whitespace-nowrap ${activeTab === tab.id ? "bg-black text-white" : "text-gray-500 hover:text-black"}`} data-testid={`studio-tab-${tab.id}`}>
@@ -368,6 +386,11 @@ export default function StudioDashboard() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Artists Tab */}
+        {activeTab === "artists" && stats?.studio && (
+          <ArtistsTab studioId={stats.studio.studio_id} />
         )}
 
         {/* Profile Edit Tab */}

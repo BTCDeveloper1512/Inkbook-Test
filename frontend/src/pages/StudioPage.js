@@ -18,6 +18,7 @@ export default function StudioPage() {
   const [studio, setStudio] = useState(null);
   const [slots, setSlots] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("about");
   const [selectedDate, setSelectedDate] = useState("");
@@ -35,12 +36,14 @@ export default function StudioPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [studioRes, reviewsRes] = await Promise.all([
+        const [studioRes, reviewsRes, artistsRes] = await Promise.all([
           axios.get(`${API}/studios/${studioId}`),
-          axios.get(`${API}/studios/${studioId}/reviews`)
+          axios.get(`${API}/studios/${studioId}/reviews`),
+          axios.get(`${API}/studios/${studioId}/artists`)
         ]);
         setStudio(studioRes.data);
         setReviews(reviewsRes.data);
+        setArtists(artistsRes.data);
       } catch {
         navigate("/search");
       } finally {
@@ -160,15 +163,15 @@ export default function StudioPage() {
           {/* Main Content */}
           <div className="lg:col-span-2">
             {/* Tabs */}
-            <div className="flex gap-6 border-b border-gray-200 mb-8">
-              {["about", "gallery", "reviews"].map(tab => (
+            <div className="flex gap-6 border-b border-gray-200 mb-8 overflow-x-auto">
+              {["about", "artists", "gallery", "reviews"].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`pb-3 text-sm font-outfit font-medium border-b-2 transition-colors ${activeTab === tab ? "border-black text-black" : "border-transparent text-gray-500 hover:text-black"}`}
+                  className={`pb-3 text-sm font-outfit font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === tab ? "border-black text-black" : "border-transparent text-gray-500 hover:text-black"}`}
                   data-testid={`tab-${tab}`}
                 >
-                  {t(`studio.${tab}`)}
+                  {tab === "about" ? t("studio.about") : tab === "artists" ? `Artists (${artists.length})` : tab === "gallery" ? t("studio.gallery") : t("studio.reviews")}
                 </button>
               ))}
             </div>
@@ -190,6 +193,41 @@ export default function StudioPage() {
                   {studio.email && <p className="flex items-center gap-2 text-sm font-outfit text-gray-600"><Mail size={14} className="text-gray-400" />{studio.email}</p>}
                   {studio.website && <p className="flex items-center gap-2 text-sm font-outfit text-gray-600"><Globe size={14} className="text-gray-400" />{studio.website}</p>}
                 </div>
+              </div>
+            )}
+
+            {activeTab === "artists" && (
+              <div className="space-y-4">
+                {artists.length === 0 ? (
+                  <p className="text-gray-500 font-outfit text-sm">Noch keine Artists</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {artists.map(artist => (
+                      <div key={artist.artist_id} className="border border-gray-200 p-4 hover:border-gray-400 transition-colors" data-testid={`artist-profile-${artist.artist_id}`}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-playfair font-bold text-sm">
+                            {artist.name[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-playfair font-semibold">{artist.name}</h4>
+                            {artist.experience_years > 0 && <p className="text-xs text-gray-500 font-outfit">{artist.experience_years} Jahre Erfahrung</p>}
+                          </div>
+                        </div>
+                        {artist.bio && <p className="text-xs text-gray-600 font-outfit mb-3 line-clamp-2">{artist.bio}</p>}
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {artist.styles?.slice(0, 4).map(s => <span key={s} className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 font-outfit">{s}</span>)}
+                        </div>
+                        {artist.portfolio_images?.length > 0 && (
+                          <div className="flex gap-1 mt-2">
+                            {artist.portfolio_images.slice(0, 4).map((img, i) => (
+                              <img key={i} src={img} alt="" className="w-12 h-12 object-cover border border-gray-100" />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
