@@ -44,7 +44,17 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
-## What's Been Implemented
+### Mai 2026 (Diese Session – Iteration 7)
+- **Chat-Fix verifiziert** ✅
+  - Enter-Taste sendet Nachricht (stale-closure-Fix via useRef funktioniert korrekt)
+  - Send-Button funktioniert
+  - Live-Polling alle 2s – Studio sieht Kunden-Nachrichten ohne Reload
+  - Fehlertolerant: kein Redirect zu /login bei kurzen Netzwerkausfällen
+  - Bug behoben: `image_url: null` → `image_url: ''` in MessagesPage.js + `Optional[str]` im Backend
+- **Push-Benachrichtigungen verifiziert** ✅
+  - VAPID-Key-Endpunkt liefert Key
+  - Subscribe-Endpunkt akzeptiert Push-Subscription
+  - Typing-Indicator (POST/GET) funktioniert korrekt
 
 ### 2025 Initial MVP
 - Base FastAPI + React + MongoDB setup ✅
@@ -101,11 +111,10 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 
 ## Prioritized Backlog
 ### P0 (Must Have)
-- None pending — all core features implemented
+- Alle P0 Features implementiert und getestet ✅
 
 ### P1 (High Priority)
-- Real-time push notification delivery trigger (on booking confirm, new message)
-- Stripe Connect for studio payouts/revenue tracking
+- Stripe Connect für Studio-Auszahlungen / Revenue-Tracking
 
 ### P2 (Nice to Have)
 - Rating/Review system for studios

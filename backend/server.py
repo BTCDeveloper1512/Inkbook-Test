@@ -237,7 +237,7 @@ class ReviewCreate(BaseModel):
 class MessageCreate(BaseModel):
     recipient_id: str
     content: str
-    image_url: str = ""
+    image_url: Optional[str] = ""
 
 class AIStyleRequest(BaseModel):
     image_base64: Optional[str] = None
