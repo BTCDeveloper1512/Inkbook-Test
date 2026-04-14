@@ -292,6 +292,11 @@ export default function StudioDashboard() {
                       {b.status === "pending" && (
                         <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
                       )}
+                      {["pending", "confirmed"].includes(b.status) && (
+                        <button onClick={async () => { if (!window.confirm("Buchung stornieren?")) return; try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {} }}
+                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 transition-all"
+                          data-testid={`cancel-btn-overview-${b.booking_id}`}>Stornieren</button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -385,6 +390,21 @@ export default function StudioDashboard() {
                       <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}</span>
                       {b.status === "pending" && (
                         <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</button>
+                      )}
+                      {["pending", "confirmed"].includes(b.status) && (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm("Buchung wirklich stornieren?")) return;
+                            try {
+                              await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, {
+                                params: { status: "cancelled" }, withCredentials: true
+                              });
+                              fetchStats();
+                            } catch {}
+                          }}
+                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
+                          data-testid={`cancel-booking-studio-${b.booking_id}`}
+                        >Stornieren</button>
                       )}
                     </div>
                   </div>

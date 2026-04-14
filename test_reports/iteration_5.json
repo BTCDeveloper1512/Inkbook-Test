@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 5: Testing new features - WhatsApp-like chat (other_name), CustomerDashboard Apple-design, Studio cancel booking (cancelled_by field), SearchPage as main page. Fixed critical bug: cancelled_by field was never set in backend.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "PUT /api/bookings/{id}/status",
+        "issue": "cancelled_by field was never stored in DB when cancelling. CustomerDashboard checks booking.cancelled_by === 'studio' for alert banner - this would NEVER trigger. FIXED in this iteration.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/test_reports/pytest/pytest_results_iter5.xml"
+  ],
+  "action_items": [
+    "FIXED: cancelled_by field now set in update_booking_status (server.py line 648-650). Studio cancels set cancelled_by='studio', customer cancels set cancelled_by='customer'. CustomerDashboard alert banner will now work correctly."
+  ],
+  "critical_code_review_comments": [
+    "FIXED BUG: update_booking_status never set cancelled_by field. CustomerDashboard.js line 118 filters justCancelled = allBookings.filter(b => b.status === 'cancelled' && b.cancelled_by === 'studio') - this was always empty. Fix applied in server.py."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (update_booking_status - now sets cancelled_by field)",
+    "/app/backend/tests/test_iteration5.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests pass)",
+    "frontend": "100% - all features verified"
+  },
+  "seed_data_creation": "Registered studiotest@inkbook.com (studio_owner, password: studio123) and custuifw@inkbook.com (customer, password: test1234) for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 5 features all verified: 1) SearchPage '/' loads with 'Dein perfektes Studio.' heading, search, studio grid ✓ 2) Register/Login (customer + studio_owner) works ✓ 3) CustomerDashboard: stats grid (4 cards), 3 quick actions, booking tabs ✓ 4) StudioDashboard: shows tabs with cancel-booking-studio-* buttons ✓ 5) StudioPage: hero gradient, tabs (Über uns/Artists/Galerie/Bewertungen), booking sidebar with type selection ✓ 6) Navbar 'Studios finden' → '/' ✓ 7) Messages: other_name field returned, sender_name stored ✓ 8) Slot filter: slot_type=consultation returns only consultation+full_day ✓ 9) Admin stats endpoint ✓. CRITICAL BUG FIXED: cancelled_by field in bookings now set by backend.",
+  "rca_of_issue": "Bug: update_booking_status (server.py) called db.bookings.update_one with only {status: status}. The cancelled_by field was never stored. CustomerDashboard.js uses b.cancelled_by === 'studio' to show cancellation alert and 'Vom Studio storniert' badge. Without this field, the feature was completely non-functional. Fix: determine if canceller is studio owner (studio.owner_id == user_id) and set cancelled_by='studio' or 'customer' accordingly."
+}

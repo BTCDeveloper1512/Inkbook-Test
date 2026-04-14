@@ -5,21 +5,16 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, TrendingUp, Clock, CheckCircle, XCircle, CreditCard, ChevronRight, RefreshCw } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, ChevronRight, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const statusColors = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  confirmed: "bg-green-50 text-green-700 border-green-200",
-  cancelled: "bg-red-50 text-red-700 border-red-200",
-  completed: "bg-gray-50 text-gray-700 border-gray-200"
-};
-const statusLabels = {
-  pending: "Ausstehend",
-  confirmed: "Bestätigt",
-  cancelled: "Abgesagt",
-  completed: "Abgeschlossen"
+const statusConfig = {
+  pending:   { label: "Ausstehend",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  confirmed: { label: "Bestätigt",     cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  cancelled: { label: "Storniert",     cls: "bg-red-50 text-red-700 border-red-200" },
+  completed: { label: "Abgeschlossen", cls: "bg-zinc-100 text-zinc-500 border-zinc-200" }
 };
 
 export default function CustomerDashboard() {
@@ -34,32 +29,25 @@ export default function CustomerDashboard() {
   const [rescheduleSlots, setRescheduleSlots] = useState([]);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState("");
 
   useEffect(() => {
-    // Check for payment return
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get("session_id");
-    const paymentStatus = urlParams.get("payment");
     if (sessionId) setPaymentSessionId(sessionId);
-    
     fetchStats();
   }, []);
 
   useEffect(() => {
-    if (paymentSessionId) {
-      pollPaymentStatus(paymentSessionId);
-    }
+    if (paymentSessionId) pollPaymentStatus(paymentSessionId);
   }, [paymentSessionId]);
 
   const pollPaymentStatus = async (sessionId, attempts = 0) => {
     if (attempts >= 5) return;
     try {
       const { data } = await axios.get(`${API}/payments/status/${sessionId}`, { withCredentials: true });
-      if (data.payment_status === "paid") {
-        fetchStats();
-      } else {
-        setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), 2000);
-      }
+      if (data.payment_status === "paid") fetchStats();
+      else setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), 2000);
     } catch {}
   };
 
@@ -67,34 +55,27 @@ export default function CustomerDashboard() {
     try {
       const { data } = await axios.get(`${API}/dashboard/stats`, { withCredentials: true });
       setStats(data);
-    } catch {
-      navigate("/login");
-    } finally {
-      setLoading(false);
-    }
+    } catch { navigate("/login"); } finally { setLoading(false); }
   };
 
   const handlePayDeposit = async (booking) => {
     try {
       const { data } = await axios.post(`${API}/payments/create-session`, {
-        booking_id: booking.booking_id,
-        origin_url: window.location.origin
+        booking_id: booking.booking_id, origin_url: window.location.origin
       }, { withCredentials: true });
       window.location.href = data.url;
-    } catch (e) {
-      alert(e.response?.data?.detail || "Zahlungsfehler");
-    }
+    } catch (e) { alert(e.response?.data?.detail || "Zahlungsfehler"); }
   };
 
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm("Buchung wirklich absagen?")) return;
+    setCancelLoading(bookingId);
     try {
       await axios.put(`${API}/bookings/${bookingId}/status`, null, {
-        params: { status: "cancelled" },
-        withCredentials: true
+        params: { status: "cancelled" }, withCredentials: true
       });
       fetchStats();
-    } catch {}
+    } catch {} finally { setCancelLoading(""); }
   };
 
   const handleOpenReschedule = async (booking) => {
@@ -106,7 +87,9 @@ export default function CustomerDashboard() {
   const handleRescheduleDate = async (date) => {
     setRescheduleDate(date);
     try {
-      const { data } = await axios.get(`${API}/studios/${rescheduleBooking.studio_id}/slots`, { params: { date } });
+      const { data } = await axios.get(`${API}/studios/${rescheduleBooking.studio_id}/slots`, {
+        params: { date, slot_type: rescheduleBooking.booking_type }
+      });
       setRescheduleSlots(data);
     } catch {}
   };
@@ -117,16 +100,13 @@ export default function CustomerDashboard() {
       await axios.put(`${API}/bookings/${rescheduleBooking.booking_id}/reschedule`, { new_slot_id: newSlotId }, { withCredentials: true });
       setRescheduleBooking(null);
       fetchStats();
-    } catch (e) {
-      alert(e.response?.data?.detail || "Umbuchung fehlgeschlagen");
-    } finally { setRescheduleLoading(false); }
+    } catch (e) { alert(e.response?.data?.detail || "Umbuchung fehlgeschlagen"); } finally { setRescheduleLoading(false); }
   };
 
   const getDates = () => {
     const dates = [];
     for (let i = 1; i <= 14; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
+      const d = new Date(); d.setDate(d.getDate() + i);
       dates.push(d.toISOString().split("T")[0]);
     }
     return dates;
@@ -135,199 +115,280 @@ export default function CustomerDashboard() {
   const allBookings = stats?.all_bookings || [];
   const upcoming = allBookings.filter(b => ["pending", "confirmed"].includes(b.status));
   const past = allBookings.filter(b => ["cancelled", "completed"].includes(b.status));
+  const justCancelled = allBookings.filter(b => b.status === "cancelled" && b.cancelled_by === "studio");
 
   if (loading) return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen bg-zinc-50"><Navbar />
       <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-50">
       <Navbar />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-      <div className="max-w-5xl mx-auto px-6 lg:px-8 py-10">
         {/* Header */}
-        <div className="mb-8">
-          <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-1">Dashboard</p>
-          <h1 className="text-3xl font-playfair font-bold text-black">Hallo, {user?.name?.split(" ")[0]}</h1>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Mein Konto</p>
+          <h1 className="text-3xl font-playfair font-semibold text-zinc-900">Hallo, {user?.name?.split(" ")[0]} 👋</h1>
+        </motion.div>
+
+        {/* Cancellation Alert Banner (Studio-seitig storniert) */}
+        <AnimatePresence>
+          {justCancelled.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3"
+              data-testid="cancellation-alert"
+            >
+              <AlertTriangle size={18} className="text-red-500 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+              <div>
+                <p className="font-inter font-semibold text-red-800 text-sm">Dein Termin wurde storniert</p>
+                {justCancelled.map(b => (
+                  <p key={b.booking_id} className="text-xs text-red-600 font-inter mt-1">
+                    {b.studio_name} · {b.date} {b.start_time} – {b.end_time} wurde vom Studio storniert.
+                  </p>
+                ))}
+                <Link to="/" className="text-xs text-red-700 font-inter font-semibold underline underline-offset-2 mt-1.5 inline-block">
+                  Neues Studio finden →
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "Buchungen gesamt", value: stats?.total_bookings || 0, icon: <Calendar size={18} /> },
-            { label: "Ausstehend", value: upcoming.length, icon: <Clock size={18} /> },
-            { label: "Bestätigt", value: upcoming.filter(b => b.status === "confirmed").length, icon: <CheckCircle size={18} /> },
-            { label: "Abgesagt", value: allBookings.filter(b => b.status === "cancelled").length, icon: <XCircle size={18} /> }
-          ].map((stat, i) => (
-            <div key={i} className="bg-white border border-gray-200 p-4">
-              <div className="flex items-center gap-2 text-gray-500 mb-2">{stat.icon}<span className="text-xs font-outfit">{stat.label}</span></div>
-              <p className="text-2xl font-playfair font-bold text-black">{stat.value}</p>
-            </div>
-          ))}
+            { label: "Buchungen gesamt", value: stats?.total_bookings || 0, icon: Calendar, color: "text-zinc-400" },
+            { label: "Ausstehend", value: upcoming.filter(b => b.status === "pending").length, icon: Clock, color: "text-amber-400" },
+            { label: "Bestätigt", value: upcoming.filter(b => b.status === "confirmed").length, icon: CheckCircle, color: "text-emerald-400" },
+            { label: "Storniert", value: allBookings.filter(b => b.status === "cancelled").length, icon: XCircle, color: "text-red-400" }
+          ].map((stat, i) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4"
+              >
+                <Icon size={16} strokeWidth={1.5} className={`${stat.color} mb-2`} />
+                <p className="text-2xl font-playfair font-semibold text-zinc-900">{stat.value}</p>
+                <p className="text-xs text-zinc-500 font-inter mt-0.5">{stat.label}</p>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Link to="/search" className="bg-black text-white p-5 flex items-center justify-between hover:bg-neutral-800 transition-colors group" data-testid="find-studio-btn">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <Link to="/" className="bg-zinc-900 text-white p-5 rounded-2xl flex items-center justify-between hover:bg-zinc-700 transition-all group" data-testid="find-studio-btn">
             <div>
-              <p className="text-xs tracking-widest uppercase opacity-60 font-outfit mb-1">Neu buchen</p>
-              <p className="font-playfair font-semibold">Studio finden</p>
+              <p className="text-xs tracking-[0.15em] uppercase opacity-50 font-inter mb-1">Neu buchen</p>
+              <p className="font-playfair font-semibold text-base">Studio finden</p>
             </div>
-            <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            <Search size={20} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
           </Link>
-          <Link to="/ai-advisor" className="bg-white border border-gray-200 p-5 flex items-center justify-between hover:border-black transition-colors group" data-testid="ai-advisor-btn">
+          <Link to="/ai-advisor" className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between hover:border-zinc-400 transition-all group" data-testid="ai-advisor-btn">
             <div>
-              <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-1">KI-Beratung</p>
-              <p className="font-playfair font-semibold">Stilberatung</p>
+              <p className="text-xs tracking-[0.15em] uppercase text-zinc-400 font-inter mb-1">KI-Beratung</p>
+              <p className="font-playfair font-semibold text-zinc-900 text-base">Stilberatung</p>
             </div>
-            <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            <Sparkles size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
           </Link>
-          <Link to="/messages" className="bg-white border border-gray-200 p-5 flex items-center justify-between hover:border-black transition-colors group" data-testid="messages-btn">
+          <Link to="/messages" className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between hover:border-zinc-400 transition-all group" data-testid="messages-btn">
             <div>
-              <p className="text-xs tracking-widest uppercase text-gray-400 font-outfit mb-1">Chat</p>
-              <p className="font-playfair font-semibold">Nachrichten</p>
+              <p className="text-xs tracking-[0.15em] uppercase text-zinc-400 font-inter mb-1">Chat</p>
+              <p className="font-playfair font-semibold text-zinc-900 text-base">Nachrichten</p>
             </div>
-            <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            <MessageSquare size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
           </Link>
         </div>
 
-        {/* Bookings */}
-        <div className="bg-white border border-gray-200">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("upcoming")}
-              className={`flex-1 py-4 text-sm font-outfit font-medium transition-colors ${activeTab === "upcoming" ? "bg-black text-white" : "text-gray-500 hover:text-black"}`}
-              data-testid="upcoming-tab"
+        {/* Bookings Tabs */}
+        <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+          {[
+            { id: "upcoming", label: `${t("dashboard.upcoming")} (${upcoming.length})` },
+            { id: "past", label: `${t("dashboard.past")} (${past.length})` }
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`px-5 py-2 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+              data-testid={`${tab.id}-tab`}
             >
-              {t("dashboard.upcoming")} ({upcoming.length})
+              {tab.label}
             </button>
-            <button
-              onClick={() => setActiveTab("past")}
-              className={`flex-1 py-4 text-sm font-outfit font-medium transition-colors ${activeTab === "past" ? "bg-black text-white" : "text-gray-500 hover:text-black"}`}
-              data-testid="past-tab"
-            >
-              {t("dashboard.past")} ({past.length})
-            </button>
-          </div>
+          ))}
+        </div>
 
-          <div className="divide-y divide-gray-100">
+        {/* Bookings List */}
+        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+          <AnimatePresence mode="wait">
             {(activeTab === "upcoming" ? upcoming : past).length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-gray-400 font-outfit text-sm">{t("dashboard.noBookings")}</p>
+              <div className="py-14 text-center" data-testid="no-bookings">
+                <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Calendar size={20} className="text-zinc-400" strokeWidth={1.5} />
+                </div>
+                <p className="text-zinc-500 font-inter text-sm">{t("dashboard.noBookings")}</p>
                 {activeTab === "upcoming" && (
-                  <Link to="/search" className="mt-4 inline-block px-6 py-2 bg-black text-white text-sm font-outfit hover:bg-neutral-800">
-                    Studio finden
+                  <Link to="/" className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-700 transition-colors">
+                    <Search size={13} strokeWidth={1.5} /> Studio finden
                   </Link>
                 )}
               </div>
             ) : (
-              (activeTab === "upcoming" ? upcoming : past).map(booking => (
-                <div key={booking.booking_id} className="p-5 flex items-start justify-between gap-4 hover:bg-gray-50 transition-colors" data-testid={`booking-item-${booking.booking_id}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-playfair font-semibold text-black truncate">{booking.studio_name}</h4>
-                      <span className={`text-xs px-2 py-0.5 border font-outfit ${statusColors[booking.status]}`}>
-                        {statusLabels[booking.status]}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 font-outfit">
-                      {booking.date} • {booking.start_time} - {booking.end_time}
-                    </p>
-                    <p className="text-xs text-gray-400 font-outfit mt-1">
-                      {booking.booking_type === "consultation" ? "Beratung" : "Tattoo-Session"}
-                      {booking.payment_status === "paid" && <span className="ml-2 text-green-600 font-semibold">✓ Bezahlt</span>}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {booking.status === "pending" && booking.payment_status !== "paid" && (
-                      <button
-                        onClick={() => handlePayDeposit(booking)}
-                        className="px-3 py-1.5 bg-black text-white text-xs font-outfit flex items-center gap-1 hover:bg-neutral-800"
-                        data-testid={`pay-deposit-btn-${booking.booking_id}`}
-                      >
-                        <CreditCard size={12} /> Anzahlung
-                      </button>
-                    )}
-                    {["pending", "confirmed"].includes(booking.status) && (
-                      <button
-                        onClick={() => handleOpenReschedule(booking)}
-                        className="px-3 py-1.5 border border-gray-300 text-xs font-outfit hover:border-black hover:text-black transition-colors flex items-center gap-1"
-                        data-testid={`reschedule-btn-${booking.booking_id}`}
-                      >
-                        <RefreshCw size={11} /> Umbuchen
-                      </button>
-                    )}
-                    {["pending", "confirmed"].includes(booking.status) && (
-                      <button
-                        onClick={() => handleCancelBooking(booking.booking_id)}
-                        className="px-3 py-1.5 border border-gray-300 text-xs font-outfit hover:border-red-500 hover:text-red-600 transition-colors"
-                        data-testid={`cancel-booking-btn-${booking.booking_id}`}
-                      >
-                        Absagen
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+              <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="divide-y divide-zinc-50">
+                {(activeTab === "upcoming" ? upcoming : past).map((booking, i) => {
+                  const sc = statusConfig[booking.status];
+                  const isCancelledByStudio = booking.status === "cancelled" && booking.cancelled_by === "studio";
+                  return (
+                    <motion.div key={booking.booking_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                      className={`p-5 flex items-start gap-4 hover:bg-zinc-50 transition-colors group ${isCancelledByStudio ? "bg-red-50/30" : ""}`}
+                      data-testid={`booking-item-${booking.booking_id}`}
+                    >
+                      {/* Date block */}
+                      <div className={`flex-shrink-0 w-12 text-center rounded-xl py-2 px-1 border ${
+                        booking.status === "cancelled" ? "bg-zinc-50 border-zinc-200" : "bg-zinc-900 border-zinc-900"
+                      }`}>
+                        <p className={`text-lg font-playfair font-bold leading-none ${booking.status === "cancelled" ? "text-zinc-400" : "text-white"}`}>
+                          {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit" }) : "—"}
+                        </p>
+                        <p className={`text-xs font-inter leading-none mt-0.5 ${booking.status === "cancelled" ? "text-zinc-400" : "text-zinc-300"}`}>
+                          {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { month: "short" }) : ""}
+                        </p>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h4 className={`font-playfair font-semibold text-base truncate ${booking.status === "cancelled" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
+                            {booking.studio_name}
+                          </h4>
+                          <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border font-inter ${sc.cls}`}>
+                            {sc.label}
+                          </span>
+                        </div>
+
+                        {isCancelledByStudio && (
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <AlertTriangle size={12} className="text-red-500" strokeWidth={2} />
+                            <p className="text-xs text-red-600 font-inter font-semibold">Vom Studio storniert</p>
+                          </div>
+                        )}
+
+                        <p className="text-sm text-zinc-500 font-inter">
+                          {booking.start_time} – {booking.end_time}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-xs text-zinc-400 font-inter flex items-center gap-1">
+                            {booking.booking_type === "consultation" ? <MessageSquare size={11} strokeWidth={1.5} /> : <Scissors size={11} strokeWidth={1.5} />}
+                            {booking.booking_type === "consultation" ? "Beratung" : "Tattoo-Session"}
+                          </span>
+                          {booking.payment_status === "paid" && (
+                            <span className="text-xs text-emerald-600 font-inter font-semibold flex items-center gap-1">
+                              <CheckCircle size={10} strokeWidth={2} /> Bezahlt
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        {booking.status === "pending" && booking.payment_status !== "paid" && (
+                          <button onClick={() => handlePayDeposit(booking)}
+                            className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
+                            data-testid={`pay-deposit-btn-${booking.booking_id}`}
+                          >
+                            <CreditCard size={11} strokeWidth={1.5} /> Anzahlung
+                          </button>
+                        )}
+                        {["pending", "confirmed"].includes(booking.status) && (
+                          <button onClick={() => handleOpenReschedule(booking)}
+                            className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-600 rounded-full flex items-center gap-1.5 hover:border-zinc-900 hover:text-zinc-900 transition-all whitespace-nowrap"
+                            data-testid={`reschedule-btn-${booking.booking_id}`}
+                          >
+                            <RefreshCw size={11} strokeWidth={1.5} /> Umbuchen
+                          </button>
+                        )}
+                        {["pending", "confirmed"].includes(booking.status) && (
+                          <button onClick={() => handleCancelBooking(booking.booking_id)}
+                            disabled={cancelLoading === booking.booking_id}
+                            className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-500 rounded-full hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"
+                            data-testid={`cancel-booking-btn-${booking.booking_id}`}
+                          >
+                            {cancelLoading === booking.booking_id ? "..." : "Absagen"}
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Reschedule Modal */}
-      {rescheduleBooking && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" data-testid="reschedule-modal">
-          <div className="bg-white w-full max-w-md">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-playfair font-bold text-lg">Termin umbuchen</h3>
-              <button onClick={() => setRescheduleBooking(null)} className="text-gray-400 hover:text-black"><RefreshCw size={18} /></button>
-            </div>
-            <div className="p-5">
-              <p className="text-sm text-gray-600 font-outfit mb-4">
-                Aktueller Termin: <strong>{rescheduleBooking.date}</strong> um <strong>{rescheduleBooking.start_time}</strong> bei <strong>{rescheduleBooking.studio_name}</strong>
-              </p>
-              <div className="mb-4">
-                <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Neues Datum</label>
-                <div className="flex gap-1 overflow-x-auto pb-2">
-                  {getDates().map(d => (
-                    <button key={d} onClick={() => handleRescheduleDate(d)} className={`flex-shrink-0 w-12 py-2 text-xs font-outfit border transition-colors ${rescheduleDate === d ? "bg-black text-white border-black" : "border-gray-300 hover:border-black"}`} data-testid={`reschedule-date-${d}`}>
-                      <div>{new Date(d).toLocaleDateString("de-DE", { day: "2-digit" })}</div>
-                      <div className="opacity-70">{new Date(d).toLocaleDateString("de-DE", { month: "short" })}</div>
-                    </button>
-                  ))}
-                </div>
+      <AnimatePresence>
+        {rescheduleBooking && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4"
+            data-testid="reschedule-modal"
+            onClick={(e) => e.target === e.currentTarget && setRescheduleBooking(null)}
+          >
+            <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="px-6 py-5 border-b border-zinc-100 flex items-center justify-between">
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Termin umbuchen</h3>
+                <button onClick={() => setRescheduleBooking(null)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors">
+                  <X size={16} strokeWidth={1.5} />
+                </button>
               </div>
-              {rescheduleDate && (
-                <div>
-                  <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Freie Slots</label>
-                  {rescheduleSlots.length === 0 ? (
-                    <p className="text-sm text-gray-400 font-outfit">Keine freien Slots an diesem Tag</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {rescheduleSlots.map(slot => (
-                        <button
-                          key={slot.slot_id}
-                          onClick={() => handleReschedule(slot.slot_id)}
-                          disabled={rescheduleLoading}
-                          className="py-2.5 border border-gray-300 hover:bg-black hover:text-white hover:border-black text-xs font-outfit transition-colors disabled:opacity-50"
-                          data-testid={`reschedule-slot-${slot.slot_id}`}
-                        >
-                          {slot.start_time} – {slot.end_time}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+              <div className="p-6">
+                <div className="bg-zinc-50 rounded-xl p-3.5 mb-5 text-sm font-inter text-zinc-600">
+                  Aktuell: <strong className="text-zinc-900">{rescheduleBooking.date}</strong> um <strong className="text-zinc-900">{rescheduleBooking.start_time}</strong> · {rescheduleBooking.studio_name}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
+                <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Neues Datum</p>
+                <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5">
+                  {getDates().map(d => {
+                    const dateObj = new Date(d + "T12:00:00");
+                    return (
+                      <button key={d} onClick={() => handleRescheduleDate(d)}
+                        className={`flex-shrink-0 w-12 py-2.5 text-center rounded-xl border transition-all ${rescheduleDate === d ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400"}`}
+                        data-testid={`reschedule-date-${d}`}
+                      >
+                        <div className="text-xs font-inter font-semibold">{dateObj.toLocaleDateString("de-DE", { day: "2-digit" })}</div>
+                        <div className="text-xs opacity-60">{dateObj.toLocaleDateString("de-DE", { month: "short" })}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {rescheduleDate && (
+                  <div>
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Freie Slots</p>
+                    {rescheduleSlots.length === 0 ? (
+                      <p className="text-sm text-zinc-400 font-inter py-2">Keine freien Slots an diesem Tag</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {rescheduleSlots.map(slot => (
+                          <button key={slot.slot_id} onClick={() => handleReschedule(slot.slot_id)} disabled={rescheduleLoading}
+                            className="py-2.5 border border-zinc-200 hover:bg-zinc-900 hover:text-white hover:border-zinc-900 text-sm font-inter rounded-xl transition-all disabled:opacity-50"
+                            data-testid={`reschedule-slot-${slot.slot_id}`}
+                          >
+                            {slot.start_time} – {slot.end_time}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Footer />
     </div>

@@ -596,6 +596,14 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
             subject=f"Buchungsbestätigung – {studio.get('name', '')}",
             html=booking_confirmation_html(booking_doc)
         ))
+
+    # Push notification to studio owner: new booking
+    asyncio.create_task(send_push_notification(
+        user_id=studio.get("owner_id", ""),
+        title="Neue Buchungsanfrage",
+        body=f"{current_user.get('name','Kunde')} hat einen Termin am {slot.get('date','')} gebucht",
+        url="/studio-dashboard"
+    ))
     
     booking_doc.pop("_id", None)
     return booking_doc
@@ -637,19 +645,43 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     if booking.get("user_id") != user_id and (not studio or studio.get("owner_id") != user_id):
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"status": status}})
+    update_fields = {"status": status}
+    if status == "cancelled":
+        # Determine who cancelled: studio owner or customer
+        is_studio_cancel = studio and studio.get("owner_id") == user_id
+        update_fields["cancelled_by"] = "studio" if is_studio_cancel else "customer"
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_fields})
     if status == "cancelled":
         await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
-    
-    # Send status update email
+
+    # Send status update email + push notification to customer
     user_email = booking.get("user_email", "")
+    customer_id = booking.get("user_id", "")
+    studio_name = booking.get("studio_name", "")
+
     if user_email and status in ["confirmed", "cancelled"]:
         asyncio.create_task(send_email(
             to=user_email,
-            subject=f"Termin {'bestätigt' if status == 'confirmed' else 'abgesagt'} – {booking.get('studio_name', '')}",
+            subject=f"Termin {'bestätigt' if status == 'confirmed' else 'abgesagt'} – {studio_name}",
             html=booking_status_html(booking, status)
         ))
-    
+
+    if customer_id and status in ["confirmed", "cancelled"]:
+        push_title = f"Termin {'bestätigt' if status == 'confirmed' else 'storniert'} – {studio_name}"
+        push_body = f"{booking.get('date', '')} um {booking.get('start_time', '')} {'wurde bestätigt ✓' if status == 'confirmed' else 'wurde leider storniert'}"
+        asyncio.create_task(send_push_notification(
+            user_id=customer_id, title=push_title, body=push_body, url="/dashboard"
+        ))
+
+    # Also push to studio owner if customer cancels
+    if studio and status == "cancelled" and booking.get("user_id") == user_id:
+        asyncio.create_task(send_push_notification(
+            user_id=studio.get("owner_id", ""),
+            title=f"Buchung storniert",
+            body=f"{booking.get('user_name','Kunde')} hat den Termin am {booking.get('date','')} storniert",
+            url="/studio-dashboard"
+        ))
+
     return {"message": "Booking updated"}
 
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
@@ -658,21 +690,30 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
     convs = await db.conversations.find(
         {"participants": user_id}, {"_id": 0}
-    ).to_list(100)
-    
-    # Enrich with other participant's name
+    ).sort("last_message_at", -1).to_list(100)
+
     enriched = []
     for conv in convs:
         other_id = next((p for p in conv.get("participants", []) if p != user_id), None)
-        other_name = "Nutzer"
+        other_name = "Unbekannt"
+        other_role = "customer"
         if other_id:
-            other_user = await db.users.find_one({"$or": [
-                {"_id": ObjectId(other_id)} if len(other_id) == 24 else {"user_id": other_id},
-                {"user_id": other_id}
-            ]}, {"name": 1, "_id": 0})
+            try:
+                other_user = await db.users.find_one(
+                    {"_id": ObjectId(other_id)}, {"name": 1, "role": 1, "_id": 0}
+                )
+            except Exception:
+                other_user = await db.users.find_one({"user_id": other_id}, {"name": 1, "role": 1, "_id": 0})
             if other_user:
-                other_name = other_user.get("name", "Nutzer")
-        enriched.append({**conv, "last_sender_name": other_name, "other_user_id": other_id})
+                other_role = other_user.get("role", "customer")
+                # For studio owners show the studio name, not their personal name
+                if other_role == "studio_owner":
+                    studio = await db.studios.find_one({"owner_id": other_id}, {"name": 1, "_id": 0})
+                    other_name = studio.get("name") if studio else other_user.get("name", "Studio")
+                else:
+                    other_name = other_user.get("name", "Nutzer")
+        enriched.append({**conv, "other_name": other_name, "other_role": other_role, "other_user_id": other_id,
+                          "last_sender_name": other_name})  # keep compat
     return enriched
 
 @api_router.get("/messages/{other_user_id}")
@@ -690,10 +731,12 @@ async def get_messages(other_user_id: str, current_user: dict = Depends(get_curr
 @api_router.post("/messages")
 async def send_message(data: MessageCreate, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
+    sender_name = current_user.get("name", "")
+
     msg_doc = {
         "message_id": f"msg_{uuid.uuid4().hex[:12]}",
         "sender_id": user_id,
-        "sender_name": current_user.get("name", ""),
+        "sender_name": sender_name,
         "recipient_id": data.recipient_id,
         "content": data.content,
         "image_url": data.image_url,
@@ -701,7 +744,7 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
         "read": False
     }
     await db.messages.insert_one(msg_doc)
-    
+
     participants = sorted([user_id, data.recipient_id])
     conv_id = f"conv_{'_'.join(participants)}"
     await db.conversations.update_one(
@@ -709,12 +752,22 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
         {"$set": {
             "conv_id": conv_id,
             "participants": participants,
-            "last_message": data.content,
-            "last_message_at": datetime.now(timezone.utc).isoformat()
+            "last_message": data.content if data.content else "📷 Bild",
+            "last_message_at": datetime.now(timezone.utc).isoformat(),
+            "last_sender_id": user_id
         }},
         upsert=True
     )
-    
+
+    # Push notification to recipient
+    preview = (data.content[:60] + "...") if data.content and len(data.content) > 60 else (data.content or "📷 Bild")
+    asyncio.create_task(send_push_notification(
+        user_id=data.recipient_id,
+        title=f"Neue Nachricht von {sender_name}",
+        body=preview,
+        url="/messages"
+    ))
+
     msg_doc.pop("_id", None)
     return msg_doc
 

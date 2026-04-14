@@ -483,7 +483,7 @@ export default function StudioPage() {
 
               {user && (
                 <button
-                  onClick={() => navigate(`/messages/${studio.owner_id}`)}
+                  onClick={() => navigate(`/messages/${studio.owner_id}`, { state: { recipientName: studio.name, recipientRole: "studio_owner" } })}
                   className="w-full mt-3 py-2.5 border border-zinc-200 hover:border-zinc-900 text-sm font-inter text-zinc-600 hover:text-zinc-900 rounded-xl flex items-center justify-center gap-2 transition-all"
                   data-testid="contact-studio-btn"
                 >
