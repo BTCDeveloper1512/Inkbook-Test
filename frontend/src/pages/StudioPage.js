@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -33,6 +34,14 @@ export default function StudioPage() {
   const [uploadingRef, setUploadingRef] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const fileRef = useRef();
+  const [lottieData, setLottieData] = useState(null);
+  const [igActive, setIgActive] = useState(null); // artist_id currently showing instagram popup
+
+  // Load lottie animation once
+  useEffect(() => {
+    fetch("https://customer-assets.emergentagent.com/job_artist-connect-82/artifacts/qhhbpzlv_lottieflow-social-networks-15-5-000000-easey.json")
+      .then(r => r.json()).then(setLottieData).catch(() => {});
+  }, []);
   const today = new Date();
   const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [availableDates, setAvailableDates] = useState(new Set());
@@ -314,6 +323,53 @@ export default function StudioPage() {
                                 )}
                               </div>
                             )}
+
+                            {/* Instagram Button */}
+                            {artist.instagram && (
+                              <div className="mt-3 relative">
+                                <button
+                                  onClick={() => setIgActive(igActive === artist.artist_id ? null : artist.artist_id)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-zinc-200 text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 transition-all text-xs font-inter font-medium group"
+                                  data-testid={`ig-btn-${artist.artist_id}`}
+                                >
+                                  <Instagram size={13} strokeWidth={1.5} className="group-hover:text-pink-500 transition-colors" />
+                                  Instagram
+                                </button>
+
+                                <AnimatePresence>
+                                  {igActive === artist.artist_id && (
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.85, y: 6 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.85, y: 6 }}
+                                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                                      className="absolute left-0 bottom-full mb-2 z-20 bg-white rounded-2xl border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-3 flex items-center gap-3 min-w-[180px]"
+                                      data-testid={`ig-popup-${artist.artist_id}`}
+                                    >
+                                      {lottieData && (
+                                        <div className="w-10 h-10 flex-shrink-0">
+                                          <Lottie animationData={lottieData} loop={false} autoplay={true} style={{ width: 40, height: 40 }} />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-zinc-400 font-inter mb-0.5">Instagram</p>
+                                        <a
+                                          href={`https://instagram.com/${artist.instagram.replace(/^@/,"")}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-sm font-inter font-semibold text-zinc-900 hover:text-pink-500 transition-colors truncate block"
+                                        >
+                                          @{artist.instagram.replace(/^@/,"")}
+                                        </a>
+                                      </div>
+                                      <button onClick={() => setIgActive(null)} className="p-1 text-zinc-300 hover:text-zinc-600 transition-colors flex-shrink-0">
+                                        <X size={12} strokeWidth={2} />
+                                      </button>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       ))}
@@ -375,7 +431,29 @@ export default function StudioPage() {
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_24px_rgb(0,0,0,0.06)] p-6 sticky top-20">
               <h3 className="font-playfair font-semibold text-xl text-zinc-900 mb-5">{t("booking.title")}</h3>
 
-              {/* Booking Type */}
+              {/* ── Not logged in: prompt ── */}
+              {!user ? (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center py-6">
+                  <div className="w-14 h-14 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Calendar size={22} className="text-zinc-400" strokeWidth={1.5} />
+                  </div>
+                  <p className="font-playfair font-semibold text-zinc-900 text-base mb-1">Termin buchen</p>
+                  <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-5">
+                    Melde dich an oder registriere dich, um einen Termin bei diesem Studio zu buchen.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Link to="/login" data-testid="booking-login-btn"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-medium text-sm hover:bg-zinc-700 transition-colors">
+                      <LogIn size={15} strokeWidth={1.5} /> Anmelden
+                    </Link>
+                    <Link to="/register" data-testid="booking-register-btn"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-inter font-medium text-sm hover:border-zinc-400 transition-colors">
+                      <UserPlus size={15} strokeWidth={1.5} /> Kostenlos registrieren
+                    </Link>
+                  </div>
+                </motion.div>
+              ) : (
+              <>
               <div className="mb-5">
                 <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.selectType")}</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -565,6 +643,8 @@ export default function StudioPage() {
                 >
                   <MessageSquare size={14} strokeWidth={1.5} /> Studio kontaktieren
                 </button>
+              )}
+              </>
               )}
             </div>
           </div>
