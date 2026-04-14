@@ -1,439 +1,502 @@
 import React, { useRef } from "react";
-import {
-  motion,
-  useScroll,
-  useTransform,
-  useSpring,
-  AnimatePresence,
-} from "framer-motion";
+import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { ArrowRight, ChevronDown } from "lucide-react";
 
-/* ─────────────────────────────────────────────
-   Abstract orbital object – pure SVG / CSS
-   Receives a framer-motion MotionValue (0→1)
-───────────────────────────────────────────── */
-function OrbitalCore({ progress }) {
-  const rotate      = useTransform(progress, [0, 1], [0, 210]);
-  const innerRotate = useTransform(progress, [0, 1], [0, -140]);
-  const outerRotate = useTransform(progress, [0, 1], [0,  290]);
-  const scl         = useTransform(progress, [0, 0.3, 0.7, 1], [0.82, 1.06, 1.0, 0.65]);
+/* ═══════════════════════════════════════════════════════
+   SVG Phone Mockup with app screen content
+═══════════════════════════════════════════════════════ */
+function PhoneMockup({ screen = "search", width = 200 }) {
+  const h = width * 2.05;
+  const rx = width * 0.14;
+
+  const SearchScreen = () => (
+    <>
+      {/* Header bar */}
+      <rect x={width*0.06} y={h*0.1} width={width*0.88} height={h*0.08} rx="8" fill="#111"/>
+      <rect x={width*0.13} y={h*0.13} width={width*0.38} height={h*0.025} rx="3" fill="rgba(255,255,255,0.85)"/>
+      {/* Search bar */}
+      <rect x={width*0.06} y={h*0.21} width={width*0.88} height={h*0.065} rx={h*0.033} fill="#f2f2f2"/>
+      <rect x={width*0.14} y={h*0.232} width={width*0.5} height={h*0.02} rx="3" fill="#bbb"/>
+      {/* Card 1 */}
+      <rect x={width*0.06} y={h*0.3} width={width*0.88} height={h*0.18} rx="10" fill="#ececec"/>
+      <rect x={width*0.06} y={h*0.3} width={width*0.38} height={h*0.18} rx="10" fill="#d0d0d0"/>
+      <rect x={width*0.5}  y={h*0.31} width={width*0.36} height={h*0.022} rx="3" fill="#333"/>
+      <rect x={width*0.5}  y={h*0.34} width={width*0.26} height={h*0.016} rx="3" fill="#999"/>
+      <rect x={width*0.5}  y={h*0.365} width={width*0.18} height={h*0.014} rx="3" fill="#bbb"/>
+      {/* Stars */}
+      {[0,1,2,3,4].map(i=>(
+        <rect key={i} x={width*0.5+i*(width*0.045)} y={h*0.39} width={width*0.034} height={h*0.012} rx="2" fill="#111"/>
+      ))}
+      {/* Card 2 */}
+      <rect x={width*0.06} y={h*0.5}  width={width*0.88} height={h*0.18} rx="10" fill="#e8e8e8"/>
+      <rect x={width*0.06} y={h*0.5}  width={width*0.38} height={h*0.18} rx="10" fill="#c8c8c8"/>
+      <rect x={width*0.5}  y={h*0.51} width={width*0.32} height={h*0.022} rx="3" fill="#333"/>
+      <rect x={width*0.5}  y={h*0.54} width={width*0.22} height={h*0.016} rx="3" fill="#999"/>
+      {/* Partial card 3 */}
+      <rect x={width*0.06} y={h*0.7}  width={width*0.88} height={h*0.12} rx="10" fill="#f0f0f0"/>
+      {/* Bottom nav */}
+      <rect x={0} y={h*0.88} width={width} height={h*0.12} fill="#fff"/>
+      <line x1={0} y1={h*0.88} x2={width} y2={h*0.88} stroke="#e5e5e5" strokeWidth="0.8"/>
+      {[0,1,2,3].map(i=>(
+        <rect key={i} x={width*(0.12+i*0.22)} y={h*0.916} width={width*0.07} height={h*0.024} rx="3"
+          fill={i===0?"#111":"#ccc"}/>
+      ))}
+    </>
+  );
+
+  const BookingScreen = () => (
+    <>
+      <rect x={width*0.06} y={h*0.1}  width={width*0.88} height={h*0.07} rx="8" fill="#111"/>
+      <rect x={width*0.13} y={h*0.125} width={width*0.42} height={h*0.022} rx="3" fill="rgba(255,255,255,0.85)"/>
+      {/* Month nav */}
+      <rect x={width*0.06} y={h*0.21} width={width*0.88} height={h*0.06} rx="8" fill="#f7f7f7"/>
+      <rect x={width*0.28} y={h*0.226} width={width*0.44} height={h*0.02} rx="3" fill="#555"/>
+      {/* Calendar grid */}
+      {["Mo","Di","Mi","Do","Fr","Sa","So"].map((d,i)=>(
+        <rect key={d} x={width*(0.065+i*0.127)} y={h*0.295} width={width*0.092} height={h*0.02} rx="2" fill="#ccc"/>
+      ))}
+      {Array.from({length:35},(_,i)=>{
+        const col=i%7, row=Math.floor(i/7);
+        const sel=i===10;
+        const past=i<5;
+        return (
+          <rect key={i}
+            x={width*(0.065+col*0.127)} y={h*(0.335+row*0.07)}
+            width={width*0.092} height={h*0.054} rx="6"
+            fill={sel?"#111":past?"#f8f8f8":"#f0f0f0"}/>
+        );
+      })}
+      {/* Time slots */}
+      {[0,1,2].map(i=>(
+        <rect key={i} x={width*0.06} y={h*(0.71+i*0.063)} width={width*0.88} height={h*0.052} rx="8"
+          fill={i===1?"#111":"#f2f2f2"}/>
+      ))}
+      {/* CTA */}
+      <rect x={width*0.06} y={h*0.87} width={width*0.88} height={h*0.065} rx={h*0.033} fill="#111"/>
+      <rect x={width*0.26} y={h*0.886} width={width*0.48} height={h*0.02} rx="3" fill="rgba(255,255,255,0.9)"/>
+    </>
+  );
+
+  const ChatScreen = () => (
+    <>
+      {/* Header */}
+      <rect x={0} y={h*0.08} width={width} height={h*0.1} fill="#fff"/>
+      <circle cx={width*0.18} cy={h*0.13} r={width*0.09} fill="#e0e0e0"/>
+      <rect x={width*0.32} y={h*0.112} width={width*0.38} height={h*0.02} rx="3" fill="#222"/>
+      <rect x={width*0.32} y={h*0.14}  width={width*0.25} height={h*0.014} rx="3" fill="#aaa"/>
+      <line x1={0} y1={h*0.18} x2={width} y2={h*0.18} stroke="#eee" strokeWidth="0.8"/>
+      {/* Messages */}
+      {/* them */}
+      <rect x={width*0.06} y={h*0.2}  width={width*0.6} height={h*0.065} rx="10" fill="#f0f0f0"/>
+      <rect x={width*0.1}  y={h*0.216} width={width*0.44} height={h*0.016} rx="3" fill="#555"/>
+      <rect x={width*0.1}  y={h*0.24}  width={width*0.28} height={h*0.014} rx="3" fill="#aaa"/>
+      {/* me */}
+      <rect x={width*0.34} y={h*0.3}  width={width*0.6}  height={h*0.055} rx="10" fill="#111"/>
+      <rect x={width*0.4}  y={h*0.315} width={width*0.46} height={h*0.016} rx="3" fill="rgba(255,255,255,0.8)"/>
+      {/* them */}
+      <rect x={width*0.06} y={h*0.39} width={width*0.72} height={h*0.085} rx="10" fill="#f0f0f0"/>
+      <rect x={width*0.1}  y={h*0.405} width={width*0.55} height={h*0.016} rx="3" fill="#555"/>
+      <rect x={width*0.1}  y={h*0.43}  width={width*0.38} height={h*0.014} rx="3" fill="#aaa"/>
+      <rect x={width*0.1}  y={h*0.452} width={width*0.28} height={h*0.014} rx="3" fill="#bbb"/>
+      {/* me */}
+      <rect x={width*0.28} y={h*0.51} width={width*0.66} height={h*0.055} rx="10" fill="#111"/>
+      <rect x={width*0.34} y={h*0.525} width={width*0.52} height={h*0.016} rx="3" fill="rgba(255,255,255,0.8)"/>
+      {/* typing indicator */}
+      <rect x={width*0.06} y={h*0.6} width={width*0.28} height={h*0.048} rx="10" fill="#f0f0f0"/>
+      {[0,1,2].map(i=>(
+        <circle key={i} cx={width*(0.12+i*0.062)} cy={h*0.624} r={width*0.022} fill="#bbb"/>
+      ))}
+      {/* Input bar */}
+      <rect x={0} y={h*0.88} width={width} height={h*0.12} fill="#fafafa"/>
+      <line x1={0} y1={h*0.88} x2={width} y2={h*0.88} stroke="#eee" strokeWidth="0.8"/>
+      <rect x={width*0.06} y={h*0.898} width={width*0.72} height={h*0.048} rx={h*0.024} fill="#efefef"/>
+      <rect x={width*0.82} y={h*0.898} width={width*0.12} height={h*0.048} rx={h*0.024} fill="#111"/>
+    </>
+  );
 
   return (
-    <motion.div style={{ rotate, scale: scl }} className="pointer-events-none">
-      <svg width="580" height="580" viewBox="0 0 580 580" fill="none">
-        <defs>
-          <radialGradient id="coreRg" cx="36%" cy="30%" r="65%">
-            <stop offset="0%"   stopColor="#282828"/>
-            <stop offset="100%" stopColor="#040404"/>
-          </radialGradient>
-          <radialGradient id="coreSheen" cx="28%" cy="22%" r="60%">
-            <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.13"/>
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0"/>
-          </radialGradient>
-          <filter id="coreShadow" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="18" stdDeviation="28" floodColor="rgba(0,0,0,0.16)"/>
-          </filter>
-          <filter id="nodeShadow">
-            <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="rgba(0,0,0,0.18)"/>
-          </filter>
-        </defs>
+    <svg width={width} height={h} viewBox={`0 0 ${width} ${h}`} fill="none">
+      {/* Phone frame */}
+      <rect x={0} y={0} width={width} height={h} rx={rx} fill="#111"/>
+      {/* Screen glass */}
+      <rect x={width*0.04} y={h*0.025} width={width*0.92} height={h*0.95} rx={rx*0.85} fill="#fafafa"/>
+      {/* Dynamic island */}
+      <rect x={width*0.35} y={h*0.034} width={width*0.3} height={h*0.025} rx={h*0.013} fill="#111"/>
+      {/* Side buttons */}
+      <rect x={-1} y={h*0.22} width="2.5" height={h*0.06}  rx="1.5" fill="#222"/>
+      <rect x={-1} y={h*0.30} width="2.5" height={h*0.08}  rx="1.5" fill="#222"/>
+      <rect x={-1} y={h*0.40} width="2.5" height={h*0.08}  rx="1.5" fill="#222"/>
+      <rect x={width-1.5} y={h*0.28} width="2.5" height={h*0.12} rx="1.5" fill="#222"/>
 
-        {/* ── very faint technical grid ── */}
-        <g opacity="0.028" stroke="#000" strokeWidth="0.5">
-          {Array.from({ length: 12 }, (_, i) => (
-            <g key={i}>
-              <line x1={0}   y1={i * 52} x2={580} y2={i * 52}/>
-              <line x1={i * 52} y1={0}   x2={i * 52} y2={580}/>
-            </g>
-          ))}
-        </g>
-
-        {/* ── Outer dashed measurement ring ── */}
-        <motion.g style={{ rotate: outerRotate }} transform-origin="290 290"
-          className="[transform-box:fill-box] [transform-origin:center]">
-          <circle cx="290" cy="290" r="248"
-            stroke="#d6d6d6" strokeWidth="0.7" strokeDasharray="3.5 9"/>
-          {/* tick marks at every 30° */}
-          {Array.from({ length: 12 }, (_, i) => {
-            const a = (i * 30 - 90) * (Math.PI / 180);
-            return (
-              <line key={i}
-                x1={290 + 242 * Math.cos(a)} y1={290 + 242 * Math.sin(a)}
-                x2={290 + 254 * Math.cos(a)} y2={290 + 254 * Math.sin(a)}
-                stroke="#bbb" strokeWidth="1" strokeLinecap="round"/>
-            );
-          })}
-          {/* 4 orbital nodes */}
-          {[0, 90, 180, 270].map((deg, i) => {
-            const a = (deg - 90) * (Math.PI / 180);
-            const x = 290 + 248 * Math.cos(a);
-            const y = 290 + 248 * Math.sin(a);
-            const labels = ["01", "02", "03", "04"];
-            return (
-              <g key={i} filter="url(#nodeShadow)">
-                <circle cx={x} cy={y} r="7"   fill="#111"/>
-                <circle cx={x} cy={y} r="3.5" fill="#555"/>
-                <text x={290 + 265 * Math.cos(a)} y={290 + 265 * Math.sin(a)}
-                  textAnchor="middle" dominantBaseline="middle"
-                  fontFamily="-apple-system,'Inter',sans-serif"
-                  fontSize="7.5" fill="#aaa" letterSpacing="0.08em">
-                  {labels[i]}
-                </text>
-              </g>
-            );
-          })}
-        </motion.g>
-
-        {/* ── Middle ring + 8 radial spokes ── */}
-        <motion.g style={{ rotate: innerRotate }}
-          className="[transform-box:fill-box] [transform-origin:center]">
-          <circle cx="290" cy="290" r="172"
-            stroke="#c8c8c8" strokeWidth="0.6" strokeDasharray="2 6"/>
-          {/* Radial lines from inner-ring edge to middle-ring edge */}
-          {Array.from({ length: 8 }, (_, i) => {
-            const a = (i * 45 - 90) * (Math.PI / 180);
-            return (
-              <line key={i}
-                x1={290 + 112 * Math.cos(a)} y1={290 + 112 * Math.sin(a)}
-                x2={290 + 168 * Math.cos(a)} y2={290 + 168 * Math.sin(a)}
-                stroke="#ccc" strokeWidth="0.55" strokeLinecap="round"/>
-            );
-          })}
-        </motion.g>
-
-        {/* ── Inner ring ── */}
-        <circle cx="290" cy="290" r="108"
-          stroke="#999" strokeWidth="0.9" strokeDasharray="1 4"/>
-
-        {/* ── Quadrant accent arcs (bold, clockwise alternating) ── */}
-        {[0, 90, 180, 270].map((startDeg, i) => {
-          const s = (startDeg - 90)       * (Math.PI / 180);
-          const e = (startDeg - 90 + 40)  * (Math.PI / 180);
-          const r = 108;
-          return (
-            <path key={i}
-              d={`M${290 + r * Math.cos(s)},${290 + r * Math.sin(s)}
-                  A${r},${r} 0 0,1 ${290 + r * Math.cos(e)},${290 + r * Math.sin(e)}`}
-              stroke="#111" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-          );
-        })}
-
-        {/* ── Core rectangle (the "chip") ── */}
-        <rect x="255" y="255" width="70" height="70" rx="9"
-          fill="url(#coreRg)" filter="url(#coreShadow)"/>
-        <rect x="255" y="255" width="70" height="70" rx="9"
-          fill="url(#coreSheen)"/>
-        {/* inner grid lines */}
-        {[1, 2, 3].map(i => (
-          <line key={`h${i}`}
-            x1="258" y1={255 + i * 14} x2="322" y2={255 + i * 14}
-            stroke="rgba(255,255,255,0.06)" strokeWidth="0.6"/>
-        ))}
-        {[1, 2, 3].map(i => (
-          <line key={`v${i}`}
-            x1={255 + i * 14} y1="258" x2={255 + i * 14} y2="322"
-            stroke="rgba(255,255,255,0.06)" strokeWidth="0.6"/>
-        ))}
-        {/* sheen strip */}
-        <rect x="258" y="258" width="30" height="7" rx="2"
-          fill="rgba(255,255,255,0.11)"/>
-        {/* center dot */}
-        <circle cx="290" cy="290" r="4.5" fill="#4a4a4a"/>
-        <circle cx="290" cy="290" r="1.8" fill="#888"/>
-
-        {/* ── Corner extension lines ── */}
-        {[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([dx, dy], i) => (
-          <line key={i}
-            x1={290 + dx * 35} y1={290 + dy * 35}
-            x2={290 + dx * 92} y2={290 + dy * 92}
-            stroke="#ddd" strokeWidth="0.5" strokeLinecap="round"/>
-        ))}
-      </svg>
-    </motion.div>
+      {/* Screen content */}
+      {screen === "search"  && <SearchScreen/>}
+      {screen === "booking" && <BookingScreen/>}
+      {screen === "chat"    && <ChatScreen/>}
+    </svg>
   );
 }
 
-/* ─────────────────────────────────────────────
-   Feature pill (fades in on scroll)
-───────────────────────────────────────────── */
-function Pill({ opacity, y, label, sub }) {
+/* ═══════════════════════════════════════════════════════
+   Background cloud blobs
+═══════════════════════════════════════════════════════ */
+function CloudBlobs({ progress }) {
+  const y1 = useTransform(progress, [0, 1], ["0%",  "-18%"]);
+  const y2 = useTransform(progress, [0, 1], ["0%",  "-10%"]);
+  const y3 = useTransform(progress, [0, 1], ["0%",  "-24%"]);
   return (
-    <motion.div style={{ opacity, y }} className="text-center">
-      <p className="font-playfair text-base font-semibold text-zinc-900 leading-tight">{label}</p>
-      <p className="text-[11px] text-zinc-400 mt-0.5 tracking-wide"
-        style={{ fontFamily: "'Inter',sans-serif" }}>{sub}</p>
-    </motion.div>
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+      <motion.div style={{ y: y1 }}
+        className="absolute rounded-full"
+        style={{
+          width: 700, height: 700,
+          top: -200, left: -180,
+          background: "radial-gradient(circle, rgba(0,0,0,0.03) 0%, transparent 70%)",
+          filter: "blur(60px)", y: y1
+        }}/>
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 600, height: 600,
+          top: 100, right: -150,
+          background: "radial-gradient(circle, rgba(0,0,0,0.025) 0%, transparent 70%)",
+          filter: "blur(70px)", y: y2
+        }}/>
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 500, height: 500,
+          bottom: -100, left: "30%",
+          background: "radial-gradient(circle, rgba(0,0,0,0.03) 0%, transparent 70%)",
+          filter: "blur(55px)", y: y3
+        }}/>
+    </div>
   );
 }
 
-/* ─────────────────────────────────────────────
-   Landing Page
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   Feature Section (scroll reveal)
+═══════════════════════════════════════════════════════ */
+function FeatureSection({ num, title, body, screen, flip = false }) {
+  return (
+    <section className="min-h-screen flex items-center px-6 py-24 bg-white overflow-hidden">
+      <div className={`max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center ${flip ? "lg:flex-row-reverse" : ""}`}
+        style={{ direction: flip ? "rtl" : "ltr" }}>
+
+        {/* Text side */}
+        <motion.div
+          style={{ direction: "ltr" }}
+          initial={{ opacity: 0, x: flip ? 40 : -40 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-300 mb-5"
+            style={{ fontFamily: "'Inter',sans-serif" }}>{num}</p>
+          <div className="w-8 h-[1px] bg-zinc-200 mb-8"/>
+          <h2 className="font-playfair text-4xl sm:text-5xl text-zinc-950 leading-tight mb-6">{title}</h2>
+          <p className="text-base text-zinc-500 leading-relaxed max-w-md"
+            style={{ fontFamily: "'Inter',sans-serif" }}>{body}</p>
+          <Link to="/search"
+            className="inline-flex items-center gap-2 mt-10 text-sm font-medium text-zinc-900
+                       border-b border-zinc-200 pb-0.5 hover:border-zinc-900 transition-colors group"
+            style={{ fontFamily: "'Inter',sans-serif" }}>
+            Entdecken
+            <ArrowRight size={13} strokeWidth={1.5}
+              className="transition-transform duration-300 group-hover:translate-x-1"/>
+          </Link>
+        </motion.div>
+
+        {/* Phone side */}
+        <motion.div
+          style={{ direction: "ltr" }}
+          initial={{ opacity: 0, y: 60, rotateY: flip ? -18 : 18 }}
+          whileInView={{ opacity: 1, y: 0, rotateY: flip ? -8 : 8 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 1.1, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+          className="flex justify-center"
+          style={{ perspective: "1000px" }}
+        >
+          <motion.div
+            animate={{ y: [0, -12, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            style={{ filter: "drop-shadow(0 32px 48px rgba(0,0,0,0.12)) drop-shadow(0 8px 16px rgba(0,0,0,0.08))" }}
+          >
+            <PhoneMockup screen={screen} width={220}/>
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   Main Landing Page
+═══════════════════════════════════════════════════════ */
 export default function LandingPage() {
-  const containerRef = useRef(null);
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
+  const heroRef = useRef(null);
+  const { scrollYProgress: heroProgress } = useScroll({
+    target: heroRef,
     offset: ["start start", "end start"],
   });
+  const smooth = useSpring(heroProgress, { stiffness: 50, damping: 20 });
 
-  /* smooth spring so every transform feels silky */
-  const s = useSpring(scrollYProgress, { stiffness: 55, damping: 22, restDelta: 0.0001 });
+  /* Phone parallax on scroll through hero */
+  const p1Y = useTransform(smooth, [0, 1], [0, -180]);
+  const p2Y = useTransform(smooth, [0, 1], [0, -120]);
+  const p3Y = useTransform(smooth, [0, 1], [0, -220]);
 
-  /* ── object ── */
-  const objY  = useTransform(s, [0, 0.5, 0.88], [0, -24, -220]);
-  const objOp = useTransform(s, [0.72, 0.9],     [1, 0]);
+  /* Hero text fades on scroll */
+  const heroTextOp = useTransform(smooth, [0, 0.55], [1, 0]);
+  const heroTextY  = useTransform(smooth, [0, 0.55], [0, -60]);
 
-  /* ── phase 1: tagline ── */
-  const p1Op = useTransform(s, [0, 0.09, 0.2],  [0, 1, 0]);
-  const p1Y  = useTransform(s, [0, 0.09, 0.2],  [18, 0, -18]);
-
-  /* ── phase 2: main wordmark ── */
-  const p2Op = useTransform(s, [0.13, 0.3, 0.56], [0, 1, 0]);
-  const p2Y  = useTransform(s, [0.13, 0.3, 0.56], [30, 0, -30]);
-  const p2Sc = useTransform(s, [0.13, 0.3],       [0.94, 1]);
-
-  /* ── phase 3: three feature pills ── */
-  const f1Op = useTransform(s, [0.43, 0.57], [0, 1]);
-  const f1Y  = useTransform(s, [0.43, 0.57], [22, 0]);
-  const f2Op = useTransform(s, [0.49, 0.63], [0, 1]);
-  const f2Y  = useTransform(s, [0.49, 0.63], [22, 0]);
-  const f3Op = useTransform(s, [0.55, 0.69], [0, 1]);
-  const f3Y  = useTransform(s, [0.55, 0.69], [22, 0]);
-
-  /* ── phase 4: CTA ── */
-  const ctaOp = useTransform(s, [0.72, 0.88], [0, 1]);
-  const ctaY  = useTransform(s, [0.72, 0.88], [38, 0]);
-
-  /* ── scroll arrow ── */
-  const arrOp = useTransform(s, [0, 0.06], [1, 0]);
+  /* Full-page scroll for background */
+  const { scrollYProgress: pageProgress } = useScroll();
+  const pageProg = useSpring(pageProgress, { stiffness: 30, damping: 20 });
 
   return (
-    <div className="bg-white">
+    <div className="bg-white overflow-x-hidden">
       <Navbar />
 
-      {/* ════════════════════════════════════════
-          CINEMATIC SCROLL ZONE  (350vh tall)
-          Sticky inner panel stays at top
-          ════════════════════════════════════════ */}
-      <div ref={containerRef} style={{ height: "350vh" }}>
-        <div className="sticky top-0 h-screen w-full bg-white overflow-hidden flex items-center justify-center">
+      {/* ══════════════════════════════════════
+          HERO SECTION
+          ══════════════════════════════════════ */}
+      <section
+        ref={heroRef}
+        className="relative h-screen flex items-center justify-center overflow-hidden bg-white"
+      >
+        <CloudBlobs progress={pageProg} />
 
-          {/* Abstract orbital object */}
+        {/* ── 3D Device Stage ── */}
+        <div className="absolute inset-0 flex items-center justify-center"
+          style={{ perspective: "1400px" }}>
+
+          {/* Phone 1 – Left, tilted toward viewer */}
           <motion.div
-            style={{ y: objY, opacity: objOp }}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ y: p1Y }}
+            className="absolute"
+            initial={{ x: -400, y: 300, opacity: 0, rotateY: 35, rotateX: -8 }}
+            animate={{ x: "-28vw", y: "4vh", opacity: 1, rotateY: 22, rotateX: -4 }}
+            transition={{ type: "spring", stiffness: 48, damping: 16, delay: 0.15 }}
           >
-            <OrbitalCore progress={s} />
+            <motion.div
+              animate={{ y: [0, -14, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+              style={{
+                filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.13)) drop-shadow(0 8px 20px rgba(0,0,0,0.07))",
+                transformStyle: "preserve-3d"
+              }}
+            >
+              <PhoneMockup screen="search" width={180}/>
+            </motion.div>
           </motion.div>
 
-          {/* Phase 1 – eyebrow tagline */}
+          {/* Phone 2 – Center, closest to viewer (largest) */}
+          <motion.div
+            style={{ y: p2Y }}
+            className="absolute"
+            initial={{ y: -500, opacity: 0, rotateY: -5, scale: 0.65 }}
+            animate={{ y: "-6vh",  opacity: 1, rotateY: -4, scale: 1 }}
+            transition={{ type: "spring", stiffness: 42, damping: 15, delay: 0.35 }}
+          >
+            <motion.div
+              animate={{ y: [0, -18, 0] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+              style={{
+                filter: "drop-shadow(0 50px 80px rgba(0,0,0,0.16)) drop-shadow(0 12px 24px rgba(0,0,0,0.1))",
+                transformStyle: "preserve-3d"
+              }}
+            >
+              <PhoneMockup screen="booking" width={210}/>
+            </motion.div>
+          </motion.div>
+
+          {/* Phone 3 – Right, tilted away */}
+          <motion.div
+            style={{ y: p3Y }}
+            className="absolute"
+            initial={{ x: 400, y: 350, opacity: 0, rotateY: -35, rotateX: 8 }}
+            animate={{ x: "28vw", y: "8vh", opacity: 1, rotateY: -20, rotateX: 3 }}
+            transition={{ type: "spring", stiffness: 48, damping: 16, delay: 0.25 }}
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+              style={{
+                filter: "drop-shadow(0 36px 56px rgba(0,0,0,0.11)) drop-shadow(0 6px 16px rgba(0,0,0,0.07))",
+                transformStyle: "preserve-3d"
+              }}
+            >
+              <PhoneMockup screen="chat" width={168}/>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* ── Hero Text (bottom center) ── */}
+        <motion.div
+          style={{ opacity: heroTextOp, y: heroTextY }}
+          className="absolute bottom-0 left-0 right-0 text-center pb-16 pointer-events-none select-none"
+        >
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.8, ease: [0.4, 0, 0.2, 1] }}
+            className="font-playfair font-bold text-zinc-950 leading-none tracking-tight mb-4"
+            style={{ fontSize: "clamp(56px, 9vw, 104px)" }}
+          >
+            InkBook
+          </motion.h1>
           <motion.p
-            style={{ opacity: p1Op, y: p1Y }}
-            className="absolute text-center text-[11px] tracking-[0.3em] uppercase text-zinc-400 pointer-events-none"
-            style={{ fontFamily: "'Inter',sans-serif", letterSpacing: "0.3em" }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 1.0, ease: [0.4, 0, 0.2, 1] }}
+            className="text-xs text-zinc-400 tracking-[0.26em] uppercase mb-8"
+            style={{ fontFamily: "'Inter',sans-serif" }}
           >
             Premium Tattoo Buchungsplattform
           </motion.p>
-
-          {/* Phase 2 – main wordmark + subtitle */}
           <motion.div
-            style={{ opacity: p2Op, y: p2Y, scale: p2Sc }}
-            className="absolute text-center pointer-events-none select-none"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 1.2, ease: [0.4, 0, 0.2, 1] }}
+            className="pointer-events-auto"
           >
-            <h1
-              className="font-playfair font-bold text-zinc-950 leading-none tracking-tight"
-              style={{ fontSize: "clamp(72px, 12vw, 116px)" }}
-            >
-              InkBook
-            </h1>
-            <p
-              className="text-[11px] text-zinc-400 mt-5 tracking-[0.22em] uppercase"
-              style={{ fontFamily: "'Inter',sans-serif" }}
-            >
-              Engineered for Tattoo Artists
-            </p>
-          </motion.div>
-
-          {/* Phase 3 – feature pills */}
-          <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-14 sm:gap-20 pointer-events-none">
-            <Pill opacity={f1Op} y={f1Y} label="Kalender"  sub="Smarte Terminplanung" />
-            <Pill opacity={f2Op} y={f2Y} label="Studios"   sub="Kuratierte Auswahl"   />
-            <Pill opacity={f3Op} y={f3Y} label="Chat"      sub="Direkte Kommunikation" />
-          </div>
-
-          {/* Phase 4 – CTA */}
-          <motion.div
-            style={{ opacity: ctaOp, y: ctaY }}
-            className="absolute text-center"
-          >
-            <p
-              className="text-[11px] text-zinc-400 tracking-[0.22em] uppercase mb-7"
-              style={{ fontFamily: "'Inter',sans-serif" }}
-            >
-              Bereit loszulegen?
-            </p>
-            <Link
-              to="/search"
-              className="inline-flex items-center gap-3 px-9 py-3.5 bg-zinc-950 text-white rounded-full
-                         text-[13px] font-medium hover:bg-zinc-700 transition-all duration-300
-                         hover:gap-5 group"
-              style={{ fontFamily: "'Inter',sans-serif" }}
-            >
+            <Link to="/search"
+              className="inline-flex items-center gap-3 px-8 py-3.5 bg-zinc-950 text-white
+                         rounded-full text-[13px] font-medium hover:bg-zinc-700 transition-all
+                         duration-300 hover:gap-5 group shadow-lg shadow-black/10"
+              style={{ fontFamily: "'Inter',sans-serif" }}>
               Studios entdecken
               <ArrowRight size={14} strokeWidth={1.5}
                 className="transition-transform duration-300 group-hover:translate-x-1"/>
             </Link>
-            <p
-              className="text-[11px] text-zinc-300 mt-4"
-              style={{ fontFamily: "'Inter',sans-serif" }}
-            >
-              Kostenlos für Kunden · Flexible Pläne für Studios
-            </p>
           </motion.div>
+        </motion.div>
 
-          {/* Scroll indicator */}
-          <motion.div
-            style={{ opacity: arrOp }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          >
-            <motion.div
-              animate={{ y: [0, 7, 0] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-            >
-              <ChevronDown size={18} className="text-zinc-300" strokeWidth={1.5}/>
-            </motion.div>
+        {/* Scroll arrow */}
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          transition={{ delay: 1.8 }}
+          className="absolute bottom-5 left-1/2 -translate-x-1/2"
+        >
+          <motion.div animate={{ y: [0, 8, 0] }}
+            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
+            <ChevronDown size={18} className="text-zinc-300" strokeWidth={1.5}/>
           </motion.div>
-
-        </div>
-      </div>
-
-      {/* ════════════════════════════════════════
-          POST-SCROLL: Content sections
-          ════════════════════════════════════════ */}
-
-      {/* Section divider */}
-      <div className="h-px bg-zinc-100"/>
-
-      {/* What is InkBook */}
-      <section className="py-36 px-6">
-        <div className="max-w-5xl mx-auto">
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-            className="text-center mb-24"
-          >
-            <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-400 mb-5"
-              style={{ fontFamily: "'Inter',sans-serif" }}>Was ist InkBook?</p>
-            <h2 className="font-playfair text-4xl sm:text-5xl text-zinc-950 leading-tight">
-              Tattoo-Buchungen<br/>neu definiert.
-            </h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-            {[
-              {
-                num: "01",
-                title: "Finde dein Studio",
-                body: "Durchsuche kuratierte Tattoo-Studios in deiner Nähe. Vergleiche Stile, Bewertungen und Preise auf einen Blick.",
-              },
-              {
-                num: "02",
-                title: "Buche deinen Termin",
-                body: "Direkte Buchung, kein Telefonieren. Wähle deinen Wunschtermin in Echtzeit aus verfügbaren Slots.",
-              },
-              {
-                num: "03",
-                title: "Dein perfektes Tattoo",
-                body: "Kommuniziere direkt mit dem Studio, teile Referenzbilder und erhalte professionelle Beratung.",
-              },
-            ].map(({ num, title, body }, i) => (
-              <motion.div
-                key={num}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.7, delay: i * 0.12, ease: [0.4, 0, 0.2, 1] }}
-                className="group"
-              >
-                <p className="text-[10px] text-zinc-300 tracking-[0.2em] mb-4"
-                  style={{ fontFamily: "'Inter',sans-serif" }}>{num}</p>
-                <div className="w-6 h-[1px] bg-zinc-200 mb-7
-                                transition-all duration-500 group-hover:w-14"/>
-                <h3 className="font-playfair text-xl text-zinc-900 mb-3">{title}</h3>
-                <p className="text-sm text-zinc-500 leading-relaxed"
-                  style={{ fontFamily: "'Inter',sans-serif" }}>{body}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* CTA row */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="mt-28 text-center"
-          >
-            <Link
-              to="/search"
-              className="inline-flex items-center gap-3 px-10 py-4 bg-zinc-950 text-white rounded-full
-                         text-sm font-medium hover:bg-zinc-700 transition-all duration-300
-                         hover:gap-5 group"
-              style={{ fontFamily: "'Inter',sans-serif" }}
-            >
-              Jetzt Studios entdecken
-              <ArrowRight size={14} strokeWidth={1.5}
-                className="transition-transform duration-300 group-hover:translate-x-1"/>
-            </Link>
-          </motion.div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* Stats bar */}
-      <section className="border-t border-b border-zinc-100 py-14 px-6">
-        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
+      {/* ══════════════════════════════════════
+          FEATURE SECTIONS  (3 full pages)
+          ══════════════════════════════════════ */}
+      <FeatureSection
+        num="01"
+        title={<>Finde dein<br/>perfektes Studio.</>}
+        body="Durchsuche Hunderte kuratierter Tattoo-Studios in deiner Nähe. Vergleiche Stile, Preise und echte Kundenbewertungen – alles auf einen Blick, ohne endloses Googeln."
+        screen="search"
+        flip={false}
+      />
+
+      <FeatureSection
+        num="02"
+        title={<>Buche direkt.<br/>Ohne Wartezeit.</>}
+        body="Sehe verfügbare Termine in Echtzeit und buche mit einem Klick. Kein Telefonieren, kein Warten auf Antworten. Wähle Stil, Datum und Uhrzeit – fertig."
+        screen="booking"
+        flip={true}
+      />
+
+      <FeatureSection
+        num="03"
+        title={<>Kommuniziere.<br/>Direkt im Chat.</>}
+        body="Schreibe deinem Studio direkt in der App. Teile Referenzbilder, bespreche Details und erhalte professionelle Beratung – alles an einem Ort, sicher und übersichtlich."
+        screen="chat"
+        flip={false}
+      />
+
+      {/* ══════════════════════════════════════
+          STATS + CTA SECTION
+          ══════════════════════════════════════ */}
+      <section className="bg-zinc-950 min-h-screen flex flex-col items-center justify-center py-32 px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+          className="text-center mb-20 max-w-2xl"
+        >
+          <p className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 mb-5"
+            style={{ fontFamily: "'Inter',sans-serif" }}>Zahlen die überzeugen</p>
+          <h2 className="font-playfair text-4xl sm:text-5xl text-white leading-tight">
+            Tausende Buchungen.<br/>Ein Ziel.
+          </h2>
+        </motion.div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-12 sm:gap-24 mb-24 text-center">
           {[
-            { value: "500+", label: "Studios" },
-            { value: "10k+", label: "Buchungen" },
-            { value: "4.9★", label: "Bewertung" },
-          ].map(({ value, label }, i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 10 }}
+            { v: "500+", l: "Studios" },
+            { v: "10k+", l: "Buchungen" },
+            { v: "4.9★", l: "Bewertung" },
+          ].map(({ v, l }, i) => (
+            <motion.div key={l}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.1, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ duration: 0.7, delay: i * 0.1, ease: [0.4, 0, 0.2, 1] }}
             >
-              <p className="font-playfair text-3xl sm:text-4xl text-zinc-950 font-bold">{value}</p>
-              <p className="text-xs text-zinc-400 mt-1 tracking-wide"
-                style={{ fontFamily: "'Inter',sans-serif" }}>{label}</p>
+              <p className="font-playfair text-4xl sm:text-5xl text-white font-bold">{v}</p>
+              <p className="text-xs text-zinc-500 mt-2 tracking-wide"
+                style={{ fontFamily: "'Inter',sans-serif" }}>{l}</p>
             </motion.div>
           ))}
         </div>
+
+        {/* Dual CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          className="flex flex-col sm:flex-row gap-4 items-center"
+        >
+          <Link to="/search"
+            className="inline-flex items-center gap-3 px-9 py-4 bg-white text-zinc-950 rounded-full
+                       text-[13px] font-medium hover:bg-zinc-100 transition-all duration-300
+                       hover:gap-5 group"
+            style={{ fontFamily: "'Inter',sans-serif" }}>
+            Studios entdecken
+            <ArrowRight size={14} strokeWidth={1.5}
+              className="transition-transform duration-300 group-hover:translate-x-1"/>
+          </Link>
+          <Link to="/register"
+            className="inline-flex items-center gap-2 px-9 py-4 border border-zinc-700 text-zinc-300
+                       rounded-full text-[13px] font-medium hover:border-zinc-500 hover:text-white
+                       transition-all duration-300"
+            style={{ fontFamily: "'Inter',sans-serif" }}>
+            Kostenlos registrieren
+          </Link>
+        </motion.div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-10 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="font-playfair text-zinc-900 font-semibold text-sm">InkBook</p>
-          <p className="text-[11px] text-zinc-400" style={{ fontFamily: "'Inter',sans-serif" }}>
+      {/* ══════════════════════════════════════
+          FOOTER
+          ══════════════════════════════════════ */}
+      <footer className="bg-zinc-950 border-t border-zinc-900 py-10 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-6">
+          <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
+          <p className="text-[11px] text-zinc-600" style={{ fontFamily: "'Inter',sans-serif" }}>
             © 2026 InkBook · Alle Rechte vorbehalten
           </p>
-          <div className="flex gap-5">
+          <div className="flex gap-6">
             {[
-              { to: "/login",    label: "Anmelden"    },
-              { to: "/register", label: "Registrieren" },
-              { to: "/search",   label: "Studios"      },
-            ].map(({ to, label }) => (
+              { to: "/login",    l: "Anmelden"     },
+              { to: "/register", l: "Registrieren"  },
+              { to: "/search",   l: "Studios"       },
+            ].map(({ to, l }) => (
               <Link key={to} to={to}
-                className="text-[11px] text-zinc-400 hover:text-zinc-900 transition-colors"
-                style={{ fontFamily: "'Inter',sans-serif" }}>{label}</Link>
+                className="text-[11px] text-zinc-600 hover:text-zinc-300 transition-colors"
+                style={{ fontFamily: "'Inter',sans-serif" }}>{l}</Link>
             ))}
           </div>
         </div>
