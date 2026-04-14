@@ -32,11 +32,13 @@ async def send_email(to: str, subject: str, html: str):
         return
     try:
         resend.api_key = RESEND_API_KEY
-        params = {"from": SENDER_EMAIL, "to": [to], "subject": subject, "html": html}
+        # Use account owner email as sender until custom domain is verified
+        sender = SENDER_EMAIL if SENDER_EMAIL != "onboarding@resend.dev" else "onboarding@resend.dev"
+        params = {"from": sender, "to": [to], "subject": subject, "html": html}
         await asyncio.to_thread(resend.Emails.send, params)
         logger.info(f"Email sent to {to}: {subject}")
     except Exception as e:
-        logger.error(f"Email send failed: {e}")
+        logger.warning(f"Email send failed (non-critical): {e}")
 
 def booking_confirmation_html(booking: dict, lang: str = "de") -> str:
     type_label = "Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session"

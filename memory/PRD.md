@@ -25,58 +25,45 @@ Doctolib-style tattoo booking platform for tattoo studios and artists. Customers
 - AI tattoo style advisor (GPT-4o vision)
 - Multilingual (DE/EN)
 
-## What's Been Implemented (Updated 2025-04)
+## What's Been Implemented (Updated 2025-04 – v3)
 
-### Backend (FastAPI)
-- ✅ JWT auth + Google OAuth (email registration injects `id` from JWT payload - bug fixed)
-- ✅ Studios CRUD with filters
-- ✅ Slots management
-- ✅ Bookings with reference images, email notifications
-- ✅ Reviews with avg rating
-- ✅ Messages/Chat (conversations enriched with other user name)
-- ✅ Stripe deposits
-- ✅ AI Style Advisor (GPT-4o vision)
-- ✅ Image upload (base64 data URLs)
-- ✅ Dashboard stats
-- ✅ Email notifications via Resend (booking confirmation + status update, graceful skip if no key)
-- ✅ Demo data seeded
-
-### Frontend (React + PWA)
-- ✅ Landing page
-- ✅ Search/Discovery + filters
-- ✅ Studio detail + booking sidebar with reference image upload (up to 5)
-- ✅ Studio contact button (links to /messages/owner_id)
-- ✅ Customer Dashboard (stats, bookings, messages quick action)
-- ✅ Studio Dashboard (4 tabs: Übersicht, Slots, Buchungen, Profil bearbeiten)
-  - ✅ Profile edit: name, description, address, city, phone, email, website, price range
-  - ✅ Style toggle (select/deselect from 16 styles)
-  - ✅ Gallery management (upload + remove images)
-- ✅ Chat/Messaging UI (/messages + /messages/:recipientId)
-  - ✅ Conversation list with other user name
-  - ✅ Real-time polling (5s)
-  - ✅ Image upload in chat
-  - ✅ Mobile responsive two-panel layout
+### Backend
+- ✅ All auth (JWT + Google OAuth), Studios, Slots, Bookings, Reviews, Messages
+- ✅ Stripe deposits + Subscription checkout (Basic €29/Pro €79)
+- ✅ Subscription verify/cancel/status endpoints
+- ✅ Artists CRUD (per studio): name, bio, styles, experience, instagram, portfolio
+- ✅ Booking reschedule (PUT /api/bookings/{id}/reschedule)
+- ✅ Email notifications via Resend (confirmation, status, reschedule) – non-blocking
 - ✅ AI Style Advisor (GPT-4o)
-- ✅ Auth pages (Login + Register + Google OAuth)
-- ✅ PWA: manifest.json, viewport meta, page title, apple-mobile-web-app tags
-- ✅ Multilingual (DE/EN), Nachrichten nav link
 
-## Priority Backlog (Updated)
-### P0 (Next)
-- Resend API key needed for email (RESEND_API_KEY in .env)
-- Artist/employee profiles within studio
-- Booking reschedule flow
+### Frontend
+- ✅ SubscriptionPage (/subscription): Basic €29 / Pro €79 plan cards + compare table
+- ✅ Studio Dashboard: 5 tabs (Übersicht, Slots, Buchungen, Artists, Profil)
+  - Artists tab: create/edit/delete artists with portfolio images
+  - Subscription badge + Abo button in header
+- ✅ Customer Dashboard: Umbuchen-Button + Reschedule-Modal with date/slot picker
+- ✅ Studio detail page: 4 tabs (About, Artists, Gallery, Reviews)
+- ✅ All previous features intact
 
-### P1
-- Push notifications (web push API)
+## Resend Email Status
+- API key is set and active
+- Emails currently only deliverable to verified Resend account email
+- For production: verify domain at resend.com/domains, update SENDER_EMAIL in .env
+
+## P0 Backlog
+- Resend domain verification (user action needed at resend.com)
 - Admin panel
-- Monthly studio subscriptions (Stripe)
-- Advanced calendar view (FullCalendar)
+- Push notifications (Web Push API)
 
-### P2
-- Studio analytics dashboard
+## P1 Backlog  
+- Monthly subscription auto-renewal (Stripe recurring billing)
+- Booking analytics for studios
 - Social sharing
+
+## P2 Backlog
 - Deposit refund management
+- Customer tattoo history/portfolio
+- Multiple artists per booking slot
 
 ## Test Accounts
 - Admin: admin@inkbook.com / admin123
