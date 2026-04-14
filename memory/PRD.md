@@ -44,17 +44,16 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
-### Mai 2026 (Diese Session – Iteration 7)
+### Mai 2026 (Diese Session – Iteration 7 & 8)
 - **Chat-Fix verifiziert** ✅
   - Enter-Taste sendet Nachricht (stale-closure-Fix via useRef funktioniert korrekt)
-  - Send-Button funktioniert
   - Live-Polling alle 2s – Studio sieht Kunden-Nachrichten ohne Reload
-  - Fehlertolerant: kein Redirect zu /login bei kurzen Netzwerkausfällen
-  - Bug behoben: `image_url: null` → `image_url: ''` in MessagesPage.js + `Optional[str]` im Backend
+  - Bug behoben: `image_url: null` → `image_url: ''` + `Optional[str]` im Backend
 - **Push-Benachrichtigungen verifiziert** ✅
-  - VAPID-Key-Endpunkt liefert Key
-  - Subscribe-Endpunkt akzeptiert Push-Subscription
-  - Typing-Indicator (POST/GET) funktioniert korrekt
+- **3 neue UI-Features** ✅
+  - Schließen-Button (X) für Stornierung-Banner im CustomerDashboard
+  - Bild-Lightbox im Chat – Klick öffnet Vollbild-Overlay
+  - Voller Monatskalender für Terminauswahl statt horizontalem Scroll (Mo–So Grid, Navigation, heute-Highlight, vergangene Tage deaktiviert)
 
 ### 2025 Initial MVP
 - Base FastAPI + React + MongoDB setup ✅
