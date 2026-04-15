@@ -1,11 +1,156 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Link } from "react-router-dom";
-import Navbar from "../components/Navbar";
-import { ArrowRight } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { ArrowRight, Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 gsap.registerPlugin(ScrollTrigger);
+
+/* ══════════════════════════════════════════════════════
+   Custom Landing Navbar (transparent → glass on scroll)
+══════════════════════════════════════════════════════ */
+function LandingNav() {
+  const [scrolled, setScrolled] = useState(false);
+  const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const navigate = useNavigate();
+  const dashboardPath = user?.role === "studio_owner" ? "/studio-dashboard"
+    : user?.role === "admin" ? "/admin" : "/dashboard";
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 55);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <nav
+      data-testid="landing-nav"
+      style={{
+        position: "fixed",
+        top: 0, left: 0, right: 0,
+        zIndex: 100,
+        height: 60,
+        transition: "background 0.5s ease, border-color 0.5s ease, backdrop-filter 0.5s ease",
+        background: scrolled ? "rgba(7,7,7,0.78)" : "transparent",
+        backdropFilter: scrolled ? "blur(16px)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(16px)" : "none",
+        borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "1px solid transparent",
+      }}
+    >
+      <div style={{
+        maxWidth: 1200, margin: "0 auto", padding: "0 32px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", height: "100%",
+      }}>
+        {/* Logo */}
+        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }} data-testid="landing-nav-logo">
+          <div style={{
+            width: 32, height: 32,
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.16)",
+            borderRadius: 10,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(8px)",
+          }}>
+            <span style={{ fontFamily: "Playfair Display, serif", fontWeight: 700, fontSize: 14, color: "#fff" }}>I</span>
+          </div>
+          <span style={{ fontFamily: "Playfair Display, serif", fontWeight: 600, fontSize: 16, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.01em" }}>InkBook</span>
+        </Link>
+
+        {/* Center links */}
+        <div style={{ display: "flex", gap: 4 }}>
+          {[
+            { to: "/search",     label: "Studios finden" },
+            { to: "/ai-advisor", label: "KI-Stilberater" },
+          ].map(({ to, label }) => (
+            <Link
+              key={to} to={to}
+              style={{
+                padding: "8px 16px", borderRadius: 20, fontSize: 13,
+                fontFamily: "Inter, sans-serif",
+                color: "rgba(255,255,255,0.46)",
+                textDecoration: "none",
+                transition: "color 0.2s, background 0.2s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.88)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.46)"; e.currentTarget.style.background = "transparent"; }}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Right: auth + language */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === "de" ? "en" : "de")}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 20, border: "none",
+              background: "transparent", cursor: "pointer",
+              fontSize: 11, fontFamily: "Inter, sans-serif", fontWeight: 600,
+              color: "rgba(255,255,255,0.4)",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.78)"}
+            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.4)"}
+          >
+            <Globe size={12} strokeWidth={1.5} style={{ color: "inherit" }} />
+            {i18n.language.toUpperCase()}
+          </button>
+
+          {user ? (
+            <Link to={dashboardPath}
+              style={{
+                padding: "8px 18px", borderRadius: 20, fontSize: 13,
+                fontFamily: "Inter, sans-serif",
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                color: "rgba(255,255,255,0.88)",
+                textDecoration: "none",
+                transition: "background 0.2s",
+              }}
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link to="/login"
+                style={{
+                  padding: "8px 16px", fontSize: 13, fontFamily: "Inter, sans-serif",
+                  color: "rgba(255,255,255,0.5)", textDecoration: "none",
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.88)"}
+                onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.5)"}
+              >
+                Anmelden
+              </Link>
+              <Link to="/register"
+                style={{
+                  padding: "8px 20px", borderRadius: 20, fontSize: 13,
+                  fontFamily: "Inter, sans-serif",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "rgba(255,255,255,0.88)",
+                  textDecoration: "none",
+                  backdropFilter: "blur(12px)",
+                  transition: "background 0.2s, border-color 0.2s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.16)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; }}
+              >
+                Registrieren
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
 
 /* ══════════════════════════════════════════════════════
    iPhone Mockup
@@ -14,21 +159,13 @@ function Phone({ src, width = 220, className = "", style = {} }) {
   const h = Math.round(width * 2.165);
   const r = Math.round(width * 0.13);
   return (
-    <div
-      className={className}
-      style={{
-        width, height: h,
-        borderRadius: r,
-        background: "linear-gradient(160deg, #2a2a2a 0%, #111 60%, #0d0d0d 100%)",
-        padding: "3px",
-        boxShadow:
-          "0 0 0 1px #1e1e1e, inset 0 0 0 1px rgba(255,255,255,.07), 0 60px 120px rgba(0,0,0,.65), 0 20px 40px rgba(0,0,0,.4)",
-        position: "relative",
-        flexShrink: 0,
-        ...style,
-      }}
-    >
-      {/* Side buttons */}
+    <div className={className} style={{
+      width, height: h, borderRadius: r,
+      background: "linear-gradient(160deg, #2a2a2a 0%, #111 60%, #0d0d0d 100%)",
+      padding: "3px",
+      boxShadow: "0 0 0 1px #1e1e1e, inset 0 0 0 1px rgba(255,255,255,.07), 0 60px 120px rgba(0,0,0,.65), 0 20px 40px rgba(0,0,0,.4)",
+      position: "relative", flexShrink: 0, ...style,
+    }}>
       {[
         { l: true,  top: "20%", h: "5.5%" },
         { l: true,  top: "27%", h: "7.5%" },
@@ -41,32 +178,18 @@ function Phone({ src, width = 220, className = "", style = {} }) {
           left: b.l ? -3 : undefined, right: b.l ? undefined : -3,
         }} />
       ))}
-      {/* Screen */}
       <div style={{
-        width: "100%", height: "100%",
-        borderRadius: r - 3,
-        overflow: "hidden",
-        background: "#0a0a0a",
-        position: "relative",
+        width: "100%", height: "100%", borderRadius: r - 3,
+        overflow: "hidden", background: "#0a0a0a", position: "relative",
       }}>
-        {/* Dynamic island */}
         <div style={{
-          position: "absolute", top: 10, left: "50%",
-          transform: "translateX(-50%)",
-          width: "28%", height: 11,
-          background: "#000", borderRadius: 6,
-          zIndex: 10,
+          position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
+          width: "28%", height: 11, background: "#000", borderRadius: 6, zIndex: 10,
         }} />
-        <img
-          src={src}
-          alt=""
-          style={{
-            width: "100%", height: "100%",
-            objectFit: "cover",
-            objectPosition: "top center",
-            display: "block",
-          }}
-        />
+        <img src={src} alt="" style={{
+          width: "100%", height: "100%", objectFit: "cover",
+          objectPosition: "top center", display: "block",
+        }} />
         <div style={{
           position: "absolute", inset: 0,
           background: "linear-gradient(135deg, rgba(255,255,255,.07) 0%, transparent 45%)",
@@ -94,46 +217,30 @@ function MacBook({ src, width = 520, className = "", style = {} }) {
 
   return (
     <div className={className} style={{ width: baseW, display: "flex", flexDirection: "column", alignItems: "center", ...style }}>
-      {/* Lid */}
       <div style={{
         width: lidW, height: lidH,
         borderRadius: `${frameR}px ${frameR}px ${Math.round(frameR / 2)}px ${Math.round(frameR / 2)}px`,
         background: "linear-gradient(165deg, #3c3c3c 0%, #1e1e1e 55%, #181818 100%)",
         padding: `${bezelT}px ${bezelSide}px ${bezelB}px`,
         boxShadow: "0 40px 90px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.09)",
-        position: "relative",
-        flexShrink: 0,
+        position: "relative", flexShrink: 0,
       }}>
-        {/* Camera dot */}
         <div style={{
           position: "absolute",
           top: Math.round(bezelT * 0.42),
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 6, height: 6,
-          borderRadius: "50%",
+          left: "50%", transform: "translateX(-50%)",
+          width: 6, height: 6, borderRadius: "50%",
           background: "#1c1c1c",
           boxShadow: "0 0 0 1.5px rgba(0,0,0,.6), inset 0 1px 2px rgba(0,0,0,.8)",
         }} />
-        {/* Screen */}
         <div style={{
-          width: "100%", height: "100%",
-          borderRadius: 3,
-          overflow: "hidden",
-          background: "#050505",
-          position: "relative",
+          width: "100%", height: "100%", borderRadius: 3,
+          overflow: "hidden", background: "#050505", position: "relative",
         }}>
-          <img
-            src={src}
-            alt=""
-            style={{
-              width: "100%", height: "100%",
-              objectFit: "cover",
-              objectPosition: "top left",
-              display: "block",
-            }}
-          />
-          {/* Screen sheen */}
+          <img src={src} alt="" style={{
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "top left", display: "block",
+          }} />
           <div style={{
             position: "absolute", inset: 0,
             background: "linear-gradient(140deg, rgba(255,255,255,.055) 0%, transparent 42%)",
@@ -141,54 +248,30 @@ function MacBook({ src, width = 520, className = "", style = {} }) {
           }} />
         </div>
       </div>
-
-      {/* Hinge strip */}
       <div style={{
-        width: lidW,
-        height: 3,
+        width: lidW, height: 3,
         background: "linear-gradient(to right, #090909, #282828 15%, #323232 50%, #282828 85%, #090909)",
       }} />
-
-      {/* Base */}
       <div style={{
         width: baseW, height: baseH,
         borderRadius: `0 0 ${Math.round(width * 0.018)}px ${Math.round(width * 0.018)}px`,
         background: "linear-gradient(180deg, #2e2e2e 0%, #1e1e1e 55%, #161616 100%)",
         boxShadow: "0 18px 45px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
+        display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
       }}>
-        {/* Touchpad */}
         <div style={{
-          width: Math.round(baseW * 0.19),
-          height: Math.round(baseH * 0.52),
-          borderRadius: 3,
-          background: "rgba(255,255,255,.03)",
-          border: "1px solid rgba(255,255,255,.06)",
+          width: Math.round(baseW * 0.19), height: Math.round(baseH * 0.52),
+          borderRadius: 3, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)",
         }} />
-        {/* Rubber feet */}
         {[0.055, 0.945].map((pos, i) => (
           <div key={i} style={{
-            position: "absolute",
-            bottom: 2,
-            left: `${pos * 100}%`,
-            transform: "translateX(-50%)",
-            width: Math.round(baseW * 0.055),
-            height: 2,
-            borderRadius: 1,
-            background: "rgba(0,0,0,.45)",
+            position: "absolute", bottom: 2, left: `${pos * 100}%`, transform: "translateX(-50%)",
+            width: Math.round(baseW * 0.055), height: 2, borderRadius: 1, background: "rgba(0,0,0,.45)",
           }} />
         ))}
       </div>
-
-      {/* Desk reflection */}
       <div style={{
-        width: Math.round(baseW * 0.72),
-        height: 7,
-        marginTop: 1,
-        borderRadius: "50%",
+        width: Math.round(baseW * 0.72), height: 7, marginTop: 1, borderRadius: "50%",
         background: "radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.07) 0%, transparent 70%)",
         filter: "blur(4px)",
       }} />
@@ -245,15 +328,13 @@ function Smoke({ dark = true }) {
 ══════════════════════════════════════════════════════ */
 function WeatherTransition({ fromDark = true }) {
   const stops = fromDark
-    ? ["#090909", "#131313", "#2a2a2a", "#4a4a4a", "#888", "#c0c0c0", "#e8e8e8", "#ffffff"]
-    : ["#ffffff", "#e8e8e8", "#c0c0c0", "#888", "#4a4a4a", "#2a2a2a", "#131313", "#090909"];
+    ? ["#090909","#131313","#2a2a2a","#4a4a4a","#888","#c0c0c0","#e8e8e8","#ffffff"]
+    : ["#ffffff","#e8e8e8","#c0c0c0","#888","#4a4a4a","#2a2a2a","#131313","#090909"];
   return (
     <div style={{
       height: 320,
       background: `linear-gradient(to bottom, ${stops.join(",")})`,
-      position: "relative",
-      zIndex: 5,
-      overflow: "hidden",
+      position: "relative", zIndex: 5, overflow: "hidden",
     }}>
       <Smoke dark={fromDark} />
       <div style={{
@@ -261,8 +342,7 @@ function WeatherTransition({ fromDark = true }) {
         background: fromDark
           ? "radial-gradient(ellipse at 30% 50%, rgba(255,255,255,.12) 0%, transparent 60%), radial-gradient(ellipse at 70% 40%, rgba(255,255,255,.08) 0%, transparent 50%)"
           : "radial-gradient(ellipse at 35% 50%, rgba(0,0,0,.06) 0%, transparent 55%), radial-gradient(ellipse at 65% 45%, rgba(0,0,0,.04) 0%, transparent 50%)",
-        filter: "blur(18px)",
-        pointerEvents: "none",
+        filter: "blur(18px)", pointerEvents: "none",
       }} />
     </div>
   );
@@ -275,7 +355,7 @@ export default function LandingPage() {
   const wrapRef    = useRef(null);
   const heroRef    = useRef(null);
   const titleRef   = useRef(null);
-  const devicesRef = useRef(null); // phones + macbook
+  const devicesRef = useRef(null);
   const tagRef     = useRef(null);
   const ctaHeroRef = useRef(null);
 
@@ -292,78 +372,58 @@ export default function LandingPage() {
         });
       }
 
-      /* ── MacBook rises from below ── */
+      /* ── MacBook rises into place ── */
       const macbook = devicesRef.current?.querySelector(".hero-macbook");
       if (macbook) {
         gsap.set(macbook, { rotateX: 6, transformPerspective: 1200 });
-        gsap.from(macbook, {
-          y: 110, scale: 0.86, opacity: 0, rotateX: 22,
-          duration: 1.6, ease: "expo.out", delay: 0.28,
-        });
+        gsap.from(macbook, { y: 110, scale: 0.86, opacity: 0, rotateX: 22, duration: 1.6, ease: "expo.out", delay: 0.28 });
       }
 
-      /* ── iPhones spring in from 3 directions ── */
+      /* ── iPhones spring in ── */
       const phones = [...(devicesRef.current?.querySelectorAll(".hero-phone") ?? [])];
       if (phones[0]) gsap.from(phones[0], { x: -430, rotateY: -62, opacity: 0, duration: 1.5, ease: "expo.out", delay: 0.45 });
       if (phones[1]) gsap.from(phones[1], { y: -460, scale: .55, opacity: 0, duration: 1.6, ease: "expo.out", delay: 0.62 });
       if (phones[2]) gsap.from(phones[2], { x: 430, rotateY: 62, opacity: 0, duration: 1.5, ease: "expo.out", delay: 0.52 });
 
-      /* ── Scroll parallax: phones gently float up, NO fade-out ── */
+      /* ── Scroll parallax – NO fade-out ── */
       const phoneSpeeds = [0.68, 0.48, 0.62];
       phones.forEach((p, i) => {
         gsap.to(p, {
-          y: -80 * phoneSpeeds[i],
-          ease: "none",
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top top",
-            end: "100% top",
-            scrub: 1.2,
-          },
+          y: -80 * phoneSpeeds[i], ease: "none",
+          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "100% top", scrub: 1.2 },
         });
       });
-
-      /* ── Scroll parallax: MacBook – slower (deeper in scene), NO fade-out ── */
       if (macbook) {
         gsap.to(macbook, {
-          y: -42,
-          ease: "none",
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top top",
-            end: "100% top",
-            scrub: 1.6,
-          },
+          y: -42, ease: "none",
+          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "100% top", scrub: 1.6 },
         });
       }
 
-      /* ── Hero text fades out on early scroll ── */
+      /* ── Hero text fade out ── */
       gsap.to([tagRef.current, ctaHeroRef.current], {
-        opacity: 0, y: -40,
-        ease: "none",
+        opacity: 0, y: -40, ease: "none",
         scrollTrigger: { trigger: heroRef.current, start: "8% top", end: "45% top", scrub: 1 },
       });
-
-      /* ── Hero text entrance ── */
-      gsap.from(tagRef.current,     { opacity: 0, y: 20, duration: 1,   ease: "power3.out",   delay: 1.25 });
+      gsap.from(tagRef.current,     { opacity: 0, y: 20, duration: 1,  ease: "power3.out",  delay: 1.25 });
       gsap.from(ctaHeroRef.current, { opacity: 0, y: 14, scale: .94, duration: .9, ease: "back.out(1.4)", delay: 1.55 });
 
-      /* ── Feature sections: barrel-roll phone + text reveal ── */
+      /* ── Feature sections: barrel-roll laptop + text reveal ── */
       wrapRef.current?.querySelectorAll(".feat-sec").forEach((sec, i) => {
-        const phone = sec.querySelector(".f-phone");
-        const lines = sec.querySelectorAll(".f-line");
-        const dir   = i % 2 === 0 ? 1 : -1;
+        const device = sec.querySelector(".f-device");
+        const lines  = sec.querySelectorAll(".f-line");
+        const dir    = i % 2 === 0 ? 1 : -1;
 
-        if (phone) {
-          gsap.fromTo(phone,
-            { x: dir * 280, rotateY: dir * 55, opacity: 0 },
-            { x: 0, rotateY: dir * 6, opacity: 1,
-              duration: 1.3, ease: "expo.out",
+        if (device) {
+          gsap.fromTo(device,
+            { x: dir * 220, rotateY: dir * 35, opacity: 0 },
+            { x: 0, rotateY: dir * 4, opacity: 1,
+              duration: 1.4, ease: "expo.out",
               scrollTrigger: { trigger: sec, start: "top 78%", toggleActions: "play none none reverse" },
             }
           );
-          gsap.to(phone, {
-            rotateY: dir * -3,
+          gsap.to(device, {
+            rotateY: dir * -2,
             scrollTrigger: { trigger: sec, start: "top bottom", end: "bottom top", scrub: 1.4 },
           });
         }
@@ -394,14 +454,12 @@ export default function LandingPage() {
   }, []);
 
   const titleChars = "InkBook".split("").map((c, i) => (
-    <span key={i} className="ch" style={{ display: "inline-block", willChange: "transform,opacity" }}>
-      {c}
-    </span>
+    <span key={i} className="ch" style={{ display: "inline-block", willChange: "transform,opacity" }}>{c}</span>
   ));
 
   return (
     <div ref={wrapRef} style={{ background: "#090909", overflowX: "hidden" }}>
-      <Navbar />
+      <LandingNav />
 
       {/* ═══════════════════════════ HERO ═══════════════════════════ */}
       <section ref={heroRef}
@@ -414,13 +472,10 @@ export default function LandingPage() {
           className="absolute inset-0 flex items-center justify-center"
           style={{ perspective: "1200px", perspectiveOrigin: "50% 44%" }}>
 
-          {/* MacBook – centered, slightly behind phones (z-index 1) */}
+          {/* MacBook – centered, behind phones */}
           <div className="hero-macbook absolute" style={{
-            left: "50%", top: "50%",
-            transform: "translateX(-50%)",
-            marginTop: -190,
-            transformStyle: "preserve-3d",
-            zIndex: 1,
+            left: "50%", top: "50%", transform: "translateX(-50%)",
+            marginTop: -190, transformStyle: "preserve-3d", zIndex: 1,
           }}>
             <MacBook src="/screenshots/desktop.jpg" width={520} />
           </div>
@@ -428,17 +483,15 @@ export default function LandingPage() {
           {/* Phone 1 – left (Search) */}
           <div className="hero-phone absolute" style={{
             left: "calc(50% - 334px)", top: "50%", marginTop: -158,
-            transformStyle: "preserve-3d",
-            zIndex: 2,
+            transformStyle: "preserve-3d", zIndex: 2,
           }}>
             <Phone src="/screenshots/search.jpg" width={152} />
           </div>
 
-          {/* Phone 2 – center-right (Booking, tallest/most prominent) */}
+          {/* Phone 2 – center (Booking, tallest) */}
           <div className="hero-phone absolute" style={{
             left: "calc(50% + 18px)", top: "50%", marginTop: -206,
-            transformStyle: "preserve-3d",
-            zIndex: 3,
+            transformStyle: "preserve-3d", zIndex: 3,
           }}>
             <Phone src="/screenshots/booking.jpg" width={192} />
           </div>
@@ -446,8 +499,7 @@ export default function LandingPage() {
           {/* Phone 3 – right (Chat) */}
           <div className="hero-phone absolute" style={{
             left: "calc(50% + 240px)", top: "50%", marginTop: -152,
-            transformStyle: "preserve-3d",
-            zIndex: 2,
+            transformStyle: "preserve-3d", zIndex: 2,
           }}>
             <Phone src="/screenshots/chat.jpg" width={152} />
           </div>
@@ -470,19 +522,15 @@ export default function LandingPage() {
               className="inline-flex items-center gap-3 px-9 py-3.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:gap-5 group"
               style={{
                 fontFamily: "'Inter',sans-serif",
-                background: "rgba(255,255,255,.09)",
-                border: "1px solid rgba(255,255,255,.16)",
-                color: "rgba(255,255,255,.88)",
-                backdropFilter: "blur(14px)",
+                background: "rgba(255,255,255,.09)", border: "1px solid rgba(255,255,255,.16)",
+                color: "rgba(255,255,255,.88)", backdropFilter: "blur(14px)",
               }}>
               Studios entdecken
-              <ArrowRight size={14} strokeWidth={1.5}
-                className="transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight size={14} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
         </div>
 
-        {/* Fade into transition */}
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
           style={{ background: "linear-gradient(to bottom,transparent,#090909)" }} />
       </section>
@@ -510,13 +558,12 @@ export default function LandingPage() {
               className="f-line inline-flex items-center gap-2 text-sm font-medium text-zinc-900 border-b border-zinc-200 pb-0.5 hover:border-zinc-900 transition-colors group"
               style={{ fontFamily: "'Inter',sans-serif" }}>
               Jetzt suchen
-              <ArrowRight size={13} strokeWidth={1.5}
-                className="transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight size={13} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
-          <div className="f-phone flex justify-center" style={{ perspective: "1000px" }}>
-            <Phone src="/screenshots/search.jpg" width={238}
-              style={{ boxShadow: "0 50px 100px rgba(0,0,0,.18), 0 16px 32px rgba(0,0,0,.1)" }} />
+          <div className="f-device flex justify-center" style={{ perspective: "1000px" }}>
+            <MacBook src="/screenshots/desktop.jpg" width={440}
+              style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }} />
           </div>
         </div>
       </section>
@@ -529,8 +576,8 @@ export default function LandingPage() {
         style={{ background: "#0d0d0d" }}>
         <Smoke dark />
         <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-          <div className="f-phone order-2 lg:order-1 flex justify-center" style={{ perspective: "1000px" }}>
-            <Phone src="/screenshots/booking.jpg" width={238} />
+          <div className="f-device order-2 lg:order-1 flex justify-center" style={{ perspective: "1000px" }}>
+            <MacBook src="/screenshots/desktop-booking.jpg" width={440} />
           </div>
           <div className="order-1 lg:order-2">
             <p className="f-line text-[10px] tracking-[.28em] uppercase mb-5"
@@ -548,13 +595,11 @@ export default function LandingPage() {
             <Link to="/search"
               className="f-line inline-flex items-center gap-2 text-sm font-medium transition-colors group"
               style={{
-                fontFamily: "'Inter',sans-serif",
-                color: "rgba(255,255,255,.65)",
+                fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.65)",
                 borderBottom: "1px solid rgba(255,255,255,.18)", paddingBottom: 2,
               }}>
               Termin buchen
-              <ArrowRight size={13} strokeWidth={1.5}
-                className="transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight size={13} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
         </div>
@@ -583,13 +628,12 @@ export default function LandingPage() {
               className="f-line inline-flex items-center gap-2 text-sm font-medium text-zinc-900 border-b border-zinc-200 pb-0.5 hover:border-zinc-900 transition-colors group"
               style={{ fontFamily: "'Inter',sans-serif" }}>
               Kostenlos starten
-              <ArrowRight size={13} strokeWidth={1.5}
-                className="transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight size={13} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
-          <div className="f-phone flex justify-center" style={{ perspective: "1000px" }}>
-            <Phone src="/screenshots/chat.jpg" width={238}
-              style={{ boxShadow: "0 50px 100px rgba(0,0,0,.18), 0 16px 32px rgba(0,0,0,.1)" }} />
+          <div className="f-device flex justify-center" style={{ perspective: "1000px" }}>
+            <MacBook src="/screenshots/desktop-chat.jpg" width={440}
+              style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }} />
           </div>
         </div>
       </section>
@@ -603,7 +647,6 @@ export default function LandingPage() {
         <Smoke dark />
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.035) 0%,transparent 58%)" }} />
-
         <div className="relative z-10 text-center max-w-3xl">
           <p className="stat-i text-[10px] tracking-[.3em] uppercase mb-8"
             style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.22)" }}>
@@ -614,12 +657,10 @@ export default function LandingPage() {
             Tausende Buchungen.<br />Ein Ziel.
           </h2>
           <div className="grid grid-cols-3 gap-10 sm:gap-20 mb-20">
-            {[["500+", "Studios"], ["10k+", "Buchungen"], ["4.9★", "Bewertung"]].map(([v, l]) => (
+            {[["500+","Studios"],["10k+","Buchungen"],["4.9★","Bewertung"]].map(([v,l]) => (
               <div key={l} className="stat-i">
-                <p className="font-playfair text-4xl sm:text-5xl font-bold"
-                  style={{ color: "rgba(255,255,255,.94)" }}>{v}</p>
-                <p className="text-xs mt-2 tracking-wide"
-                  style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>{l}</p>
+                <p className="font-playfair text-4xl sm:text-5xl font-bold" style={{ color: "rgba(255,255,255,.94)" }}>{v}</p>
+                <p className="text-xs mt-2 tracking-wide" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>{l}</p>
               </div>
             ))}
           </div>
@@ -628,16 +669,11 @@ export default function LandingPage() {
               className="inline-flex items-center justify-center gap-3 px-9 py-4 rounded-full text-[13px] font-medium hover:opacity-90 transition-all hover:gap-5 group"
               style={{ fontFamily: "'Inter',sans-serif", background: "#fff", color: "#111" }}>
               Studios entdecken
-              <ArrowRight size={14} strokeWidth={1.5}
-                className="transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight size={14} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
             <Link to="/register"
               className="inline-flex items-center justify-center gap-2 px-9 py-4 rounded-full text-[13px] font-medium transition-all"
-              style={{
-                fontFamily: "'Inter',sans-serif",
-                border: "1px solid rgba(255,255,255,.16)",
-                color: "rgba(255,255,255,.6)",
-              }}>
+              style={{ fontFamily: "'Inter',sans-serif", border: "1px solid rgba(255,255,255,.16)", color: "rgba(255,255,255,.6)" }}>
               Kostenlos registrieren
             </Link>
           </div>
@@ -645,15 +681,14 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ background: "#050505", borderTop: "1px solid rgba(255,255,255,.05)" }}
-        className="py-10 px-6">
+      <footer style={{ background: "#050505", borderTop: "1px solid rgba(255,255,255,.05)" }} className="py-10 px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-5">
           <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
           <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.2)" }}>
             © 2026 InkBook · Alle Rechte vorbehalten
           </p>
           <div className="flex gap-6">
-            {[{ to: "/login", l: "Anmelden" }, { to: "/register", l: "Registrieren" }, { to: "/search", l: "Studios" }].map(({ to, l }) => (
+            {[{to:"/login",l:"Anmelden"},{to:"/register",l:"Registrieren"},{to:"/search",l:"Studios"}].map(({to,l}) => (
               <Link key={to} to={to}
                 className="text-[11px] transition-colors"
                 style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.26)" }}
