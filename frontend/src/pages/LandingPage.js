@@ -385,21 +385,6 @@ export default function LandingPage() {
       if (phones[1]) gsap.from(phones[1], { y: -460, scale: .55, opacity: 0, duration: 1.6, ease: "expo.out", delay: 0.62 });
       if (phones[2]) gsap.from(phones[2], { x: 430, rotateY: 62, opacity: 0, duration: 1.5, ease: "expo.out", delay: 0.52 });
 
-      /* ── Scroll parallax – NO fade-out ── */
-      const phoneSpeeds = [0.68, 0.48, 0.62];
-      phones.forEach((p, i) => {
-        gsap.to(p, {
-          y: -80 * phoneSpeeds[i], ease: "none",
-          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "100% top", scrub: 1.2 },
-        });
-      });
-      if (macbook) {
-        gsap.to(macbook, {
-          y: -42, ease: "none",
-          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "100% top", scrub: 1.6 },
-        });
-      }
-
       /* ── Hero text fade out ── */
       gsap.to([tagRef.current, ctaHeroRef.current], {
         opacity: 0, y: -40, ease: "none",
