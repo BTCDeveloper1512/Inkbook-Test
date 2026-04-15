@@ -448,7 +448,7 @@ export default function LandingPage() {
 
       {/* ═══════════════════════════ HERO ═══════════════════════════ */}
       <section ref={heroRef}
-        className="relative min-h-screen flex flex-col items-center justify-end pb-14 overflow-hidden"
+        className="relative min-h-screen flex flex-col items-center justify-end pb-4 overflow-hidden"
         style={{ background: "#090909" }}>
         <Smoke dark />
 
