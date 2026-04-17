@@ -6,11 +6,201 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
+
+const formatDate = (d) => {
+  if (!d) return "";
+  const [y, m, day] = d.split("-");
+  return `${day}.${m}.${y}`;
+};
+
+/* ── Lightbox ───────────────────────────────────────── */
+function Lightbox({ imgs, idx, onClose, onPrev, onNext }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && imgs.length > 1) onPrev();
+      if (e.key === "ArrowRight" && imgs.length > 1) onNext();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [imgs, onClose, onPrev, onNext]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.92)" }}
+        onClick={onClose}
+      >
+        {/* Close */}
+        <button onClick={onClose}
+          className="absolute top-5 right-5 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10">
+          <X size={18} strokeWidth={1.5} />
+        </button>
+
+        {/* Image */}
+        <motion.img
+          key={idx}
+          initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.22 }}
+          src={imgs[idx]} alt=""
+          className="max-w-[90vw] max-h-[88vh] object-contain rounded-xl shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+
+        {/* Counter */}
+        {imgs.length > 1 && (
+          <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/50 font-inter">
+            {idx + 1} / {imgs.length}
+          </p>
+        )}
+
+        {/* Arrows */}
+        {imgs.length > 1 && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); onPrev(); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+              <ChevronLeft size={22} strokeWidth={1.5} />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onNext(); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+              <ChevronRight size={22} strokeWidth={1.5} />
+            </button>
+          </>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ── Artist Detail Modal ────────────────────────────── */
+function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [onClose]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6"
+        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
+          transition={{ type: "spring", stiffness: 320, damping: 32 }}
+          className="bg-white w-full sm:max-w-2xl sm:rounded-3xl rounded-t-3xl max-h-[92vh] overflow-y-auto shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+          data-testid="artist-modal"
+        >
+          {/* Portfolio header strip */}
+          <div className="h-52 sm:h-64 bg-zinc-100 relative overflow-hidden rounded-t-3xl flex-shrink-0">
+            {artist.portfolio_images?.length > 0 ? (
+              <div className="flex gap-0.5 h-full">
+                {artist.portfolio_images.slice(0, 4).map((img, i) => (
+                  <img key={i} src={img} alt="" className="h-full object-cover"
+                    style={{ flex: i === 0 ? 2.5 : 1 }} />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Palette size={40} className="text-zinc-300" strokeWidth={1} />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+            {/* Close button */}
+            <button onClick={onClose}
+              className="absolute top-4 right-4 w-9 h-9 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors"
+              data-testid="artist-modal-close">
+              <X size={16} strokeWidth={2} />
+            </button>
+            {/* Name overlay */}
+            <div className="absolute bottom-4 left-5 flex items-end gap-3">
+              <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center font-playfair font-bold text-2xl border-2 border-white/20 flex-shrink-0">
+                {artist.name?.[0]?.toUpperCase()}
+              </div>
+              <div>
+                <h2 className="font-playfair font-bold text-2xl text-white leading-tight">{artist.name}</h2>
+                {artist.experience_years > 0 && (
+                  <p className="text-white/70 text-sm font-inter">{artist.experience_years} Jahre Erfahrung</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-6">
+            {/* Bio */}
+            {artist.bio && (
+              <div>
+                <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400 mb-2">Über mich</p>
+                <p className="text-sm text-zinc-600 font-inter leading-relaxed">{artist.bio}</p>
+              </div>
+            )}
+
+            {/* Styles */}
+            {artist.styles?.length > 0 && (
+              <div>
+                <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400 mb-2.5">Stile</p>
+                <div className="flex flex-wrap gap-2">
+                  {artist.styles.map(s => (
+                    <span key={s} className="text-sm px-3 py-1.5 bg-zinc-100 text-zinc-700 font-inter rounded-full">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Portfolio gallery */}
+            {artist.portfolio_images?.length > 0 && (
+              <div>
+                <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400 mb-2.5">Portfolio</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {artist.portfolio_images.map((img, i) => (
+                    <div key={i} className="relative group cursor-pointer overflow-hidden rounded-xl"
+                      onClick={() => onOpenLightbox(artist.portfolio_images, i)}>
+                      <img src={img} alt="" className="w-full h-24 object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <ZoomIn size={18} className="text-white" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Instagram */}
+            {artist.instagram && (
+              <div>
+                <a
+                  href={`https://instagram.com/${artist.instagram.replace(/^@/, "")}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full border border-zinc-200 hover:border-pink-300 hover:bg-pink-50 text-zinc-700 hover:text-pink-600 transition-all text-sm font-inter font-medium group"
+                >
+                  {lottieData ? (
+                    <div className="w-5 h-5 flex-shrink-0">
+                      <Lottie animationData={lottieData} loop={false} autoplay style={{ width: 20, height: 20 }} />
+                    </div>
+                  ) : <Instagram size={15} strokeWidth={1.5} />}
+                  @{artist.instagram.replace(/^@/, "")}
+                </a>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
 export default function StudioPage() {
   const { studioId } = useParams();
@@ -36,6 +226,8 @@ export default function StudioPage() {
   const fileRef = useRef();
   const [lottieData, setLottieData] = useState(null);
   const [igActive, setIgActive] = useState(null); // artist_id currently showing instagram popup
+  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [lightbox, setLightbox] = useState(null); // { imgs: [], idx: 0 }
 
   // Load lottie animation once (local file to avoid CORS)
   useEffect(() => {
@@ -271,7 +463,8 @@ export default function StudioPage() {
                         <motion.div
                           key={artist.artist_id}
                           whileHover={{ y: -2 }}
-                          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)] transition-all duration-300"
+                          onClick={() => setSelectedArtist(artist)}
+                          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer"
                           data-testid={`artist-profile-${artist.artist_id}`}
                         >
                           {/* Artist card top - portfolio preview */}
@@ -384,8 +577,13 @@ export default function StudioPage() {
                   {studio.images?.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {studio.images.map((img, i) => (
-                        <motion.div key={i} whileHover={{ scale: 1.02 }} className="overflow-hidden rounded-2xl cursor-pointer" onClick={() => setGalleryIdx(i)}>
+                        <motion.div key={i} whileHover={{ scale: 1.02 }}
+                          className="overflow-hidden rounded-2xl cursor-pointer relative group"
+                          onClick={() => setLightbox({ imgs: studio.images, idx: i })}>
                           <img src={img} alt={`Galerie ${i + 1}`} className="w-full h-44 object-cover hover:opacity-90 transition-opacity" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-2xl">
+                            <ZoomIn size={22} className="text-white" strokeWidth={1.5} />
+                          </div>
                         </motion.div>
                       ))}
                     </div>
@@ -610,9 +808,12 @@ export default function StudioPage() {
                 )}
               </AnimatePresence>
 
-              <div className="text-xs text-zinc-400 font-inter mb-4">
-                {t("booking.deposit")}: <span className="font-semibold text-zinc-900">€50</span>
-              </div>
+              {studio?.deposit_required && (
+                <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
+                  <span>Anzahlung erforderlich:</span>
+                  <span className="font-semibold text-zinc-900">€{studio.deposit_amount || 50}</span>
+                </div>
+              )}
 
               {bookingSuccess ? (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
@@ -652,6 +853,27 @@ export default function StudioPage() {
       </div>
 
       <Footer />
+
+      {/* Lightbox */}
+      {lightbox && (
+        <Lightbox
+          imgs={lightbox.imgs}
+          idx={lightbox.idx}
+          onClose={() => setLightbox(null)}
+          onPrev={() => setLightbox(l => ({ ...l, idx: (l.idx - 1 + l.imgs.length) % l.imgs.length }))}
+          onNext={() => setLightbox(l => ({ ...l, idx: (l.idx + 1) % l.imgs.length }))}
+        />
+      )}
+
+      {/* Artist Modal */}
+      {selectedArtist && (
+        <ArtistModal
+          artist={selectedArtist}
+          lottieData={lottieData}
+          onClose={() => setSelectedArtist(null)}
+          onOpenLightbox={(imgs, idx) => setLightbox({ imgs, idx })}
+        />
+      )}
     </div>
   );
 }

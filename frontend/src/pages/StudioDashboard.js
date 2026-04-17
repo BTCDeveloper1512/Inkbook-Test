@@ -285,7 +285,7 @@ export default function StudioDashboard() {
                   <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
                     <div>
                       <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                      <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                      <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
@@ -350,7 +350,7 @@ export default function StudioDashboard() {
                   {slots.slice(0, 30).map(slot => (
                     <div key={slot.slot_id} className="flex items-center justify-between p-4 hover:bg-zinc-50 transition-colors" data-testid={`slot-item-${slot.slot_id}`}>
                       <div>
-                        <p className="font-inter font-medium text-sm text-zinc-900">{slot.date}</p>
+                        <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE") : ""}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5">{slot.start_time} – {slot.end_time} · {slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
                       </div>
                       <button onClick={() => handleDeleteSlot(slot.slot_id)} className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all" data-testid={`delete-slot-btn-${slot.slot_id}`}>
@@ -376,7 +376,7 @@ export default function StudioDashboard() {
                     <div>
                       <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
                       <p className="text-sm text-zinc-500 font-inter">{b.user_email}</p>
-                      <p className="text-xs text-zinc-400 font-inter mt-1">{b.date} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                      <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
                       {b.reference_images?.length > 0 && (
                         <div className="flex gap-2 mt-2">
@@ -466,6 +466,35 @@ export default function StudioDashboard() {
                   </select>
                 </div>
               </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Anzahlung</h3>
+              <div className="flex items-center gap-4 mb-4">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <div
+                    onClick={() => setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.deposit_required ? "translate-x-5" : "translate-x-0"}`} />
+                  </div>
+                  <span className="text-sm font-inter text-zinc-700">Anzahlung bei Buchung erforderlich</span>
+                </label>
+              </div>
+              {editForm?.deposit_required && (
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
+                  <input
+                    type="number" min="1" max="500" step="1"
+                    value={editForm.deposit_amount || 50}
+                    onChange={e => setEditForm({ ...editForm, deposit_amount: parseFloat(e.target.value) || 0 })}
+                    className="input-base w-40"
+                    placeholder="z.B. 50"
+                    data-testid="deposit-amount-input"
+                  />
+                  <p className="text-xs text-zinc-400 font-inter mt-1.5">Kunden zahlen diesen Betrag vor der Terminbestätigung.</p>
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">

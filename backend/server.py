@@ -212,6 +212,8 @@ class StudioUpdate(BaseModel):
     styles: Optional[List[str]] = None
     price_range: Optional[str] = None
     images: Optional[List[str]] = None
+    deposit_required: Optional[bool] = None
+    deposit_amount: Optional[float] = None
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
