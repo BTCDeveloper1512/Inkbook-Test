@@ -44,6 +44,10 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 17)
+- **InkBook Logo** ✅: Echtes Marken-Logo in Navbar + Landing Page + Footer eingepflegt
+- Licht-Navbar: `filter: invert(1)` → schwarzes Logo auf weiß; Dunkel-Navbar: Logo nativ weiß auf schwarz
+
 ### April 2026 (Iteration 16)
 - **Chat Löschen** ✅: Trash-Icon im Chat-Header für beide Parteien (Studio + Kunde)
 - **System-Nachricht** ✅: Zentrierte Systemnachricht "[Name] hat die Unterhaltung gelöscht und beendet." live im Chat sichtbar

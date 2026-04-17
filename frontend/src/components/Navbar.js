@@ -59,9 +59,12 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-[60px]">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group" data-testid="nav-logo">
-            <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center shadow-soft group-hover:shadow-btn transition-all duration-300">
-              <span className="text-white font-playfair font-bold text-sm">I</span>
-            </div>
+            <img
+              src="/inkbook-logo.jpeg"
+              alt="InkBook"
+              className="h-8 w-8 rounded-xl object-cover shadow-soft group-hover:shadow-btn transition-all duration-300"
+              style={{ filter: "invert(1)" }}
+            />
             <span className="text-lg font-playfair font-semibold tracking-tight text-zinc-900">InkBook</span>
           </Link>
 

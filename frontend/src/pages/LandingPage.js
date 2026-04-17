@@ -46,16 +46,11 @@ function LandingNav() {
       }}>
         {/* Logo */}
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }} data-testid="landing-nav-logo">
-          <div style={{
-            width: 32, height: 32,
-            background: "rgba(255,255,255,0.1)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            borderRadius: 10,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            backdropFilter: "blur(8px)",
-          }}>
-            <span style={{ fontFamily: "Playfair Display, serif", fontWeight: 700, fontSize: 14, color: "#fff" }}>I</span>
-          </div>
+          <img
+            src="/inkbook-logo.jpeg"
+            alt="InkBook"
+            style={{ width: 32, height: 32, borderRadius: 10, objectFit: "cover" }}
+          />
           <span style={{ fontFamily: "Playfair Display, serif", fontWeight: 600, fontSize: 16, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.01em" }}>InkBook</span>
         </Link>
 
@@ -668,7 +663,10 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer style={{ background: "#050505", borderTop: "1px solid rgba(255,255,255,.05)" }} className="py-10 px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-5">
-          <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
+          <div className="flex items-center gap-2">
+            <img src="/inkbook-logo.jpeg" alt="InkBook" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
+            <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
+          </div>
           <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.2)" }}>
             © 2026 InkBook · Alle Rechte vorbehalten
           </p>
