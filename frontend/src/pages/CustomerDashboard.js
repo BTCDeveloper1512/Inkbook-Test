@@ -148,12 +148,19 @@ export default function CustomerDashboard() {
     catch { return []; }
   });
   const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
+  const [notYetPopup, setNotYetPopup] = useState(false);
+  const [tick, setTick] = useState(0); // forces re-render every minute for live time checks
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get("session_id");
     if (sessionId) setPaymentSessionId(sessionId);
     fetchStats();
+    // Poll every 30s for live updates
+    const pollInterval = setInterval(fetchStats, 30000);
+    // Re-evaluate time every 60s
+    const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
   }, []);
 
   useEffect(() => {
@@ -231,13 +238,30 @@ export default function CustomerDashboard() {
   };
 
   const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+
+  // Helper: has the appointment's end time already passed?
+  const isBookingPast = (b) => {
+    if (!b.date || !b.end_time) return false;
+    return now > new Date(`${b.date}T${b.end_time}:00`);
+  };
+  const isBookingToday = (b) => b.date === today;
+
   const allBookings = stats?.all_bookings || [];
-  const upcoming = allBookings.filter(b =>
-    ["pending", "confirmed"].includes(b.status) && (!b.date || b.date >= today)
+
+  // Today = pending/confirmed, today's date, end_time not yet passed
+  const todayBookings = allBookings.filter(b =>
+    ["pending", "confirmed"].includes(b.status) && isBookingToday(b) && !isBookingPast(b)
   );
+  // Upcoming = pending/confirmed, future date (after today), not past
+  const upcoming = allBookings.filter(b =>
+    ["pending", "confirmed"].includes(b.status) && b.date > today
+  );
+  // Past = cancelled/completed OR (pending/confirmed with end time passed)
   const past = allBookings.filter(b =>
     ["cancelled", "completed"].includes(b.status) ||
-    (b.status === "confirmed" && b.date && b.date < today)
+    (["pending", "confirmed"].includes(b.status) && isBookingPast(b)) ||
+    (["pending", "confirmed"].includes(b.status) && b.date < today)
   );
   const justCancelled = allBookings.filter(b => b.status === "cancelled" && b.cancelled_by === "studio" && !dismissedCancellations.includes(b.booking_id));
 
@@ -342,13 +366,14 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Bookings Tabs */}
-        <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+        <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto">
           {[
+            { id: "today", label: `Heutige Termine (${todayBookings.length})` },
             { id: "upcoming", label: `${t("dashboard.upcoming")} (${upcoming.length})` },
             { id: "past", label: `${t("dashboard.past")} (${past.length})` }
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-2 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+              className={`flex-shrink-0 px-5 py-2 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
               data-testid={`${tab.id}-tab`}
             >
               {tab.label}
@@ -359,12 +384,14 @@ export default function CustomerDashboard() {
         {/* Bookings List */}
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
           <AnimatePresence mode="wait">
-            {(activeTab === "upcoming" ? upcoming : past).length === 0 ? (
+            {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).length === 0 ? (
               <div className="py-14 text-center" data-testid="no-bookings">
                 <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <Calendar size={20} className="text-zinc-400" strokeWidth={1.5} />
                 </div>
-                <p className="text-zinc-500 font-inter text-sm">{t("dashboard.noBookings")}</p>
+                <p className="text-zinc-500 font-inter text-sm">
+                  {activeTab === "today" ? "Keine heutigen Termine" : t("dashboard.noBookings")}
+                </p>
                 {activeTab === "upcoming" && (
                   <Link to="/" className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-700 transition-colors">
                     <Search size={13} strokeWidth={1.5} /> Studio finden
@@ -373,8 +400,9 @@ export default function CustomerDashboard() {
               </div>
             ) : (
               <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="divide-y divide-zinc-50">
-                {(activeTab === "upcoming" ? upcoming : past).map((booking, i) => {
-                  const sc = statusConfig[booking.status];
+                {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).map((booking, i) => {
+                  const isPast = isBookingPast(booking);
+                  const sc = statusConfig[isPast && booking.status === "confirmed" ? "completed" : booking.status] || statusConfig.pending;
                   const isCancelledByStudio = booking.status === "cancelled" && booking.cancelled_by === "studio";
                   return (
                     <motion.div key={booking.booking_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
@@ -383,12 +411,13 @@ export default function CustomerDashboard() {
                     >
                       {/* Date block */}
                       <div className={`flex-shrink-0 w-12 text-center rounded-xl py-2 px-1 border ${
-                        booking.status === "cancelled" ? "bg-zinc-50 border-zinc-200" : "bg-zinc-900 border-zinc-900"
+                        booking.status === "cancelled" ? "bg-zinc-50 border-zinc-200" :
+                        isPast ? "bg-zinc-200 border-zinc-200" : "bg-zinc-900 border-zinc-900"
                       }`}>
-                        <p className={`text-lg font-playfair font-bold leading-none ${booking.status === "cancelled" ? "text-zinc-400" : "text-white"}`}>
+                        <p className={`text-lg font-playfair font-bold leading-none ${booking.status === "cancelled" || isPast ? "text-zinc-400" : "text-white"}`}>
                           {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit" }) : "—"}
                         </p>
-                        <p className={`text-xs font-inter leading-none mt-0.5 ${booking.status === "cancelled" ? "text-zinc-400" : "text-zinc-300"}`}>
+                        <p className={`text-xs font-inter leading-none mt-0.5 ${booking.status === "cancelled" || isPast ? "text-zinc-400" : "text-zinc-300"}`}>
                           {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { month: "short" }) : ""}
                         </p>
                       </div>
@@ -436,7 +465,9 @@ export default function CustomerDashboard() {
                             <CreditCard size={11} strokeWidth={1.5} /> Anzahlung
                           </button>
                         )}
-                        {["pending", "confirmed"].includes(booking.status) && (
+
+                        {/* Umbuchen + Absagen: nur wenn Termin NOCH nicht abgelaufen */}
+                        {["pending", "confirmed"].includes(booking.status) && !isPast && (
                           <button onClick={() => handleOpenReschedule(booking)}
                             className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-600 rounded-full flex items-center gap-1.5 hover:border-zinc-900 hover:text-zinc-900 transition-all whitespace-nowrap"
                             data-testid={`reschedule-btn-${booking.booking_id}`}
@@ -444,7 +475,7 @@ export default function CustomerDashboard() {
                             <RefreshCw size={11} strokeWidth={1.5} /> Umbuchen
                           </button>
                         )}
-                        {["pending", "confirmed"].includes(booking.status) && (
+                        {["pending", "confirmed"].includes(booking.status) && !isPast && (
                           <button onClick={() => handleCancelBooking(booking.booking_id)}
                             disabled={cancelLoading === booking.booking_id}
                             className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-500 rounded-full hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"
@@ -453,14 +484,30 @@ export default function CustomerDashboard() {
                             {cancelLoading === booking.booking_id ? "..." : "Absagen"}
                           </button>
                         )}
-                        {/* Review button for past confirmed bookings */}
-                        {booking.status === "confirmed" && new Date(booking.date) < new Date() && !reviewedBookingIds.has(booking.booking_id) && (
+
+                        {/* Abgeschlossen-Badge für vergangene bestätigte Termine */}
+                        {isPast && booking.status === "confirmed" && (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 font-inter flex items-center gap-1"
+                            data-testid={`completed-badge-${booking.booking_id}`}>
+                            <CheckCircle size={10} strokeWidth={2} className="text-zinc-400" /> Abgeschlossen
+                          </span>
+                        )}
+
+                        {/* Bewerten */}
+                        {booking.status === "confirmed" && !reviewedBookingIds.has(booking.booking_id) && (
                           <button
-                            onClick={() => setReviewBooking(booking)}
-                            className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-xs font-inter text-amber-700 rounded-full hover:bg-amber-100 transition-all flex items-center gap-1"
+                            onClick={() => {
+                              if (isPast) setReviewBooking(booking);
+                              else setNotYetPopup(true);
+                            }}
+                            className={`px-3 py-1.5 text-xs font-inter rounded-full flex items-center gap-1 transition-all ${
+                              isPast
+                                ? "bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
+                                : "border border-zinc-200 text-zinc-400 cursor-pointer hover:border-zinc-300"
+                            }`}
                             data-testid={`review-btn-${booking.booking_id}`}
                           >
-                            <Star size={11} strokeWidth={2} className="fill-amber-400 text-amber-400" /> Bewerten
+                            <Star size={11} strokeWidth={2} className={isPast ? "fill-amber-400 text-amber-400" : "text-zinc-300"} /> Bewerten
                           </button>
                         )}
                         {reviewedBookingIds.has(booking.booking_id) && (
@@ -549,6 +596,36 @@ export default function CustomerDashboard() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Not Yet Review Popup */}
+      <AnimatePresence>
+        {notYetPopup && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setNotYetPopup(false)}
+            data-testid="not-yet-popup"
+          >
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Clock size={22} className="text-amber-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 text-center mb-2">Noch nicht möglich</h3>
+              <p className="text-sm text-zinc-500 font-inter text-center mb-5">
+                Du kannst deinen Termin erst bewerten, sobald er abgeschlossen ist – also nach der Endzeit des Termins.
+              </p>
+              <button onClick={() => setNotYetPopup(false)}
+                className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-medium text-sm hover:bg-zinc-700 transition-colors"
+                data-testid="not-yet-close-btn"
+              >
+                Verstanden
+              </button>
             </motion.div>
           </motion.div>
         )}

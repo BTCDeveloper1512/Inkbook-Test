@@ -33,8 +33,18 @@ export default function StudioDashboard() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [subscription, setSubscription] = useState(null);
+  const [studioBookingsTab, setStudioBookingsTab] = useState("active");
+  const [tick, setTick] = useState(0);
 
-  useEffect(() => { fetchStats(); fetchSubscription(); }, []);
+  useEffect(() => {
+    fetchStats();
+    fetchSubscription();
+    // Poll every 30s for live updates
+    const pollInterval = setInterval(fetchStats, 30000);
+    // Re-evaluate time checks every 60s
+    const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
+  }, []);
 
   const fetchSubscription = async () => {
     try {
@@ -236,6 +246,27 @@ export default function StudioDashboard() {
 
   const studio = stats?.studio;
   const upcomingBookings = stats?.upcoming_bookings || [];
+  const allStudioBookings = stats?.all_bookings || [];
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const isBookingPast = (b) => {
+    if (!b.date || !b.end_time) return false;
+    return now > new Date(`${b.date}T${b.end_time}:00`);
+  };
+  const isBookingToday = (b) => b.date === todayStr;
+
+  // For overview tab
+  const todayUpcoming = upcomingBookings.filter(b => isBookingToday(b) && !isBookingPast(b));
+  const futureUpcoming = upcomingBookings.filter(b => b.date > todayStr);
+
+  // For bookings tab
+  const activeBookings = allStudioBookings.filter(b =>
+    ["pending", "confirmed"].includes(b.status) && !isBookingPast(b)
+  );
+  const pastStudioBookings = allStudioBookings.filter(b =>
+    isBookingPast(b) || ["cancelled", "completed"].includes(b.status)
+  );
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -301,33 +332,65 @@ export default function StudioDashboard() {
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
-          <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-            <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Kommende Termine</h3>
-            {upcomingBookings.length === 0 ? (
-              <p className="text-zinc-400 font-inter text-sm">Keine kommenden Buchungen</p>
-            ) : (
-              <div className="space-y-3">
-                {upcomingBookings.map(b => (
-                  <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
-                    <div>
-                      <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                      <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
-                      {b.status === "pending" && (
-                        <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
-                      )}
-                      {["pending", "confirmed"].includes(b.status) && (
-                        <button onClick={async () => { if (!window.confirm("Buchung stornieren?")) return; try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {} }}
-                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 transition-all"
-                          data-testid={`cancel-btn-overview-${b.booking_id}`}>Stornieren</button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+          <div className="space-y-5">
+            {/* Heutige Termine */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Heutige Termine</h3>
+                <span className="text-xs font-inter font-medium text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">{todayUpcoming.length}</span>
               </div>
-            )}
+              {todayUpcoming.length === 0 ? (
+                <p className="text-zinc-400 font-inter text-sm">Keine Termine heute</p>
+              ) : (
+                <div className="space-y-3">
+                  {todayUpcoming.map(b => (
+                    <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                      <div>
+                        <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
+                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
+                        {b.status === "pending" && (
+                          <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Kommende Termine */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Kommende Termine</h3>
+              {futureUpcoming.length === 0 ? (
+                <p className="text-zinc-400 font-inter text-sm">Keine kommenden Buchungen</p>
+              ) : (
+                <div className="space-y-3">
+                  {futureUpcoming.map(b => (
+                    <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                      <div>
+                        <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
+                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
+                        {b.status === "pending" && (
+                          <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
+                        )}
+                        {["pending", "confirmed"].includes(b.status) && (
+                          <button onClick={async () => { if (!window.confirm("Buchung stornieren?")) return; try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {} }}
+                            className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 transition-all"
+                            data-testid={`cancel-btn-overview-${b.booking_id}`}>Stornieren</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -392,50 +455,87 @@ export default function StudioDashboard() {
 
         {/* Bookings Tab */}
         {activeTab === "bookings" && (
-          <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-            <div className="divide-y divide-zinc-50">
-              {upcomingBookings.length === 0 ? (
-                <div className="py-12 text-center"><p className="text-zinc-400 font-inter text-sm">Keine Buchungen vorhanden</p></div>
-              ) : upcomingBookings.map(b => (
-                <div key={b.booking_id} className="p-5 hover:bg-zinc-50 transition-colors" data-testid={`studio-booking-${b.booking_id}`}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
-                      <p className="text-sm text-zinc-500 font-inter">{b.user_email}</p>
-                      <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
-                      {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
-                      {b.reference_images?.length > 0 && (
-                        <div className="flex gap-2 mt-2">
-                          {b.reference_images.slice(0, 3).map((img, i) => (
-                            <img key={i} src={img} alt="" className="w-12 h-12 object-cover rounded-xl border border-zinc-200" />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}</span>
-                      {b.status === "pending" && (
-                        <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</button>
-                      )}
-                      {["pending", "confirmed"].includes(b.status) && (
-                        <button
-                          onClick={async () => {
-                            if (!window.confirm("Buchung wirklich stornieren?")) return;
-                            try {
-                              await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, {
-                                params: { status: "cancelled" }, withCredentials: true
-                              });
-                              fetchStats();
-                            } catch {}
-                          }}
-                          className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
-                          data-testid={`cancel-booking-studio-${b.booking_id}`}
-                        >Stornieren</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          <div className="space-y-5">
+            {/* Sub-tabs */}
+            <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+              {[
+                { id: "active", label: `Aktuelle Buchungen (${activeBookings.length})` },
+                { id: "past", label: `Vergangene Termine (${pastStudioBookings.length})` }
+              ].map(t => (
+                <button key={t.id} onClick={() => setStudioBookingsTab(t.id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${studioBookingsTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+                  data-testid={`studio-bookings-${t.id}-tab`}>
+                  {t.label}
+                </button>
               ))}
+            </div>
+
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+              <div className="divide-y divide-zinc-50">
+                {(studioBookingsTab === "active" ? activeBookings : pastStudioBookings).length === 0 ? (
+                  <div className="py-12 text-center"><p className="text-zinc-400 font-inter text-sm">Keine Buchungen vorhanden</p></div>
+                ) : (studioBookingsTab === "active" ? activeBookings : pastStudioBookings).map(b => {
+                  const isPast = isBookingPast(b);
+                  return (
+                    <div key={b.booking_id} className={`p-5 hover:bg-zinc-50 transition-colors ${isPast ? "opacity-70" : ""}`} data-testid={`studio-booking-${b.booking_id}`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
+                          <p className="text-sm text-zinc-500 font-inter">{b.user_email}</p>
+                          <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                          {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
+                          {b.reference_images?.length > 0 && (
+                            <div className="flex gap-2 mt-2">
+                              {b.reference_images.slice(0, 3).map((img, i) => (
+                                <img key={i} src={img} alt="" className="w-12 h-12 object-cover rounded-xl border border-zinc-200" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {isPast && b.status === "confirmed" ? (
+                            <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 font-inter flex items-center gap-1">
+                              <CheckCircle size={10} strokeWidth={2} className="text-zinc-400" /> Abgeschlossen
+                            </span>
+                          ) : (
+                            <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
+                              {b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}
+                            </span>
+                          )}
+                          {b.status === "pending" && !isPast && (
+                            <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</button>
+                          )}
+                          {/* Stornieren: nur aktive, ausgegraut wenn vergangen */}
+                          {["pending", "confirmed"].includes(b.status) && (
+                            <button
+                              disabled={isPast}
+                              onClick={async () => {
+                                if (isPast) return;
+                                if (!window.confirm("Buchung wirklich stornieren?")) return;
+                                try {
+                                  await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, {
+                                    params: { status: "cancelled" }, withCredentials: true
+                                  });
+                                  fetchStats();
+                                } catch {}
+                              }}
+                              className={`text-xs px-3 py-1.5 rounded-full font-inter transition-all ${
+                                isPast
+                                  ? "border border-zinc-100 text-zinc-300 bg-zinc-50 cursor-not-allowed"
+                                  : "border border-zinc-200 text-zinc-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50"
+                              }`}
+                              title={isPast ? "Termin bereits abgeschlossen" : "Buchung stornieren"}
+                              data-testid={`cancel-booking-studio-${b.booking_id}`}
+                            >
+                              Stornieren
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

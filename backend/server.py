@@ -1276,7 +1276,12 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             {"studio_id": studio_id, "status": {"$in": ["pending", "confirmed"]}},
             {"_id": 0}
         ).sort("date", 1).limit(5).to_list(5)
-        
+
+        all_studio_bookings = await db.bookings.find(
+            {"studio_id": studio_id},
+            {"_id": 0}
+        ).sort([("date", -1), ("start_time", -1)]).to_list(500)
+
         return {
             "has_studio": True,
             "studio": studio,
@@ -1284,7 +1289,8 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             "pending_bookings": pending,
             "confirmed_bookings": confirmed,
             "revenue": revenue,
-            "upcoming_bookings": upcoming
+            "upcoming_bookings": upcoming,
+            "all_bookings": all_studio_bookings
         }
     else:
         bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).to_list(200)
