@@ -30,6 +30,8 @@ export default function StudioDashboard() {
   const [editLoading, setEditLoading] = useState(false);
   const [editSuccess, setEditSuccess] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [subscription, setSubscription] = useState(null);
 
   useEffect(() => { fetchStats(); fetchSubscription(); }, []);
@@ -114,6 +116,30 @@ export default function StudioDashboard() {
       const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
       setEditForm(prev => ({ ...prev, images: [...(prev.images || []), data.url] }));
     } catch {} finally { setUploadingImg(false); }
+  };
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingBanner(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
+      setEditForm(prev => ({ ...prev, banner_image: data.url }));
+    } catch {} finally { setUploadingBanner(false); }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
+      setEditForm(prev => ({ ...prev, logo_image: data.url }));
+    } catch {} finally { setUploadingLogo(false); }
   };
 
   const toggleStyle = (style) => {
@@ -509,21 +535,56 @@ export default function StudioDashboard() {
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Galerie</h3>
-              <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-4">
-                {editForm.images?.map((img, i) => (
-                  <div key={i} className="relative group">
-                    <img src={img} alt="" className="w-full h-20 object-cover rounded-xl border border-zinc-200" />
-                    <button type="button" onClick={() => setEditForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))} className="absolute top-1 right-1 w-5 h-5 bg-zinc-900/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X size={9} />
-                    </button>
+              <h3 className="font-playfair font-semibold text-lg mb-1 text-zinc-900">Studio-Branding</h3>
+              <p className="text-xs text-zinc-400 font-inter mb-5">Banner und Logo erscheinen auf deinem öffentlichen Studio-Profil.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Banner */}
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Banner-Bild</label>
+                  {editForm.banner_image ? (
+                    <div className="relative mb-3 group">
+                      <img src={editForm.banner_image} alt="Banner" className="w-full h-28 object-cover rounded-xl border border-zinc-200" />
+                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, banner_image: "" }))} className="absolute top-1.5 right-1.5 w-6 h-6 bg-zinc-900/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full h-28 rounded-xl bg-zinc-100 border border-dashed border-zinc-300 flex items-center justify-center mb-3">
+                      <span className="text-xs text-zinc-400 font-inter">Kein Banner hochgeladen</span>
+                    </div>
+                  )}
+                  <label className={`h-10 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex items-center justify-center cursor-pointer transition-colors gap-2 ${uploadingBanner ? "opacity-50" : ""}`}>
+                    <Upload size={14} className="text-zinc-400" strokeWidth={1.5} />
+                    <span className="text-xs text-zinc-400 font-inter">{uploadingBanner ? "Wird hochgeladen..." : "Banner hochladen"}</span>
+                    <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" disabled={uploadingBanner} data-testid="banner-upload-input" />
+                  </label>
+                </div>
+                {/* Logo */}
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Logo / Profilbild</label>
+                  <div className="flex items-center gap-4 mb-3">
+                    {editForm.logo_image ? (
+                      <div className="relative group flex-shrink-0">
+                        <img src={editForm.logo_image} alt="Logo" className="w-20 h-20 object-cover rounded-2xl border border-zinc-200" />
+                        <button type="button" onClick={() => setEditForm(prev => ({ ...prev, logo_image: "" }))} className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-900/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X size={9} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl bg-zinc-100 border border-dashed border-zinc-300 flex items-center justify-center flex-shrink-0">
+                        <span className="text-2xl font-playfair text-zinc-300">{editForm?.name?.[0]}</span>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-xs text-zinc-500 font-inter mb-2">Erscheint als Profilbild auf deiner Studio-Seite.</p>
+                      <label className={`h-9 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex items-center justify-center cursor-pointer transition-colors gap-2 ${uploadingLogo ? "opacity-50" : ""}`}>
+                        <Upload size={13} className="text-zinc-400" strokeWidth={1.5} />
+                        <span className="text-xs text-zinc-400 font-inter">{uploadingLogo ? "..." : "Logo hochladen"}</span>
+                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={uploadingLogo} data-testid="logo-upload-input" />
+                      </label>
+                    </div>
                   </div>
-                ))}
-                <label className={`h-20 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${uploadingImg ? "opacity-50" : ""}`}>
-                  <Upload size={18} className="text-zinc-400 mb-1" strokeWidth={1.5} />
-                  <span className="text-xs text-zinc-400 font-inter">{uploadingImg ? "..." : "Upload"}</span>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImg} data-testid="gallery-upload-input" />
-                </label>
+                </div>
               </div>
             </div>
 

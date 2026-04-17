@@ -7,7 +7,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const STYLES_LIST = ["Fine Line", "Blackwork", "Traditional", "Neo-Traditional", "Japanese", "Realism", "Portrait", "Geometric", "Watercolor", "Tribal", "Minimalist", "Color", "Abstract", "Surrealism", "Illustrative", "Black & Grey"];
 
-const emptyArtist = { name: "", bio: "", styles: [], experience_years: 0, instagram: "", portfolio_images: [] };
+const emptyArtist = { name: "", bio: "", styles: [], experience_years: 0, instagram: "", portfolio_images: [], profile_image: null, banner_image: null };
 
 export default function ArtistsTab({ studioId }) {
   const { user } = useAuth();
@@ -18,7 +18,11 @@ export default function ArtistsTab({ studioId }) {
   const [form, setForm] = useState(emptyArtist);
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const fileRef = useRef();
+  const avatarRef = useRef();
+  const bannerRef = useRef();
 
   useEffect(() => { fetchArtists(); }, [studioId]);
 
@@ -46,7 +50,7 @@ export default function ArtistsTab({ studioId }) {
   };
 
   const handleEdit = (artist) => {
-    setForm({ name: artist.name, bio: artist.bio, styles: artist.styles, experience_years: artist.experience_years, instagram: artist.instagram, portfolio_images: artist.portfolio_images || [] });
+    setForm({ name: artist.name, bio: artist.bio, styles: artist.styles, experience_years: artist.experience_years, instagram: artist.instagram, portfolio_images: artist.portfolio_images || [], profile_image: artist.profile_image || null, banner_image: artist.banner_image || null });
     setEditingId(artist.artist_id);
     setShowForm(true);
   };
@@ -73,6 +77,30 @@ export default function ArtistsTab({ studioId }) {
       const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
       setForm(prev => ({ ...prev, portfolio_images: [...prev.portfolio_images, data.url] }));
     } catch {} finally { setUploadingImg(false); }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
+      setForm(prev => ({ ...prev, profile_image: data.url }));
+    } catch {} finally { setUploadingAvatar(false); }
+  };
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingBanner(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
+      setForm(prev => ({ ...prev, banner_image: data.url }));
+    } catch {} finally { setUploadingBanner(false); }
   };
 
   return (
@@ -126,6 +154,52 @@ export default function ArtistsTab({ studioId }) {
             </div>
           </div>
 
+          {/* Avatar & Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Profilbild (Avatar)</label>
+              <div className="flex items-center gap-3">
+                {form.profile_image ? (
+                  <div className="relative group flex-shrink-0">
+                    <img src={form.profile_image} alt="Avatar" className="w-14 h-14 object-cover rounded-full border border-gray-200" />
+                    <button type="button" onClick={() => setForm(prev => ({ ...prev, profile_image: null }))} className="absolute -top-1 -right-1 w-4 h-4 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X size={8} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs text-gray-400 font-outfit">{form.name?.[0]?.toUpperCase() || "?"}</span>
+                  </div>
+                )}
+                <label className={`flex-1 h-9 border-2 border-dashed border-gray-300 hover:border-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${uploadingAvatar ? "opacity-50" : ""}`}>
+                  <Upload size={12} className="text-gray-400" />
+                  <span className="text-xs text-gray-400 font-outfit">{uploadingAvatar ? "..." : "Foto hochladen"}</span>
+                  <input ref={avatarRef} type="file" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} className="hidden" data-testid="artist-avatar-input" />
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Artist-Banner</label>
+              {form.banner_image ? (
+                <div className="relative group mb-2">
+                  <img src={form.banner_image} alt="Banner" className="w-full h-16 object-cover border border-gray-200 rounded-lg" />
+                  <button type="button" onClick={() => setForm(prev => ({ ...prev, banner_image: null }))} className="absolute top-1 right-1 w-4 h-4 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X size={8} />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full h-16 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center mb-2">
+                  <span className="text-xs text-gray-400 font-outfit">Kein Banner</span>
+                </div>
+              )}
+              <label className={`h-9 border-2 border-dashed border-gray-300 hover:border-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${uploadingBanner ? "opacity-50" : ""}`}>
+                <Upload size={12} className="text-gray-400" />
+                <span className="text-xs text-gray-400 font-outfit">{uploadingBanner ? "..." : "Banner hochladen"}</span>
+                <input ref={bannerRef} type="file" accept="image/*" onChange={handleBannerUpload} disabled={uploadingBanner} className="hidden" data-testid="artist-banner-input" />
+              </label>
+            </div>
+          </div>
+
           {/* Portfolio */}
           <div>
             <label className="block text-xs font-semibold tracking-widest uppercase text-gray-500 mb-2 font-outfit">Portfolio-Bilder</label>
@@ -173,9 +247,13 @@ export default function ArtistsTab({ studioId }) {
             <div key={artist.artist_id} className="bg-white border border-gray-200 p-5 group hover:border-gray-400 transition-colors" data-testid={`artist-card-${artist.artist_id}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-playfair font-bold text-sm">
-                    {artist.name[0]?.toUpperCase()}
-                  </div>
+                  {artist.profile_image ? (
+                    <img src={artist.profile_image} alt={artist.name} className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-playfair font-bold text-sm flex-shrink-0">
+                      {artist.name[0]?.toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <h4 className="font-playfair font-semibold">{artist.name}</h4>
                     {artist.experience_years > 0 && (

@@ -6,7 +6,7 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn, Images } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -103,9 +103,11 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
           onClick={(e) => e.stopPropagation()}
           data-testid="artist-modal"
         >
-          {/* Portfolio header strip */}
+          {/* Header - banner or portfolio strip */}
           <div className="h-52 sm:h-64 bg-zinc-100 relative overflow-hidden rounded-t-3xl flex-shrink-0">
-            {artist.portfolio_images?.length > 0 ? (
+            {artist.banner_image ? (
+              <img src={artist.banner_image} alt="" className="w-full h-full object-cover" />
+            ) : artist.portfolio_images?.length > 0 ? (
               <div className="flex gap-0.5 h-full">
                 {artist.portfolio_images.slice(0, 4).map((img, i) => (
                   <img key={i} src={img} alt="" className="h-full object-cover"
@@ -126,9 +128,13 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
             </button>
             {/* Name overlay */}
             <div className="absolute bottom-4 left-5 flex items-end gap-3">
-              <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center font-playfair font-bold text-2xl border-2 border-white/20 flex-shrink-0">
-                {artist.name?.[0]?.toUpperCase()}
-              </div>
+              {artist.profile_image ? (
+                <img src={artist.profile_image} alt={artist.name} className="w-14 h-14 rounded-2xl object-cover border-2 border-white/30 shadow-xl flex-shrink-0" />
+              ) : (
+                <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center font-playfair font-bold text-2xl border-2 border-white/20 flex-shrink-0">
+                  {artist.name?.[0]?.toUpperCase()}
+                </div>
+              )}
               <div>
                 <h2 className="font-playfair font-bold text-2xl text-white leading-tight">{artist.name}</h2>
                 {artist.experience_years > 0 && (
@@ -323,7 +329,6 @@ export default function StudioPage() {
   const TABS = [
     { id: "about", label: t("studio.about") },
     { id: "artists", label: `Artists (${artists.length})` },
-    { id: "gallery", label: t("studio.gallery") },
     { id: "reviews", label: `${t("studio.reviews")} (${reviews.length})` },
   ];
 
@@ -446,9 +451,11 @@ export default function StudioPage() {
                           className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer"
                           data-testid={`artist-profile-${artist.artist_id}`}
                         >
-                          {/* Artist card top - portfolio preview */}
+                          {/* Artist card top - banner or portfolio preview */}
                           <div className="h-32 bg-zinc-100 relative overflow-hidden">
-                            {artist.portfolio_images?.length > 0 ? (
+                            {artist.banner_image ? (
+                              <img src={artist.banner_image} alt="" className="w-full h-full object-cover" />
+                            ) : artist.portfolio_images?.length > 0 ? (
                               <div className="flex gap-0.5 h-full">
                                 {artist.portfolio_images.slice(0, 3).map((img, i) => (
                                   <img key={i} src={img} alt="" className="flex-1 h-full object-cover" style={{ flex: i === 0 ? 2 : 1 }} />
@@ -470,9 +477,13 @@ export default function StudioPage() {
 
                           <div className="p-4">
                             <div className="flex items-center gap-3 mb-3">
-                              <div className="w-10 h-10 bg-zinc-900 text-white rounded-full flex items-center justify-center font-playfair font-bold text-base flex-shrink-0">
-                                {artist.name?.[0]?.toUpperCase()}
-                              </div>
+                              {artist.profile_image ? (
+                                <img src={artist.profile_image} alt={artist.name} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm flex-shrink-0 -mt-7 ring-2 ring-white" />
+                              ) : (
+                                <div className="w-10 h-10 bg-zinc-900 text-white rounded-full flex items-center justify-center font-playfair font-bold text-base flex-shrink-0">
+                                  {artist.name?.[0]?.toUpperCase()}
+                                </div>
+                              )}
                               <div>
                                 <h4 className="font-playfair font-semibold text-zinc-900">{artist.name}</h4>
                                 {artist.experience_years > 0 && (
@@ -494,6 +505,18 @@ export default function StudioPage() {
                                   <span className="text-xs px-2 py-1 text-zinc-400 font-inter">+{artist.styles.length - 4}</span>
                                 )}
                               </div>
+                            )}
+
+                            {/* Open Gallery button */}
+                            {artist.portfolio_images?.length > 0 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setLightbox({ imgs: artist.portfolio_images, idx: 0 }); }}
+                                className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 text-white hover:bg-zinc-700 transition-all text-xs font-inter font-medium"
+                                data-testid={`gallery-btn-${artist.artist_id}`}
+                              >
+                                <Images size={12} strokeWidth={1.5} />
+                                Galerie öffnen ({artist.portfolio_images.length})
+                              </button>
                             )}
 
                             {/* Instagram Button */}
@@ -545,30 +568,6 @@ export default function StudioPage() {
                           </div>
                         </motion.div>
                       ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
-              {/* Gallery */}
-              {activeTab === "gallery" && (
-                <motion.div key="gallery" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-                  {studio.images?.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {studio.images.map((img, i) => (
-                        <motion.div key={i} whileHover={{ scale: 1.02 }}
-                          className="overflow-hidden rounded-2xl cursor-pointer relative group"
-                          onClick={() => setLightbox({ imgs: studio.images, idx: i })}>
-                          <img src={img} alt={`Galerie ${i + 1}`} className="w-full h-44 object-cover hover:opacity-90 transition-opacity" />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-2xl">
-                            <ZoomIn size={22} className="text-white" strokeWidth={1.5} />
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-white rounded-2xl border border-black/[0.04] p-12 text-center">
-                      <p className="text-zinc-400 font-inter text-sm">Keine Bilder vorhanden</p>
                     </div>
                   )}
                 </motion.div>
