@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 16)
+- **Chat Löschen** ✅: Trash-Icon im Chat-Header für beide Parteien (Studio + Kunde)
+- **System-Nachricht** ✅: Zentrierte Systemnachricht "[Name] hat die Unterhaltung gelöscht und beendet." live im Chat sichtbar
+- **Input gesperrt** ✅: Andere Partei sieht "Unterhaltung beendet" Banner + "Auch für mich löschen" Button
+- **Live-Updates** ✅: 2.5s Polling zeigt Löschung ohne Seitenrefresh
+- **Wiederherstellung** ✅: Neue Nachricht nach beidseitiger Löschung stellt Gespräch wieder her
+
 ### April 2026 (Iteration 15)
 - **CustomerDashboard 3 Tabs** ✅: Heutige Termine + Kommende Termine + Vergangene Termine (live, zeitbasiert)
 - **Vergangene Termine**: Umbuchen/Absagen ausgeblendet, "Abgeschlossen"-Badge, Bewerten-Popup für noch laufende Termine

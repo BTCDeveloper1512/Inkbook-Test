@@ -842,7 +842,8 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
             "last_message": last_msg_preview,
             "last_message_at": datetime.now(timezone.utc).isoformat(),
             "last_sender_id": user_id
-        }},
+        },
+        "$unset": {"deleted_by": ""}},  # restore visibility for both parties
         upsert=True
     )
 
