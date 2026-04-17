@@ -333,38 +333,29 @@ export default function StudioPage() {
 
       {/* Hero */}
       <div className="relative h-64 md:h-80 overflow-hidden bg-zinc-900">
-        {studio.images?.[galleryIdx] ? (
-          <img src={studio.images[galleryIdx]} alt={studio.name} className="w-full h-full object-cover opacity-70" />
+        {(studio.banner_image || studio.images?.[0]) ? (
+          <img src={studio.banner_image || studio.images[0]} alt={studio.name} className="w-full h-full object-cover opacity-75" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-zinc-700 text-9xl font-playfair">{studio.name[0]}</span>
           </div>
         )}
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-        {/* Gallery nav */}
-        {studio.images?.length > 1 && (
-          <>
-            <button onClick={() => setGalleryIdx((galleryIdx - 1 + studio.images.length) % studio.images.length)} className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/20 backdrop-blur-sm hover:bg-white/40 rounded-full flex items-center justify-center transition-all">
-              <ChevronLeft size={16} className="text-white" strokeWidth={1.5} />
-            </button>
-            <button onClick={() => setGalleryIdx((galleryIdx + 1) % studio.images.length)} className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/20 backdrop-blur-sm hover:bg-white/40 rounded-full flex items-center justify-center transition-all">
-              <ChevronRight size={16} className="text-white" strokeWidth={1.5} />
-            </button>
-            <div className="absolute bottom-20 right-4 flex gap-1">
-              {studio.images.map((_, i) => (
-                <button key={i} onClick={() => setGalleryIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === galleryIdx ? "bg-white w-3" : "bg-white/50"}`} />
-              ))}
-            </div>
-          </>
-        )}
 
         {/* Studio info overlay */}
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-end gap-4">
+            {/* Logo / Profile image */}
+            {studio.logo_image ? (
+              <img src={studio.logo_image} alt="Logo"
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20 shadow-xl flex-shrink-0 mb-1" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-playfair font-bold text-white text-2xl flex-shrink-0 mb-1 backdrop-blur-sm">
+                {studio.name?.[0]}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
                 {studio.is_verified && (
                   <span className="flex items-center gap-1.5 text-[11px] px-3 py-1 rounded-full font-inter font-bold text-white"
                     style={{ background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)", boxShadow: "0 4px 14px rgba(29,110,247,0.4)" }}>

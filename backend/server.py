@@ -214,6 +214,8 @@ class StudioUpdate(BaseModel):
     images: Optional[List[str]] = None
     deposit_required: Optional[bool] = None
     deposit_amount: Optional[float] = None
+    banner_image: Optional[str] = None
+    logo_image: Optional[str] = None
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
@@ -261,6 +263,8 @@ class ArtistCreate(BaseModel):
     experience_years: int = 0
     instagram: str = ""
     portfolio_images: List[str] = []
+    profile_image: Optional[str] = None
+    banner_image: Optional[str] = None
 
 class ArtistUpdate(BaseModel):
     name: Optional[str] = None
@@ -269,6 +273,8 @@ class ArtistUpdate(BaseModel):
     experience_years: Optional[int] = None
     instagram: Optional[str] = None
     portfolio_images: Optional[List[str]] = None
+    profile_image: Optional[str] = None
+    banner_image: Optional[str] = None
 
 class BookingReschedule(BaseModel):
     new_slot_id: str
