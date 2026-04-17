@@ -427,7 +427,8 @@ export default function CustomerDashboard() {
                           <h4 className={`font-playfair font-semibold text-base truncate ${booking.status === "cancelled" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
                             {booking.studio_name}
                           </h4>
-                          <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border font-inter ${sc.cls}`}>
+                          <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border font-inter ${sc.cls}`}
+                            data-testid={isPast && booking.status === "confirmed" ? `completed-badge-${booking.booking_id}` : undefined}>
                             {sc.label}
                           </span>
                         </div>
@@ -483,14 +484,6 @@ export default function CustomerDashboard() {
                           >
                             {cancelLoading === booking.booking_id ? "..." : "Absagen"}
                           </button>
-                        )}
-
-                        {/* Abgeschlossen-Badge für vergangene bestätigte Termine */}
-                        {isPast && booking.status === "confirmed" && (
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 font-inter flex items-center gap-1"
-                            data-testid={`completed-badge-${booking.booking_id}`}>
-                            <CheckCircle size={10} strokeWidth={2} className="text-zinc-400" /> Abgeschlossen
-                          </span>
                         )}
 
                         {/* Bewerten */}

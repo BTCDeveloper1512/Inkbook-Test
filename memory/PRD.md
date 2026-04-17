@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 15)
+- **CustomerDashboard 3 Tabs** ✅: Heutige Termine + Kommende Termine + Vergangene Termine (live, zeitbasiert)
+- **Vergangene Termine**: Umbuchen/Absagen ausgeblendet, "Abgeschlossen"-Badge, Bewerten-Popup für noch laufende Termine
+- **StudioDashboard Übersicht** ✅: "Heutige Termine" (Echtzeit-Pulse) + "Kommende Termine" getrennt
+- **StudioDashboard Buchungen** ✅: Sub-Tabs "Aktuelle Buchungen" / "Vergangene Termine"; Stornieren für vergangene Buchungen ausgegraut
+- **Live-Updates** ✅: API-Polling alle 30s + Zeitneuberechnung alle 60s in beiden Dashboards
+
 ### April 2026 (Iteration 14)
 - **Artist-Modal-Buttons** ✅: Galerie + Instagram von der Karte entfernt, nur noch im Modal-Popup
 - **Chat-Slot-Sharing** ✅: Studio kann Terminvorschlag im Chat senden (bestehender oder neuer Slot)
