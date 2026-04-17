@@ -38,11 +38,19 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 
 ## DB Schema
 - `users`: id, email, role (customer/studio/admin), password_hash, push_subscriptions
-- `studios`: id, owner_id, name, location, styles, images, is_active, is_verified
-- `artists`: id, studio_id, name, styles
+- `studios`: id, owner_id, name, location, styles, `banner_image`, `logo_image`, deposit_required, deposit_amount, is_active, is_verified
+- `artists`: id, studio_id, name, `profile_image`, `banner_image`, `portfolio_images`, styles, bio, experience_years, instagram
 - `bookings`: id, studio_id, customer_id, artist_id, status, type, date
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
+
+### April 2026 (Iteration 13 – Aktuelle Session)
+- **Studio-Branding** ✅: Separates Banner-Bild + Logo/Profilbild statt allgemeiner Galerie im Dashboard
+- **Artist-Profile-Bilder** ✅: Eigenes `profile_image` (Avatar) + `banner_image` für jeden Artist im Dashboard hochladbar
+- **Galerie-Tab entfernt** ✅: Studio-Profil-Seite hat jetzt nur noch Tabs „Über uns", „Artists", „Bewertungen"
+- **„Galerie öffnen"-Button** ✅: Artist-Karten auf Studio-Seite haben dedizierter Button zum Öffnen der Lightbox
+- **Artist-Karte visuell verbessert** ✅: `banner_image` als Karten-Header-Hintergrund, `profile_image` als rundes Avatar-Overlay
+- **Artist-Modal verbessert** ✅: `banner_image` als Modal-Header-Hintergrund, `profile_image` als Avatar im Namensoverlay
 
 ### April 2026 (Iteration 12)
 - **Artist Modal** ✅: Artist-Karte anklickbar → Framer-Motion slide-up Modal (Name, Bio, Stile, Portfolio, Instagram)
