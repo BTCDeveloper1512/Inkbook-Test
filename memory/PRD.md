@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 14)
+- **Artist-Modal-Buttons** ✅: Galerie + Instagram von der Karte entfernt, nur noch im Modal-Popup
+- **Chat-Slot-Sharing** ✅: Studio kann Terminvorschlag im Chat senden (bestehender oder neuer Slot)
+- **Direktbuchung via Chat** ✅: Kunde bucht mit einem Klick direkt aus dem Chat heraus
+- **Vollständige Benachrichtigungen** ✅: Email + Push-Notification nach Chat-Buchung, Buchung erscheint im Kunden-Dashboard
+- **Live-Update** ✅: Kalender-Slot wird nach Buchung sofort als belegt markiert (is_booked=true), Slot-Karte zeigt "Termin gebucht" in Grün
+
 ### April 2026 (Iteration 13 – Aktuelle Session)
 - **Studio-Branding** ✅: Separates Banner-Bild + Logo/Profilbild statt allgemeiner Galerie im Dashboard
 - **Artist-Profile-Bilder** ✅: Eigenes `profile_image` (Avatar) + `banner_image` für jeden Artist im Dashboard hochladbar
