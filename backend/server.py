@@ -242,6 +242,7 @@ class MessageCreate(BaseModel):
     recipient_id: str
     content: str
     image_url: Optional[str] = ""
+    slot_offer: Optional[Dict[str, Any]] = None
 
 class AIStyleRequest(BaseModel):
     image_base64: Optional[str] = None
@@ -823,6 +824,7 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
         "recipient_id": data.recipient_id,
         "content": data.content,
         "image_url": data.image_url,
+        "slot_offer": data.slot_offer if data.slot_offer else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "read": False
     }
@@ -830,12 +832,13 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
 
     participants = sorted([user_id, data.recipient_id])
     conv_id = f"conv_{'_'.join(participants)}"
+    last_msg_preview = data.content if data.content else ("Terminvorschlag" if data.slot_offer else "📷 Bild")
     await db.conversations.update_one(
         {"conv_id": conv_id},
         {"$set": {
             "conv_id": conv_id,
             "participants": participants,
-            "last_message": data.content if data.content else "📷 Bild",
+            "last_message": last_msg_preview,
             "last_message_at": datetime.now(timezone.utc).isoformat(),
             "last_sender_id": user_id
         }},
@@ -853,6 +856,86 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
 
     msg_doc.pop("_id", None)
     return msg_doc
+
+# ─── Book slot from chat ───────────────────────────────────────────────────────
+@api_router.post("/messages/{message_id}/book-slot")
+async def book_slot_from_chat(message_id: str, current_user: dict = Depends(get_current_user)):
+    msg = await db.messages.find_one({"message_id": message_id})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
+    slot_offer = msg.get("slot_offer")
+    if not slot_offer:
+        raise HTTPException(status_code=400, detail="Kein Terminvorschlag in dieser Nachricht")
+    if slot_offer.get("status") == "booked":
+        raise HTTPException(status_code=400, detail="Dieser Termin wurde bereits gebucht")
+
+    slot_id = slot_offer.get("slot_id")
+    studio_id = slot_offer.get("studio_id")
+
+    slot = await db.slots.find_one({"slot_id": slot_id})
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot nicht gefunden")
+    if slot.get("is_booked"):
+        raise HTTPException(status_code=400, detail="Slot wurde bereits gebucht")
+
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    booking_type = slot_offer.get("slot_type", "tattoo")
+
+    booking_doc = {
+        "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "user_name": current_user.get("name", ""),
+        "user_email": current_user.get("email", ""),
+        "studio_id": studio_id,
+        "studio_name": studio.get("name", ""),
+        "slot_id": slot_id,
+        "date": slot.get("date"),
+        "start_time": slot.get("start_time"),
+        "end_time": slot.get("end_time"),
+        "booking_type": booking_type,
+        "notes": "Via Chat gebucht",
+        "reference_images": [],
+        "status": "pending",
+        "payment_status": "unpaid",
+        "deposit_amount": studio.get("deposit_amount", 50.0),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.bookings.insert_one(booking_doc)
+    await db.slots.update_one({"slot_id": slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
+
+    # Update message slot_offer status
+    await db.messages.update_one(
+        {"message_id": message_id},
+        {"$set": {
+            "slot_offer.status": "booked",
+            "slot_offer.booked_by": user_id,
+            "slot_offer.booked_by_name": current_user.get("name", "Kunde")
+        }}
+    )
+
+    # Email confirmation to customer
+    user_email = current_user.get("email", "")
+    if user_email:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"Buchungsbestätigung – {studio.get('name', '')}",
+            html=booking_confirmation_html(booking_doc)
+        ))
+
+    # Push notification to studio owner
+    asyncio.create_task(send_push_notification(
+        user_id=studio.get("owner_id", ""),
+        title="Neue Buchung via Chat",
+        body=f"{current_user.get('name','Kunde')} hat den Terminvorschlag am {slot.get('date','')} gebucht",
+        url="/studio-dashboard"
+    ))
+
+    booking_doc.pop("_id", None)
+    return booking_doc
 
 # ─── Payments (Stripe) ────────────────────────────────────────────────────────
 @api_router.post("/payments/create-session")

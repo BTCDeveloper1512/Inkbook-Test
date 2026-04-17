@@ -184,6 +184,35 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
               </div>
             )}
 
+            {/* Action buttons – Galerie + Instagram */}
+            {(artist.portfolio_images?.length > 0 || artist.instagram) && (
+              <div className="flex flex-wrap gap-3 pt-1">
+                {artist.portfolio_images?.length > 0 && (
+                  <button
+                    onClick={() => onOpenLightbox(artist.portfolio_images, 0)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 text-white hover:bg-zinc-700 transition-all text-sm font-inter font-medium"
+                    data-testid="modal-gallery-btn"
+                  >
+                    <Images size={14} strokeWidth={1.5} />
+                    Galerie öffnen ({artist.portfolio_images.length})
+                  </button>
+                )}
+                {artist.instagram && (
+                  <a
+                    href={`https://instagram.com/${artist.instagram.replace(/^@/, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 transition-all text-sm font-inter font-medium group"
+                    data-testid="modal-instagram-btn"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Instagram size={14} strokeWidth={1.5} className="group-hover:text-pink-500 transition-colors" />
+                    @{artist.instagram.replace(/^@/, "")}
+                  </a>
+                )}
+              </div>
+            )}
+
           </div>
         </motion.div>
       </motion.div>
@@ -507,64 +536,8 @@ export default function StudioPage() {
                               </div>
                             )}
 
-                            {/* Open Gallery button */}
-                            {artist.portfolio_images?.length > 0 && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setLightbox({ imgs: artist.portfolio_images, idx: 0 }); }}
-                                className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 text-white hover:bg-zinc-700 transition-all text-xs font-inter font-medium"
-                                data-testid={`gallery-btn-${artist.artist_id}`}
-                              >
-                                <Images size={12} strokeWidth={1.5} />
-                                Galerie öffnen ({artist.portfolio_images.length})
-                              </button>
-                            )}
-
                             {/* Instagram Button */}
-                            {artist.instagram && (
-                              <div className="mt-3 relative">
-                                <button
-                                  onClick={() => setIgActive(igActive === artist.artist_id ? null : artist.artist_id)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-zinc-200 text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 transition-all text-xs font-inter font-medium group"
-                                  data-testid={`ig-btn-${artist.artist_id}`}
-                                >
-                                  <Instagram size={13} strokeWidth={1.5} className="group-hover:text-pink-500 transition-colors" />
-                                  Instagram
-                                </button>
 
-                                <AnimatePresence>
-                                  {igActive === artist.artist_id && (
-                                    <motion.div
-                                      initial={{ opacity: 0, scale: 0.85, y: 6 }}
-                                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                                      exit={{ opacity: 0, scale: 0.85, y: 6 }}
-                                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                                      className="absolute left-0 bottom-full mb-2 z-20 bg-white rounded-2xl border border-zinc-100 shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-3 flex items-center gap-3 min-w-[180px]"
-                                      data-testid={`ig-popup-${artist.artist_id}`}
-                                    >
-                                      {lottieData && (
-                                        <div className="w-10 h-10 flex-shrink-0">
-                                          <Lottie animationData={lottieData} loop={false} autoplay={true} style={{ width: 40, height: 40 }} />
-                                        </div>
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-zinc-400 font-inter mb-0.5">Instagram</p>
-                                        <a
-                                          href={`https://instagram.com/${artist.instagram.replace(/^@/,"")}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-sm font-inter font-semibold text-zinc-900 hover:text-pink-500 transition-colors truncate block"
-                                        >
-                                          @{artist.instagram.replace(/^@/,"")}
-                                        </a>
-                                      </div>
-                                      <button onClick={() => setIgActive(null)} className="p-1 text-zinc-300 hover:text-zinc-600 transition-colors flex-shrink-0">
-                                        <X size={12} strokeWidth={2} />
-                                      </button>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            )}
                           </div>
                         </motion.div>
                       ))}

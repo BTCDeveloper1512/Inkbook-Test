@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
-import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck } from "lucide-react";
+import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, Calendar, CalendarPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -24,6 +24,17 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
+
+  // ── Slot offer state ─────────────────────────────────────────────────────────
+  const [showSlotPanel, setShowSlotPanel] = useState(false);
+  const [slotPanelMode, setSlotPanelMode] = useState("existing");
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [studioId, setStudioId] = useState(null);
+  const [slotForm, setSlotForm] = useState({ date: "", start_time: "", end_time: "", slot_type: "tattoo" });
+  const [selectedExistingSlot, setSelectedExistingSlot] = useState(null);
+  const [sendingSlot, setSendingSlot] = useState(false);
+  const [bookingMsgId, setBookingMsgId] = useState(null);
 
   // Refs – avoid stale closures in intervals
   const textRef = useRef("");               // always current text value
@@ -83,6 +94,12 @@ export default function MessagesPage() {
     if (!user) { navigate("/login"); return; }
     fetchConversations(true);
     pollConvRef.current = setInterval(() => fetchConversations(false), 2500);
+    // Fetch studio ID for studio owners
+    if (user.role === "studio_owner") {
+      axios.get(`${API}/dashboard/stats`, { withCredentials: true })
+        .then(({ data }) => { if (data.studio?.studio_id) setStudioId(data.studio.studio_id); })
+        .catch(() => {});
+    }
     return () => {
       clearInterval(pollConvRef.current);
       clearInterval(pollMsgRef.current);
@@ -192,6 +209,71 @@ export default function MessagesPage() {
       reader.onload = ev => setImagePreview(ev.target.result);
       reader.readAsDataURL(file);
     } catch {}
+  };
+
+  // ─── Slot offer helpers ───────────────────────────────────────────────────
+  const fetchAvailableSlots = useCallback(async (sid) => {
+    const id = sid || studioId;
+    if (!id) return;
+    setLoadingSlots(true);
+    try {
+      const { data } = await axios.get(`${API}/studios/${id}/slots`, { withCredentials: true });
+      const today = new Date().toISOString().split("T")[0];
+      setAvailableSlots(data.filter(s => s.date >= today));
+    } catch {} finally { setLoadingSlots(false); }
+  }, [studioId]);
+
+  const sendSlotOffer = async () => {
+    const conv = activeConvRef.current;
+    if (!conv?.other_id || !studioId) return;
+    setSendingSlot(true);
+    try {
+      let slotId, slotData;
+      if (slotPanelMode === "existing" && selectedExistingSlot) {
+        slotId = selectedExistingSlot.slot_id;
+        slotData = selectedExistingSlot;
+      } else {
+        const { data: newSlot } = await axios.post(
+          `${API}/studios/${studioId}/slots`,
+          { ...slotForm, duration_minutes: 60 },
+          { withCredentials: true }
+        );
+        slotId = newSlot.slot_id;
+        slotData = newSlot;
+      }
+      await axios.post(`${API}/messages`, {
+        recipient_id: conv.other_id,
+        content: "",
+        image_url: "",
+        slot_offer: {
+          slot_id: slotId,
+          studio_id: studioId,
+          date: slotData.date,
+          start_time: slotData.start_time,
+          end_time: slotData.end_time,
+          slot_type: slotData.slot_type || slotForm.slot_type,
+          status: "available"
+        }
+      }, { withCredentials: true });
+      await fetchMessages(conv.other_id);
+      fetchConversations(false);
+      setShowSlotPanel(false);
+      setSelectedExistingSlot(null);
+      setSlotForm({ date: "", start_time: "", end_time: "", slot_type: "tattoo" });
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler beim Senden des Terminvorschlags");
+    } finally { setSendingSlot(false); }
+  };
+
+  const bookSlotFromChat = async (messageId) => {
+    setBookingMsgId(messageId);
+    try {
+      await axios.post(`${API}/messages/${messageId}/book-slot`, {}, { withCredentials: true });
+      await fetchMessages(activeConvRef.current?.other_id);
+      fetchConversations(false);
+    } catch (e) {
+      alert(e.response?.data?.detail || "Buchung fehlgeschlagen");
+    } finally { setBookingMsgId(null); }
   };
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -368,6 +450,67 @@ export default function MessagesPage() {
                                   {msg.sender_name || activeConv.other_name}
                                 </p>
                               )}
+                              {/* Slot Offer Bubble */}
+                              {msg.slot_offer && (
+                                <div className={`w-72 rounded-2xl overflow-hidden shadow-sm border mb-1 ${isMine ? "border-zinc-700 bg-zinc-800" : "border-zinc-100 bg-white"}`}
+                                  data-testid={`slot-offer-${msg.message_id}`}>
+                                  {/* Header */}
+                                  <div className={`px-4 py-3 border-b flex items-center gap-3 ${isMine ? "border-zinc-700" : "border-zinc-100"}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.slot_offer.status === "booked" ? "bg-emerald-100" : (isMine ? "bg-zinc-700" : "bg-zinc-100")}`}>
+                                      <Calendar size={14} className={msg.slot_offer.status === "booked" ? "text-emerald-600" : (isMine ? "text-zinc-300" : "text-zinc-600")} strokeWidth={1.5} />
+                                    </div>
+                                    <div>
+                                      <p className={`text-xs font-inter font-semibold leading-tight ${msg.slot_offer.status === "booked" ? "text-emerald-600" : (isMine ? "text-zinc-100" : "text-zinc-900")}`}>
+                                        {msg.slot_offer.status === "booked" ? "Termin gebucht" : "Terminvorschlag"}
+                                      </p>
+                                      <p className={`text-xs font-inter leading-tight ${isMine ? "text-zinc-400" : "text-zinc-500"}`}>
+                                        {new Date(msg.slot_offer.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {/* Details */}
+                                  <div className="px-4 py-3">
+                                    <p className={`text-base font-inter font-bold mb-0.5 ${isMine ? "text-white" : "text-zinc-900"}`}>
+                                      {msg.slot_offer.start_time} – {msg.slot_offer.end_time}
+                                    </p>
+                                    <p className={`text-xs font-inter ${isMine ? "text-zinc-400" : "text-zinc-500"}`}>
+                                      {msg.slot_offer.slot_type === "consultation" ? "Beratungsgespräch" : "Tattoo-Session"}
+                                    </p>
+                                    {msg.slot_offer.status === "booked" && (
+                                      <p className="text-xs font-inter text-emerald-600 font-medium flex items-center gap-1 mt-1">
+                                        <CheckCheck size={12} strokeWidth={2} />
+                                        Gebucht{msg.slot_offer.booked_by_name ? ` von ${msg.slot_offer.booked_by_name}` : ""}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {/* Book button – only for customer, available slots */}
+                                  {!isMine && msg.slot_offer.status !== "booked" && user?.role !== "studio_owner" && (
+                                    <div className="px-4 pb-4">
+                                      <button
+                                        onClick={() => bookSlotFromChat(msg.message_id)}
+                                        disabled={bookingMsgId === msg.message_id}
+                                        className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-semibold text-sm hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        data-testid={`book-slot-chat-${msg.message_id}`}
+                                      >
+                                        {bookingMsgId === msg.message_id
+                                          ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Wird gebucht...</>
+                                          : <><Calendar size={14} strokeWidth={1.5} /> Jetzt buchen</>}
+                                      </button>
+                                    </div>
+                                  )}
+                                  {/* Studio view – show sent status */}
+                                  {isMine && msg.slot_offer.status !== "booked" && (
+                                    <div className="px-4 pb-3">
+                                      <span className="text-xs font-inter text-zinc-500 flex items-center gap-1">
+                                        <Check size={11} strokeWidth={2} /> Terminvorschlag gesendet
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="px-4 pb-3">
+                                    <span className={`text-xs font-inter ${isMine ? "text-zinc-600" : "text-zinc-400"}`}>{fmt(msg.created_at)}</span>
+                                  </div>
+                                </div>
+                              )}
                               {msg.image_url && (
                                 <img
                                   src={msg.image_url} alt=""
@@ -430,6 +573,134 @@ export default function MessagesPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Slot Offer Panel – studio only */}
+                <AnimatePresence>
+                  {showSlotPanel && user?.role === "studio_owner" && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                      className="bg-white border-t border-zinc-100 flex-shrink-0 overflow-hidden">
+                      <div className="p-4">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="font-inter font-semibold text-sm text-zinc-900 flex items-center gap-2">
+                            <CalendarPlus size={15} strokeWidth={1.5} className="text-zinc-500" />
+                            Terminvorschlag senden
+                          </p>
+                          <button onClick={() => setShowSlotPanel(false)} className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors">
+                            <X size={14} strokeWidth={2} />
+                          </button>
+                        </div>
+                        {/* Mode Tabs */}
+                        <div className="flex gap-1 mb-4 bg-zinc-100 p-1 rounded-xl w-fit">
+                          <button onClick={() => { setSlotPanelMode("existing"); fetchAvailableSlots(); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${slotPanelMode === "existing" ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
+                            data-testid="slot-tab-existing">
+                            Bestehender Slot
+                          </button>
+                          <button onClick={() => setSlotPanelMode("new")}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${slotPanelMode === "new" ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
+                            data-testid="slot-tab-new">
+                            Neuer Slot
+                          </button>
+                        </div>
+
+                        {/* Existing Slots */}
+                        {slotPanelMode === "existing" && (
+                          <div>
+                            {loadingSlots ? (
+                              <div className="flex items-center justify-center py-4">
+                                <div className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+                              </div>
+                            ) : availableSlots.length === 0 ? (
+                              <p className="text-xs text-zinc-400 font-inter py-2 text-center bg-zinc-50 rounded-xl px-3">
+                                Keine freien Slots vorhanden. Erstelle zuerst Slots im Dashboard.
+                              </p>
+                            ) : (
+                              <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                                {availableSlots.map(slot => (
+                                  <button key={slot.slot_id}
+                                    onClick={() => setSelectedExistingSlot(selectedExistingSlot?.slot_id === slot.slot_id ? null : slot)}
+                                    className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all flex items-center gap-3 ${
+                                      selectedExistingSlot?.slot_id === slot.slot_id
+                                        ? "bg-zinc-900 text-white border-zinc-900"
+                                        : "border-zinc-100 hover:border-zinc-300 bg-white"
+                                    }`}
+                                    data-testid={`slot-pick-${slot.slot_id}`}
+                                  >
+                                    <Calendar size={13} strokeWidth={1.5} className="flex-shrink-0 opacity-70" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-inter font-semibold">
+                                        {new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "short" })} · {slot.start_time} – {slot.end_time}
+                                      </p>
+                                      <p className={`text-xs font-inter ${selectedExistingSlot?.slot_id === slot.slot_id ? "text-zinc-300" : "text-zinc-400"}`}>
+                                        {slot.slot_type === "consultation" ? "Beratung" : "Tattoo"}
+                                      </p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* New Slot */}
+                        {slotPanelMode === "new" && (
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="col-span-2">
+                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Datum</label>
+                              <input type="date" value={slotForm.date}
+                                onChange={e => setSlotForm(p => ({...p, date: e.target.value}))}
+                                min={new Date().toISOString().split("T")[0]}
+                                className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                data-testid="new-slot-date" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Von</label>
+                              <input type="time" value={slotForm.start_time}
+                                onChange={e => setSlotForm(p => ({...p, start_time: e.target.value}))}
+                                className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                data-testid="new-slot-start" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Bis</label>
+                              <input type="time" value={slotForm.end_time}
+                                onChange={e => setSlotForm(p => ({...p, end_time: e.target.value}))}
+                                className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                data-testid="new-slot-end" />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Art</label>
+                              <div className="flex gap-2">
+                                {[{v:"tattoo",l:"Tattoo"},{v:"consultation",l:"Beratung"}].map(t => (
+                                  <button key={t.v} type="button" onClick={() => setSlotForm(p => ({...p, slot_type: t.v}))}
+                                    className={`px-4 py-2 text-xs font-inter font-medium rounded-xl border transition-all ${slotForm.slot_type === t.v ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 text-zinc-600"}`}
+                                    data-testid={`slot-type-${t.v}`}>
+                                    {t.l}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Send Button */}
+                        <div className="flex justify-end mt-4">
+                          <button
+                            onClick={sendSlotOffer}
+                            disabled={sendingSlot ||
+                              (slotPanelMode === "existing" && !selectedExistingSlot) ||
+                              (slotPanelMode === "new" && (!slotForm.date || !slotForm.start_time || !slotForm.end_time))}
+                            className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-semibold text-sm hover:bg-zinc-700 transition-colors disabled:opacity-40 flex items-center gap-2"
+                            data-testid="send-slot-offer-btn"
+                          >
+                            <CalendarPlus size={14} strokeWidth={1.5} />
+                            {sendingSlot ? "Wird gesendet..." : "Terminvorschlag senden"}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Image preview */}
                 <AnimatePresence>
                   {imagePreview && (
@@ -453,11 +724,22 @@ export default function MessagesPage() {
                 <div className="px-4 py-3 bg-white border-t border-zinc-100 flex-shrink-0">
                   <div className="flex items-end gap-2">
                     <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" data-testid="chat-file-input" />
+                    {/* Image upload button */}
                     <button type="button" onClick={() => fileRef.current?.click()}
                       className="p-2.5 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all flex-shrink-0 mb-0.5"
                       data-testid="chat-image-btn">
                       <ImageIcon size={18} strokeWidth={1.5} />
                     </button>
+                    {/* Slot offer button – studio only */}
+                    {user?.role === "studio_owner" && (
+                      <button type="button"
+                        onClick={() => { setShowSlotPanel(p => { if (!p) fetchAvailableSlots(); return !p; }); }}
+                        className={`p-2.5 rounded-xl transition-all flex-shrink-0 mb-0.5 ${showSlotPanel ? "bg-zinc-900 text-white" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"}`}
+                        data-testid="slot-offer-btn"
+                        title="Terminvorschlag senden">
+                        <CalendarPlus size={18} strokeWidth={1.5} />
+                      </button>
+                    )}
                     <div className="flex-1">
                       <textarea
                         value={text}
