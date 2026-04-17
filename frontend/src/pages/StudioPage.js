@@ -178,23 +178,6 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
               </div>
             )}
 
-            {/* Instagram */}
-            {artist.instagram && (
-              <div>
-                <a
-                  href={`https://instagram.com/${artist.instagram.replace(/^@/, "")}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full border border-zinc-200 hover:border-pink-300 hover:bg-pink-50 text-zinc-700 hover:text-pink-600 transition-all text-sm font-inter font-medium group"
-                >
-                  {lottieData ? (
-                    <div className="w-5 h-5 flex-shrink-0">
-                      <Lottie animationData={lottieData} loop={false} autoplay style={{ width: 20, height: 20 }} />
-                    </div>
-                  ) : <Instagram size={15} strokeWidth={1.5} />}
-                  @{artist.instagram.replace(/^@/, "")}
-                </a>
-              </div>
-            )}
           </div>
         </motion.div>
       </motion.div>
