@@ -30,9 +30,13 @@ export default function StudioCard({ studio, index = 0 }) {
           </div>
         )}
         {studio.is_verified && (
-          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full flex items-center gap-1 shadow-soft">
-            <CheckCircle size={11} strokeWidth={2} className="text-zinc-800" />
-            <span className="text-xs font-inter font-semibold text-zinc-800">{t("studio.verified")}</span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full shadow-lg"
+            style={{ background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)", boxShadow: "0 4px 14px rgba(29,110,247,0.45)" }}>
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }}>
+              <circle cx="5.5" cy="5.5" r="5" fill="rgba(255,255,255,0.2)" />
+              <path d="M2.5 5.5L4.5 7.5L8.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-[10px] font-inter font-bold text-white tracking-wide">Verifiziert</span>
           </div>
         )}
         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-soft">

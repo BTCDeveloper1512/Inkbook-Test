@@ -366,8 +366,13 @@ export default function StudioPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 {studio.is_verified && (
-                  <span className="bg-white/95 text-zinc-900 text-xs px-2.5 py-1 rounded-full flex items-center gap-1 font-inter font-semibold">
-                    <CheckCircle size={10} className="text-emerald-600" /> Verifiziert
+                  <span className="flex items-center gap-1.5 text-[11px] px-3 py-1 rounded-full font-inter font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)", boxShadow: "0 4px 14px rgba(29,110,247,0.4)" }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                      <circle cx="6" cy="6" r="5.5" fill="rgba(255,255,255,0.18)" />
+                      <path d="M3 6L5.5 8.5L9.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Verifiziertes Studio
                   </span>
                 )}
                 <span className="bg-black/50 text-white text-xs px-2.5 py-1 rounded-full font-inter backdrop-blur-sm">{priceLabels[studio.price_range]}</span>

@@ -293,15 +293,23 @@ export default function AdminPage() {
                             </button>
                           </td>
                           <td className="px-5 py-4">
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-2">
                               <button
                                 onClick={() => toggleVerified(studio)}
                                 disabled={actionLoading === `v_${studio.studio_id}`}
-                                title={studio.is_verified ? "Verifizierung entfernen" : "Verifizieren"}
-                                className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors"
+                                title={studio.is_verified ? "Verifizierung entfernen" : "Studio verifizieren"}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-inter font-semibold transition-all ${
+                                  studio.is_verified
+                                    ? "text-white shadow-sm"
+                                    : "border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600"
+                                }`}
+                                style={studio.is_verified ? { background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)", boxShadow: "0 2px 8px rgba(29,110,247,0.35)" } : {}}
                                 data-testid={`verify-studio-${studio.studio_id}`}
                               >
-                                <Shield size={14} />
+                                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }}>
+                                  <path d="M2.5 5.5L4.5 7.5L8.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                {studio.is_verified ? "Verifiziert" : "Verifizieren"}
                               </button>
                               <Link to={`/studios/${studio.studio_id}`} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors" data-testid={`view-studio-${studio.studio_id}`}>
                                 <Eye size={14} />
