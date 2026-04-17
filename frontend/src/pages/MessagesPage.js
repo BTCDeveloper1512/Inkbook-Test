@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
-import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, Calendar, CalendarPlus } from "lucide-react";
+import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, Calendar, CalendarPlus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -35,6 +35,8 @@ export default function MessagesPage() {
   const [selectedExistingSlot, setSelectedExistingSlot] = useState(null);
   const [sendingSlot, setSendingSlot] = useState(false);
   const [bookingMsgId, setBookingMsgId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingConv, setDeletingConv] = useState(false);
 
   // Refs – avoid stale closures in intervals
   const textRef = useRef("");               // always current text value
@@ -276,6 +278,25 @@ export default function MessagesPage() {
     } finally { setBookingMsgId(null); }
   };
 
+  // ─── Delete conversation ──────────────────────────────────────────────────
+  const deleteConversation = async () => {
+    const conv = activeConvRef.current;
+    if (!conv?.other_id) return;
+    setDeletingConv(true);
+    try {
+      await axios.delete(`${API}/conversations/${conv.other_id}`, { withCredentials: true });
+      await fetchConversations(false);
+      setActiveConv(null);
+      setShowDeleteConfirm(false);
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler beim Löschen");
+    } finally { setDeletingConv(false); }
+  };
+
+  // Active conv's data from the list (includes deleted_by)
+  const activeConvData = conversations.find(c => c.other_user_id === activeConv?.other_id);
+  const isEndedByOther = !!(activeConvData?.deleted_by && Object.keys(activeConvData.deleted_by).length > 0);
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
   const openConvFromData = (conv) => {
     setActiveConv({
@@ -396,13 +417,18 @@ export default function MessagesPage() {
                   <div className={`w-9 h-9 ${avatarBg(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
                     {initials(activeConv.other_name)}
                   </div>
-                  <div>
-                    <p className="font-inter font-semibold text-zinc-900 text-sm leading-tight">{activeConv.other_name}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-inter font-semibold text-zinc-900 text-sm leading-tight truncate">{activeConv.other_name}</p>
                     <AnimatePresence mode="wait">
                       {otherIsTyping ? (
                         <motion.p key="t" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                           className="text-xs text-emerald-500 font-inter leading-tight font-medium" data-testid="typing-status-header">
                           tippt...
+                        </motion.p>
+                      ) : isEndedByOther ? (
+                        <motion.p key="e" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          className="text-xs text-red-400 font-inter leading-tight">
+                          Unterhaltung beendet
                         </motion.p>
                       ) : (
                         <motion.p key="r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -412,6 +438,15 @@ export default function MessagesPage() {
                       )}
                     </AnimatePresence>
                   </div>
+                  {/* Delete conversation button */}
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
+                    data-testid="delete-conv-btn"
+                    title="Gespräch löschen"
+                  >
+                    <Trash2 size={16} strokeWidth={1.5} />
+                  </button>
                 </div>
 
                 {/* Messages */}
@@ -427,6 +462,17 @@ export default function MessagesPage() {
                       </div>
 
                       {group.msgs.map((msg, i) => {
+                        // ── System messages (centered, no avatar) ─────────────
+                        if (msg.is_system) {
+                          return (
+                            <div key={msg.message_id} className="flex justify-center my-3" data-testid={`system-msg-${msg.message_id}`}>
+                              <span className="text-xs text-zinc-400 font-inter bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-200 max-w-xs text-center italic">
+                                {msg.content}
+                              </span>
+                            </div>
+                          );
+                        }
+
                         const isMine = msg.sender_id === userId;
                         const isFirst = i === 0 || group.msgs[i - 1]?.sender_id !== msg.sender_id;
                         return (
@@ -720,7 +766,19 @@ export default function MessagesPage() {
                   )}
                 </AnimatePresence>
 
-                {/* Input Area */}
+                {/* Input Area – blocked if other party ended conversation */}
+                {isEndedByOther ? (
+                  <div className="px-4 py-5 bg-white border-t border-zinc-100 flex-shrink-0 text-center" data-testid="conv-ended-banner">
+                    <p className="text-sm text-zinc-500 font-inter mb-1.5">Diese Unterhaltung wurde beendet. Du kannst keine neuen Nachrichten senden.</p>
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-xs text-red-500 font-inter hover:text-red-700 underline underline-offset-2 transition-colors"
+                      data-testid="delete-conv-ended-btn"
+                    >
+                      Auch für mich löschen
+                    </button>
+                  </div>
+                ) : (
                 <div className="px-4 py-3 bg-white border-t border-zinc-100 flex-shrink-0">
                   <div className="flex items-end gap-2">
                     <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" data-testid="chat-file-input" />
@@ -764,11 +822,52 @@ export default function MessagesPage() {
                     </motion.button>
                   </div>
                 </div>
+                )}
               </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Delete Conversation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowDeleteConfirm(false)}
+            data-testid="delete-conv-modal-overlay"
+          >
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full"
+              onClick={e => e.stopPropagation()}
+              data-testid="delete-conv-modal"
+            >
+              <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={22} className="text-red-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 text-center mb-2">Gespräch löschen?</h3>
+              <p className="text-sm text-zinc-500 font-inter text-center mb-5">
+                Die andere Person wird über die Löschung informiert. Du siehst diese Unterhaltung danach nicht mehr.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-inter font-medium text-sm hover:bg-zinc-50 transition-colors"
+                  data-testid="delete-conv-cancel">
+                  Abbrechen
+                </button>
+                <button onClick={deleteConversation}
+                  disabled={deletingConv}
+                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-inter font-semibold text-sm hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  data-testid="delete-conv-confirm">
+                  {deletingConv
+                    ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Löschen...</>
+                    : <><Trash2 size={14} strokeWidth={1.5} /> Löschen</>}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lightbox */}
       <AnimatePresence>

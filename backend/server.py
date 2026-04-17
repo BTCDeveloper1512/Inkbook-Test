@@ -768,7 +768,8 @@ async def get_typing_status(other_user_id: str, current_user: dict = Depends(get
 async def get_conversations(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
     convs = await db.conversations.find(
-        {"participants": user_id}, {"_id": 0}
+        {"participants": user_id, f"deleted_by.{user_id}": {"$exists": False}},
+        {"_id": 0}
     ).sort("last_message_at", -1).to_list(100)
 
     enriched = []
@@ -856,6 +857,43 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
 
     msg_doc.pop("_id", None)
     return msg_doc
+
+# ─── Delete conversation ───────────────────────────────────────────────────────
+@api_router.delete("/conversations/{other_user_id}")
+async def delete_conversation(other_user_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    user_name = current_user.get("name", "Unbekannt")
+
+    participants = sorted([user_id, other_user_id])
+    conv_id = f"conv_{'_'.join(participants)}"
+
+    # Add system message so the other party sees what happened
+    system_msg = {
+        "message_id": f"msg_{uuid.uuid4().hex[:12]}",
+        "sender_id": user_id,
+        "recipient_id": other_user_id,
+        "sender_name": user_name,
+        "content": f"{user_name} hat die Unterhaltung gelöscht und beendet.",
+        "image_url": "",
+        "is_system": True,
+        "slot_offer": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False
+    }
+    await db.messages.insert_one(system_msg)
+
+    # Mark conversation as deleted by this user
+    await db.conversations.update_one(
+        {"conv_id": conv_id},
+        {"$set": {
+            f"deleted_by.{user_id}": datetime.now(timezone.utc).isoformat(),
+            "last_message": f"{user_name} hat die Unterhaltung gelöscht und beendet.",
+            "last_message_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+
+    system_msg.pop("_id", None)
+    return {"success": True}
 
 # ─── Book slot from chat ───────────────────────────────────────────────────────
 @api_router.post("/messages/{message_id}/book-slot")
