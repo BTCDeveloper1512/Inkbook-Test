@@ -285,7 +285,7 @@ export default function StudioDashboard() {
                   <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
                     <div>
                       <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                      <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                      <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
@@ -350,7 +350,7 @@ export default function StudioDashboard() {
                   {slots.slice(0, 30).map(slot => (
                     <div key={slot.slot_id} className="flex items-center justify-between p-4 hover:bg-zinc-50 transition-colors" data-testid={`slot-item-${slot.slot_id}`}>
                       <div>
-                        <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE") : ""}</p>
+                        <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5">{slot.start_time} – {slot.end_time} · {slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
                       </div>
                       <button onClick={() => handleDeleteSlot(slot.slot_id)} className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all" data-testid={`delete-slot-btn-${slot.slot_id}`}>
@@ -376,7 +376,7 @@ export default function StudioDashboard() {
                     <div>
                       <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
                       <p className="text-sm text-zinc-500 font-inter">{b.user_email}</p>
-                      <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                      <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
                       {b.reference_images?.length > 0 && (
                         <div className="flex gap-2 mt-2">

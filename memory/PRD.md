@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 12)
+- **Artist Modal** ✅: Artist-Karte anklickbar → Framer-Motion slide-up Modal (Name, Bio, Stile, Portfolio, Instagram)
+- **Gallery + Portfolio Lightbox** ✅: Vollbild-Overlay mit Navigation, Tastatur (Esc/Pfeiltasten)
+- **Deposit flexibel** ✅: Kein hardcoded "€50" mehr; Studios stellen selbst ein (Dashboard: Toggle + Betrag)
+- **EU-Datumsformat** ✅: DD.MM.YYYY überall (14.04.2026 statt 2026-04-14)
+- **Stornierungsbanner persistent** ✅: localStorage `inkbook_dismissed_cancellations` – kommt nach Schließen nicht wieder
+
 ### April/Mai 2026 (Diese Session – Iteration 11)
 - **GSAP Landingpage MacBook + Scroll-Fix** ✅
   - Neue MacBook-CSS-Komponente mit korrekten Proportionen (16:10 Screen, Hinge, Base, Touchpad)

@@ -65,7 +65,7 @@ function ReviewModal({ booking, onClose, onSubmitted }) {
         <div className="p-6 space-y-5">
           {/* Context */}
           <div className="bg-zinc-50 rounded-xl px-4 py-3 text-sm font-inter text-zinc-500">
-            Termin am <strong className="text-zinc-800">{booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE") : ""}</strong> um <strong className="text-zinc-800">{booking.start_time}</strong>
+            Termin am <strong className="text-zinc-800">{booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</strong> um <strong className="text-zinc-800">{booking.start_time}</strong>
           </div>
 
           {/* Stars */}
@@ -272,7 +272,7 @@ export default function CustomerDashboard() {
                 <p className="font-inter font-semibold text-red-800 text-sm">Dein Termin wurde storniert</p>
                 {justCancelled.map(b => (
                   <p key={b.booking_id} className="text-xs text-red-600 font-inter mt-1">
-                    {b.studio_name} · {b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : ""} {b.start_time} – {b.end_time} wurde vom Studio storniert.
+                    {b.studio_name} · {b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} {b.start_time} – {b.end_time} wurde vom Studio storniert.
                   </p>
                 ))}
                 <Link to="/" className="text-xs text-red-700 font-inter font-semibold underline underline-offset-2 mt-1.5 inline-block">
@@ -510,7 +510,7 @@ export default function CustomerDashboard() {
               </div>
               <div className="p-6">
                 <div className="bg-zinc-50 rounded-xl p-3.5 mb-5 text-sm font-inter text-zinc-600">
-                  Aktuell: <strong className="text-zinc-900">{rescheduleBooking.date ? new Date(rescheduleBooking.date + "T12:00:00").toLocaleDateString("de-DE") : ""}</strong> um <strong className="text-zinc-900">{rescheduleBooking.start_time}</strong> · {rescheduleBooking.studio_name}
+                  Aktuell: <strong className="text-zinc-900">{rescheduleBooking.date ? new Date(rescheduleBooking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</strong> um <strong className="text-zinc-900">{rescheduleBooking.start_time}</strong> · {rescheduleBooking.studio_name}
                 </div>
 
                 <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Neues Datum</p>
