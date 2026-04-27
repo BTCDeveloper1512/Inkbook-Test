@@ -818,13 +818,23 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
 @api_router.post("/messages/unread-count")
 async def get_unread_count_post(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
-    count = await db.messages.count_documents({"recipient_id": user_id, "read": False, "is_broadcast": {"$ne": True}, "sender_id": {"$ne": "inkbook_system"}})
+    count = await db.messages.count_documents({
+        "recipient_id": user_id, "read": False,
+        "is_broadcast": {"$ne": True},
+        "sender_id": {"$ne": "inkbook_system"},
+        "is_system": {"$ne": True}
+    })
     return {"count": count}
 
 @api_router.get("/messages/unread-count")
 async def get_unread_count(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
-    count = await db.messages.count_documents({"recipient_id": user_id, "read": False, "is_broadcast": {"$ne": True}, "sender_id": {"$ne": "inkbook_system"}})
+    count = await db.messages.count_documents({
+        "recipient_id": user_id, "read": False,
+        "is_broadcast": {"$ne": True},
+        "sender_id": {"$ne": "inkbook_system"},
+        "is_system": {"$ne": True}
+    })
     return {"count": count}
 
 @api_router.post("/messages/{other_user_id}/mark-read")
@@ -987,7 +997,7 @@ async def delete_conversation(other_user_id: str, current_user: dict = Depends(g
         "is_system": True,
         "slot_offer": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "read": False
+        "read": True
     }
     await db.messages.insert_one(system_msg)
 
