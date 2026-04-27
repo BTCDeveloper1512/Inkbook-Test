@@ -42,8 +42,8 @@ export default function StudioDashboard() {
   useEffect(() => {
     fetchStats();
     fetchSubscription();
-    // Poll every 30s for live updates
-    const pollInterval = setInterval(fetchStats, 30000);
+    // Poll every 8s for live updates (new bookings pop up fast)
+    const pollInterval = setInterval(fetchStats, 8000);
     // Re-evaluate time checks every 60s
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
     return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
@@ -251,17 +251,24 @@ export default function StudioDashboard() {
   const upcomingBookings = stats?.upcoming_bookings || [];
   const allStudioBookings = stats?.all_bookings || [];
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const now = new Date();
+  // Local date (not UTC!) to avoid timezone bugs for German users
+  const nowTime = new Date();
+  const todayStr = `${nowTime.getFullYear()}-${String(nowTime.getMonth()+1).padStart(2,'0')}-${String(nowTime.getDate()).padStart(2,'0')}`;
+  const now = nowTime;
   const isBookingPast = (b) => {
     if (!b.date || !b.end_time) return false;
     return now > new Date(`${b.date}T${b.end_time}:00`);
   };
   const isBookingToday = (b) => b.date === todayStr;
 
-  // For overview tab
-  const todayUpcoming = upcomingBookings.filter(b => isBookingToday(b) && !isBookingPast(b));
-  const futureUpcoming = upcomingBookings.filter(b => b.date > todayStr);
+  // Use allStudioBookings (not limited upcoming_bookings) for the overview
+  const allActiveBookings = allStudioBookings.filter(b => ["pending", "confirmed"].includes(b.status));
+  const todayUpcoming = allActiveBookings
+    .filter(b => isBookingToday(b) && !isBookingPast(b))
+    .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+  const futureUpcoming = allActiveBookings
+    .filter(b => b.date > todayStr)
+    .sort((a, b) => a.date === b.date ? (a.start_time || "").localeCompare(b.start_time || "") : a.date.localeCompare(b.date));
 
   // For bookings tab
   const activeBookings = allStudioBookings.filter(b =>

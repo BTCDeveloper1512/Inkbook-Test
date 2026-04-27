@@ -1460,11 +1460,13 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             "all_bookings": all_studio_bookings
         }
     else:
-        bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).to_list(200)
-        upcoming = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
+        bookings = await db.bookings.find(
+            {"user_id": user_id}, {"_id": 0}
+        ).sort([("date", 1), ("start_time", 1)]).to_list(500)
+        upcoming_list = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
         return {
             "total_bookings": len(bookings),
-            "upcoming_bookings": upcoming[:5],
+            "upcoming_bookings": upcoming_list,
             "all_bookings": bookings
         }
 

@@ -158,8 +158,8 @@ export default function CustomerDashboard() {
     const sessionId = urlParams.get("session_id");
     if (sessionId) setPaymentSessionId(sessionId);
     fetchStats();
-    // Poll every 30s for live updates
-    const pollInterval = setInterval(fetchStats, 30000);
+    // Poll every 8s for live updates (new bookings pop up fast)
+    const pollInterval = setInterval(fetchStats, 8000);
     // Re-evaluate time every 60s
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
     return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
@@ -239,7 +239,7 @@ export default function CustomerDashboard() {
     return dates;
   };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
   const now = new Date();
 
   // Helper: has the appointment's end time already passed?
@@ -251,14 +251,14 @@ export default function CustomerDashboard() {
 
   const allBookings = stats?.all_bookings || [];
 
-  // Today = pending/confirmed, today's date, end_time not yet passed
-  const todayBookings = allBookings.filter(b =>
-    ["pending", "confirmed"].includes(b.status) && isBookingToday(b) && !isBookingPast(b)
-  );
-  // Upcoming = pending/confirmed, future date (after today), not past
-  const upcoming = allBookings.filter(b =>
-    ["pending", "confirmed"].includes(b.status) && b.date > today
-  );
+  // Today = pending/confirmed, today's date, end_time not yet passed – sorted by start_time
+  const todayBookings = allBookings
+    .filter(b => ["pending", "confirmed"].includes(b.status) && isBookingToday(b) && !isBookingPast(b))
+    .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+  // Upcoming = pending/confirmed, strictly future date – sorted by date then time
+  const upcoming = allBookings
+    .filter(b => ["pending", "confirmed"].includes(b.status) && b.date > today)
+    .sort((a, b) => a.date === b.date ? (a.start_time || "").localeCompare(b.start_time || "") : a.date.localeCompare(b.date));
   // Past = cancelled/completed OR (pending/confirmed with end time passed)
   const past = allBookings.filter(b =>
     ["cancelled", "completed"].includes(b.status) ||
