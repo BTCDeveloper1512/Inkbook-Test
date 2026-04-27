@@ -95,6 +95,18 @@ export default function AdminPage() {
     } finally { setActionLoading(""); }
   };
 
+  const deleteUser = async (userId, userName, role) => {
+    if (!window.confirm(`Nutzer "${userName}" wirklich löschen?${role === "studio_owner" ? "\n\nACHTUNG: Das Studio, alle Artists, Slots und aktive Buchungen dieses Nutzers werden ebenfalls gelöscht!" : ""}\n\nDiese Aktion ist nicht rückgängig zu machen.`)) return;
+    setActionLoading(`del_user_${userId}`);
+    try {
+      await axios.delete(`${API}/admin/users/${userId}`, { withCredentials: true });
+      setUsers(prev => prev.filter(u => u.user_id !== userId));
+      if (stats) setStats(prev => ({ ...prev, total_users: prev.total_users - 1 }));
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler beim Löschen");
+    } finally { setActionLoading(""); }
+  };
+
   const filteredStudios = studios.filter(s =>
     s.name?.toLowerCase().includes(searchStudios.toLowerCase()) ||
     s.city?.toLowerCase().includes(searchStudios.toLowerCase())
@@ -359,14 +371,14 @@ export default function AdminPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-zinc-100">
-                        {["Name", "E-Mail", "Rolle", "Registriert", "Auth"].map(h => (
+                        {["Name", "E-Mail", "Rolle", "Registriert", "Auth", "Aktionen"].map(h => (
                           <th key={h} className="px-5 py-3.5 text-left text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50">
                       {filteredUsers.map((u, i) => (
-                        <tr key={i} className="hover:bg-zinc-50 transition-colors" data-testid={`user-row-${i}`}>
+                        <tr key={i} className="hover:bg-zinc-50 transition-colors" data-testid={`user-row-${u.user_id || i}`}>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 bg-zinc-900 text-white rounded-full flex items-center justify-center text-xs font-bold font-inter">
@@ -389,6 +401,23 @@ export default function AdminPage() {
                             {u.created_at ? new Date(u.created_at).toLocaleDateString("de-DE") : "—"}
                           </td>
                           <td className="px-5 py-3.5 text-xs text-zinc-400 font-inter">{u.auth_provider || "email"}</td>
+                          <td className="px-5 py-3.5">
+                            {u.role !== "admin" ? (
+                              <button
+                                onClick={() => deleteUser(u.user_id, u.name, u.role)}
+                                disabled={actionLoading === `del_user_${u.user_id}`}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                                title={`${u.name} löschen`}
+                                data-testid={`delete-user-${u.user_id}`}
+                              >
+                                {actionLoading === `del_user_${u.user_id}`
+                                  ? <div className="w-3.5 h-3.5 border-2 border-zinc-300 border-t-red-500 rounded-full animate-spin" />
+                                  : <Trash2 size={14} />}
+                              </button>
+                            ) : (
+                              <span className="text-xs text-zinc-300 font-inter px-1.5">—</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

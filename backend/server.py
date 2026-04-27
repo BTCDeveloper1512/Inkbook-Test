@@ -1589,14 +1589,57 @@ async def admin_update_studio(studio_id: str, data: AdminStudioUpdate, current_u
 
 @api_router.get("/admin/users")
 async def admin_list_users(current_user: dict = Depends(require_admin)):
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(500)
-    return users
+    users = await db.users.find({}, {"password_hash": 0}).sort("created_at", -1).to_list(500)
+    result = []
+    for u in users:
+        obj_id = str(u.pop("_id", ""))
+        u["user_id"] = u.get("user_id") or obj_id
+        result.append(u)
+    return result
 
 @api_router.delete("/admin/studios/{studio_id}")
 async def admin_delete_studio(studio_id: str, current_user: dict = Depends(require_admin)):
     await db.studios.delete_one({"studio_id": studio_id})
     await db.slots.delete_many({"studio_id": studio_id})
     return {"message": "Studio deleted"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, current_user: dict = Depends(require_admin)):
+    from bson import ObjectId
+    # Find user by user_id field OR by MongoDB _id
+    user = await db.users.find_one({"user_id": user_id})
+    if not user:
+        try:
+            user = await db.users.find_one({"_id": ObjectId(user_id)})
+        except Exception:
+            pass
+    if not user:
+        raise HTTPException(status_code=404, detail="Nutzer nicht gefunden")
+    if user.get("role") == "admin":
+        raise HTTPException(status_code=403, detail="Admin-Konten können nicht gelöscht werden")
+
+    # Resolve the actual user_id used in other collections
+    resolved_id = user.get("user_id") or str(user.get("_id", ""))
+
+    # If studio owner: clean up their studio data
+    if user.get("role") == "studio_owner":
+        studio = await db.studios.find_one({"owner_id": resolved_id})
+        if studio:
+            studio_id_val = studio.get("studio_id")
+            await db.artists.delete_many({"studio_id": studio_id_val})
+            await db.slots.delete_many({"studio_id": studio_id_val})
+            await db.studios.delete_one({"studio_id": studio_id_val})
+
+    # Cancel active bookings
+    await db.bookings.update_many(
+        {"user_id": resolved_id, "status": {"$in": ["pending", "confirmed"]}},
+        {"$set": {"status": "cancelled", "cancelled_by": "admin"}}
+    )
+
+    # Delete user – match by _id for safety
+    await db.users.delete_one({"_id": user["_id"]})
+
+    return {"message": "Nutzer erfolgreich gelöscht"}
 
 @app.on_event("startup")
 async def startup_event():

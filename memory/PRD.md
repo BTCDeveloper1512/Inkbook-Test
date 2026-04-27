@@ -44,6 +44,12 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 18)
+- **Admin: Nutzer löschen** ✅: Trash-Icon in der Nutzerliste im Admin-Panel
+- Admin-Konten sind geschützt (können nicht gelöscht werden)
+- Studio-Inhaber-Löschung räumt automatisch auf: Studio, Artists, Slots werden mitgelöscht, aktive Buchungen werden storniert
+- `user_id` wird jetzt korrekt in der Admin-Users-API zurückgegeben (via MongoDB `_id` Fallback)
+
 ### April 2026 (Iteration 17)
 - **InkBook Logo** ✅: Echtes Marken-Logo in Navbar + Landing Page + Footer eingepflegt
 - Licht-Navbar: `filter: invert(1)` → schwarzes Logo auf weiß; Dunkel-Navbar: Logo nativ weiß auf schwarz
