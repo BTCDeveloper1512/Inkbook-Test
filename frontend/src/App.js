@@ -2,6 +2,8 @@ import "./i18n";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import CookieBanner from "./components/CookieBanner";
+import SupportChat from "./components/SupportChat";
 import AuthCallback from "./pages/AuthCallback";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -14,52 +16,58 @@ import AIAdvisorPage from "./pages/AIAdvisorPage";
 import MessagesPage from "./pages/MessagesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import AdminPage from "./pages/AdminPage";
+import ImpressumPage from "./pages/ImpressumPage";
+import DatenschutzPage from "./pages/DatenschutzPage";
+import AGBPage from "./pages/AGBPage";
+import FAQPage from "./pages/FAQPage";
+import UeberUnsPage from "./pages/UeberUnsPage";
 import "./App.css";
 
 function AppRouter() {
   const location = useLocation();
-  // Detect OAuth callback synchronously before ProtectedRoute runs
-  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
   if (location.hash?.includes("session_id=")) {
     return <AuthCallback />;
   }
 
   return (
-    <Routes>
-      <Route path="/"       element={<LandingPage />} />
-      <Route path="/home"   element={<LandingPage />} />
-      <Route path="/search" element={<SearchPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/studios/:studioId" element={<StudioPage />} />
-      <Route path="/ai-advisor" element={<AIAdvisorPage />} />
-      <Route path="/messages" element={
-        <ProtectedRoute><MessagesPage /></ProtectedRoute>
-      } />
-      <Route path="/messages/:recipientId" element={
-        <ProtectedRoute><MessagesPage /></ProtectedRoute>
-      } />
-      <Route path="/subscription" element={
-        <ProtectedRoute requiredRole="studio_owner"><SubscriptionPage /></ProtectedRoute>
-      } />
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <CustomerDashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/studio-dashboard" element={
-        <ProtectedRoute requiredRole="studio_owner">
-          <StudioDashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/admin" element={
-        <ProtectedRoute requiredRole="admin">
-          <AdminPage />
-        </ProtectedRoute>
-      } />
-      <Route path="*" element={<SearchPage />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/"              element={<LandingPage />} />
+        <Route path="/home"          element={<LandingPage />} />
+        <Route path="/search"        element={<SearchPage />} />
+        <Route path="/login"         element={<LoginPage />} />
+        <Route path="/register"      element={<RegisterPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/studios/:studioId" element={<StudioPage />} />
+        <Route path="/ai-advisor"    element={<AIAdvisorPage />} />
+        <Route path="/impressum"     element={<ImpressumPage />} />
+        <Route path="/datenschutz"   element={<DatenschutzPage />} />
+        <Route path="/agb"           element={<AGBPage />} />
+        <Route path="/faq"           element={<FAQPage />} />
+        <Route path="/ueber-uns"     element={<UeberUnsPage />} />
+        <Route path="/messages" element={
+          <ProtectedRoute><MessagesPage /></ProtectedRoute>
+        } />
+        <Route path="/messages/:recipientId" element={
+          <ProtectedRoute><MessagesPage /></ProtectedRoute>
+        } />
+        <Route path="/subscription" element={
+          <ProtectedRoute requiredRole="studio_owner"><SubscriptionPage /></ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute><CustomerDashboard /></ProtectedRoute>
+        } />
+        <Route path="/studio-dashboard" element={
+          <ProtectedRoute requiredRole="studio_owner"><StudioDashboard /></ProtectedRoute>
+        } />
+        <Route path="/admin" element={
+          <ProtectedRoute requiredRole="admin"><AdminPage /></ProtectedRoute>
+        } />
+        <Route path="*" element={<SearchPage />} />
+      </Routes>
+      <CookieBanner />
+      <SupportChat />
+    </>
   );
 }
 

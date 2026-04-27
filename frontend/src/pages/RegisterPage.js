@@ -13,9 +13,15 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ email: "", password: "", name: "", role: "customer" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setError(""); setLoading(true);
+    e.preventDefault(); setError(""); 
+    if (!privacyAccepted) {
+      setError("Bitte akzeptiere die Datenschutzerklärung und AGB um fortzufahren.");
+      return;
+    }
+    setLoading(true);
     try {
       const user = await register(form.email, form.password, form.name, form.role);
       navigate(user.role === "studio_owner" ? "/studio-dashboard" : "/dashboard");
@@ -73,9 +79,32 @@ export default function RegisterPage() {
                 <input type={field.type} name={field.name} value={form[field.name]} onChange={e => setForm({...form, [e.target.name]: e.target.value})} required className="input-base w-full" placeholder={field.placeholder} data-testid={field.testid} />
               </div>
             ))}
-            <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-50" data-testid="register-submit-btn">
+            <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading || !privacyAccepted} className="btn-primary w-full justify-center disabled:opacity-50" data-testid="register-submit-btn">
               {loading ? "Bitte warten..." : t("auth.register")}
             </motion.button>
+
+            {/* Datenschutz-Checkbox */}
+            <div className="flex items-start gap-3 pt-1">
+              <input
+                id="privacy-checkbox"
+                type="checkbox"
+                checked={privacyAccepted}
+                onChange={e => setPrivacyAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-zinc-300 accent-zinc-900 cursor-pointer flex-shrink-0"
+                data-testid="privacy-checkbox"
+              />
+              <label htmlFor="privacy-checkbox" className="text-xs text-zinc-500 font-inter leading-relaxed cursor-pointer">
+                Ich habe die{" "}
+                <Link to="/datenschutz" className="text-zinc-900 underline hover:no-underline" target="_blank">
+                  Datenschutzerklärung
+                </Link>{" "}
+                und die{" "}
+                <Link to="/agb" className="text-zinc-900 underline hover:no-underline" target="_blank">
+                  AGB
+                </Link>{" "}
+                gelesen und akzeptiere diese. Ich stimme der Verarbeitung meiner Daten gemäß DSGVO zu.
+              </label>
+            </div>
           </form>
 
           <div className="relative my-6">

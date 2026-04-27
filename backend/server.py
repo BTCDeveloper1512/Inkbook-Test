@@ -1641,6 +1641,121 @@ async def admin_delete_user(user_id: str, current_user: dict = Depends(require_a
 
     return {"message": "Nutzer erfolgreich gelöscht"}
 
+# ─── Support Chat ──────────────────────────────────────────────────────────────
+
+class SupportChatRequest(BaseModel):
+    session_id: str
+    message: str
+
+@api_router.post("/support/chat")
+async def support_chat(req: SupportChatRequest):
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="Nachricht darf nicht leer sein")
+
+    emergent_key = os.environ.get("EMERGENT_LLM_KEY", "")
+    if not emergent_key:
+        raise HTTPException(status_code=500, detail="LLM nicht konfiguriert")
+
+    # Load existing chat history from DB
+    history_doc = await db.support_chats.find_one({"session_id": req.session_id}, {"_id": 0})
+    messages_history = history_doc.get("messages", []) if history_doc else []
+
+    # Build conversation context for the model
+    system_msg = (
+        "Du bist der freundliche Support-Assistent von InkBook, der führenden Tattoo-Buchungsplattform in Deutschland. "
+        "Du hilfst Kunden und Studios bei Fragen zu: Buchungen, Terminen, Studios, Artists, Preisen, Konten, Zahlungen, "
+        "technischen Problemen und der allgemeinen App-Nutzung. "
+        "Antworte immer auf Deutsch. Sei hilfsbereit, freundlich und präzise. "
+        "Halte deine Antworten kurz und klar (maximal 3–4 Sätze). "
+        "Wenn du eine Frage nicht beantworten kannst, empfiehl dem Nutzer den menschlichen Kundendienst."
+    )
+
+    # Reconstruct context from history (last 10 messages)
+    context_parts = []
+    for msg in messages_history[-10:]:
+        role_label = "Nutzer" if msg["role"] == "user" else "Assistent"
+        context_parts.append(f"{role_label}: {msg['content']}")
+
+    if context_parts:
+        full_message = "\n".join(context_parts) + f"\nNutzer: {req.message}"
+    else:
+        full_message = req.message
+
+    try:
+        chat = LlmChat(
+            api_key=emergent_key,
+            session_id=req.session_id + "_support",
+            system_message=system_msg,
+        ).with_model("anthropic", "claude-haiku-4-5-20251001")
+
+        response = await chat.send_message(UserMessage(text=full_message))
+
+        # Save to DB
+        now = datetime.now(timezone.utc).isoformat()
+        new_messages = messages_history + [
+            {"role": "user", "content": req.message, "timestamp": now},
+            {"role": "assistant", "content": response, "timestamp": now},
+        ]
+        await db.support_chats.update_one(
+            {"session_id": req.session_id},
+            {"$set": {"session_id": req.session_id, "messages": new_messages, "updated_at": now}},
+            upsert=True,
+        )
+        return {"response": response, "session_id": req.session_id}
+    except Exception as e:
+        logger.error(f"Support chat error: {e}")
+        raise HTTPException(status_code=500, detail="KI-Antwort konnte nicht generiert werden")
+
+@api_router.get("/support/admin-id")
+async def get_support_admin_id():
+    admin = await db.users.find_one({"role": "admin"}, {"_id": 0, "user_id": 1, "name": 1})
+    if not admin:
+        raise HTTPException(status_code=404, detail="Kein Admin gefunden")
+    return {"admin_id": admin.get("user_id", ""), "admin_name": admin.get("name", "Support")}
+
+# ─── Newsletter ─────────────────────────────────────────────────────────────────
+
+class NewsletterSubscribeRequest(BaseModel):
+    email: EmailStr
+
+@api_router.post("/newsletter/subscribe")
+async def newsletter_subscribe(req: NewsletterSubscribeRequest):
+    existing = await db.newsletter_subscribers.find_one({"email": req.email})
+    if existing:
+        return {"status": "already_subscribed", "message": "Diese E-Mail ist bereits angemeldet."}
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.newsletter_subscribers.insert_one({
+        "email": req.email,
+        "subscribed_at": now,
+        "active": True,
+    })
+
+    html = f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#fff;">
+      <div style="border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px;">
+        <h1 style="font-size:22px;font-weight:bold;margin:0;letter-spacing:-0.5px;">InkBook</h1>
+      </div>
+      <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;">Newsletter bestätigt</h2>
+      <p style="color:#555;line-height:1.6;margin-bottom:16px;">
+        Danke für deine Anmeldung! Du erhältst ab sofort Neuigkeiten, neue Studios und exklusive Angebote direkt in deinen Posteingang.
+      </p>
+      <div style="border-top:1px solid #eee;padding-top:16px;margin-top:24px;">
+        <p style="font-size:12px;color:#aaa;">Du kannst dich jederzeit wieder abmelden. · InkBook, Deutschland</p>
+      </div>
+    </div>"""
+
+    await send_email(req.email, "Willkommen beim InkBook Newsletter!", html)
+    return {"status": "success", "message": "Erfolgreich angemeldet! Bitte prüfe dein Postfach."}
+
+@api_router.get("/newsletter/subscribers")
+async def get_newsletter_subscribers(request: Request):
+    current = await get_current_user(request)
+    if current.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Nur Admins")
+    subs = await db.newsletter_subscribers.find({"active": True}, {"_id": 0, "email": 1, "subscribed_at": 1}).to_list(1000)
+    return {"subscribers": subs, "total": len(subs)}
+
 @app.on_event("startup")
 async def startup_event():
     await db.users.create_index("email", unique=True)

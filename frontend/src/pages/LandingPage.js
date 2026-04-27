@@ -5,8 +5,89 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ArrowRight, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import axios from "axios";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+function FooterLink({ to, children }) {
+  return (
+    <Link
+      to={to}
+      className="text-[11px] transition-colors"
+      style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.26)" }}
+      onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,.65)"}
+      onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.26)"}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function NewsletterSection() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState(null); // null | "loading" | "success" | "error" | "already"
+  const [msg, setMsg] = useState("");
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    try {
+      const { data } = await axios.post(`${API}/newsletter/subscribe`, { email });
+      if (data.status === "already_subscribed") { setStatus("already"); setMsg(data.message); }
+      else { setStatus("success"); setMsg(data.message); }
+    } catch {
+      setStatus("error"); setMsg("Ein Fehler ist aufgetreten. Bitte versuche es erneut.");
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-8 pb-12">
+      <div>
+        <p className="text-[10px] tracking-widest uppercase mb-2" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>Newsletter</p>
+        <p className="font-playfair text-xl text-white mb-1">Bleib auf dem Laufenden.</p>
+        <p className="text-[12px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.32)" }}>
+          Neue Studios, Angebote und Updates direkt in dein Postfach.
+        </p>
+      </div>
+      <div className="w-full sm:w-auto sm:min-w-[340px]">
+        {status === "success" ? (
+          <p className="text-[12px] font-inter" style={{ color: "rgba(255,255,255,.6)" }}>
+            ✓ {msg}
+          </p>
+        ) : (
+          <form onSubmit={handleSubscribe} className="flex gap-2">
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="deine@email.de"
+              required
+              disabled={status === "loading"}
+              className="flex-1 px-4 py-2.5 rounded-full text-[13px] font-inter bg-white/[0.06] border border-white/[0.12] text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors disabled:opacity-50"
+              data-testid="newsletter-email-input"
+            />
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="px-5 py-2.5 rounded-full text-[12px] font-inter font-semibold bg-white text-zinc-900 hover:bg-zinc-100 transition-colors disabled:opacity-50 whitespace-nowrap"
+              data-testid="newsletter-submit-btn"
+            >
+              {status === "loading" ? "..." : "Anmelden"}
+            </button>
+          </form>
+        )}
+        {(status === "error" || status === "already") && (
+          <p className="text-[11px] mt-2 font-inter" style={{ color: status === "error" ? "rgba(255,100,100,.8)" : "rgba(255,255,255,.4)" }}>
+            {msg}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════════════════
    Custom Landing Navbar (transparent → glass on scroll)
@@ -661,23 +742,85 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ background: "#050505", borderTop: "1px solid rgba(255,255,255,.05)" }} className="py-10 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-5">
-          <div className="flex items-center gap-2">
-            <img src="/inkbook-logo.jpeg" alt="InkBook" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
-            <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
+      <footer style={{ background: "#050505", borderTop: "1px solid rgba(255,255,255,.05)" }} className="py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Newsletter */}
+          <NewsletterSection />
+
+          {/* Footer Links Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 mb-12 pt-12 border-t border-white/[0.05]">
+            {/* Brand */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <img src="/inkbook-logo.jpeg" alt="InkBook" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
+                <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>
+                Die Premium Tattoo-Buchungsplattform für Deutschland.
+              </p>
+            </div>
+
+            {/* Produkt */}
+            <div>
+              <p className="text-[10px] tracking-widest uppercase mb-4" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>Produkt</p>
+              <div className="flex flex-col gap-2.5">
+                {[
+                  { to: "/search",     l: "Studios finden" },
+                  { to: "/ai-advisor", l: "KI-Stilberater" },
+                  { to: "/register",   l: "Jetzt registrieren" },
+                  { to: "/faq",        l: "FAQ" },
+                ].map(({ to, l }) => (
+                  <FooterLink key={to} to={to}>{l}</FooterLink>
+                ))}
+              </div>
+            </div>
+
+            {/* Unternehmen */}
+            <div>
+              <p className="text-[10px] tracking-widest uppercase mb-4" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>Unternehmen</p>
+              <div className="flex flex-col gap-2.5">
+                {[
+                  { to: "/ueber-uns",  l: "Über uns" },
+                  { to: "/faq",        l: "Hilfe & Support" },
+                ].map(({ to, l }) => (
+                  <FooterLink key={to} to={to}>{l}</FooterLink>
+                ))}
+              </div>
+            </div>
+
+            {/* Rechtliches */}
+            <div>
+              <p className="text-[10px] tracking-widest uppercase mb-4" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>Rechtliches</p>
+              <div className="flex flex-col gap-2.5">
+                {[
+                  { to: "/impressum",  l: "Impressum" },
+                  { to: "/datenschutz",l: "Datenschutz" },
+                  { to: "/agb",        l: "AGB" },
+                ].map(({ to, l }) => (
+                  <FooterLink key={to} to={to}>{l}</FooterLink>
+                ))}
+                <button
+                  onClick={() => window.dispatchEvent(new Event("inkbook:open-cookie-settings"))}
+                  className="text-[11px] text-left transition-colors"
+                  style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.26)", cursor: "pointer", background: "none", border: "none", padding: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,.65)"}
+                  onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.26)"}
+                  data-testid="footer-cookie-settings-btn"
+                >
+                  Cookie-Einstellungen
+                </button>
+              </div>
+            </div>
           </div>
-          <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.2)" }}>
-            © 2026 InkBook · Alle Rechte vorbehalten
-          </p>
-          <div className="flex gap-6">
-            {[{to:"/login",l:"Anmelden"},{to:"/register",l:"Registrieren"},{to:"/search",l:"Studios"}].map(({to,l}) => (
-              <Link key={to} to={to}
-                className="text-[11px] transition-colors"
-                style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.26)" }}
-                onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,.65)"}
-                onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.26)"}>{l}</Link>
-            ))}
+
+          {/* Bottom bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-white/[0.05]">
+            <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.2)" }}>
+              © 2026 InkBook · Alle Rechte vorbehalten
+            </p>
+            <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.14)" }}>
+              Made with love in Germany
+            </p>
           </div>
         </div>
       </footer>
