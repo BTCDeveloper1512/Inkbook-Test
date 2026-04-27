@@ -458,6 +458,8 @@ export default function SupportChat() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  const isStudioOwner = user?.role === "studio_owner";
+
   const options = [
     {
       id: "ai",
@@ -473,13 +475,14 @@ export default function SupportChat() {
       desc: "Erstelle ein Ticket · Antwort per E-Mail",
       badge: null,
     },
-    {
+    // Direct chat only available to studio owners (Pro feature)
+    ...(isStudioOwner ? [{
       id: "direct",
       icon: <Headphones size={20} strokeWidth={1.5} className="text-zinc-900" />,
       title: "Direktnachricht",
       desc: "Echtzeit-Chat mit dem Support-Team",
       badge: "Pro",
-    },
+    }] : []),
   ];
 
   return (

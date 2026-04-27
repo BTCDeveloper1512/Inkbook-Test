@@ -318,8 +318,8 @@ export default function StudioDashboard() {
             { id: "overview", label: "Übersicht" },
             { id: "slots", label: "Slots" },
             { id: "bookings", label: `Buchungen (${stats?.total_bookings || 0})` },
-            { id: "artists", label: "Artists" },
-            { id: "profile", label: "Profil" }
+            { id: "artists", label: "Artist hinzufügen" },
+            { id: "profile", label: "Profil bearbeiten" }
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
