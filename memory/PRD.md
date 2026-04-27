@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 20 – Compliance & Community)
+- **Cookie-Banner** (granular): Notwendig / Analyse / Marketing, localStorage-Persistenz, Footer-Link zum Wiederöffnen
+- **Rechtliche Seiten**: Impressum, Datenschutz, AGB, FAQ (Accordion), Über uns – alle mit DE-Placeholder-Inhalt
+- **Datenschutz-Checkbox** bei Registrierung (DSGVO) – Submit-Button disabled ohne Zustimmung
+- **Newsletter**: Resend-Bestätigungs-E-Mail + MongoDB-Speicherung (`/api/newsletter/subscribe`)
+- **KI-Support-Chat** (Claude Haiku): Floating Widget, "Wurde Frage beantwortet?"-Check, Weiterleitung an Admin-Chat bei Nein
+- **Footer**: 4-spaltig mit internen Links (Produkt, Unternehmen, Rechtliches, Newsletter)
+
 ### April 2026 (Iteration 19)
 - **3D ProfileCard für Artists** ✅: reactbits.dev ProfileCard mit vollem 3D-Tilt-Effekt für Artist-Ansicht auf Studio-Seite
 - InkBook-Farbschema: Amber/Gold/Stahl-Palette, dunkler Hintergrund (rgba 8,7,6), Playfair Display Name

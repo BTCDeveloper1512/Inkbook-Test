@@ -1708,10 +1708,13 @@ async def support_chat(req: SupportChatRequest):
 
 @api_router.get("/support/admin-id")
 async def get_support_admin_id():
-    admin = await db.users.find_one({"role": "admin"}, {"_id": 0, "user_id": 1, "name": 1})
+    admin = await db.users.find_one({"role": "admin"})
     if not admin:
         raise HTTPException(status_code=404, detail="Kein Admin gefunden")
-    return {"admin_id": admin.get("user_id", ""), "admin_name": admin.get("name", "Support")}
+    # Try user_id first, fall back to str(_id)
+    admin_id = admin.get("user_id") or str(admin.get("_id", ""))
+    admin_name = admin.get("name", "Support")
+    return {"admin_id": admin_id, "admin_name": admin_name}
 
 # ─── Newsletter ─────────────────────────────────────────────────────────────────
 
