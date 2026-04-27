@@ -44,6 +44,19 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 (Iteration 22 – Admin Panel Komplett-Überarbeitung) ✅
+- **Admin Panel massiv erweitert** auf 13 Sektionen (vorher 4 Tabs)
+- Sektionen: Dashboard (KPIs + Trends), Studios, Nutzer, Buchungen, Abonnements, Einnahmen (MRR), Bewertungen, FAQ-Editor, Ankündigungen (Live-Banner), Newsletter-Kampagnen, Push-Broadcast, Support-Tickets, Meldungen/Reports
+- **Studio-Verifizierung**: Admin kann "Verifiziert"-Badge per Klick setzen/entfernen
+- **KPI-Dashboard**: 8 Metriken inkl. neue Nutzer heute/Woche, Newsletter-Abos, offene Meldungen, Top-Studios nach Buchungen
+- **Newsletter-Versand**: Vorschau-E-Mail + Massenversand an alle aktiven Abonnenten
+- **FAQ-CRUD**: FAQ-Einträge erstellen, bearbeiten, löschen (wirkt sich auf öffentliche FAQ-Seite aus)
+- **Ankündigungen**: Live-Banner auf der Plattform aktivieren/deaktivieren
+- **Push-Broadcast**: Push-Benachrichtigung an alle / Kunden / Studios senden
+- **Support-Tickets**: Support-Chats aus AI-Chatbot einsehbar
+- **Einnahmen**: MRR-Berechnung, monatliche Aufschlüsselung (Balkendiagramm)
+- Testing: 18/18 Backend-Tests ✅, alle 12 Sidebar-Sektionen UI ✅ (Iteration 19)
+
 ### April 2026 (Iteration 21 – Terminbestätigung per E-Mail)
 - **Resend Key aktualisiert** auf `re_N9kHgmns...` für Terminbestätigungen
 - **Premium E-Mail-Templates** für Buchungsbestätigung (Kunde), Statusänderung (bestätigt/abgesagt), neues Template für Studio-Owner
@@ -204,15 +217,15 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - Alle P0 Features implementiert und getestet ✅
 
 ### P1 (High Priority)
-- Stripe Connect für Studio-Auszahlungen / Revenue-Tracking
+- Google Maps Integration für Studio-Profile (Karte + Routenplanung)
+- iCal (.ics) Anhang in Buchungsbestätigungs-E-Mails (Kalender-Eintrag automatisch)
 
 ### P2 (Nice to Have)
-- Rating/Review system for studios
-- Social sharing / QR codes for studios
-- Dark mode toggle
-- Advanced analytics per studio (heatmap, conversion rates)
-- Google Maps integration for studio location
-- Mobile app (React Native or PWA-enhanced)
+- Social Sharing / QR-Code für Studio-Profile
+- Dark Mode Toggle
+- Advanced Analytics pro Studio (Heatmaps, Conversion Rates)
+- Sora 2 Video-Generation für Studio-Previews
+- Mobile App (React Native oder PWA-enhanced)
 
 ## Testing Status
 - Iteration 1-4 all passed (100% backend + frontend)
