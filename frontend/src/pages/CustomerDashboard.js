@@ -7,6 +7,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star, HelpCircle, Video } from "lucide-react";
 import VideoCallModal from "../components/VideoCallModal";
+import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -477,13 +478,19 @@ export default function CustomerDashboard() {
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
                         {/* Video beitreten – nur für video_consultation, confirmed, nicht vergangen */}
                         {booking.booking_type === "video_consultation" && booking.status === "confirmed" && !isPast && (
-                          <button
-                            onClick={() => setVideoCallBooking(booking)}
-                            className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
-                            data-testid={`video-join-btn-${booking.booking_id}`}
-                          >
-                            <Video size={11} strokeWidth={1.5} /> Video beitreten
-                          </button>
+                          <div className="flex flex-col items-end gap-1.5">
+                            <button
+                              onClick={() => setVideoCallBooking(booking)}
+                              className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
+                              data-testid={`video-join-btn-${booking.booking_id}`}
+                            >
+                              <Video size={11} strokeWidth={1.5} /> Video beitreten
+                            </button>
+                            <VideoCountdownTimer
+                              booking={booking}
+                              onAutoCancel={fetchStats}
+                            />
+                          </div>
                         )}
 
                         {booking.status === "pending" && booking.payment_status !== "paid" && (

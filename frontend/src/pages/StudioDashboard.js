@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown, HelpCircle, Video } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
 import VideoCallModal from "../components/VideoCallModal";
+import VideoCountdownTimer from "../components/VideoCountdownTimer";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -360,10 +361,20 @@ export default function StudioDashboard() {
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
-                        {b.status === "pending" && (
-                          <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
+                          {b.status === "pending" && (
+                            <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
+                          )}
+                          {b.booking_type === "video_consultation" && b.status === "confirmed" && (
+                            <button onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors" data-testid={`video-join-btn-overview-${b.booking_id}`}>
+                              <Video size={11} strokeWidth={2} /> Beitreten
+                            </button>
+                          )}
+                        </div>
+                        {b.booking_type === "video_consultation" && b.status === "confirmed" && (
+                          <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
                         )}
                       </div>
                     </div>
@@ -515,22 +526,19 @@ export default function StudioDashboard() {
                           {b.status === "pending" && !isPast && (
                             <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</button>
                           )}
-                          {/* Video beitreten - only for video_consultation bookings at the right time */}
-                          {b.booking_type === "video_consultation" && b.status === "confirmed" && (() => {
-                            const now = new Date();
-                            const bookingDT = new Date(`${b.date}T${b.start_time}`);
-                            const diffMin = (bookingDT - now) / 60000;
-                            return diffMin <= 15 && diffMin >= -120;
-                          })() && (
-                            <button
-                              onClick={() => setVideoCallBooking(b)}
-                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
-                              data-testid={`video-join-btn-${b.booking_id}`}
-                            >
-                              <Video size={12} strokeWidth={2} /> Beitreten
-                            </button>
+                          {/* Video beitreten + Timer */}
+                          {b.booking_type === "video_consultation" && b.status === "confirmed" && !isPast && (
+                            <div className="flex flex-col items-end gap-1">
+                              <button
+                                onClick={() => setVideoCallBooking(b)}
+                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
+                                data-testid={`video-join-btn-${b.booking_id}`}
+                              >
+                                <Video size={12} strokeWidth={2} /> Beitreten
+                              </button>
+                              <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
+                            </div>
                           )}
-                          {/* Stornieren: nur aktive, ausgegraut wenn vergangen */}
                           {["pending", "confirmed"].includes(b.status) && (
                             <button
                               disabled={isPast}
