@@ -5,7 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star, HelpCircle } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star, HelpCircle, Video } from "lucide-react";
+import VideoCallModal from "../components/VideoCallModal";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -149,6 +150,7 @@ export default function CustomerDashboard() {
   });
   const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
   const [notYetPopup, setNotYetPopup] = useState(false);
+  const [videoCallBooking, setVideoCallBooking] = useState(null);
   const [tick, setTick] = useState(0); // forces re-render every minute for live time checks
 
   useEffect(() => {
@@ -452,8 +454,16 @@ export default function CustomerDashboard() {
                         </p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-xs text-zinc-400 font-inter flex items-center gap-1">
-                            {booking.booking_type === "consultation" ? <MessageSquare size={11} strokeWidth={1.5} /> : <Scissors size={11} strokeWidth={1.5} />}
-                            {booking.booking_type === "consultation" ? "Beratung" : "Tattoo-Session"}
+                            {booking.booking_type === "video_consultation"
+                              ? <Video size={11} strokeWidth={1.5} />
+                              : booking.booking_type === "consultation"
+                              ? <MessageSquare size={11} strokeWidth={1.5} />
+                              : <Scissors size={11} strokeWidth={1.5} />}
+                            {booking.booking_type === "video_consultation"
+                              ? "Videoberatung"
+                              : booking.booking_type === "consultation"
+                              ? "Beratung"
+                              : "Tattoo-Session"}
                           </span>
                           {booking.payment_status === "paid" && (
                             <span className="text-xs text-emerald-600 font-inter font-semibold flex items-center gap-1">
@@ -465,6 +475,17 @@ export default function CustomerDashboard() {
 
                       {/* Actions */}
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        {/* Video beitreten – nur für video_consultation, confirmed, nicht vergangen */}
+                        {booking.booking_type === "video_consultation" && booking.status === "confirmed" && !isPast && (
+                          <button
+                            onClick={() => setVideoCallBooking(booking)}
+                            className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
+                            data-testid={`video-join-btn-${booking.booking_id}`}
+                          >
+                            <Video size={11} strokeWidth={1.5} /> Video beitreten
+                          </button>
+                        )}
+
                         {booking.status === "pending" && booking.payment_status !== "paid" && (
                           <button onClick={() => handlePayDeposit(booking)}
                             className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
@@ -630,6 +651,15 @@ export default function CustomerDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Video Call Modal */}
+      {videoCallBooking && (
+        <VideoCallModal
+          booking={videoCallBooking}
+          userRole="customer"
+          onClose={() => setVideoCallBooking(null)}
+        />
+      )}
 
       <Footer />
     </div>

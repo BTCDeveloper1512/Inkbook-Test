@@ -6,7 +6,7 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn, Images } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn, Images, Video } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 
@@ -568,10 +568,11 @@ export default function StudioPage() {
               <>
               <div className="mb-5">
                 <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.selectType")}</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid gap-2 ${studio?.video_consultation_enabled ? "grid-cols-3" : "grid-cols-2"}`}>
                   {[
                     { val: "consultation", icon: <MessageSquare size={13} strokeWidth={1.5} />, label: t("booking.consultation") },
-                    { val: "tattoo", icon: <Scissors size={13} strokeWidth={1.5} />, label: t("booking.tattoo") }
+                    { val: "tattoo", icon: <Scissors size={13} strokeWidth={1.5} />, label: t("booking.tattoo") },
+                    ...(studio?.video_consultation_enabled ? [{ val: "video_consultation", icon: <Video size={13} strokeWidth={1.5} />, label: "Videoberatung" }] : [])
                   ].map(opt => (
                     <button
                       key={opt.val}
