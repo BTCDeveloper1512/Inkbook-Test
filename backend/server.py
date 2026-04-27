@@ -68,7 +68,7 @@ def _detail_row(label: str, value: str, highlight: bool = False) -> str:
     </tr>"""
 
 def booking_confirmation_html(booking: dict, lang: str = "de") -> str:
-    type_label = "Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session"
+    type_label = "Videoberatungsgespräch" if booking.get("booking_type") == "video_consultation" else ("Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session")
     artist_row = _detail_row("Artist", booking["artist_name"]) if booking.get("artist_name") else ""
     notes_row = _detail_row("Notiz", booking["notes"]) if booking.get("notes") else ""
     deposit = booking.get("deposit_amount", 0)
@@ -110,7 +110,7 @@ def booking_confirmation_html(booking: dict, lang: str = "de") -> str:
 
 def booking_confirmation_studio_html(booking: dict) -> str:
     """Email to studio owner when a new booking arrives."""
-    type_label = "Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session"
+    type_label = "Videoberatungsgespräch" if booking.get("booking_type") == "video_consultation" else ("Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session")
     return f"""
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
       {_email_header()}
@@ -301,19 +301,20 @@ class StudioUpdate(BaseModel):
     deposit_amount: Optional[float] = None
     banner_image: Optional[str] = None
     logo_image: Optional[str] = None
+    video_consultation_enabled: Optional[bool] = None
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
     start_time: str  # HH:MM
     end_time: str  # HH:MM
-    slot_type: str = "tattoo"  # consultation | tattoo | full_day
+    slot_type: str = "tattoo"  # consultation | tattoo | video_consultation | full_day
     duration_minutes: int = 60
     notes: str = ""
 
 class BookingCreate(BaseModel):
     studio_id: str
     slot_id: str
-    booking_type: str = "tattoo"  # consultation | tattoo
+    booking_type: str = "tattoo"  # consultation | tattoo | video_consultation
     notes: str = ""
     reference_images: List[str] = []
 
@@ -2357,6 +2358,42 @@ async def admin_reply_direct_chat(chat_id: str, data: TicketReply, current_user:
         {"$push": {"messages": msg}, "$set": {"updated_at": now, "status": "in_progress"}}
     )
     return {"replied": True, "msg": msg}
+
+
+# ─── Video Call ────────────────────────────────────────────────────────────────
+
+@api_router.post("/bookings/{booking_id}/video-join")
+async def video_join(booking_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role", "customer")
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    if booking.get("booking_type") != "video_consultation":
+        raise HTTPException(status_code=400, detail="Keine Video-Buchung")
+    participant = "studio" if role == "studio_owner" else "customer"
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$addToSet": {"video_participants": participant}}
+    )
+    return {"joined": True, "participant": participant, "room_id": f"inkbook-{booking_id}"}
+
+@api_router.get("/bookings/{booking_id}/video-status")
+async def video_status(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0, "video_participants": 1, "booking_type": 1})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    return {"participants": booking.get("video_participants", []), "booking_type": booking.get("booking_type")}
+
+@api_router.post("/bookings/{booking_id}/video-leave")
+async def video_leave(booking_id: str, current_user: dict = Depends(get_current_user)):
+    role = current_user.get("role", "customer")
+    participant = "studio" if role == "studio_owner" else "customer"
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$pull": {"video_participants": participant}}
+    )
+    return {"left": True}
 
 @app.on_event("startup")
 async def startup_event():

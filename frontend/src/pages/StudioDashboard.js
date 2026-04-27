@@ -5,8 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown, HelpCircle } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown, HelpCircle, Video } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
+import VideoCallModal from "../components/VideoCallModal";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -33,6 +34,8 @@ export default function StudioDashboard() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [subscription, setSubscription] = useState(null);
+  const isPro = subscription?.plan === "pro" && subscription?.status === "active";
+  const [videoCallBooking, setVideoCallBooking] = useState(null);
   const [studioBookingsTab, setStudioBookingsTab] = useState("active");
   const [tick, setTick] = useState(0);
 
@@ -482,7 +485,7 @@ export default function StudioDashboard() {
                         <div>
                           <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
                           <p className="text-sm text-zinc-500 font-inter">{b.user_email}</p>
-                          <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                          <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                           {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
                           {b.reference_images?.length > 0 && (
                             <div className="flex gap-2 mt-2">
@@ -504,6 +507,21 @@ export default function StudioDashboard() {
                           )}
                           {b.status === "pending" && !isPast && (
                             <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</button>
+                          )}
+                          {/* Video beitreten - only for video_consultation bookings at the right time */}
+                          {b.booking_type === "video_consultation" && b.status === "confirmed" && (() => {
+                            const now = new Date();
+                            const bookingDT = new Date(`${b.date}T${b.start_time}`);
+                            const diffMin = (bookingDT - now) / 60000;
+                            return diffMin <= 15 && diffMin >= -120;
+                          })() && (
+                            <button
+                              onClick={() => setVideoCallBooking(b)}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
+                              data-testid={`video-join-btn-${b.booking_id}`}
+                            >
+                              <Video size={12} strokeWidth={2} /> Beitreten
+                            </button>
                           )}
                           {/* Stornieren: nur aktive, ausgegraut wenn vergangen */}
                           {["pending", "confirmed"].includes(b.status) && (
@@ -595,19 +613,33 @@ export default function StudioDashboard() {
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Anzahlung</h3>
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Anzahlung</h3>
+                {isPro ? (
+                  <span className="text-[10px] bg-zinc-900 text-white px-2 py-0.5 rounded-full font-inter font-semibold">Pro</span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-inter font-semibold">Pro erforderlich</span>
+                )}
+              </div>
+              <div className={`flex items-center gap-4 mb-4 ${!isPro ? "opacity-40 pointer-events-none select-none" : ""}`}>
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <div
-                    onClick={() => setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
+                    onClick={() => isPro && setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isPro ? "cursor-pointer" : "cursor-not-allowed"} ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
+                    data-testid="deposit-toggle"
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.deposit_required ? "translate-x-5" : "translate-x-0"}`} />
                   </div>
                   <span className="text-sm font-inter text-zinc-700">Anzahlung bei Buchung erforderlich</span>
                 </label>
               </div>
-              {editForm?.deposit_required && (
+              {!isPro && (
+                <p className="text-xs text-amber-600 font-inter bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                  Upgrade auf Pro um die Anzahlungsfunktion zu aktivieren.
+                  <a href="/subscription" className="font-semibold underline ml-1">Jetzt upgraden →</a>
+                </p>
+              )}
+              {isPro && editForm?.deposit_required && (
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
                   <input
@@ -620,6 +652,40 @@ export default function StudioDashboard() {
                   />
                   <p className="text-xs text-zinc-400 font-inter mt-1.5">Kunden zahlen diesen Betrag vor der Terminbestätigung.</p>
                 </div>
+              )}
+            </div>
+
+            {/* Video Consultation Toggle - Pro Feature */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Videoberatung</h3>
+                {isPro ? (
+                  <span className="text-[10px] bg-zinc-900 text-white px-2 py-0.5 rounded-full font-inter font-semibold">Pro</span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-inter font-semibold">Pro erforderlich</span>
+                )}
+              </div>
+              <div className={`flex items-center gap-4 mb-3 ${!isPro ? "opacity-40 pointer-events-none select-none" : ""}`}>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <div
+                    onClick={() => isPro && setEditForm(prev => ({ ...prev, video_consultation_enabled: !prev.video_consultation_enabled }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isPro ? "cursor-pointer" : "cursor-not-allowed"} ${editForm?.video_consultation_enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
+                    data-testid="video-consultation-toggle"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.video_consultation_enabled ? "translate-x-5" : "translate-x-0"}`} />
+                  </div>
+                  <span className="text-sm font-inter text-zinc-700">Videoberatungsgespräche anbieten</span>
+                </label>
+              </div>
+              {!isPro ? (
+                <p className="text-xs text-amber-600 font-inter bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                  Upgrade auf Pro um Videoberatungen anzubieten.
+                  <a href="/subscription" className="font-semibold underline ml-1">Jetzt upgraden →</a>
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400 font-inter">
+                  Wenn aktiviert, können Kunden bei der Buchung "Videoberatungsgespräch" auswählen. Zum Termin erscheint ein "Beitreten"-Button.
+                </p>
               )}
             </div>
 
@@ -712,6 +778,13 @@ export default function StudioDashboard() {
         </div>
       </div>
       <Footer />
+      {videoCallBooking && (
+        <VideoCallModal
+          booking={videoCallBooking}
+          userRole="studio_owner"
+          onClose={() => setVideoCallBooking(null)}
+        />
+      )}
     </div>
   );
 }
