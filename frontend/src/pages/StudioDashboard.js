@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import AnnouncementBell from "../components/AnnouncementBell";
 import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
 
@@ -283,7 +284,8 @@ export default function StudioDashboard() {
               </span>
             )}
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex gap-2 flex-wrap justify-end items-center">
+            <AnnouncementBell />
             <Link to="/subscription" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2" data-testid="subscription-btn">
               <Crown size={13} strokeWidth={1.5} /> Abo
             </Link>

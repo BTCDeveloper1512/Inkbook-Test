@@ -9,6 +9,7 @@ from bson import ObjectId
 from pydantic import BaseModel, Field, EmailStr, BeforeValidator
 from typing import Optional, List, Annotated, Dict, Any
 import os
+import random
 import logging
 import uuid
 import bcrypt
@@ -867,7 +868,14 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
 
     enriched = []
     for conv in convs:
-        other_id = next((p for p in conv.get("participants", []) if p != user_id), None)
+        participants = conv.get("participants", [])
+        other_id = next((p for p in participants if p != user_id), None)
+        # Handle InkBook broadcast conversations
+        if other_id == "inkbook_system" or conv.get("is_broadcast_conv"):
+            enriched.append({**conv, "other_name": "InkBook News", "other_role": "system",
+                              "other_user_id": "inkbook_system", "last_sender_name": "InkBook",
+                              "is_broadcast_conv": True})
+            continue
         other_name = "Unbekannt"
         other_role = "customer"
         if other_id:
@@ -892,6 +900,13 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
 @api_router.get("/messages/{other_user_id}")
 async def get_messages(other_user_id: str, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
+    # Handle InkBook broadcast messages
+    if other_user_id == "inkbook_system":
+        messages = await db.messages.find(
+            {"sender_id": "inkbook_system", "recipient_id": user_id},
+            {"_id": 0}
+        ).sort("created_at", 1).to_list(500)
+        return messages
     messages = await db.messages.find(
         {"$or": [
             {"sender_id": user_id, "recipient_id": other_user_id},
@@ -1868,16 +1883,21 @@ class FAQItemCreate(BaseModel):
     question: str
     answer: str
     order: int = 0
+    target_role: str = "all"  # "all" | "customer" | "studio_owner"
 
 @api_router.get("/faq/public")
-async def get_faq_public():
-    items = await db.faqs.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+async def get_faq_public(role: Optional[str] = None):
+    query: dict = {}
+    if role and role in ("customer", "studio_owner"):
+        query = {"target_role": {"$in": [role, "all"]}}
+    items = await db.faqs.find(query, {"_id": 0}).sort("order", 1).to_list(200)
     return items
 
 @api_router.post("/admin/faq")
 async def create_faq_item(data: FAQItemCreate, current_user: dict = Depends(require_admin)):
     doc = {"faq_id": f"faq_{uuid.uuid4().hex[:10]}", "category": data.category, "question": data.question,
-           "answer": data.answer, "order": data.order, "created_at": datetime.now(timezone.utc).isoformat()}
+           "answer": data.answer, "order": data.order, "target_role": data.target_role,
+           "created_at": datetime.now(timezone.utc).isoformat()}
     await db.faqs.insert_one(doc)
     doc.pop("_id", None)
     return doc
@@ -2024,12 +2044,43 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
         query = {"role": "customer"}
     elif data.target == "studio_owners":
         query = {"role": "studio_owner"}
-    users = await db.users.find(query, {"_id": 0, "user_id": 1}).to_list(10000)
+    users = await db.users.find(query, {"_id": 1, "user_id": 1}).to_list(10000)
     sent = 0
+    now = datetime.now(timezone.utc).isoformat()
+    # Create broadcast message entries in messages collection
     for u in users:
-        uid = u.get("user_id")
+        uid = u.get("user_id") or (str(u["_id"]) if u.get("_id") else None)
         if uid:
-            asyncio.create_task(send_push_notification(user_id=uid, title=data.title, body=data.message, url="/"))
+            # Push notification
+            asyncio.create_task(send_push_notification(user_id=uid, title=data.title, body=data.message, url="/messages"))
+            # Create message in messages collection (read-only system message)
+            msg_doc = {
+                "message_id": f"msg_{uuid.uuid4().hex[:12]}",
+                "sender_id": "inkbook_system",
+                "sender_name": "InkBook",
+                "recipient_id": uid,
+                "content": f"**{data.title}**\n\n{data.message}",
+                "image_url": "",
+                "slot_offer": None,
+                "is_broadcast": True,
+                "created_at": now,
+                "read": False
+            }
+            await db.messages.insert_one(msg_doc)
+            # Update conversation entry
+            conv_id = f"conv_inkbook_{uid}"
+            await db.conversations.update_one(
+                {"conv_id": conv_id},
+                {"$set": {
+                    "conv_id": conv_id,
+                    "participants": ["inkbook_system", uid],
+                    "is_broadcast_conv": True,
+                    "last_message": data.title,
+                    "last_message_at": now,
+                    "last_sender_id": "inkbook_system"
+                }},
+                upsert=True
+            )
             sent += 1
     return {"sent": sent}
 
@@ -2115,6 +2166,156 @@ async def admin_stats_enhanced(current_user: dict = Depends(require_admin)):
             "open_reports": open_reports, "top_studios": top_studios}
 
 
+
+
+
+# ─── Support Tickets ──────────────────────────────────────────────────────────
+
+class TicketCreate(BaseModel):
+    subject: str
+    description: str
+
+class TicketReply(BaseModel):
+    message: str
+
+@api_router.post("/support/tickets")
+async def create_support_ticket(data: TicketCreate, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    ticket_number = f"IB-{random.randint(1000, 9999)}"
+    # Ensure uniqueness
+    while await db.support_tickets.find_one({"ticket_number": ticket_number}):
+        ticket_number = f"IB-{random.randint(1000, 9999)}"
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "ticket_id": f"tkt_{uuid.uuid4().hex[:10]}",
+        "ticket_number": ticket_number,
+        "user_id": user_id,
+        "user_email": current_user.get("email", ""),
+        "user_name": current_user.get("name", ""),
+        "subject": data.subject,
+        "description": data.description,
+        "status": "open",
+        "replies": [],
+        "created_at": now,
+        "updated_at": now
+    }
+    await db.support_tickets.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.get("/support/my-tickets")
+async def get_my_tickets(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    tickets = await db.support_tickets.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return tickets
+
+@api_router.get("/support/tickets/{ticket_id}")
+async def get_ticket(ticket_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role", "")
+    ticket = await db.support_tickets.find_one({"ticket_id": ticket_id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
+    if ticket["user_id"] != user_id and role != "admin":
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+    return ticket
+
+@api_router.post("/admin/support-tickets/{ticket_id}/reply")
+async def admin_reply_ticket(ticket_id: str, data: TicketReply, current_user: dict = Depends(require_admin)):
+    ticket = await db.support_tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
+    now = datetime.now(timezone.utc).isoformat()
+    reply_doc = {"reply_id": f"rep_{uuid.uuid4().hex[:8]}", "message": data.message,
+                 "from": "admin", "created_at": now}
+    await db.support_tickets.update_one(
+        {"ticket_id": ticket_id},
+        {"$push": {"replies": reply_doc}, "$set": {"status": "answered", "updated_at": now}}
+    )
+    # Send email to user
+    user_email = ticket.get("user_email", "")
+    ticket_num = ticket.get("ticket_number", ticket_id)
+    subject_str = ticket.get("subject", "Dein Support-Ticket")
+    if user_email:
+        html = f"""<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
+          {_email_header()}<div style="padding:32px;">
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Ticket {ticket_num}</p>
+          <h2 style="font-size:18px;font-weight:700;margin:0 0 16px;color:#111;">Antwort auf dein Support-Ticket</h2>
+          <p style="font-size:14px;color:#555;margin-bottom:8px;"><strong>Deine Anfrage:</strong> {subject_str}</p>
+          <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:16px 0;">
+            <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">{data.message.replace(chr(10),'<br>')}</p>
+          </div>
+          <p style="font-size:13px;color:#888;">Falls du weitere Fragen hast, antworte auf diese E-Mail oder erstelle ein neues Ticket über den Support-Chat auf InkBook.</p>
+          </div>{_email_footer("Du erhältst diese E-Mail als Antwort auf dein Support-Ticket.")}</div>"""
+        asyncio.create_task(send_email(user_email, f"[{ticket_num}] Antwort: {subject_str}", html))
+    return {"replied": True, "ticket_number": ticket_num}
+
+@api_router.get("/admin/support-tickets-new")
+async def admin_get_support_tickets(current_user: dict = Depends(require_admin)):
+    tickets = await db.support_tickets.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return tickets
+
+# ─── Direct Support Chat (Pro) ────────────────────────────────────────────────
+
+@api_router.get("/support/direct")
+async def get_direct_chat(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    # Check Pro subscription for studio_owners
+    if current_user.get("role") == "studio_owner":
+        studio = await db.studios.find_one({"owner_id": user_id})
+        if studio:
+            sub = await db.subscriptions.find_one({"studio_id": studio["studio_id"]})
+            if not sub or sub.get("plan") != "pro" or sub.get("status") != "active":
+                raise HTTPException(status_code=403, detail="Pro-Abonnement erforderlich")
+        else:
+            raise HTTPException(status_code=403, detail="Pro-Abonnement erforderlich")
+    chat = await db.direct_support_chats.find_one({"user_id": user_id}, {"_id": 0})
+    if not chat:
+        now = datetime.now(timezone.utc).isoformat()
+        chat = {"chat_id": f"dsc_{uuid.uuid4().hex[:10]}", "user_id": user_id,
+                "user_email": current_user.get("email", ""), "user_name": current_user.get("name", ""),
+                "messages": [], "status": "open", "created_at": now, "updated_at": now}
+        await db.direct_support_chats.insert_one(chat)
+        chat.pop("_id", None)
+    return chat
+
+@api_router.post("/support/direct/messages")
+async def send_direct_message(request: Request, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    body = await request.json()
+    content = body.get("content", "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Nachricht darf nicht leer sein")
+    now = datetime.now(timezone.utc).isoformat()
+    msg = {"msg_id": f"dm_{uuid.uuid4().hex[:8]}", "content": content, "from": "user",
+           "from_name": current_user.get("name", ""), "created_at": now}
+    result = await db.direct_support_chats.update_one(
+        {"user_id": user_id},
+        {"$push": {"messages": msg}, "$set": {"updated_at": now, "status": "open"}},
+        upsert=False
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Chat nicht gefunden. Zuerst /support/direct aufrufen.")
+    return {"sent": True, "msg": msg}
+
+@api_router.get("/admin/direct-chats")
+async def admin_get_direct_chats(current_user: dict = Depends(require_admin)):
+    chats = await db.direct_support_chats.find({}, {"_id": 0}).sort("updated_at", -1).to_list(200)
+    return chats
+
+@api_router.post("/admin/direct-chats/{chat_id}/reply")
+async def admin_reply_direct_chat(chat_id: str, data: TicketReply, current_user: dict = Depends(require_admin)):
+    chat = await db.direct_support_chats.find_one({"chat_id": chat_id})
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat nicht gefunden")
+    now = datetime.now(timezone.utc).isoformat()
+    msg = {"msg_id": f"dm_{uuid.uuid4().hex[:8]}", "content": data.message, "from": "admin",
+           "from_name": "InkBook Support", "created_at": now}
+    await db.direct_support_chats.update_one(
+        {"chat_id": chat_id},
+        {"$push": {"messages": msg}, "$set": {"updated_at": now, "status": "in_progress"}}
+    )
+    return {"replied": True, "msg": msg}
 
 @app.on_event("startup")
 async def startup_event():

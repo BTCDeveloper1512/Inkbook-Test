@@ -368,21 +368,31 @@ export default function MessagesPage() {
               ) : conversations.map(conv => {
                 const isActive = activeConv?.other_id === conv.other_user_id;
                 const name = conv.other_name || "Nutzer";
+                const isBroadcast = conv.is_broadcast_conv || conv.other_user_id === "inkbook_system";
                 return (
                   <button key={conv.conv_id} onClick={() => openConvFromData(conv)}
                     className={`w-full text-left px-4 py-3.5 border-b border-zinc-50 transition-all duration-150 ${isActive ? "bg-zinc-100" : "hover:bg-zinc-50"}`}
                     data-testid={`conv-${conv.conv_id}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 ${avatarBg(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
-                        {initials(name)}
-                      </div>
+                      {isBroadcast ? (
+                        <div className="w-10 h-10 bg-zinc-900 text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0">
+                          IB
+                        </div>
+                      ) : (
+                        <div className={`w-10 h-10 ${avatarBg(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
+                          {initials(name)}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{name}</p>
+                            {isBroadcast && <span className="text-[9px] bg-zinc-900 text-white px-1 py-0.5 rounded font-inter">NEWS</span>}
+                          </div>
                           <span className="text-xs text-zinc-400 font-inter flex-shrink-0 ml-2">{fmtConv(conv.last_message_at)}</span>
                         </div>
-                        <p className="text-xs text-zinc-400 font-inter truncate">{conv.last_message || "Starte eine Unterhaltung"}</p>
+                        <p className="text-xs text-zinc-400 font-inter truncate">{conv.last_message || "Keine Nachrichten"}</p>
                       </div>
                     </div>
                   </button>
@@ -414,39 +424,49 @@ export default function MessagesPage() {
                   <button onClick={() => setActiveConv(null)} className="md:hidden p-1.5 rounded-xl hover:bg-zinc-100 transition-colors text-zinc-500">
                     <ArrowLeft size={16} strokeWidth={1.5} />
                   </button>
-                  <div className={`w-9 h-9 ${avatarBg(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
-                    {initials(activeConv.other_name)}
-                  </div>
+                  {activeConv.other_id === "inkbook_system" ? (
+                    <div className="w-9 h-9 bg-zinc-900 text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0">IB</div>
+                  ) : (
+                    <div className={`w-9 h-9 ${avatarBg(activeConv.other_name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
+                      {initials(activeConv.other_name)}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="font-inter font-semibold text-zinc-900 text-sm leading-tight truncate">{activeConv.other_name}</p>
-                    <AnimatePresence mode="wait">
-                      {otherIsTyping ? (
-                        <motion.p key="t" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="text-xs text-emerald-500 font-inter leading-tight font-medium" data-testid="typing-status-header">
-                          tippt...
-                        </motion.p>
-                      ) : isEndedByOther ? (
-                        <motion.p key="e" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="text-xs text-red-400 font-inter leading-tight">
-                          Unterhaltung beendet
-                        </motion.p>
-                      ) : (
-                        <motion.p key="r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="text-xs text-zinc-400 font-inter leading-tight">
-                          {activeConv.other_role === "studio_owner" ? "Tattoo Studio" : "Kunde"}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
+                    {activeConv.other_id === "inkbook_system" ? (
+                      <p className="text-xs text-zinc-400 font-inter leading-tight">Offizielle Plattform-Nachrichten</p>
+                    ) : (
+                      <AnimatePresence mode="wait">
+                        {otherIsTyping ? (
+                          <motion.p key="t" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="text-xs text-emerald-500 font-inter leading-tight font-medium" data-testid="typing-status-header">
+                            tippt...
+                          </motion.p>
+                        ) : isEndedByOther ? (
+                          <motion.p key="e" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="text-xs text-red-400 font-inter leading-tight">
+                            Unterhaltung beendet
+                          </motion.p>
+                        ) : (
+                          <motion.p key="r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="text-xs text-zinc-400 font-inter leading-tight">
+                            {activeConv.other_role === "studio_owner" ? "Tattoo Studio" : "Kunde"}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    )}
                   </div>
-                  {/* Delete conversation button */}
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
-                    data-testid="delete-conv-btn"
-                    title="Gespräch löschen"
-                  >
-                    <Trash2 size={16} strokeWidth={1.5} />
-                  </button>
+                  {/* Delete conversation button – hidden for broadcasts */}
+                  {activeConv.other_id !== "inkbook_system" && (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
+                      data-testid="delete-conv-btn"
+                      title="Gespräch löschen"
+                    >
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Messages */}
@@ -469,6 +489,23 @@ export default function MessagesPage() {
                               <span className="text-xs text-zinc-400 font-inter bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-200 max-w-xs text-center italic">
                                 {msg.content}
                               </span>
+                            </div>
+                          );
+                        }
+
+                        // ── Broadcast messages (InkBook system) ───────────────
+                        if (msg.is_broadcast || msg.sender_id === "inkbook_system") {
+                          const lines = (msg.content || "").split("\n");
+                          const title = lines[0]?.replace(/\*\*/g, "") || "";
+                          const body = lines.slice(2).join("\n");
+                          return (
+                            <div key={msg.message_id} className="flex justify-center my-2" data-testid={`broadcast-msg-${msg.message_id}`}>
+                              <div className="bg-zinc-900 text-white rounded-2xl px-4 py-3 max-w-[85%] text-center">
+                                <p className="text-[9px] tracking-widest uppercase text-zinc-400 font-inter mb-1">InkBook News</p>
+                                {title && <p className="text-sm font-inter font-semibold leading-tight mb-1">{title}</p>}
+                                {body && <p className="text-xs text-zinc-300 font-inter leading-relaxed">{body}</p>}
+                                <p className="text-[9px] text-zinc-500 font-inter mt-1.5">{fmt(msg.created_at)}</p>
+                              </div>
                             </div>
                           );
                         }
@@ -766,8 +803,12 @@ export default function MessagesPage() {
                   )}
                 </AnimatePresence>
 
-                {/* Input Area – blocked if other party ended conversation */}
-                {isEndedByOther ? (
+                {/* Input Area – blocked if other party ended conversation or broadcast */}
+                {activeConv.other_id === "inkbook_system" ? (
+                  <div className="px-4 py-4 bg-zinc-50 border-t border-zinc-100 flex-shrink-0 text-center" data-testid="broadcast-readonly-banner">
+                    <p className="text-xs text-zinc-400 font-inter">Dies ist eine Systemnachricht von InkBook. Antworten sind nicht möglich.</p>
+                  </div>
+                ) : isEndedByOther ? (
                   <div className="px-4 py-5 bg-white border-t border-zinc-100 flex-shrink-0 text-center" data-testid="conv-ended-banner">
                     <p className="text-sm text-zinc-500 font-inter mb-1.5">Diese Unterhaltung wurde beendet. Du kannst keine neuen Nachrichten senden.</p>
                     <button

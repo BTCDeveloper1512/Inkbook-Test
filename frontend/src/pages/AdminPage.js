@@ -122,6 +122,12 @@ export default function AdminPage() {
   const [subscribers, setSubscribers] = useState([]);
   const [reports, setReports] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [newTickets, setNewTickets] = useState([]);
+  const [directChats, setDirectChats] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [supportTab, setSupportTab] = useState("tickets"); // "chats" | "tickets" | "direct"
 
   // UI states
   const [searchStudios, setSearchStudios] = useState("");
@@ -129,7 +135,7 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDetails, setUserDetails] = useState(null);
   const [faqModal, setFaqModal] = useState(null);
-  const [faqForm, setFaqForm] = useState({ category: "", question: "", answer: "", order: 0 });
+  const [faqForm, setFaqForm] = useState({ category: "", question: "", answer: "", order: 0, target_role: "all" });
   const [annForm, setAnnForm] = useState({ text: "", type: "info", link: "", link_label: "" });
   const [nlForm, setNlForm] = useState({ subject: "", content: "", preview_email: "" });
   const [nlResult, setNlResult] = useState(null);
@@ -180,6 +186,10 @@ export default function AdminPage() {
         setReports((await ax().get(`${API}/admin/reports`)).data);
       if (section === "support-tickets" && !tickets.length)
         setTickets((await ax().get(`${API}/admin/support-tickets`)).data);
+      if (section === "support-tickets")
+        setNewTickets((await ax().get(`${API}/admin/support-tickets-new`)).data);
+      if (section === "support-tickets")
+        setDirectChats((await ax().get(`${API}/admin/direct-chats`)).data);
     } catch {}
   }, [bookings.length, subscriptions.length, revenue, reviews.length, faqs.length,
       announcements.length, subscribers.length, reports.length, tickets.length]);
@@ -650,7 +660,7 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="flex justify-end">
                       <button onClick={() => { setFaqModal("new"); setFaqForm({ category: "", question: "", answer: "", order: 0 }); }}
-                        className="btn-primary flex items-center gap-2 text-sm" data-testid="admin-add-faq-btn">
+        className="btn-primary flex items-center gap-2 text-sm" data-testid="admin-add-faq-btn">
                         <Plus size={14} /> FAQ hinzufügen
                       </button>
                     </div>
@@ -660,12 +670,21 @@ export default function AdminPage() {
                           {faqs.map(f => (
                             <div key={f.faq_id} className="px-5 py-4 flex items-start justify-between hover:bg-zinc-50">
                               <div className="flex-1 pr-4">
-                                <p className="text-[10px] tracking-widest uppercase text-zinc-400 font-inter mb-1">{f.category}</p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-[10px] tracking-widest uppercase text-zinc-400 font-inter">{f.category}</p>
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${
+                                    f.target_role === "customer" ? "bg-blue-50 text-blue-600" :
+                                    f.target_role === "studio_owner" ? "bg-purple-50 text-purple-600" :
+                                    "bg-zinc-100 text-zinc-500"
+                                  }`}>
+                                    {f.target_role === "customer" ? "Kunden" : f.target_role === "studio_owner" ? "Studios" : "Alle"}
+                                  </span>
+                                </div>
                                 <p className="text-sm font-inter font-medium text-zinc-900">{f.question}</p>
                                 <p className="text-xs text-zinc-500 font-inter mt-1 line-clamp-2">{f.answer}</p>
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <button onClick={() => { setFaqModal(f.faq_id); setFaqForm({ category: f.category, question: f.question, answer: f.answer, order: f.order || 0 }); }}
+                                <button onClick={() => { setFaqModal(f.faq_id); setFaqForm({ category: f.category, question: f.question, answer: f.answer, order: f.order || 0, target_role: f.target_role || "all" }); }}
                                   className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 transition-colors"><Edit2 size={13} /></button>
                                 <button onClick={() => deleteFaq(f.faq_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
                               </div>
@@ -804,25 +823,161 @@ export default function AdminPage() {
 
                 {/* ══════════════════════════════════════════ SUPPORT TICKETS */}
                 {activeSection === "support-tickets" && (
-                  <SectionCard title={`Support-Chats (${tickets.length})`}>
-                    {tickets.length === 0 ? <EmptyState text="Keine Support-Chats" /> : (
-                      <div className="divide-y divide-zinc-50">
-                        {tickets.map((t, i) => {
-                          const lastMsg = t.messages?.[t.messages.length - 1];
-                          return (
-                            <div key={i} className="px-5 py-4 hover:bg-zinc-50">
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-xs text-zinc-400 font-inter font-mono">{t.session_id}</p>
-                                <p className="text-xs text-zinc-400 font-inter">{t.updated_at ? new Date(t.updated_at).toLocaleDateString("de-DE") : "—"}</p>
-                              </div>
-                              <p className="text-sm font-inter text-zinc-700">{lastMsg?.content?.slice(0, 120) || "—"}{lastMsg?.content?.length > 120 ? "…" : ""}</p>
-                              <p className="text-xs text-zinc-400 font-inter mt-1">{t.messages?.length || 0} Nachrichten</p>
+                  <div className="space-y-4">
+                    {/* Sub-tabs */}
+                    <div className="flex gap-1 bg-white rounded-xl border border-zinc-100 p-1 w-fit">
+                      {[
+                        { id: "tickets", label: `Tickets (${newTickets.length})` },
+                        { id: "direct", label: `Direkt-Chats (${directChats.length})` },
+                        { id: "chats", label: `KI-Chats (${tickets.length})` },
+                      ].map(t => (
+                        <button key={t.id} onClick={() => setSupportTab(t.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${supportTab === t.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-800"}`}
+                        >{t.label}</button>
+                      ))}
+                    </div>
+
+                    {/* Support Tickets */}
+                    {supportTab === "tickets" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SectionCard title="Support-Tickets" className="overflow-auto">
+                          {newTickets.length === 0 ? <EmptyState text="Keine Tickets" /> : (
+                            <div className="divide-y divide-zinc-50">
+                              {newTickets.map(t => (
+                                <button key={t.ticket_id} onClick={() => setSelectedTicket(t)}
+                                  className={`w-full text-left px-5 py-3.5 hover:bg-zinc-50 transition-colors ${selectedTicket?.ticket_id === t.ticket_id ? "bg-zinc-50" : ""}`}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] font-mono text-zinc-400 font-inter">{t.ticket_number}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${t.status === "open" ? "bg-amber-50 text-amber-600" : t.status === "answered" ? "bg-green-50 text-green-600" : "bg-zinc-100 text-zinc-500"}`}>
+                                      {t.status === "open" ? "Offen" : t.status === "answered" ? "Beantwortet" : t.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm font-inter font-medium text-zinc-900 truncate">{t.subject}</p>
+                                  <p className="text-xs text-zinc-400 font-inter">{t.user_name} · {t.created_at ? new Date(t.created_at).toLocaleDateString("de-DE") : ""}</p>
+                                </button>
+                              ))}
                             </div>
-                          );
-                        })}
+                          )}
+                        </SectionCard>
+                        {selectedTicket && (
+                          <SectionCard title={`${selectedTicket.ticket_number} – ${selectedTicket.subject}`}>
+                            <div className="p-4 space-y-4">
+                              <div className="bg-zinc-50 rounded-xl p-3">
+                                <p className="text-xs text-zinc-400 font-inter mb-1">Von: {selectedTicket.user_name} ({selectedTicket.user_email})</p>
+                                <p className="text-sm font-inter text-zinc-800 leading-relaxed">{selectedTicket.description}</p>
+                              </div>
+                              {selectedTicket.replies?.map((r, i) => (
+                                <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "bg-zinc-900 text-white" : "bg-zinc-50"}`}>
+                                  <p className="text-[10px] mb-1 opacity-60 font-inter">{r.from === "admin" ? "InkBook Support" : selectedTicket.user_name}</p>
+                                  <p className="text-sm font-inter leading-relaxed">{r.message}</p>
+                                </div>
+                              ))}
+                              <div className="pt-2">
+                                <Textarea label="Antwort" value={replyText} onChange={e => setReplyText(e.target.value)} rows={3} placeholder="Antwort eingeben…" />
+                                <button
+                                  onClick={async () => {
+                                    if (!replyText.trim()) return;
+                                    setReplyLoading(true);
+                                    try {
+                                      await ax().post(`${API}/admin/support-tickets/${selectedTicket.ticket_id}/reply`, { message: replyText });
+                                      const updated = { ...selectedTicket, status: "answered", replies: [...(selectedTicket.replies || []), { from: "admin", message: replyText, created_at: new Date().toISOString() }] };
+                                      setSelectedTicket(updated);
+                                      setNewTickets(p => p.map(t => t.ticket_id === updated.ticket_id ? updated : t));
+                                      setReplyText("");
+                                    } finally { setReplyLoading(false); }
+                                  }}
+                                  disabled={!replyText.trim() || replyLoading}
+                                  className="btn-primary text-sm w-full mt-3 disabled:opacity-40"
+                                >
+                                  {replyLoading ? "Senden…" : "Antworten & E-Mail senden"}
+                                </button>
+                              </div>
+                            </div>
+                          </SectionCard>
+                        )}
                       </div>
                     )}
-                  </SectionCard>
+
+                    {/* Direct Chats */}
+                    {supportTab === "direct" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SectionCard title="Direkt-Chats (Pro)">
+                          {directChats.length === 0 ? <EmptyState text="Keine Direkt-Chats" /> : (
+                            <div className="divide-y divide-zinc-50">
+                              {directChats.map(c => (
+                                <button key={c.chat_id} onClick={() => setSelectedTicket({ ...c, _type: "direct" })}
+                                  className={`w-full text-left px-5 py-3.5 hover:bg-zinc-50 transition-colors ${selectedTicket?.chat_id === c.chat_id ? "bg-zinc-50" : ""}`}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-inter font-medium text-zinc-900">{c.user_name}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${c.status === "open" ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"}`}>
+                                      {c.status === "open" ? "Offen" : "Aktiv"}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-zinc-400 font-inter">{c.user_email} · {c.messages?.length || 0} Nachrichten</p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </SectionCard>
+                        {selectedTicket?._type === "direct" && (
+                          <SectionCard title={`Chat mit ${selectedTicket.user_name}`}>
+                            <div className="p-4 space-y-3 max-h-64 overflow-y-auto">
+                              {selectedTicket.messages?.map((m, i) => (
+                                <div key={i} className={`rounded-xl p-3 ${m.from === "admin" ? "bg-zinc-900 text-white ml-8" : "bg-zinc-50 mr-8"}`}>
+                                  <p className="text-[10px] mb-1 opacity-60 font-inter">{m.from === "admin" ? "InkBook Support" : selectedTicket.user_name}</p>
+                                  <p className="text-sm font-inter leading-relaxed">{m.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="p-4 border-t border-zinc-100">
+                              <Textarea label="Antwort" value={replyText} onChange={e => setReplyText(e.target.value)} rows={2} placeholder="Nachricht eingeben…" />
+                              <button
+                                onClick={async () => {
+                                  if (!replyText.trim()) return;
+                                  setReplyLoading(true);
+                                  try {
+                                    const r = await ax().post(`${API}/admin/direct-chats/${selectedTicket.chat_id}/reply`, { message: replyText });
+                                    const newMsg = r.data.msg;
+                                    const updated = { ...selectedTicket, messages: [...(selectedTicket.messages || []), newMsg] };
+                                    setSelectedTicket(updated);
+                                    setDirectChats(p => p.map(c => c.chat_id === updated.chat_id ? updated : c));
+                                    setReplyText("");
+                                  } finally { setReplyLoading(false); }
+                                }}
+                                disabled={!replyText.trim() || replyLoading}
+                                className="btn-primary text-sm w-full mt-3 disabled:opacity-40"
+                              >
+                                {replyLoading ? "Senden…" : "Nachricht senden"}
+                              </button>
+                            </div>
+                          </SectionCard>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Legacy AI Chats */}
+                    {supportTab === "chats" && (
+                      <SectionCard title={`KI-Support-Chats (${tickets.length})`}>
+                        {tickets.length === 0 ? <EmptyState text="Keine Support-Chats" /> : (
+                          <div className="divide-y divide-zinc-50">
+                            {tickets.map((t, i) => {
+                              const lastMsg = t.messages?.[t.messages.length - 1];
+                              return (
+                                <div key={i} className="px-5 py-4 hover:bg-zinc-50">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <p className="text-xs text-zinc-400 font-inter font-mono">{t.session_id}</p>
+                                    <p className="text-xs text-zinc-400 font-inter">{t.updated_at ? new Date(t.updated_at).toLocaleDateString("de-DE") : "—"}</p>
+                                  </div>
+                                  <p className="text-sm font-inter text-zinc-700">{lastMsg?.content?.slice(0, 120) || "—"}{lastMsg?.content?.length > 120 ? "…" : ""}</p>
+                                  <p className="text-xs text-zinc-400 font-inter mt-1">{t.messages?.length || 0} Nachrichten</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </SectionCard>
+                    )}
+                  </div>
                 )}
 
                 {/* ══════════════════════════════════════════ REPORTS */}
@@ -865,6 +1020,15 @@ export default function AdminPage() {
       <Modal open={!!faqModal} onClose={() => setFaqModal(null)} title={faqModal === "new" ? "FAQ hinzufügen" : "FAQ bearbeiten"}>
         <div className="space-y-4">
           <Input label="Kategorie" value={faqForm.category} onChange={e => setFaqForm(p => ({ ...p, category: e.target.value }))} placeholder="Für Kunden" />
+          <div>
+            <label className="block text-xs font-inter font-medium text-zinc-600 mb-1.5">Zielgruppe</label>
+            <select value={faqForm.target_role} onChange={e => setFaqForm(p => ({ ...p, target_role: e.target.value }))}
+              className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-inter text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white">
+              <option value="all">Für alle sichtbar</option>
+              <option value="customer">Nur für Kunden</option>
+              <option value="studio_owner">Nur für Studios</option>
+            </select>
+          </div>
           <Input label="Frage" value={faqForm.question} onChange={e => setFaqForm(p => ({ ...p, question: e.target.value }))} placeholder="Wie buche ich einen Termin?" />
           <Textarea label="Antwort" value={faqForm.answer} onChange={e => setFaqForm(p => ({ ...p, answer: e.target.value }))} placeholder="Antwort…" rows={4} />
           <Input label="Reihenfolge" type="number" value={faqForm.order} onChange={e => setFaqForm(p => ({ ...p, order: parseInt(e.target.value) || 0 }))} />

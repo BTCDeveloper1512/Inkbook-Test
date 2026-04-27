@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import AnnouncementBell from "../components/AnnouncementBell";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
@@ -279,9 +280,12 @@ export default function CustomerDashboard() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Mein Konto</p>
-          <h1 className="text-3xl font-playfair font-semibold text-zinc-900">Hallo, {user?.name?.split(" ")[0]} 👋</h1>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between mb-8">
+          <div>
+            <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Mein Konto</p>
+            <h1 className="text-3xl font-playfair font-semibold text-zinc-900">Hallo, {user?.name?.split(" ")[0]} 👋</h1>
+          </div>
+          <AnnouncementBell />
         </motion.div>
 
         {/* Cancellation Alert Banner (Studio-seitig storniert) */}

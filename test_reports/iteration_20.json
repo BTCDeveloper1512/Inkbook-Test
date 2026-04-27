@@ -1,0 +1,42 @@
+{
+  "summary": "Tested 4 new features: FAQ role separation, AnnouncementBell, Broadcast InkBook News, Support Ticket System. Backend: 16/16 tests pass. Frontend: all critical flows verified via Playwright and screenshots.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/broadcast", "issue": "API expects fields 'title' + 'message' (not 'content'/'subject'). Documented for frontend consumers - AdminPage.js already uses correct fields."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Admin FAQ modal", "issue": "Dropdown options confirmed in code (Für alle sichtbar / Nur für Kunden / Nur für Studios) but unable to screenshot modal due to session expiry in multi-step admin tests. Code review confirms correct implementation.", "affected_selectors": ["select[value='target_role']"]}
+    ],
+    "design_issues": [
+      {"screen": "All pages", "issues": ["'Made with Emergent' badge at bottom-right intercepts clicks to support chat button (fixed via JS in tests, but affects real users who may struggle to open support chat if badge overlaps)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_new_features.xml"
+  ],
+  "action_items": [
+    "Minor: 'Made with Emergent' badge z-index overlaps support chat toggle button at bottom-right (support-chat-toggle). Consider moving support chat button slightly above or offsetting position."
+  ],
+  "critical_code_review_comments": [
+    "SupportChat.js Direct Chat (Pro-only): When non-pro customer accesses /api/support/direct, backend returns 403. Frontend shows 'Pro-Abo erforderlich' correctly.",
+    "Broadcast API field mismatch in documentation: BroadcastRequest model uses 'title'+'message' (not 'content'+'subject') - AdminPage already uses correct fields.",
+    "AnnouncementBell correctly shows red dot when active announcement exists and dismisses via localStorage."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16)",
+    "frontend": "95% - all critical flows passing, minor: admin detail panel click test limited by session"
+  },
+  "seed_data_creation": "Created test support tickets (IB-5168, IB-6840, IB-2978) and test announcement during testing. TEST_ prefixed data created for backend tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 4 new features tested at iteration 20. Key results: 1) FAQ /api/faq/public?role=X filters correctly. 2) AnnouncementBell renders on dashboards with red dot and panel. 3) Broadcast via admin creates InkBook News conversation (read-only, no reply input). 4) Support ticket creation works (IB-XXXX format), 3 options in SupportChat widget, Pro-only direct chat returns 403 for non-pro users. Admin support-tickets section shows 3 sub-tabs (Tickets/Direkt-Chats/KI-Chats) with ticket list.",
+  "test_credentials": "admin@inkbook.com/admin123, test_customer@inkbook.com/Test1234!, test_studio@inkbook.com/Test1234!"
+}
