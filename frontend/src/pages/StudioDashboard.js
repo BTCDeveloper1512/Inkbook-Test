@@ -351,7 +351,7 @@ export default function StudioDashboard() {
                     <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-emerald-50 rounded-xl border border-emerald-100">
                       <div>
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
@@ -376,7 +376,7 @@ export default function StudioDashboard() {
                     <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
                       <div>
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
@@ -424,7 +424,7 @@ export default function StudioDashboard() {
                   <div>
                     <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Art</label>
                     <select value={slotForm.slot_type} onChange={e => setSlotForm({...slotForm, slot_type: e.target.value})} className="input-base w-full" data-testid="slot-type-select">
-                      <option value="consultation">Beratung</option><option value="tattoo">Tattoo</option><option value="full_day">Ganzer Tag</option>
+                      <option value="consultation">Beratung</option><option value="tattoo">Tattoo</option><option value="video_consultation">Videoberatung</option><option value="full_day">Ganzer Tag</option>
                     </select>
                   </div>
                 </div>
@@ -443,7 +443,7 @@ export default function StudioDashboard() {
                     <div key={slot.slot_id} className="flex items-center justify-between p-4 hover:bg-zinc-50 transition-colors" data-testid={`slot-item-${slot.slot_id}`}>
                       <div>
                         <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</p>
-                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{slot.start_time} – {slot.end_time} · {slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
+                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{slot.start_time} – {slot.end_time} · {slot.slot_type === "video_consultation" ? "Videoberatung" : slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
                       </div>
                       <button onClick={() => handleDeleteSlot(slot.slot_id)} className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all" data-testid={`delete-slot-btn-${slot.slot_id}`}>
                         <Trash2 size={14} strokeWidth={1.5} />

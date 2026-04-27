@@ -568,21 +568,31 @@ export default function StudioPage() {
               <>
               <div className="mb-5">
                 <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.selectType")}</p>
-                <div className={`grid gap-2 ${studio?.video_consultation_enabled ? "grid-cols-3" : "grid-cols-2"}`}>
-                  {[
-                    { val: "consultation", icon: <MessageSquare size={13} strokeWidth={1.5} />, label: t("booking.consultation") },
-                    { val: "tattoo", icon: <Scissors size={13} strokeWidth={1.5} />, label: t("booking.tattoo") },
-                    ...(studio?.video_consultation_enabled ? [{ val: "video_consultation", icon: <Video size={13} strokeWidth={1.5} />, label: "Videoberatung" }] : [])
-                  ].map(opt => (
+                <div className="flex flex-col gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { val: "consultation", icon: <MessageSquare size={13} strokeWidth={1.5} />, label: "Beratung" },
+                      { val: "tattoo", icon: <Scissors size={13} strokeWidth={1.5} />, label: "Tattoo" }
+                    ].map(opt => (
+                      <button
+                        key={opt.val}
+                        onClick={() => { setBookingType(opt.val); setSelectedSlot(null); }}
+                        className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === opt.val ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
+                        data-testid={`booking-type-${opt.val}`}
+                      >
+                        {opt.icon} {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {studio?.video_consultation_enabled && (
                     <button
-                      key={opt.val}
-                      onClick={() => { setBookingType(opt.val); setSelectedSlot(null); }}
-                      className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === opt.val ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
-                      data-testid={`booking-type-${opt.val}`}
+                      onClick={() => { setBookingType("video_consultation"); setSelectedSlot(null); }}
+                      className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === "video_consultation" ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
+                      data-testid="booking-type-video_consultation"
                     >
-                      {opt.icon} {opt.label}
+                      <Video size={13} strokeWidth={1.5} /> Videoberatungsgespräch
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
 
