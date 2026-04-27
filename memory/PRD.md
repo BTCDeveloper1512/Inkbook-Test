@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 19)
+- **3D ProfileCard für Artists** ✅: reactbits.dev ProfileCard mit vollem 3D-Tilt-Effekt für Artist-Ansicht auf Studio-Seite
+- InkBook-Farbschema: Amber/Gold/Stahl-Palette, dunkler Hintergrund (rgba 8,7,6), Playfair Display Name
+- CSS-Variablen sauber auf `.pc-card-wrapper` gescoped (kein `:root`-Konflikt)
+- "PROFIL ÖFFNEN"-Button (Gold, Uppercase) öffnet den detaillierten ArtistModal
+- Daten-Mapping: `profile_image → avatarUrl`, `instagram → handle`, `experience_years → status`, `styles → title`
+
 ### April 2026 (Iteration 18)
 - **Admin: Nutzer löschen** ✅: Trash-Icon in der Nutzerliste im Admin-Panel
 - Admin-Konten sind geschützt (können nicht gelöscht werden)
