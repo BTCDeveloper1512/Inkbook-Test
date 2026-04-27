@@ -44,6 +44,12 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Iteration 21 – Terminbestätigung per E-Mail)
+- **Resend Key aktualisiert** auf `re_N9kHgmns...` für Terminbestätigungen
+- **Premium E-Mail-Templates** für Buchungsbestätigung (Kunde), Statusänderung (bestätigt/abgesagt), neues Template für Studio-Owner
+- **Studio-Owner-Benachrichtigung**: Bei jeder neuen Buchung (regulär + Chat-Slot) erhält der Studio-Inhaber eine E-Mail
+- Alle 4 Buchungs-E-Mail-Flows aktiv: Erstbuchung · Status-Update · Chat-Slot-Buchung · Umbuchung
+
 ### April 2026 (Iteration 20 – Compliance & Community)
 - **Cookie-Banner** (granular): Notwendig / Analyse / Marketing, localStorage-Persistenz, Footer-Link zum Wiederöffnen
 - **Rechtliche Seiten**: Impressum, Datenschutz, AGB, FAQ (Accordion), Über uns – alle mit DE-Placeholder-Inhalt

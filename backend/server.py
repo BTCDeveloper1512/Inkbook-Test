@@ -40,55 +40,139 @@ async def send_email(to: str, subject: str, html: str):
     except Exception as e:
         logger.warning(f"Email send failed (non-critical): {e}")
 
+def _email_header() -> str:
+    return """
+    <div style="background:#0a0a0a;padding:24px 32px;border-radius:12px 12px 0 0;">
+      <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0;letter-spacing:-0.5px;font-family:'Helvetica Neue',Arial,sans-serif;">InkBook</h1>
+      <p style="color:rgba(255,255,255,0.35);font-size:11px;margin:4px 0 0;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Tattoo Booking Platform</p>
+    </div>"""
+
+def _email_footer(extra: str = "") -> str:
+    return f"""
+    <div style="background:#f4f4f4;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #e5e5e5;">
+      {f'<p style="font-size:12px;color:#888;margin:0 0 8px;font-family:Helvetica Neue,Arial,sans-serif;">{extra}</p>' if extra else ''}
+      <p style="font-size:11px;color:#bbb;margin:0;font-family:Helvetica Neue,Arial,sans-serif;">
+        © 2026 InkBook · Deutschland ·
+        <a href="#" style="color:#bbb;text-decoration:underline;">Datenschutz</a> ·
+        <a href="#" style="color:#bbb;text-decoration:underline;">Impressum</a>
+      </p>
+    </div>"""
+
+def _detail_row(label: str, value: str, highlight: bool = False) -> str:
+    bg = "#f9f9f9" if not highlight else "#0a0a0a"
+    color = "#111" if not highlight else "#fff"
+    return f"""<tr>
+      <td style="padding:11px 16px;font-size:12px;color:#888;font-family:Helvetica Neue,Arial,sans-serif;border-bottom:1px solid #f0f0f0;width:38%;">{label}</td>
+      <td style="padding:11px 16px;font-size:13px;color:{color};font-weight:600;font-family:Helvetica Neue,Arial,sans-serif;border-bottom:1px solid #f0f0f0;background:{bg};">{value}</td>
+    </tr>"""
+
 def booking_confirmation_html(booking: dict, lang: str = "de") -> str:
     type_label = "Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session"
-    if lang == "en":
-        type_label = "Consultation" if booking.get("booking_type") == "consultation" else "Tattoo Session"
-        subject_line = f"Booking Confirmation – {booking.get('studio_name', '')}"
-        greeting = f"Your appointment at <strong>{booking.get('studio_name', '')}</strong> has been booked."
-        details = "Appointment Details"
-        footer = "See you soon! Your InkBook Team"
-    else:
-        subject_line = f"Buchungsbestätigung – {booking.get('studio_name', '')}"
-        greeting = f"Dein Termin bei <strong>{booking.get('studio_name', '')}</strong> wurde gebucht."
-        details = "Termindetails"
-        footer = "Wir freuen uns auf dich! Dein InkBook Team"
+    artist_row = _detail_row("Artist", booking["artist_name"]) if booking.get("artist_name") else ""
+    notes_row = _detail_row("Notiz", booking["notes"]) if booking.get("notes") else ""
+    deposit = booking.get("deposit_amount", 0)
+    deposit_row = _detail_row("Anzahlung", f"€ {deposit:.2f}") if deposit else ""
 
     return f"""
-    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#fff;">
-      <div style="border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px;">
-        <h1 style="font-size:24px;font-weight:bold;margin:0;letter-spacing:-0.5px;">InkBook</h1>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#16a34a;letter-spacing:0.05em;text-transform:uppercase;">Buchung eingegangen</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#111;letter-spacing:-0.4px;">Buchungsbestätigung</h2>
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.5;">
+          Dein Termin bei <strong style="color:#111;">{booking.get('studio_name', '')}</strong> wurde erfolgreich eingereicht.
+          Du erhältst eine weitere Benachrichtigung sobald das Studio bestätigt.
+        </p>
+
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;">
+          {_detail_row("Studio", booking.get('studio_name', ''), highlight=True)}
+          {_detail_row("Datum", booking.get('date', ''))}
+          {_detail_row("Zeit", f"{booking.get('start_time', '')} – {booking.get('end_time', '')}")}
+          {_detail_row("Art", type_label)}
+          {artist_row}
+          {deposit_row}
+          {notes_row}
+          {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
+        </table>
+
+        <div style="margin-top:28px;padding:16px 20px;background:#fafafa;border-radius:8px;border-left:3px solid #0a0a0a;">
+          <p style="font-size:12px;color:#666;margin:0;line-height:1.6;">
+            Deine Buchung ist eingegangen und wartet auf die Bestätigung des Studios.
+            Den Status deiner Buchung findest du jederzeit in deinem <strong style="color:#111;">InkBook Dashboard</strong>.
+          </p>
+        </div>
       </div>
-      <h2 style="font-size:20px;font-weight:bold;margin-bottom:8px;">{subject_line}</h2>
-      <p style="color:#555;font-size:14px;margin-bottom:24px;">{greeting}</p>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
-        <tr><td style="padding:12px;background:#f9f9f9;border:1px solid #eee;font-size:13px;font-weight:600;width:40%;">{details}</td><td style="padding:12px;background:#f9f9f9;border:1px solid #eee;font-size:13px;"></td></tr>
-        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Studio</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;font-weight:600;">{booking.get('studio_name', '')}</td></tr>
-        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Datum</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;">{booking.get('date', '')}</td></tr>
-        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Zeit</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;">{booking.get('start_time', '')} – {booking.get('end_time', '')}</td></tr>
-        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Art</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;">{type_label}</td></tr>
-        <tr><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;color:#777;">Buchungs-ID</td><td style="padding:10px 12px;border:1px solid #eee;font-size:13px;font-family:monospace;">{booking.get('booking_id', '')}</td></tr>
-      </table>
-      <div style="background:#000;color:#fff;padding:16px 20px;font-size:13px;">{footer}</div>
-    </div>
-    """
+      {_email_footer("Fragen? Nutze unseren Support-Chat auf inkbook.de")}
+    </div>"""
+
+def booking_confirmation_studio_html(booking: dict) -> str:
+    """Email to studio owner when a new booking arrives."""
+    type_label = "Beratungsgespräch" if booking.get("booking_type") == "consultation" else "Tattoo-Session"
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#2563eb;letter-spacing:0.05em;text-transform:uppercase;">Neue Buchungsanfrage</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#111;letter-spacing:-0.4px;">Neue Anfrage eingegangen</h2>
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.5;">
+          <strong style="color:#111;">{booking.get('user_name', 'Ein Kunde')}</strong> hat soeben eine Buchung für dein Studio eingereicht.
+          Bitte bestätige oder lehne die Anfrage im Dashboard ab.
+        </p>
+
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;">
+          {_detail_row("Kunde", booking.get('user_name', ''), highlight=True)}
+          {_detail_row("Datum", booking.get('date', ''))}
+          {_detail_row("Zeit", f"{booking.get('start_time', '')} – {booking.get('end_time', '')}")}
+          {_detail_row("Art", type_label)}
+          {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
+        </table>
+
+        <div style="margin-top:28px;text-align:center;">
+          <a href="#" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:13px;font-weight:700;letter-spacing:0.03em;">
+            Jetzt im Dashboard verwalten
+          </a>
+        </div>
+      </div>
+      {_email_footer()}
+    </div>"""
 
 def booking_status_html(booking: dict, status: str) -> str:
-    status_de = {"confirmed": "Bestätigt ✓", "cancelled": "Abgesagt"}.get(status, status)
-    color = "#16a34a" if status == "confirmed" else "#dc2626"
+    is_confirmed = status == "confirmed"
+    badge_bg = "#f0fdf4" if is_confirmed else "#fef2f2"
+    badge_border = "#bbf7d0" if is_confirmed else "#fecaca"
+    badge_color = "#16a34a" if is_confirmed else "#dc2626"
+    badge_text = "Bestätigt" if is_confirmed else "Abgesagt"
+    headline = "Dein Termin wurde bestätigt!" if is_confirmed else "Dein Termin wurde abgesagt"
+    subtext = (
+        "Dein Termin ist jetzt offiziell bestätigt. Wir sehen uns bald!"
+        if is_confirmed else
+        "Leider musste dein Termin abgesagt werden. Gerne kannst du einen neuen Termin buchen."
+    )
     return f"""
-    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#fff;">
-      <div style="border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px;">
-        <h1 style="font-size:24px;font-weight:bold;margin:0;">InkBook</h1>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:{badge_bg};border:1px solid {badge_border};border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:{badge_color};letter-spacing:0.05em;text-transform:uppercase;">{badge_text}</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#111;letter-spacing:-0.4px;">{headline}</h2>
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.5;">{subtext}</p>
+
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;">
+          {_detail_row("Studio", booking.get('studio_name', ''), highlight=True)}
+          {_detail_row("Datum", booking.get('date', ''))}
+          {_detail_row("Zeit", f"{booking.get('start_time', '')} – {booking.get('end_time', '')}")}
+          {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
+        </table>
+
+        {'<div style="margin-top:28px;text-align:center;"><a href="#" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:13px;font-weight:700;">Neuen Termin buchen</a></div>' if not is_confirmed else ''}
       </div>
-      <div style="border-left:4px solid {color};padding-left:16px;margin-bottom:24px;">
-        <h2 style="font-size:18px;font-weight:bold;color:{color};margin:0 0 4px 0;">Dein Termin wurde {status_de}</h2>
-        <p style="color:#555;font-size:14px;margin:0;">Studio: <strong>{booking.get('studio_name', '')}</strong> | {booking.get('date', '')} um {booking.get('start_time', '')}</p>
-      </div>
-      <p style="font-size:13px;color:#777;">Buchungs-ID: {booking.get('booking_id', '')}</p>
-      <div style="background:#000;color:#fff;padding:16px 20px;font-size:13px;margin-top:24px;">Dein InkBook Team</div>
-    </div>
-    """
+      {_email_footer("Fragen? Nutze unseren Support-Chat auf inkbook.de")}
+    </div>"""
 
 # ─── Database ────────────────────────────────────────────────────────────────
 mongo_url = os.environ["MONGO_URL"]
@@ -624,13 +708,22 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
     await db.bookings.insert_one(booking_doc)
     await db.slots.update_one({"slot_id": data.slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
     
-    # Send confirmation email (fire & forget)
+    # Send confirmation email to customer (fire & forget)
     user_email = current_user.get("email", "")
     if user_email:
         asyncio.create_task(send_email(
             to=user_email,
             subject=f"Buchungsbestätigung – {studio.get('name', '')}",
             html=booking_confirmation_html(booking_doc)
+        ))
+
+    # Notify studio owner by email
+    studio_owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
+    if studio_owner and studio_owner.get("email"):
+        asyncio.create_task(send_email(
+            to=studio_owner["email"],
+            subject=f"Neue Buchungsanfrage – {current_user.get('name','Kunde')} · {slot.get('date','')}",
+            html=booking_confirmation_studio_html(booking_doc)
         ))
 
     # Push notification to studio owner: new booking
@@ -963,6 +1056,15 @@ async def book_slot_from_chat(message_id: str, current_user: dict = Depends(get_
             to=user_email,
             subject=f"Buchungsbestätigung – {studio.get('name', '')}",
             html=booking_confirmation_html(booking_doc)
+        ))
+
+    # Notify studio owner by email
+    studio_owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
+    if studio_owner and studio_owner.get("email"):
+        asyncio.create_task(send_email(
+            to=studio_owner["email"],
+            subject=f"Neue Buchung via Chat – {current_user.get('name','Kunde')} · {slot.get('date','')}",
+            html=booking_confirmation_studio_html(booking_doc)
         ))
 
     # Push notification to studio owner
