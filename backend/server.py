@@ -818,13 +818,13 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
 @api_router.post("/messages/unread-count")
 async def get_unread_count_post(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
-    count = await db.messages.count_documents({"recipient_id": user_id, "read": False})
+    count = await db.messages.count_documents({"recipient_id": user_id, "read": False, "is_broadcast": {"$ne": True}, "sender_id": {"$ne": "inkbook_system"}})
     return {"count": count}
 
 @api_router.get("/messages/unread-count")
 async def get_unread_count(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
-    count = await db.messages.count_documents({"recipient_id": user_id, "read": False})
+    count = await db.messages.count_documents({"recipient_id": user_id, "read": False, "is_broadcast": {"$ne": True}, "sender_id": {"$ne": "inkbook_system"}})
     return {"count": count}
 
 @api_router.post("/messages/{other_user_id}/mark-read")
@@ -2232,7 +2232,7 @@ async def admin_reply_ticket(ticket_id: str, data: TicketReply, current_user: di
         {"ticket_id": ticket_id},
         {"$push": {"replies": reply_doc}, "$set": {"status": "answered", "updated_at": now}}
     )
-    # Send email to user
+    # Send email to user - tell them to reply IN the ticket chat
     user_email = ticket.get("user_email", "")
     ticket_num = ticket.get("ticket_number", ticket_id)
     subject_str = ticket.get("subject", "Dein Support-Ticket")
@@ -2245,10 +2245,41 @@ async def admin_reply_ticket(ticket_id: str, data: TicketReply, current_user: di
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:16px 0;">
             <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">{data.message.replace(chr(10),'<br>')}</p>
           </div>
-          <p style="font-size:13px;color:#888;">Falls du weitere Fragen hast, antworte auf diese E-Mail oder erstelle ein neues Ticket über den Support-Chat auf InkBook.</p>
+          <p style="font-size:13px;color:#888;">Möchtest du antworten? Öffne den <strong>Support-Chat</strong> auf InkBook und wähle dein Ticket aus, um direkt zu antworten.</p>
           </div>{_email_footer("Du erhältst diese E-Mail als Antwort auf dein Support-Ticket.")}</div>"""
         asyncio.create_task(send_email(user_email, f"[{ticket_num}] Antwort: {subject_str}", html))
     return {"replied": True, "ticket_number": ticket_num}
+
+@api_router.post("/support/tickets/{ticket_id}/user-reply")
+async def user_reply_ticket(ticket_id: str, data: TicketReply, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    ticket = await db.support_tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
+    if ticket["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+    if ticket.get("status") == "closed":
+        raise HTTPException(status_code=400, detail="Ticket ist geschlossen")
+    now = datetime.now(timezone.utc).isoformat()
+    reply_doc = {"reply_id": f"rep_{uuid.uuid4().hex[:8]}", "message": data.message,
+                 "from": "user", "from_name": current_user.get("name", ""), "created_at": now}
+    await db.support_tickets.update_one(
+        {"ticket_id": ticket_id},
+        {"$push": {"replies": reply_doc}, "$set": {"status": "open", "updated_at": now}}
+    )
+    return {"replied": True}
+
+@api_router.patch("/admin/support-tickets/{ticket_id}/close")
+async def admin_close_ticket(ticket_id: str, current_user: dict = Depends(require_admin)):
+    ticket = await db.support_tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket nicht gefunden")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.support_tickets.update_one(
+        {"ticket_id": ticket_id},
+        {"$set": {"status": "closed", "updated_at": now}}
+    )
+    return {"closed": True}
 
 @api_router.get("/admin/support-tickets-new")
 async def admin_get_support_tickets(current_user: dict = Depends(require_admin)):

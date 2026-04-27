@@ -95,11 +95,27 @@ function TicketForm({ onBack, user }) {
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(null);
   const [myTickets, setMyTickets] = useState([]);
-  const [view, setView] = useState("form"); // "form" | "list"
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [followUp, setFollowUp] = useState("");
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [view, setView] = useState("form"); // "form" | "list" | "detail"
 
   useEffect(() => {
     if (user) fetchMyTickets();
   }, [user]);
+
+  // Poll for ticket updates every 8s when viewing a ticket
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API}/api/support/tickets/${selectedTicket.ticket_id}`, { withCredentials: true });
+        setSelectedTicket(res.data);
+        setMyTickets(p => p.map(t => t.ticket_id === res.data.ticket_id ? res.data : t));
+      } catch {}
+    }, 8000);
+    return () => clearInterval(iv);
+  }, [selectedTicket?.ticket_id]);
 
   const fetchMyTickets = async () => {
     try {
@@ -120,6 +136,28 @@ function TicketForm({ onBack, user }) {
     } finally { setLoading(false); }
   };
 
+  const sendFollowUp = async () => {
+    if (!followUp.trim() || !selectedTicket) return;
+    setFollowUpLoading(true);
+    try {
+      await axios.post(`${API}/api/support/tickets/${selectedTicket.ticket_id}/user-reply`, { message: followUp }, { withCredentials: true });
+      setFollowUp("");
+      // Refresh ticket
+      const res = await axios.get(`${API}/api/support/tickets/${selectedTicket.ticket_id}`, { withCredentials: true });
+      setSelectedTicket(res.data);
+      setMyTickets(p => p.map(t => t.ticket_id === res.data.ticket_id ? res.data : t));
+    } catch (err) {
+      if (err.response?.data?.detail) alert(err.response.data.detail);
+    } finally { setFollowUpLoading(false); }
+  };
+
+  const statusBadge = (status) => {
+    if (status === "open") return { label: "Offen · Antwort ausstehend", color: "bg-amber-50 text-amber-600 border-amber-100" };
+    if (status === "answered") return { label: "Beantwortet per E-Mail", color: "bg-green-50 text-green-600 border-green-100" };
+    if (status === "closed") return { label: "Geschlossen", color: "bg-zinc-100 text-zinc-500 border-zinc-200" };
+    return { label: status, color: "bg-zinc-100 text-zinc-500 border-zinc-200" };
+  };
+
   if (!user) return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-100">
@@ -135,6 +173,61 @@ function TicketForm({ onBack, user }) {
     </div>
   );
 
+  // ── Ticket Detail View ──
+  if (view === "detail" && selectedTicket) {
+    const badge = statusBadge(selectedTicket.status);
+    const isClosed = selectedTicket.status === "closed";
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-100">
+          <button onClick={() => { setView("list"); setSelectedTicket(null); }}
+            className="p-1 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-500"><ChevronLeft size={16} /></button>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-inter font-semibold text-zinc-900 truncate">{selectedTicket.subject}</p>
+            <span className={`text-[9px] font-inter font-medium border px-1.5 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {/* Original description */}
+          <div className="bg-zinc-50 rounded-xl p-3">
+            <p className="text-[9px] text-zinc-400 font-inter mb-1 font-semibold">DEINE ANFRAGE</p>
+            <p className="text-xs font-inter text-zinc-700 leading-relaxed">{selectedTicket.description}</p>
+          </div>
+          {/* Replies */}
+          {selectedTicket.replies?.map((r, i) => (
+            <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "bg-zinc-900" : "bg-blue-50 border border-blue-100"}`}>
+              <p className={`text-[9px] mb-1 font-inter font-semibold ${r.from === "admin" ? "text-zinc-400" : "text-blue-400"}`}>
+                {r.from === "admin" ? "INKBOOK SUPPORT" : "DEINE ANTWORT"}
+              </p>
+              <p className={`text-xs font-inter leading-relaxed ${r.from === "admin" ? "text-white" : "text-blue-800"}`}>{r.message}</p>
+            </div>
+          ))}
+        </div>
+        {/* Follow-up or closed state */}
+        {isClosed ? (
+          <div className="px-4 py-3 border-t border-zinc-100 bg-zinc-50 text-center">
+            <p className="text-xs text-zinc-400 font-inter">Dieses Ticket ist geschlossen.</p>
+          </div>
+        ) : (
+          <div className="px-4 py-3 border-t border-zinc-100">
+            <p className="text-[10px] text-zinc-400 font-inter mb-1.5">Noch eine Frage? Schreib hier:</p>
+            <div className="flex gap-2">
+              <input value={followUp} onChange={e => setFollowUp(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && sendFollowUp()}
+                placeholder="Folgenachricht…"
+                className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs font-inter focus:outline-none focus:ring-2 focus:ring-zinc-200"
+              />
+              <button onClick={sendFollowUp} disabled={!followUp.trim() || followUpLoading}
+                className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center disabled:opacity-40 flex-shrink-0">
+                {followUpLoading ? <Loader2 size={12} className="text-white animate-spin" /> : <Send size={13} className="text-white" />}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-100">
@@ -142,52 +235,56 @@ function TicketForm({ onBack, user }) {
         <div className="flex-1">
           <p className="text-xs font-inter font-semibold text-zinc-900">Support-Ticket</p>
         </div>
-        {myTickets.length > 0 && (
-          <button onClick={() => setView(v => v === "form" ? "list" : "form")}
+        {myTickets.length > 0 && view === "form" && (
+          <button onClick={() => setView("list")}
             className="text-[10px] font-inter font-medium text-zinc-500 hover:text-zinc-900 transition-colors">
-            {view === "form" ? `Meine Tickets (${myTickets.length})` : "Neues Ticket"}
+            Meine Tickets ({myTickets.length})
+          </button>
+        )}
+        {view === "list" && (
+          <button onClick={() => setView("form")}
+            className="text-[10px] font-inter font-medium text-zinc-500 hover:text-zinc-900 transition-colors">
+            + Neues Ticket
           </button>
         )}
       </div>
       <div className="flex-1 overflow-y-auto p-4">
+        {/* Ticket List */}
         {view === "list" ? (
           <div className="space-y-2">
-            {myTickets.map(t => (
-              <div key={t.ticket_id} className="border border-zinc-100 rounded-xl p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-mono text-zinc-400">{t.ticket_number}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${
-                    t.status === "open" ? "bg-amber-50 text-amber-600" :
-                    t.status === "answered" ? "bg-green-50 text-green-600" : "bg-zinc-100 text-zinc-500"
-                  }`}>{t.status === "open" ? "Offen" : t.status === "answered" ? "Beantwortet" : t.status}</span>
-                </div>
-                <p className="text-xs font-inter font-medium text-zinc-900">{t.subject}</p>
-                {t.replies?.length > 0 && (
-                  <div className="mt-2 bg-zinc-50 rounded-lg p-2">
-                    <p className="text-[10px] text-zinc-400 font-inter mb-1">Admin-Antwort:</p>
-                    <p className="text-xs font-inter text-zinc-700">{t.replies[t.replies.length - 1].message}</p>
+            {myTickets.map(t => {
+              const badge = statusBadge(t.status);
+              return (
+                <button key={t.ticket_id} onClick={() => { setSelectedTicket(t); setView("detail"); }}
+                  className="w-full text-left border border-zinc-100 hover:border-zinc-200 rounded-xl p-3 hover:bg-zinc-50 transition-all">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono text-zinc-400">{t.ticket_number}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium border ${badge.color}`}>{badge.label}</span>
                   </div>
-                )}
-                <p className="text-[10px] text-zinc-400 font-inter mt-1">{t.created_at ? new Date(t.created_at).toLocaleDateString("de-DE") : ""}</p>
-              </div>
-            ))}
+                  <p className="text-xs font-inter font-medium text-zinc-900">{t.subject}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">{t.created_at ? new Date(t.created_at).toLocaleDateString("de-DE") : ""}</p>
+                </button>
+              );
+            })}
           </div>
         ) : created ? (
+          /* Success State */
           <div className="text-center py-4">
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
               <CheckCircle size={22} className="text-green-600" strokeWidth={1.5} />
             </div>
             <p className="text-sm font-inter font-semibold text-zinc-900 mb-1">Ticket erstellt!</p>
             <p className="text-xs font-mono bg-zinc-100 inline-block px-2 py-1 rounded-lg text-zinc-700 mb-2">{created.ticket_number}</p>
-            <p className="text-xs text-zinc-500 font-inter">Wir melden uns per E-Mail sobald dein Ticket bearbeitet wurde.</p>
-            <button onClick={() => { setCreated(null); setSubject(""); setDescription(""); setView("list"); }}
+            <p className="text-xs text-zinc-500 font-inter">Wir melden uns per E-Mail. Deine Antwort kannst du dann hier im Chat eingeben.</p>
+            <button onClick={() => { setCreated(null); setSubject(""); setDescription(""); setView("list"); fetchMyTickets(); }}
               className="text-xs font-inter font-semibold text-zinc-900 underline mt-3 block mx-auto">
-              Meine Tickets ansehen
+              Tickets ansehen →
             </button>
           </div>
         ) : (
+          /* New Ticket Form */
           <div className="space-y-3">
-            <p className="text-xs text-zinc-500 font-inter">Beschreibe dein Problem. Wir antworten dir per E-Mail.</p>
+            <p className="text-xs text-zinc-500 font-inter">Beschreibe dein Problem. Wir melden uns per E-Mail und du kannst dann hier antworten.</p>
             <div>
               <label className="block text-[10px] font-inter font-medium text-zinc-600 mb-1">Betreff</label>
               <input value={subject} onChange={e => setSubject(e.target.value)}

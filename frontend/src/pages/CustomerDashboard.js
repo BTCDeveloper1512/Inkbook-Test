@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import AnnouncementBell from "../components/AnnouncementBell";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -280,12 +279,9 @@ export default function CustomerDashboard() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between mb-8">
-          <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Mein Konto</p>
-            <h1 className="text-3xl font-playfair font-semibold text-zinc-900">Hallo, {user?.name?.split(" ")[0]} 👋</h1>
-          </div>
-          <AnnouncementBell />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Mein Konto</p>
+          <h1 className="text-3xl font-playfair font-semibold text-zinc-900">Hallo, {user?.name?.split(" ")[0]} 👋</h1>
         </motion.div>
 
         {/* Cancellation Alert Banner (Studio-seitig storniert) */}
@@ -629,6 +625,24 @@ export default function CustomerDashboard() {
       </AnimatePresence>
 
       <Footer />
+
+      {/* FAQ Help Strip */}
+      <div className="bg-white border-t border-zinc-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center">
+              <HelpCircle size={15} className="text-zinc-500" strokeWidth={1.5} />
+            </div>
+            <div>
+              <p className="text-xs font-inter font-semibold text-zinc-800">Hast du Fragen?</p>
+              <p className="text-xs text-zinc-400 font-inter">Hilfe & häufige Fragen für Kunden</p>
+            </div>
+          </div>
+          <Link to="/faq" className="text-xs font-inter font-semibold text-zinc-900 underline underline-offset-2 hover:no-underline transition-all" data-testid="customer-faq-link">
+            FAQ ansehen →
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

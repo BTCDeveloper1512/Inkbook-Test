@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { Menu, X, Globe, ChevronDown, Bell, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
+import AnnouncementBell from "./AnnouncementBell";
 import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -129,10 +130,12 @@ export default function Navbar() {
                   )}
                 </Link>
 
-                <button onClick={handlePushToggle} className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all relative" title="Push-Benachrichtigungen" data-testid="push-toggle-btn">
+                <button onClick={handlePushToggle} className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all relative" title="Push-Benachrichtigungen" data-testid="push-toggle-btn" style={{display:'none'}}>
                   <Bell size={16} strokeWidth={1.5} />
                   {pushStatus === "active" && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />}
                 </button>
+
+                <AnnouncementBell />
 
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-sm font-inter" data-testid="user-menu-btn">
@@ -163,6 +166,11 @@ export default function Navbar() {
                         {user.role === "admin" && (
                           <Link to="/admin" className="flex items-center px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-admin-link">Admin Panel</Link>
                         )}
+                        <div className="h-px bg-zinc-100 my-1" />
+                        <button onClick={() => { handlePushToggle(); setUserMenuOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-2.5 text-sm text-zinc-600 hover:bg-zinc-50 font-inter">
+                          <span>Push-Benachrichtigungen</span>
+                          {pushStatus === "active" && <span className="w-2 h-2 bg-green-500 rounded-full" />}
+                        </button>
                         <div className="h-px bg-zinc-100 my-1" />
                         <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 font-inter" data-testid="nav-logout-btn">{t("nav.logout")}</button>
                       </motion.div>

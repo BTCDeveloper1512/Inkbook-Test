@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 (Iteration 23 – 5 Bug-Fixes & Verbesserungen)
+- **Bug Fix #4 – Unread Badge**: Broadcast-Nachrichten (inkbook_system) werden vom Unread-Counter ausgeschlossen → Badge zeigt korrekte Zahl
+- **Bug Fix #5 – Zwei Glocken**: AnnouncementBell aus Dashboards entfernt, in Navbar integriert → nur eine Glocke sichtbar. Push-Toggle in User-Dropdown verschoben.
+- **Feature #1 – Ticket-Chat UX**: User sieht Status "Offen · Antwort ausstehend" / "Beantwortet per E-Mail" / "Geschlossen". User kann Follow-up im Chat schreiben (POST /api/support/tickets/{id}/user-reply). Admin sieht Nutzer-Antworten mit blauem Badge. E-Mail sagt jetzt "Antwort im Ticket-Chat auf InkBook" statt "auf diese E-Mail antworten".
+- **Feature #2 – Admin Ticket schließen**: "Schließen" Button im Admin-Ticket-Detail-Panel. Status → "closed". Geschlossene Tickets blockieren weitere User-Antworten.
+- **Feature #3 – FAQs auf Dashboards**: FAQ-Strip-Banner am Ende beider Dashboards (Kunden + Studio) mit direktem Link zu /faq, angepasster Beschreibung je nach Rolle.
+- Testing: Backend-Endpoints vollständig getestet via curl ✅
+
 ### Mai 2026 (Iteration 22 – 4 neue Features)
 - **FAQ Rollentrennung**: Admin kann FAQs für "Nur Kunden", "Nur Studios" oder "Alle" einstellen. FAQ-Seite filtert automatisch nach eingeloggter Rolle. Blauer "Kunden" / lila "Studios" Badge im Admin.
 - **Ankündigungs-Glocke**: Bell-Icon auf Kunden- und Studio-Dashboard. Roter Dot wenn aktive Ankündigung vorhanden. Klick öffnet Popup mit Ankündigungstext + "Als gelesen" Button. Polling alle 30s.

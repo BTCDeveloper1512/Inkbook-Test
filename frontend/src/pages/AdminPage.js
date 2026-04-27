@@ -867,30 +867,47 @@ export default function AdminPage() {
                                 <p className="text-sm font-inter text-zinc-800 leading-relaxed">{selectedTicket.description}</p>
                               </div>
                               {selectedTicket.replies?.map((r, i) => (
-                                <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "bg-zinc-900 text-white" : "bg-zinc-50"}`}>
-                                  <p className="text-[10px] mb-1 opacity-60 font-inter">{r.from === "admin" ? "InkBook Support" : selectedTicket.user_name}</p>
-                                  <p className="text-sm font-inter leading-relaxed">{r.message}</p>
+                                <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "bg-zinc-900 text-white" : "bg-blue-50 border border-blue-100"}`}>
+                                  <p className={`text-[10px] mb-1 opacity-60 font-inter font-semibold ${r.from === "admin" ? "" : "text-blue-500 opacity-100"}`}>
+                                    {r.from === "admin" ? "INKBOOK SUPPORT" : "NUTZER-ANTWORT"}
+                                  </p>
+                                  <p className={`text-sm font-inter leading-relaxed ${r.from !== "admin" ? "text-blue-900" : ""}`}>{r.message}</p>
                                 </div>
                               ))}
                               <div className="pt-2">
                                 <Textarea label="Antwort" value={replyText} onChange={e => setReplyText(e.target.value)} rows={3} placeholder="Antwort eingeben…" />
-                                <button
-                                  onClick={async () => {
-                                    if (!replyText.trim()) return;
-                                    setReplyLoading(true);
-                                    try {
-                                      await ax().post(`${API}/admin/support-tickets/${selectedTicket.ticket_id}/reply`, { message: replyText });
-                                      const updated = { ...selectedTicket, status: "answered", replies: [...(selectedTicket.replies || []), { from: "admin", message: replyText, created_at: new Date().toISOString() }] };
-                                      setSelectedTicket(updated);
-                                      setNewTickets(p => p.map(t => t.ticket_id === updated.ticket_id ? updated : t));
-                                      setReplyText("");
-                                    } finally { setReplyLoading(false); }
-                                  }}
-                                  disabled={!replyText.trim() || replyLoading}
-                                  className="btn-primary text-sm w-full mt-3 disabled:opacity-40"
-                                >
-                                  {replyLoading ? "Senden…" : "Antworten & E-Mail senden"}
-                                </button>
+                                <div className="flex gap-2 mt-3">
+                                  <button
+                                    onClick={async () => {
+                                      if (!replyText.trim()) return;
+                                      setReplyLoading(true);
+                                      try {
+                                        await ax().post(`${API}/admin/support-tickets/${selectedTicket.ticket_id}/reply`, { message: replyText });
+                                        const updated = { ...selectedTicket, status: "answered", replies: [...(selectedTicket.replies || []), { from: "admin", message: replyText, created_at: new Date().toISOString() }] };
+                                        setSelectedTicket(updated);
+                                        setNewTickets(p => p.map(t => t.ticket_id === updated.ticket_id ? updated : t));
+                                        setReplyText("");
+                                      } finally { setReplyLoading(false); }
+                                    }}
+                                    disabled={!replyText.trim() || replyLoading}
+                                    className="flex-1 btn-primary text-sm disabled:opacity-40"
+                                  >
+                                    {replyLoading ? "Senden…" : "Antworten & E-Mail"}
+                                  </button>
+                                  {selectedTicket.status !== "closed" && (
+                                    <button
+                                      onClick={async () => {
+                                        await ax().patch(`${API}/admin/support-tickets/${selectedTicket.ticket_id}/close`);
+                                        const updated = { ...selectedTicket, status: "closed" };
+                                        setSelectedTicket(updated);
+                                        setNewTickets(p => p.map(t => t.ticket_id === updated.ticket_id ? updated : t));
+                                      }}
+                                      className="px-3 py-2 rounded-xl border border-zinc-200 text-xs font-inter text-zinc-600 hover:bg-zinc-50 transition-colors flex-shrink-0"
+                                    >
+                                      Schließen
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </SectionCard>

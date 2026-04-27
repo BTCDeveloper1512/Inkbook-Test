@@ -5,8 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import AnnouncementBell from "../components/AnnouncementBell";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown, HelpCircle } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -285,7 +284,6 @@ export default function StudioDashboard() {
             )}
           </div>
           <div className="flex gap-2 flex-wrap justify-end items-center">
-            <AnnouncementBell />
             <Link to="/subscription" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2" data-testid="subscription-btn">
               <Crown size={13} strokeWidth={1.5} /> Abo
             </Link>
@@ -697,6 +695,24 @@ export default function StudioDashboard() {
         )}
       </div>
       <Footer />
+
+      {/* FAQ Help Strip */}
+      <div className="bg-white border-t border-zinc-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center">
+              <HelpCircle size={15} className="text-zinc-500" strokeWidth={1.5} />
+            </div>
+            <div>
+              <p className="text-xs font-inter font-semibold text-zinc-800">Hast du Fragen?</p>
+              <p className="text-xs text-zinc-400 font-inter">FAQs & Hilfe speziell für Studios</p>
+            </div>
+          </div>
+          <Link to="/faq" className="text-xs font-inter font-semibold text-zinc-900 underline underline-offset-2 hover:no-underline transition-all" data-testid="studio-faq-link">
+            FAQ ansehen →
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
