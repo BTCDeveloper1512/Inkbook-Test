@@ -631,16 +631,22 @@ async def get_slots(studio_id: str, date: Optional[str] = None, slot_type: Optio
     return slots
 
 @api_router.get("/studios/{studio_id}/available-dates")
-async def get_available_dates(studio_id: str, year: int, month: int):
-    """Returns dates within a given month that have at least one free slot."""
+async def get_available_dates(studio_id: str, year: int, month: int, slot_type: Optional[str] = None):
+    """Returns dates within a given month that have at least one free slot matching the type."""
     import calendar as cal_mod
     first_day = f"{year}-{month:02d}-01"
     last_day_num = cal_mod.monthrange(year, month)[1]
     last_day = f"{year}-{month:02d}-{last_day_num:02d}"
     today_iso = datetime.now(timezone.utc).date().isoformat()
     from_date = max(first_day, today_iso)
+    match_filter: Dict[str, Any] = {
+        "studio_id": studio_id, "is_booked": False,
+        "date": {"$gte": from_date, "$lte": last_day}
+    }
+    if slot_type and slot_type != "full_day":
+        match_filter["slot_type"] = {"$in": [slot_type, "full_day"]}
     pipeline = [
-        {"$match": {"studio_id": studio_id, "is_booked": False, "date": {"$gte": from_date, "$lte": last_day}}},
+        {"$match": match_filter},
         {"$group": {"_id": "$date"}},
         {"$sort": {"_id": 1}}
     ]

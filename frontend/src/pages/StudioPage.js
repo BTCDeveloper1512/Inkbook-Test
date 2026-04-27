@@ -283,15 +283,15 @@ export default function StudioPage() {
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
-  // Fetch available dates whenever month or studio changes
+  // Fetch available dates whenever month, studio OR bookingType changes
   useEffect(() => {
     if (!studioId) return;
     axios.get(`${API}/studios/${studioId}/available-dates`, {
-      params: { year: calMonth.year, month: calMonth.month + 1 }
+      params: { year: calMonth.year, month: calMonth.month + 1, slot_type: bookingType }
     }).then(({ data }) => {
       setAvailableDates(new Set(data.available_dates));
     }).catch(() => {});
-  }, [studioId, calMonth]);
+  }, [studioId, calMonth, bookingType]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -576,7 +576,7 @@ export default function StudioPage() {
                     ].map(opt => (
                       <button
                         key={opt.val}
-                        onClick={() => { setBookingType(opt.val); setSelectedSlot(null); }}
+                        onClick={() => { setBookingType(opt.val); setSelectedSlot(null); setSelectedDate(null); }}
                         className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === opt.val ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
                         data-testid={`booking-type-${opt.val}`}
                       >
@@ -586,7 +586,7 @@ export default function StudioPage() {
                   </div>
                   {studio?.video_consultation_enabled && (
                     <button
-                      onClick={() => { setBookingType("video_consultation"); setSelectedSlot(null); }}
+                      onClick={() => { setBookingType("video_consultation"); setSelectedSlot(null); setSelectedDate(null); }}
                       className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === "video_consultation" ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
                       data-testid="booking-type-video_consultation"
                     >
