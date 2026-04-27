@@ -8,6 +8,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn, Images } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import ProfileCard from "../components/ProfileCard";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
@@ -471,75 +472,37 @@ export default function StudioPage() {
                       <p className="text-zinc-400 font-inter text-sm">Noch keine Artists im Profil</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       {artists.map(artist => (
-                        <motion.div
+                        <div
                           key={artist.artist_id}
-                          whileHover={{ y: -2 }}
-                          onClick={() => setSelectedArtist(artist)}
-                          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer"
                           data-testid={`artist-profile-${artist.artist_id}`}
+                          onClick={() => setSelectedArtist(artist)}
+                          style={{ cursor: 'pointer' }}
                         >
-                          {/* Artist card top - banner or portfolio preview */}
-                          <div className="h-32 bg-zinc-100 relative overflow-hidden">
-                            {artist.banner_image ? (
-                              <img src={artist.banner_image} alt="" className="w-full h-full object-cover" />
-                            ) : artist.portfolio_images?.length > 0 ? (
-                              <div className="flex gap-0.5 h-full">
-                                {artist.portfolio_images.slice(0, 3).map((img, i) => (
-                                  <img key={i} src={img} alt="" className="flex-1 h-full object-cover" style={{ flex: i === 0 ? 2 : 1 }} />
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Palette size={28} className="text-zinc-300" strokeWidth={1} />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                            {/* Experience badge */}
-                            {artist.experience_years > 0 && (
-                              <span className="absolute top-2.5 right-2.5 text-xs bg-white/90 text-zinc-800 px-2 py-1 rounded-full font-inter font-semibold">
-                                {artist.experience_years}J
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="p-4">
-                            <div className="flex items-center gap-3 mb-3">
-                              {artist.profile_image ? (
-                                <img src={artist.profile_image} alt={artist.name} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm flex-shrink-0 -mt-7 ring-2 ring-white" />
-                              ) : (
-                                <div className="w-10 h-10 bg-zinc-900 text-white rounded-full flex items-center justify-center font-playfair font-bold text-base flex-shrink-0">
-                                  {artist.name?.[0]?.toUpperCase()}
-                                </div>
-                              )}
-                              <div>
-                                <h4 className="font-playfair font-semibold text-zinc-900">{artist.name}</h4>
-                                {artist.experience_years > 0 && (
-                                  <p className="text-xs text-zinc-400 font-inter">{artist.experience_years} Jahre Erfahrung</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {artist.bio && (
-                              <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-3 line-clamp-2">{artist.bio}</p>
-                            )}
-
-                            {artist.styles?.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {artist.styles.slice(0, 4).map(s => (
-                                  <span key={s} className="text-xs px-2.5 py-1 bg-zinc-100 text-zinc-600 font-inter rounded-full">{s}</span>
-                                ))}
-                                {artist.styles.length > 4 && (
-                                  <span className="text-xs px-2 py-1 text-zinc-400 font-inter">+{artist.styles.length - 4}</span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Instagram Button */}
-
-                          </div>
-                        </motion.div>
+                          <ProfileCard
+                            avatarUrl={artist.profile_image || artist.banner_image || (artist.portfolio_images?.[0] || '')}
+                            miniAvatarUrl={artist.profile_image || ''}
+                            name={artist.name || ''}
+                            title={
+                              artist.styles?.length > 0
+                                ? artist.styles.slice(0, 3).join(' · ')
+                                : 'Tattoo Artist'
+                            }
+                            handle={artist.instagram?.replace(/^@/, '') || ''}
+                            status={
+                              artist.experience_years > 0
+                                ? `${artist.experience_years} Jahre Erfahrung`
+                                : 'Verfügbar'
+                            }
+                            contactText="Profil öffnen"
+                            onContactClick={() => setSelectedArtist(artist)}
+                            behindGlowEnabled={true}
+                            enableTilt={true}
+                            showUserInfo={true}
+                            className="inkbook-artist"
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
