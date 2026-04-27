@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 (Iteration 22 – 4 neue Features)
+- **FAQ Rollentrennung**: Admin kann FAQs für "Nur Kunden", "Nur Studios" oder "Alle" einstellen. FAQ-Seite filtert automatisch nach eingeloggter Rolle. Blauer "Kunden" / lila "Studios" Badge im Admin.
+- **Ankündigungs-Glocke**: Bell-Icon auf Kunden- und Studio-Dashboard. Roter Dot wenn aktive Ankündigung vorhanden. Klick öffnet Popup mit Ankündigungstext + "Als gelesen" Button. Polling alle 30s.
+- **Broadcast als Systemnachricht**: Admin-Broadcast erstellt "InkBook News" Konversation in /messages für jeden User. Lese-Only, kein Reply möglich, eigenes Dark-Bubble-Design.
+- **Support-Ticket-System**: KI-Bot zeigt jetzt 3 Optionen: KI-Assistent / Ticket erstellen / Direktnachricht (Pro). Ticket wird mit #IB-XXXX Nummer erstellt. Admin kann antworten → E-Mail an User. Admin-Panel hat neue Sub-Tabs: Tickets / Direkt-Chats / KI-Chats. Echtzeit-Polling (5s) im Direkt-Chat.
+- Testing: 16/16 Backend ✅, 95% Frontend ✅ (Iteration 20)
+
 ### Mai 2026 (Iteration 22 – Admin Panel Komplett-Überarbeitung) ✅
 - **Admin Panel massiv erweitert** auf 13 Sektionen (vorher 4 Tabs)
 - Sektionen: Dashboard (KPIs + Trends), Studios, Nutzer, Buchungen, Abonnements, Einnahmen (MRR), Bewertungen, FAQ-Editor, Ankündigungen (Live-Banner), Newsletter-Kampagnen, Push-Broadcast, Support-Tickets, Meldungen/Reports
@@ -223,7 +230,6 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 ### P2 (Nice to Have)
 - Social Sharing / QR-Code für Studio-Profile
 - Dark Mode Toggle
-- Advanced Analytics pro Studio (Heatmaps, Conversion Rates)
 - Sora 2 Video-Generation für Studio-Previews
 - Mobile App (React Native oder PWA-enhanced)
 

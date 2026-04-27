@@ -380,7 +380,7 @@ export default function SupportChat() {
       {/* Toggle Button */}
       <button
         onClick={() => { setOpen(o => !o); if (!open) setView("home"); }}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:scale-105 transition-transform"
+        className="fixed bottom-6 right-20 z-50 w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:scale-105 transition-transform"
         data-testid="support-chat-toggle"
         aria-label="Support öffnen"
       >
@@ -393,7 +393,7 @@ export default function SupportChat() {
       {/* Chat Panel */}
       {open && (
         <div
-          className="fixed bottom-24 right-6 z-50 w-80 bg-white rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.18)] border border-zinc-100 overflow-hidden flex flex-col"
+          className="fixed bottom-24 right-20 z-50 w-80 bg-white rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.18)] border border-zinc-100 overflow-hidden flex flex-col"
           style={{ height: 460 }}
           data-testid="support-chat-panel"
         >
