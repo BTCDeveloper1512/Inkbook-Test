@@ -1861,6 +1861,261 @@ async def get_newsletter_subscribers(request: Request):
     subs = await db.newsletter_subscribers.find({"active": True}, {"_id": 0, "email": 1, "subscribed_at": 1}).to_list(1000)
     return {"subscribers": subs, "total": len(subs)}
 
+# ─── FAQ ─────────────────────────────────────────────────────────────────────
+
+class FAQItemCreate(BaseModel):
+    category: str
+    question: str
+    answer: str
+    order: int = 0
+
+@api_router.get("/faq/public")
+async def get_faq_public():
+    items = await db.faqs.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+    return items
+
+@api_router.post("/admin/faq")
+async def create_faq_item(data: FAQItemCreate, current_user: dict = Depends(require_admin)):
+    doc = {"faq_id": f"faq_{uuid.uuid4().hex[:10]}", "category": data.category, "question": data.question,
+           "answer": data.answer, "order": data.order, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.faqs.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.put("/admin/faq/{faq_id}")
+async def update_faq_item(faq_id: str, data: FAQItemCreate, current_user: dict = Depends(require_admin)):
+    await db.faqs.update_one({"faq_id": faq_id}, {"$set": {**data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"updated": True}
+
+@api_router.delete("/admin/faq/{faq_id}")
+async def delete_faq_item(faq_id: str, current_user: dict = Depends(require_admin)):
+    await db.faqs.delete_one({"faq_id": faq_id})
+    return {"deleted": True}
+
+# ─── Announcements ───────────────────────────────────────────────────────────
+
+class AnnouncementCreate(BaseModel):
+    text: str
+    type: str = "info"
+    link: Optional[str] = None
+    link_label: Optional[str] = None
+
+@api_router.get("/announcements/active")
+async def get_active_announcement():
+    ann = await db.announcements.find_one({"active": True}, {"_id": 0})
+    return ann or {}
+
+@api_router.get("/admin/announcements")
+async def get_all_announcements(current_user: dict = Depends(require_admin)):
+    return await db.announcements.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
+
+@api_router.post("/admin/announcements")
+async def create_announcement(data: AnnouncementCreate, current_user: dict = Depends(require_admin)):
+    await db.announcements.update_many({}, {"$set": {"active": False}})
+    doc = {"announcement_id": f"ann_{uuid.uuid4().hex[:10]}", "text": data.text, "type": data.type,
+           "link": data.link, "link_label": data.link_label, "active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.announcements.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.patch("/admin/announcements/{ann_id}/toggle")
+async def toggle_announcement(ann_id: str, current_user: dict = Depends(require_admin)):
+    ann = await db.announcements.find_one({"announcement_id": ann_id})
+    if not ann:
+        raise HTTPException(status_code=404, detail="Not found")
+    new_active = not ann.get("active", False)
+    if new_active:
+        await db.announcements.update_many({}, {"$set": {"active": False}})
+    await db.announcements.update_one({"announcement_id": ann_id}, {"$set": {"active": new_active}})
+    return {"active": new_active}
+
+@api_router.delete("/admin/announcements/{ann_id}")
+async def delete_announcement(ann_id: str, current_user: dict = Depends(require_admin)):
+    await db.announcements.delete_one({"announcement_id": ann_id})
+    return {"deleted": True}
+
+# ─── Reviews (Admin) ─────────────────────────────────────────────────────────
+
+@api_router.get("/admin/reviews")
+async def admin_get_all_reviews(current_user: dict = Depends(require_admin)):
+    return await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+@api_router.delete("/admin/reviews/{review_id}")
+async def admin_delete_review(review_id: str, current_user: dict = Depends(require_admin)):
+    review = await db.reviews.find_one({"review_id": review_id})
+    if not review:
+        raise HTTPException(status_code=404, detail="Review nicht gefunden")
+    await db.reviews.delete_one({"review_id": review_id})
+    studio_id = review.get("studio_id")
+    if studio_id:
+        remaining = await db.reviews.find({"studio_id": studio_id}).to_list(1000)
+        if remaining:
+            avg = sum(r["rating"] for r in remaining) / len(remaining)
+            await db.studios.update_one({"studio_id": studio_id}, {"$set": {"avg_rating": round(avg, 1), "review_count": len(remaining)}})
+        else:
+            await db.studios.update_one({"studio_id": studio_id}, {"$set": {"avg_rating": 0, "review_count": 0}})
+    return {"deleted": True}
+
+# ─── Newsletter (Admin send) ─────────────────────────────────────────────────
+
+class NewsletterSendRequest(BaseModel):
+    subject: str
+    content: str
+    preview_email: Optional[str] = None
+
+@api_router.post("/admin/newsletter/send")
+async def admin_send_newsletter(data: NewsletterSendRequest, current_user: dict = Depends(require_admin)):
+    def nl_html(subject, content):
+        return f"""<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
+          {_email_header()}<div style="padding:32px;"><h2 style="font-size:20px;font-weight:700;margin:0 0 16px;color:#111;">{subject}</h2>
+          <div style="font-size:14px;color:#555;line-height:1.7;">{content.replace(chr(10), '<br>')}</div></div>
+          {_email_footer("Du erhältst diese E-Mail weil du den InkBook Newsletter abonniert hast.")}</div>"""
+    if data.preview_email:
+        await send_email(data.preview_email, f"[Vorschau] {data.subject}", nl_html(data.subject, data.content))
+        return {"status": "preview_sent", "sent": 0}
+    subs = await db.newsletter_subscribers.find({"active": True}, {"_id": 0, "email": 1}).to_list(10000)
+    for sub in subs:
+        asyncio.create_task(send_email(sub["email"], data.subject, nl_html(data.subject, data.content)))
+    return {"status": "sent", "sent": len(subs)}
+
+# ─── Reports (User & Admin) ──────────────────────────────────────────────────
+
+class ReportCreate(BaseModel):
+    target_type: str
+    target_id: str
+    reason: str
+
+@api_router.post("/reports")
+async def submit_report(data: ReportCreate, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    doc = {"report_id": f"rep_{uuid.uuid4().hex[:10]}", "reporter_id": user_id, "reporter_name": current_user.get("name", ""),
+           "target_type": data.target_type, "target_id": data.target_id, "reason": data.reason,
+           "status": "open", "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.reports.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.get("/admin/reports")
+async def admin_get_reports(current_user: dict = Depends(require_admin)):
+    return await db.reports.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+@api_router.patch("/admin/reports/{report_id}/status")
+async def admin_update_report(report_id: str, request: Request, current_user: dict = Depends(require_admin)):
+    body = await request.json()
+    await db.reports.update_one({"report_id": report_id}, {"$set": {"status": body.get("status", "dismissed")}})
+    return {"updated": True}
+
+@api_router.delete("/admin/reports/{report_id}")
+async def admin_delete_report(report_id: str, current_user: dict = Depends(require_admin)):
+    await db.reports.delete_one({"report_id": report_id})
+    return {"deleted": True}
+
+# ─── Broadcast ────────────────────────────────────────────────────────────────
+
+class BroadcastRequest(BaseModel):
+    title: str
+    message: str
+    target: str = "all"
+
+@api_router.post("/admin/broadcast")
+async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(require_admin)):
+    query: dict = {}
+    if data.target == "customers":
+        query = {"role": "customer"}
+    elif data.target == "studio_owners":
+        query = {"role": "studio_owner"}
+    users = await db.users.find(query, {"_id": 0, "user_id": 1}).to_list(10000)
+    sent = 0
+    for u in users:
+        uid = u.get("user_id")
+        if uid:
+            asyncio.create_task(send_push_notification(user_id=uid, title=data.title, body=data.message, url="/"))
+            sent += 1
+    return {"sent": sent}
+
+# ─── Admin: All Bookings, Revenue, Subscriptions ─────────────────────────────
+
+@api_router.get("/admin/bookings/all")
+async def admin_all_bookings(current_user: dict = Depends(require_admin)):
+    return await db.bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+@api_router.get("/admin/revenue")
+async def admin_revenue(current_user: dict = Depends(require_admin)):
+    txns = await db.payment_transactions.find({"payment_status": "paid"}, {"_id": 0}).to_list(10000)
+    monthly: dict = {}
+    for txn in txns:
+        try:
+            date = datetime.fromisoformat(txn["created_at"].replace("Z", "+00:00"))
+            key = date.strftime("%Y-%m")
+            monthly[key] = round(monthly.get(key, 0) + float(txn.get("amount", 0)), 2)
+        except Exception:
+            pass
+    subs = await db.subscriptions.find({}, {"_id": 0, "plan": 1, "status": 1}).to_list(1000)
+    plan_prices = {"basic": 29.0, "pro": 79.0}
+    mrr = sum(plan_prices.get(s.get("plan", ""), 0) for s in subs if s.get("status") == "active")
+    return {
+        "monthly_breakdown": [{"month": k, "amount": v} for k, v in sorted(monthly.items())[-6:]],
+        "mrr": round(mrr, 2),
+        "active_subscriptions": sum(1 for s in subs if s.get("status") == "active"),
+        "total_from_payments": round(sum(float(t.get("amount", 0)) for t in txns), 2),
+    }
+
+@api_router.get("/admin/subscriptions")
+async def admin_all_subscriptions(current_user: dict = Depends(require_admin)):
+    subs = await db.subscriptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    result = []
+    for sub in subs:
+        studio = await db.studios.find_one({"studio_id": sub.get("studio_id")}, {"_id": 0, "name": 1, "city": 1})
+        sub["studio_name"] = studio.get("name", "—") if studio else "—"
+        sub["studio_city"] = studio.get("city", "") if studio else ""
+        result.append(sub)
+    return result
+
+@api_router.get("/admin/users/{user_id}/details")
+async def admin_user_details(user_id: str, current_user: dict = Depends(require_admin)):
+    from bson import ObjectId
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        try:
+            u2 = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
+            if u2:
+                u2["user_id"] = str(u2.pop("_id", ""))
+                user = u2
+        except Exception:
+            pass
+    if not user:
+        raise HTTPException(status_code=404, detail="Nicht gefunden")
+    bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(20)
+    studio = await db.studios.find_one({"owner_id": user_id}, {"_id": 0, "name": 1, "studio_id": 1})
+    return {"user": user, "bookings": bookings, "studio": studio}
+
+@api_router.get("/admin/support-tickets")
+async def admin_support_tickets(current_user: dict = Depends(require_admin)):
+    return await db.support_chats.find({}, {"_id": 0}).sort("updated_at", -1).to_list(200)
+
+@api_router.get("/admin/stats/enhanced")
+async def admin_stats_enhanced(current_user: dict = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start = (now - timedelta(days=7)).isoformat()
+    new_users_today = await db.users.count_documents({"created_at": {"$gte": today_start}})
+    new_users_week = await db.users.count_documents({"created_at": {"$gte": week_start}})
+    new_bookings_week = await db.bookings.count_documents({"created_at": {"$gte": week_start}})
+    newsletter_count = await db.newsletter_subscribers.count_documents({"active": True})
+    open_reports = await db.reports.count_documents({"status": "open"})
+    pipeline = [{"$group": {"_id": "$studio_id", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 5}]
+    top_raw = await db.bookings.aggregate(pipeline).to_list(5)
+    top_studios = []
+    for ts in top_raw:
+        s = await db.studios.find_one({"studio_id": ts["_id"]}, {"_id": 0, "name": 1, "city": 1, "avg_rating": 1})
+        if s:
+            top_studios.append({**s, "booking_count": ts["count"], "studio_id": ts["_id"]})
+    return {"new_users_today": new_users_today, "new_users_week": new_users_week,
+            "new_bookings_week": new_bookings_week, "newsletter_subscribers": newsletter_count,
+            "open_reports": open_reports, "top_studios": top_studios}
+
+
+
 @app.on_event("startup")
 async def startup_event():
     await db.users.create_index("email", unique=True)
