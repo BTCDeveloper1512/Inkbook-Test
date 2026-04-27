@@ -19,17 +19,17 @@
   --grain: none;
   --icon: none;
   --behind-gradient: none;
-  --behind-glow-color: rgba(180, 140, 60, 0.45);
-  --behind-glow-size: 25%;
+  --behind-glow-color: rgba(255, 255, 255, 0.10);
+  --behind-glow-size: 35%;
   --inner-gradient: none;
 
-  /* InkBook Tattoo-Premium Metallic Color Palette */
-  --sunpillar-1: hsl(40, 65%, 58%);   /* warm amber/gold */
-  --sunpillar-2: hsl(22, 55%, 48%);   /* copper */
-  --sunpillar-3: hsl(210, 20%, 52%);  /* steel blue-gray */
-  --sunpillar-4: hsl(215, 15%, 40%);  /* dark steel */
-  --sunpillar-5: hsl(48, 70%, 50%);   /* bright gold */
-  --sunpillar-6: hsl(12, 38%, 42%);   /* rust/bronze */
+  /* InkBook Monochrome – soft white/black/silver */
+  --sunpillar-1: hsl(0, 0%, 82%);   /* light silver */
+  --sunpillar-2: hsl(0, 0%, 62%);   /* mid gray */
+  --sunpillar-3: hsl(0, 0%, 44%);   /* dark gray */
+  --sunpillar-4: hsl(0, 0%, 28%);   /* deep charcoal */
+  --sunpillar-5: hsl(0, 0%, 92%);   /* near white */
+  --sunpillar-6: hsl(0, 0%, 36%);   /* medium charcoal */
 
   --sunpillar-clr-1: var(--sunpillar-1);
   --sunpillar-clr-2: var(--sunpillar-2);
@@ -57,8 +57,8 @@
     var(--behind-glow-color) 0%,
     transparent var(--behind-glow-size)
   );
-  filter: blur(50px) saturate(1.1);
-  opacity: calc(0.8 * var(--card-opacity));
+  filter: blur(40px) saturate(0.8);
+  opacity: calc(0.35 * var(--card-opacity));
   transition: opacity 200ms ease;
 }
 
@@ -127,7 +127,7 @@
   mask-size: 150%;
   mask-position: top calc(200% - (var(--background-y) * 5)) left calc(100% - var(--background-x));
   transition: filter 0.8s ease;
-  filter: brightness(0.66) contrast(1.33) saturate(0.33) opacity(0.5);
+  filter: brightness(0.55) contrast(1.1) saturate(0.1) opacity(0.3);
   animation: pc-holo-bg 18s linear infinite;
   animation-play-state: running;
   mix-blend-mode: color-dodge;
@@ -156,12 +156,12 @@
     ),
     repeating-linear-gradient(
       var(--angle),
-      #0a0908 0%,
-      hsl(30, 10%, 55%) 3.8%,
-      hsl(35, 20%, 62%) 4.5%,
-      hsl(30, 10%, 55%) 5.2%,
-      #0a0908 10%,
-      #0a0908 12%
+      #080808 0%,
+      hsl(0, 0%, 52%) 3.8%,
+      hsl(0, 0%, 60%) 4.5%,
+      hsl(0, 0%, 52%) 5.2%,
+      #080808 10%,
+      #080808 12%
     ),
     radial-gradient(
       farthest-corner circle at var(--pointer-x) var(--pointer-y),
@@ -193,7 +193,7 @@
 
 .pc-card:hover .pc-shine,
 .pc-card.active .pc-shine {
-  filter: brightness(0.85) contrast(1.5) saturate(0.5);
+  filter: brightness(0.7) contrast(1.2) saturate(0.15);
   animation-play-state: paused;
 }
 
@@ -201,7 +201,7 @@
 .pc-card.active .pc-shine::before,
 .pc-card:hover .pc-shine::after,
 .pc-card.active .pc-shine::after {
-  opacity: 1;
+  opacity: 0.5;
 }
 
 .pc-shine::before {
@@ -256,11 +256,11 @@
   overflow: hidden;
   background-image: radial-gradient(
     farthest-corner circle at var(--pointer-x) var(--pointer-y),
-    hsl(35, 25%, 75%) 12%,
-    hsla(30, 20%, 25%, 0.7) 90%
+    hsl(0, 0%, 85%) 12%,
+    hsla(0, 0%, 20%, 0.4) 90%
   );
   mix-blend-mode: overlay;
-  filter: brightness(0.8) contrast(1.2);
+  filter: brightness(0.5) contrast(1.0);
   z-index: 4;
 }
 
@@ -358,14 +358,14 @@
 
 .pc-status {
   font-size: 11px;
-  color: rgba(200, 175, 120, 0.85);
+  color: rgba(255, 255, 255, 0.5);
   line-height: 1;
   font-family: 'Inter', sans-serif;
 }
 
 /* ── Contact Button ── */
 .pc-contact-btn {
-  border: 1px solid rgba(200, 170, 90, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
   padding: 9px 14px;
   font-size: 11px;
@@ -373,8 +373,8 @@
   font-family: 'Inter', sans-serif;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(220, 190, 110, 0.95);
-  background: rgba(160, 120, 40, 0.18);
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.07);
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(8px);
@@ -383,11 +383,11 @@
 }
 
 .pc-contact-btn:hover {
-  border-color: rgba(220, 185, 80, 0.65);
-  background: rgba(200, 160, 50, 0.28);
-  color: rgba(255, 220, 130, 1);
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 1);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(200, 160, 50, 0.25);
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.08);
 }
 
 /* ── Card text content ── */
@@ -418,7 +418,7 @@
   margin: 0;
   font-size: min(5svh, 2.4em);
   font-family: 'Playfair Display', serif;
-  background-image: linear-gradient(to bottom, #ffffff, #c9b98a);
+  background-image: linear-gradient(to bottom, #ffffff, #d0d0d0);
   background-size: 1em 1.5em;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -435,7 +435,7 @@
   font-family: 'Inter', sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background-image: linear-gradient(to bottom, #d4c4a4, #8a7a5a);
+  background-image: linear-gradient(to bottom, #b0b0b0, #6a6a6a);
   background-size: 1em 1.5em;
   -webkit-text-fill-color: transparent;
   background-clip: text;

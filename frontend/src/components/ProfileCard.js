@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import './ProfileCard.css';
 
 const DEFAULT_INNER_GRADIENT =
-  'linear-gradient(145deg, rgba(18,15,12,0.97) 0%, rgba(55,42,25,0.7) 100%)';
+  'linear-gradient(145deg, rgba(10,10,10,0.97) 0%, rgba(22,22,22,0.82) 100%)';
 
 const ANIMATION_CONFIG = {
   INITIAL_DURATION: 1200,
@@ -262,7 +262,7 @@ function ProfileCardComponent({
       '--icon': iconUrl ? `url(${iconUrl})` : 'none',
       '--grain': grainUrl ? `url(${grainUrl})` : 'none',
       '--inner-gradient': innerGradient ?? DEFAULT_INNER_GRADIENT,
-      '--behind-glow-color': behindGlowColor ?? 'rgba(180, 140, 60, 0.45)',
+      '--behind-glow-color': behindGlowColor ?? 'rgba(255, 255, 255, 0.10)',
       '--behind-glow-size': behindGlowSize ?? '50%',
     }),
     [iconUrl, grainUrl, innerGradient, behindGlowColor, behindGlowSize],
