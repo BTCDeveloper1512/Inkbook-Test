@@ -694,8 +694,6 @@ export default function StudioDashboard() {
           </form>
         )}
       </div>
-      <Footer />
-
       {/* FAQ Help Strip */}
       <div className="bg-white border-t border-zinc-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
@@ -713,6 +711,7 @@ export default function StudioDashboard() {
           </Link>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

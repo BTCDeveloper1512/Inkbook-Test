@@ -195,11 +195,21 @@ function TicketForm({ onBack, user }) {
           </div>
           {/* Replies */}
           {selectedTicket.replies?.map((r, i) => (
-            <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "bg-zinc-900" : "bg-blue-50 border border-blue-100"}`}>
-              <p className={`text-[9px] mb-1 font-inter font-semibold ${r.from === "admin" ? "text-zinc-400" : "text-blue-400"}`}>
-                {r.from === "admin" ? "INKBOOK SUPPORT" : "DEINE ANTWORT"}
-              </p>
-              <p className={`text-xs font-inter leading-relaxed ${r.from === "admin" ? "text-white" : "text-blue-800"}`}>{r.message}</p>
+            <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "border border-green-100 bg-green-50" : "bg-blue-50 border border-blue-100"}`}>
+              {r.from === "admin" ? (
+                <>
+                  <p className="text-[9px] text-green-500 mb-1 font-inter font-semibold">INKBOOK SUPPORT</p>
+                  <p className="text-xs font-inter text-green-800 leading-relaxed">
+                    Deine Anfrage wurde per E-Mail beantwortet.{r.created_at ? ` (${new Date(r.created_at).toLocaleDateString("de-DE")})` : ""}
+                  </p>
+                  <p className="text-[10px] text-green-500 font-inter mt-1">Antworte hier unten, falls du weitere Fragen hast.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[9px] text-blue-400 mb-1 font-inter font-semibold">DEINE ANTWORT</p>
+                  <p className="text-xs font-inter text-blue-800 leading-relaxed">{r.message}</p>
+                </>
+              )}
             </div>
           ))}
         </div>

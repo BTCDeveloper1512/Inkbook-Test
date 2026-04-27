@@ -167,11 +167,6 @@ export default function Navbar() {
                           <Link to="/admin" className="flex items-center px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-admin-link">Admin Panel</Link>
                         )}
                         <div className="h-px bg-zinc-100 my-1" />
-                        <button onClick={() => { handlePushToggle(); setUserMenuOpen(false); }} className="w-full text-left flex items-center justify-between px-4 py-2.5 text-sm text-zinc-600 hover:bg-zinc-50 font-inter">
-                          <span>Push-Benachrichtigungen</span>
-                          {pushStatus === "active" && <span className="w-2 h-2 bg-green-500 rounded-full" />}
-                        </button>
-                        <div className="h-px bg-zinc-100 my-1" />
                         <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 font-inter" data-testid="nav-logout-btn">{t("nav.logout")}</button>
                       </motion.div>
                     )}

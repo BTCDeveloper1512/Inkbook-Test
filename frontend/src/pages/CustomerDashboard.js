@@ -341,7 +341,7 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
           <Link to="/" className="bg-zinc-900 text-white p-5 rounded-2xl flex items-center justify-between hover:bg-zinc-700 transition-all group" data-testid="find-studio-btn">
             <div>
               <p className="text-xs tracking-[0.15em] uppercase opacity-50 font-inter mb-1">Neu buchen</p>
@@ -362,6 +362,13 @@ export default function CustomerDashboard() {
               <p className="font-playfair font-semibold text-zinc-900 text-base">Nachrichten</p>
             </div>
             <MessageSquare size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
+          </Link>
+          <Link to="/faq" className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between hover:border-zinc-400 transition-all group" data-testid="customer-faq-link">
+            <div>
+              <p className="text-xs tracking-[0.15em] uppercase text-zinc-400 font-inter mb-1">Hilfe</p>
+              <p className="font-playfair font-semibold text-zinc-900 text-base">FAQs</p>
+            </div>
+            <HelpCircle size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
           </Link>
         </div>
 
@@ -625,24 +632,6 @@ export default function CustomerDashboard() {
       </AnimatePresence>
 
       <Footer />
-
-      {/* FAQ Help Strip */}
-      <div className="bg-white border-t border-zinc-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center">
-              <HelpCircle size={15} className="text-zinc-500" strokeWidth={1.5} />
-            </div>
-            <div>
-              <p className="text-xs font-inter font-semibold text-zinc-800">Hast du Fragen?</p>
-              <p className="text-xs text-zinc-400 font-inter">Hilfe & häufige Fragen für Kunden</p>
-            </div>
-          </div>
-          <Link to="/faq" className="text-xs font-inter font-semibold text-zinc-900 underline underline-offset-2 hover:no-underline transition-all" data-testid="customer-faq-link">
-            FAQ ansehen →
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }
