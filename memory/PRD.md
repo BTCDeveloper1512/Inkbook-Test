@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 (Iteration 24 – Video Consultation & Deposit Pro Features abgeschlossen) ✅
+- **Videoberatung-Buchung (Customer Flow)**: `StudioPage.js` zeigt "Videoberatung" als 3. Buchungstyp-Option, wenn `studio.video_consultation_enabled = true` (responsives 3-Spalten-Grid)
+- **Video beitreten (Customer Dashboard)**: `CustomerDashboard.js` importiert `VideoCallModal`, zeigt "Video beitreten"-Button für `confirmed` + zukünftige `video_consultation`-Buchungen
+- **Buchungstyp-Label**: "Videoberatung" wird korrekt in der Buchungsliste des Kunden angezeigt (Icon + Label)
+- **Backend**: `/api/bookings/{id}/video-join`, `/api/bookings/{id}/video-status`, `/api/bookings/{id}/video-leave` vollständig funktional
+- **Jitsi Meet**: Warteraum mit Teilnehmer-Polling (3s), Live-Statusanzeige (Kunde/Studio grün/grau)
+- Testing: 100% Backend (4/4) + 100% Frontend ✅ (Iteration 21)
+
 ### Mai 2026 (Iteration 23 – 5 Bug-Fixes & Verbesserungen)
 - **Bug Fix #4 – Unread Badge**: Broadcast-Nachrichten (inkbook_system) werden vom Unread-Counter ausgeschlossen → Badge zeigt korrekte Zahl
 - **Bug Fix #5 – Zwei Glocken**: AnnouncementBell aus Dashboards entfernt, in Navbar integriert → nur eine Glocke sichtbar. Push-Toggle in User-Dropdown verschoben.
