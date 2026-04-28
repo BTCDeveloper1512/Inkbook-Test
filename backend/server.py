@@ -23,8 +23,16 @@ try:
     import resend
 except ImportError:
     resend = None
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+except ImportError:
+    LlmChat = None
+    UserMessage = None
+    ImageContent = None
+    StripeCheckout = None
+    CheckoutSessionRequest = None
+
 
 # ─── Resend Email ─────────────────────────────────────────────────────────────
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
