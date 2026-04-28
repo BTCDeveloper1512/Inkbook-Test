@@ -352,7 +352,7 @@ class PaymentCreateRequest(BaseModel):
     origin_url: str
 
 class SubscriptionCheckoutRequest(BaseModel):
-    plan: str  # "basic" | "pro"
+    plan: str  # "starter" | "pro" | "full_studio"
     origin_url: str
 
 class ArtistCreate(BaseModel):
@@ -582,8 +582,21 @@ async def update_studio(studio_id: str, data: StudioUpdate, current_user: dict =
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+
+    # ── Portfolio image limit check ───────────────────────────────────────────
+    if "portfolio_images" in update_data and current_user.get("role") != "admin":
+        plan_name = await get_studio_plan(studio_id)
+        limits = get_plan_limits(plan_name)
+        img_limit = limits["portfolio_images"]
+        if img_limit != -1 and len(update_data["portfolio_images"]) > img_limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"PLAN_LIMIT:portfolio:{img_limit}:{plan_name}"
+            )
+    # ─────────────────────────────────────────────────────────────────────────
+
     await db.studios.update_one({"studio_id": studio_id}, {"$set": update_data})
     return {"message": "Studio updated"}
 
@@ -671,7 +684,25 @@ async def create_slot(studio_id: str, data: SlotCreate, current_user: dict = Dep
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
+    # ── Plan slot limit check ────────────────────────────────────────────────
+    plan_name = await get_studio_plan(studio_id)
+    limits = get_plan_limits(plan_name)
+    slots_limit = limits["slots_per_month"]
+    if slots_limit != -1 and current_user.get("role") != "admin":
+        now = datetime.now(timezone.utc)
+        month_start = f"{now.year}-{now.month:02d}-01"
+        used = await db.slots.count_documents({
+            "studio_id": studio_id,
+            "created_at": {"$gte": month_start}
+        })
+        if used >= slots_limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"PLAN_LIMIT:slots:{slots_limit}:{plan_name}"
+            )
+    # ────────────────────────────────────────────────────────────────────────
+
     slot_doc = {
         "slot_id": f"slot_{uuid.uuid4().hex[:12]}",
         "studio_id": studio_id,
@@ -1203,13 +1234,92 @@ async def stripe_webhook(request: Request):
 
 # ─── Subscriptions ────────────────────────────────────────────────────────────
 SUBSCRIPTION_PLANS = {
-    "basic": {"name": "Basic", "price": 29.0, "currency": "eur", "features": ["50 Buchungen/Monat", "1 Artist-Profil", "Basis-Analytics", "E-Mail-Support"]},
-    "pro":   {"name": "Pro",   "price": 79.0, "currency": "eur", "features": ["Unbegrenzte Buchungen", "5 Artist-Profile", "Premium-Analytics", "Priority-Listing", "Priority-Support", "Benutzerdefinierte Profilseite"]}
+    "free": {
+        "name": "Kostenlos", "price": 0.0, "currency": "eur", "price_id": None,
+        "artists_limit": 1, "slots_per_month": 5, "portfolio_images": 5,
+        "features": ["basic_profile", "contact_form"],
+        "branding": True, "chat": False, "deposit": False,
+        "video_consultation": False, "newsletter": False, "analytics": False,
+        "priority_search": False,
+        "feature_labels": ["1 Artist", "5 Slots / Monat", "5 Portfolio-Bilder", "Basis-Profil", "Kontaktformular", "InkBook-Branding sichtbar"]
+    },
+    "starter": {
+        "name": "Starter", "price": 19.99, "currency": "eur", "price_id": "price_starter_dummy_01",
+        "artists_limit": 2, "slots_per_month": 20, "portfolio_images": 20,
+        "features": ["basic_profile", "contact_form", "chat", "email_notifications", "basic_stats", "reviews"],
+        "branding": False, "chat": True, "deposit": False,
+        "video_consultation": False, "newsletter": False, "analytics": True,
+        "priority_search": False,
+        "feature_labels": ["2 Artists", "20 Slots / Monat", "20 Portfolio-Bilder", "Chat-Terminbestätigung", "E-Mail-Benachrichtigungen", "Basis-Statistiken", "Kunden-Bewertungen", "Kein InkBook-Branding"]
+    },
+    "pro": {
+        "name": "Pro", "price": 49.99, "currency": "eur", "price_id": "price_pro_dummy_01",
+        "artists_limit": 4, "slots_per_month": -1, "portfolio_images": 100,
+        "features": ["basic_profile", "contact_form", "chat", "email_notifications", "advanced_stats", "reviews", "deposit", "calendar_sync", "custom_colors", "cancellation_management"],
+        "branding": False, "chat": True, "deposit": True,
+        "video_consultation": False, "newsletter": False, "analytics": True,
+        "priority_search": True,
+        "feature_labels": ["4 Artists", "Unlimited Slots", "100 Portfolio-Bilder", "Anzahlungsfunktion", "Erweiterte Statistiken", "Kalender-Sync", "Priorität in der Suche", "Storno-Management"]
+    },
+    "full_studio": {
+        "name": "Full Studio", "price": 149.99, "currency": "eur", "price_id": "price_full_studio_dummy_01",
+        "artists_limit": -1, "slots_per_month": -1, "portfolio_images": -1,
+        "features": ["basic_profile", "contact_form", "chat", "email_notifications", "advanced_stats", "reviews", "deposit", "calendar_sync", "custom_colors", "cancellation_management", "video_consultation", "newsletter", "admin_support", "featured_banner", "sms_reminders", "performance_report"],
+        "branding": False, "chat": True, "deposit": True,
+        "video_consultation": True, "newsletter": True, "analytics": True,
+        "priority_search": True,
+        "feature_labels": ["Unlimited Artists", "Unlimited Slots", "Unlimited Portfolio-Bilder", "Videoberatung", "Newsletter-Kampagnen", "Dedicated Admin Support", "Hervorgehobenes Profil", "SMS-Erinnerungen", "Monatlicher Performance-Report"]
+    }
 }
+
+def get_plan_limits(plan_name: str) -> dict:
+    """Returns the plan limits dict. Defaults to 'free' if unknown."""
+    return SUBSCRIPTION_PLANS.get(plan_name, SUBSCRIPTION_PLANS["free"])
+
+async def get_studio_plan(studio_id: str) -> str:
+    """Returns the active plan name for a studio (defaults to 'free')."""
+    sub = await db.subscriptions.find_one({"studio_id": studio_id}, {"_id": 0, "plan": 1, "status": 1})
+    if sub and sub.get("status") == "active":
+        plan = sub.get("plan", "free")
+        if plan in SUBSCRIPTION_PLANS:
+            return plan
+    return "free"
+
 
 @api_router.get("/subscriptions/plans")
 async def get_plans():
     return SUBSCRIPTION_PLANS
+
+@api_router.get("/subscriptions/usage")
+async def get_subscription_usage(current_user: dict = Depends(get_current_user)):
+    """Returns current month's usage for a studio owner."""
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id}, {"_id": 0, "studio_id": 1})
+    if not studio:
+        return {"has_studio": False}
+    studio_id = studio["studio_id"]
+    plan_name = await get_studio_plan(studio_id)
+    limits = get_plan_limits(plan_name)
+    # Count slots this month
+    now = datetime.now(timezone.utc)
+    month_start = f"{now.year}-{now.month:02d}-01"
+    slots_used = await db.slots.count_documents({"studio_id": studio_id, "created_at": {"$gte": month_start}})
+    # Count artists
+    artists_count = await db.artists.count_documents({"studio_id": studio_id})
+    # Count portfolio images
+    studio_doc = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0, "portfolio_images": 1})
+    portfolio_count = len(studio_doc.get("portfolio_images", []) or [])
+    return {
+        "has_studio": True,
+        "studio_id": studio_id,
+        "plan": plan_name,
+        "limits": limits,
+        "usage": {
+            "slots_this_month": slots_used,
+            "artists": artists_count,
+            "portfolio_images": portfolio_count
+        }
+    }
 
 @api_router.get("/subscriptions/status")
 async def get_subscription_status(current_user: dict = Depends(get_current_user)):
@@ -1308,6 +1418,20 @@ async def create_artist(studio_id: str, data: ArtistCreate, current_user: dict =
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
+
+    # ── Plan artist limit check ───────────────────────────────────────────────
+    plan_name = await get_studio_plan(studio_id)
+    limits = get_plan_limits(plan_name)
+    artist_limit = limits["artists_limit"]
+    if artist_limit != -1 and current_user.get("role") != "admin":
+        existing_count = await db.artists.count_documents({"studio_id": studio_id})
+        if existing_count >= artist_limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"PLAN_LIMIT:artists:{artist_limit}:{plan_name}"
+            )
+    # ─────────────────────────────────────────────────────────────────────────
+
     artist_doc = {
         "artist_id": f"artist_{uuid.uuid4().hex[:12]}",
         "studio_id": studio_id,
@@ -2133,7 +2257,7 @@ async def admin_revenue(current_user: dict = Depends(require_admin)):
         except Exception:
             pass
     subs = await db.subscriptions.find({}, {"_id": 0, "plan": 1, "status": 1}).to_list(1000)
-    plan_prices = {"basic": 29.0, "pro": 79.0}
+    plan_prices = {"free": 0.0, "starter": 19.99, "pro": 49.99, "full_studio": 149.99, "basic": 29.0}
     mrr = sum(plan_prices.get(s.get("plan", ""), 0) for s in subs if s.get("status") == "active")
     return {
         "monthly_breakdown": [{"month": k, "amount": v} for k, v in sorted(monthly.items())[-6:]],
