@@ -29,14 +29,26 @@ export default function SubscriptionPage() {
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    if (!user) { navigate("/login"); return; }
-    if (user.role !== "studio_owner" && user.role !== "admin") { navigate("/dashboard"); return; }
-    fetchData();
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session_id");
-    const plan = params.get("plan");
-    if (sessionId && plan) verifyPayment(sessionId, plan);
-  }, [user]);
+  if (!user) {
+    navigate("/login");
+    return;
+  }
+
+  if (user.role !== "studio_owner" && user.role !== "admin") {
+    navigate("/dashboard");
+    return;
+  }
+
+  fetchData();
+
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get("session_id");
+  const plan = params.get("plan");
+
+  if (sessionId && plan) {
+    verifyPayment(sessionId, plan);
+  }
+}, [user, navigate, verifyPayment]);
 
   const fetchData = async () => {
     try {
