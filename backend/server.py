@@ -582,21 +582,7 @@ async def update_studio(studio_id: str, data: StudioUpdate, current_user: dict =
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
-
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-
-    # ── Portfolio image limit check ───────────────────────────────────────────
-    if "portfolio_images" in update_data and current_user.get("role") != "admin":
-        plan_name = await get_studio_plan(studio_id)
-        limits = get_plan_limits(plan_name)
-        img_limit = limits["portfolio_images"]
-        if img_limit != -1 and len(update_data["portfolio_images"]) > img_limit:
-            raise HTTPException(
-                status_code=403,
-                detail=f"PLAN_LIMIT:portfolio:{img_limit}:{plan_name}"
-            )
-    # ─────────────────────────────────────────────────────────────────────────
-
     await db.studios.update_one({"studio_id": studio_id}, {"$set": update_data})
     return {"message": "Studio updated"}
 
@@ -684,25 +670,6 @@ async def create_slot(studio_id: str, data: SlotCreate, current_user: dict = Dep
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
-
-    # ── Plan slot limit check ────────────────────────────────────────────────
-    plan_name = await get_studio_plan(studio_id)
-    limits = get_plan_limits(plan_name)
-    slots_limit = limits["slots_per_month"]
-    if slots_limit != -1 and current_user.get("role") != "admin":
-        now = datetime.now(timezone.utc)
-        month_start = f"{now.year}-{now.month:02d}-01"
-        used = await db.slots.count_documents({
-            "studio_id": studio_id,
-            "created_at": {"$gte": month_start}
-        })
-        if used >= slots_limit:
-            raise HTTPException(
-                status_code=403,
-                detail=f"PLAN_LIMIT:slots:{slots_limit}:{plan_name}"
-            )
-    # ────────────────────────────────────────────────────────────────────────
-
     slot_doc = {
         "slot_id": f"slot_{uuid.uuid4().hex[:12]}",
         "studio_id": studio_id,
@@ -1418,20 +1385,6 @@ async def create_artist(studio_id: str, data: ArtistCreate, current_user: dict =
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
-
-    # ── Plan artist limit check ───────────────────────────────────────────────
-    plan_name = await get_studio_plan(studio_id)
-    limits = get_plan_limits(plan_name)
-    artist_limit = limits["artists_limit"]
-    if artist_limit != -1 and current_user.get("role") != "admin":
-        existing_count = await db.artists.count_documents({"studio_id": studio_id})
-        if existing_count >= artist_limit:
-            raise HTTPException(
-                status_code=403,
-                detail=f"PLAN_LIMIT:artists:{artist_limit}:{plan_name}"
-            )
-    # ─────────────────────────────────────────────────────────────────────────
-
     artist_doc = {
         "artist_id": f"artist_{uuid.uuid4().hex[:12]}",
         "studio_id": studio_id,

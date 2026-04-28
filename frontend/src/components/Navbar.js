@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext";
 import { Menu, X, Globe, ChevronDown, Bell, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
-import AnnouncementBell from "./AnnouncementBell";
 import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -44,9 +43,7 @@ export default function Navbar() {
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
     fetchUnreadCount();
-    // Reset count when user visits messages page
     if (location.pathname.startsWith("/messages")) setUnreadCount(0);
-    // Poll every 8 seconds
     pollRef.current = setInterval(fetchUnreadCount, 8000);
     return () => clearInterval(pollRef.current);
   }, [user, location.pathname]);
@@ -72,9 +69,7 @@ export default function Navbar() {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-1">
             {[
-              { to: "/search",     label: t("nav.search") },
-              { to: "/pricing",    label: "Preise" },
-              { to: "/ai-advisor", label: t("nav.aiAdvisor") },
+              { to: "/search", label: t("nav.search") },
             ].map(link => (
               <Link
                 key={link.to}
@@ -86,7 +81,6 @@ export default function Navbar() {
               </Link>
             ))}
 
-            {/* Messages link with badge */}
             {user && (
               <Link
                 to="/messages"
@@ -121,7 +115,6 @@ export default function Navbar() {
 
             {user ? (
               <>
-                {/* Mobile messages icon with badge */}
                 <Link to="/messages" className="md:hidden relative p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all" data-testid="mobile-messages-btn">
                   <MessageSquare size={18} strokeWidth={1.5} />
                   {countToShow > 0 && (
@@ -135,8 +128,6 @@ export default function Navbar() {
                   <Bell size={16} strokeWidth={1.5} />
                   {pushStatus === "active" && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />}
                 </button>
-
-                <AnnouncementBell />
 
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-sm font-inter" data-testid="user-menu-btn">
@@ -153,8 +144,6 @@ export default function Navbar() {
                       <motion.div initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.96 }} transition={{ duration: 0.15 }}
                         className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-black/[0.06] shadow-card overflow-hidden z-50 py-1">
                         <Link to={dashboardPath} className="flex items-center px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-dashboard-link">{t("nav.dashboard")}</Link>
-
-                        {/* Messages with unread count in dropdown too */}
                         <Link to="/messages" className="flex items-center justify-between px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-messages-dropdown-link">
                           <span>{t("nav.messages")}</span>
                           {countToShow > 0 && (
@@ -163,7 +152,6 @@ export default function Navbar() {
                             </span>
                           )}
                         </Link>
-
                         {user.role === "admin" && (
                           <Link to="/admin" className="flex items-center px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-admin-link">Admin Panel</Link>
                         )}
@@ -192,9 +180,7 @@ export default function Navbar() {
           {mobileOpen && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t border-zinc-100 py-3 space-y-1 overflow-hidden">
               {[
-                { to: "/search",     label: t("nav.search") },
-                { to: "/pricing",    label: "Preise" },
-                { to: "/ai-advisor", label: t("nav.aiAdvisor") },
+                { to: "/search", label: t("nav.search") },
                 ...(user ? [{ to: dashboardPath, label: t("nav.dashboard") }] : [
                   { to: "/login", label: t("nav.login") },
                   { to: "/register", label: t("nav.register") }
@@ -209,7 +195,6 @@ export default function Navbar() {
         </AnimatePresence>
       </div>
 
-      {/* Push notification feedback */}
       {pushStatus && pushStatus !== "active" && (
         <div className="push-banner">
           {pushStatus === "denied" ? "Benachrichtigungen blockiert – Bitte in Browser-Einstellungen erlauben" : "Benachrichtigungen aktiviert!"}

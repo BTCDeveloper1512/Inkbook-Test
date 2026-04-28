@@ -18,7 +18,7 @@ export default function Footer() {
           </div>
 
           {[
-            { title: "Kunden", links: [{ to: "/search", label: "Studios finden" }, { to: "/ai-advisor", label: "KI-Stilberater" }, { to: "/dashboard", label: "Meine Buchungen" }] },
+            { title: "Kunden", links: [{ to: "/search", label: "Studios finden" }, { to: "/dashboard", label: "Meine Buchungen" }] },
             { title: "Studios", links: [{ to: "/register", label: "Studio registrieren" }, { to: "/studio-dashboard", label: "Dashboard" }, { to: "/subscription", label: "Pläne & Preise" }] },
             { title: "Kontakt", links: [] }
           ].map(col => (

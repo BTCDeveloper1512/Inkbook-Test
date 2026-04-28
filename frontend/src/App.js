@@ -12,11 +12,9 @@ import SearchPage from "./pages/SearchPage";
 import StudioPage from "./pages/StudioPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import StudioDashboard from "./pages/StudioDashboard";
-import AIAdvisorPage from "./pages/AIAdvisorPage";
 import MessagesPage from "./pages/MessagesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import AdminPage from "./pages/AdminPage";
-import PricingPage from "./pages/PricingPage";
 import ImpressumPage from "./pages/ImpressumPage";
 import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
@@ -40,8 +38,6 @@ function AppRouter() {
         <Route path="/register"      element={<RegisterPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/studios/:studioId" element={<StudioPage />} />
-        <Route path="/ai-advisor"    element={<AIAdvisorPage />} />
-        <Route path="/pricing"         element={<PricingPage />} />
         <Route path="/impressum"     element={<ImpressumPage />} />
         <Route path="/datenschutz"   element={<DatenschutzPage />} />
         <Route path="/agb"           element={<AGBPage />} />

@@ -35,12 +35,8 @@ export default function StudioDashboard() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [subscription, setSubscription] = useState(null);
-  const [usage, setUsage] = useState(null);
-  const plan = subscription?.status === "active" ? (subscription?.plan || "free") : "free";
-  const isPro = ["pro", "full_studio"].includes(plan);
-  const isFullStudio = plan === "full_studio";
-  const planColors = { free: "bg-zinc-100 text-zinc-600", starter: "bg-blue-50 text-blue-700", pro: "bg-violet-50 text-violet-700", full_studio: "bg-amber-50 text-amber-700" };
-  const planLabels = { free: "Kostenlos", starter: "Starter", pro: "Pro", full_studio: "Full Studio" };
+  const isPro = true; // All features unlocked – subscription model coming later
+  const isFullStudio = true;
   const [videoCallBooking, setVideoCallBooking] = useState(null);
   const [studioBookingsTab, setStudioBookingsTab] = useState("active");
   const [tick, setTick] = useState(0);
@@ -48,7 +44,6 @@ export default function StudioDashboard() {
   useEffect(() => {
     fetchStats();
     fetchSubscription();
-    fetchUsage();
     // Poll every 8s for live updates (new bookings pop up fast)
     const pollInterval = setInterval(fetchStats, 8000);
     // Re-evaluate time checks every 60s
@@ -60,13 +55,6 @@ export default function StudioDashboard() {
     try {
       const { data } = await axios.get(`${API}/subscriptions/status`, { withCredentials: true });
       setSubscription(data?.subscription);
-    } catch {}
-  };
-
-  const fetchUsage = async () => {
-    try {
-      const { data } = await axios.get(`${API}/subscriptions/usage`, { withCredentials: true });
-      setUsage(data);
     } catch {}
   };
 
@@ -105,15 +93,8 @@ export default function StudioDashboard() {
       setShowAddSlot(false);
       setSlotForm({ date: "", start_time: "", end_time: "", slot_type: "tattoo", duration_minutes: 120, notes: "" });
       fetchSlots(stats.studio.studio_id);
-      fetchUsage();
     } catch (err) {
-      const detail = err.response?.data?.detail || "";
-      if (detail.startsWith("PLAN_LIMIT:slots:")) {
-        const [, , limit, planName] = detail.split(":");
-        alert(`Slot-Limit erreicht!\n\nDein "${planLabels[planName] || planName}"-Plan erlaubt nur ${limit} Slots pro Monat.\n\nJetzt upgraden unter /pricing`);
-      } else {
-        alert(detail || "Fehler beim Erstellen des Slots");
-      }
+      alert(err.response?.data?.detail || "Fehler beim Erstellen des Slots");
     } finally { setSlotLoading(false); }
   };
 
@@ -310,13 +291,10 @@ export default function StudioDashboard() {
           <div>
             <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Studio Dashboard</p>
             <h1 className="text-3xl font-playfair font-semibold text-zinc-900">{studio?.name}</h1>
-            <span className={`inline-flex items-center gap-1 mt-1.5 text-xs px-3 py-1 rounded-full font-inter font-semibold capitalize ${planColors[plan] || planColors.free}`}>
-              <Crown size={10} strokeWidth={1.5} /> {planLabels[plan] || "Kostenlos"}
-            </span>
           </div>
           <div className="flex gap-2 flex-wrap justify-end items-center">
-            <Link to="/pricing" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2" data-testid="subscription-btn">
-              <Crown size={13} strokeWidth={1.5} /> Abo &amp; Preise
+            <Link to="/subscription" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2" data-testid="subscription-btn">
+              <Crown size={13} strokeWidth={1.5} /> Abo
             </Link>
             <Link to="/messages" className="btn-secondary flex items-center gap-1.5 text-sm px-4 py-2">
               <MessageSquare size={13} strokeWidth={1.5} /> Nachrichten
@@ -342,58 +320,6 @@ export default function StudioDashboard() {
             </div>
           ))}
         </div>
-
-        {/* Plan Usage Bars */}
-        {usage?.has_studio && (
-          <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Crown size={14} strokeWidth={1.5} className="text-zinc-500" />
-                <span className="text-sm font-inter font-semibold text-zinc-700">Plan-Nutzung · {planLabels[plan]}</span>
-              </div>
-              {plan !== "full_studio" && (
-                <Link to="/pricing" className="text-xs font-inter font-semibold text-violet-600 hover:text-violet-800 flex items-center gap-1" data-testid="upgrade-plan-link">
-                  Upgraden →
-                </Link>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: "Slots / Monat", used: usage.usage?.slots_this_month, limit: usage.limits?.slots_per_month },
-                { label: "Artists", used: usage.usage?.artists, limit: usage.limits?.artists_limit },
-                { label: "Portfolio-Bilder", used: usage.usage?.portfolio_images, limit: usage.limits?.portfolio_images },
-              ].map(({ label, used = 0, limit }) => {
-                const unlimited = limit === -1;
-                const pct = unlimited ? 0 : Math.min(100, (used / limit) * 100);
-                const isNear = !unlimited && pct >= 80;
-                const isFull = !unlimited && pct >= 100;
-                return (
-                  <div key={label}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-inter text-zinc-500">{label}</span>
-                      <span className={`text-xs font-inter font-semibold ${isFull ? "text-red-600" : isNear ? "text-amber-600" : "text-zinc-700"}`}>
-                        {unlimited ? `${used} / ∞` : `${used} / ${limit}`}
-                      </span>
-                    </div>
-                    {!unlimited && (
-                      <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${isFull ? "bg-red-500" : isNear ? "bg-amber-400" : "bg-emerald-400"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    )}
-                    {unlimited && (
-                      <div className="h-1.5 bg-emerald-100 rounded-full">
-                        <div className="h-full w-full bg-emerald-300 rounded-full" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto">
@@ -700,17 +626,12 @@ export default function StudioDashboard() {
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Anzahlung</h3>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-inter font-semibold ${isPro ? "bg-violet-50 text-violet-700" : "bg-amber-100 text-amber-700 border border-amber-200"}`}>
-                  {isPro ? "Pro ✓" : "Ab Pro"}
-                </span>
-              </div>
-              <div className={`flex items-center gap-4 mb-4 ${!isPro ? "opacity-40 pointer-events-none select-none" : ""}`}>
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-4">Anzahlung</h3>
+              <div className="flex items-center gap-4 mb-4">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <div
-                    onClick={() => isPro && setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isPro ? "cursor-pointer" : "cursor-not-allowed"} ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
+                    onClick={() => setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
                     data-testid="deposit-toggle"
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.deposit_required ? "translate-x-5" : "translate-x-0"}`} />
@@ -718,13 +639,7 @@ export default function StudioDashboard() {
                   <span className="text-sm font-inter text-zinc-700">Anzahlung bei Buchung erforderlich</span>
                 </label>
               </div>
-              {!isPro && (
-                <p className="text-xs text-amber-600 font-inter bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                  Ab dem <strong>Pro-Plan</strong> verfügbar.
-                  <Link to="/pricing" className="font-semibold underline ml-1">Jetzt upgraden →</Link>
-                </p>
-              )}
-              {isPro && editForm?.deposit_required && (
+              {editForm?.deposit_required && (
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
                   <input
@@ -740,19 +655,14 @@ export default function StudioDashboard() {
               )}
             </div>
 
-            {/* Video Consultation Toggle - Full Studio Feature */}
+            {/* Video Consultation Toggle */}
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Videoberatung</h3>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-inter font-semibold ${isFullStudio ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-500 border border-zinc-200"}`}>
-                  {isFullStudio ? "Full Studio ✓" : "Ab Full Studio"}
-                </span>
-              </div>
-              <div className={`flex items-center gap-4 mb-3 ${!isFullStudio ? "opacity-40 pointer-events-none select-none" : ""}`}>
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-4">Videoberatung</h3>
+              <div className="flex items-center gap-4 mb-3">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <div
-                    onClick={() => isFullStudio && setEditForm(prev => ({ ...prev, video_consultation_enabled: !prev.video_consultation_enabled }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isFullStudio ? "cursor-pointer" : "cursor-not-allowed"} ${editForm?.video_consultation_enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
+                    onClick={() => setEditForm(prev => ({ ...prev, video_consultation_enabled: !prev.video_consultation_enabled }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${editForm?.video_consultation_enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
                     data-testid="video-consultation-toggle"
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.video_consultation_enabled ? "translate-x-5" : "translate-x-0"}`} />
@@ -760,16 +670,9 @@ export default function StudioDashboard() {
                   <span className="text-sm font-inter text-zinc-700">Videoberatungsgespräche anbieten</span>
                 </label>
               </div>
-              {!isFullStudio ? (
-                <p className="text-xs text-zinc-500 font-inter bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2">
-                  Ab dem <strong>Full Studio-Plan</strong> verfügbar.
-                  <Link to="/pricing" className="font-semibold underline ml-1">Jetzt upgraden →</Link>
-                </p>
-              ) : (
-                <p className="text-xs text-zinc-400 font-inter">
-                  Wenn aktiviert, können Kunden bei der Buchung "Videoberatungsgespräch" auswählen. Zum Termin erscheint ein "Beitreten"-Button.
-                </p>
-              )}
+              <p className="text-xs text-zinc-400 font-inter">
+                Wenn aktiviert, können Kunden bei der Buchung "Videoberatungsgespräch" auswählen. Zum Termin erscheint ein "Beitreten"-Button.
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">

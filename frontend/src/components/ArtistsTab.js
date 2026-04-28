@@ -46,15 +46,7 @@ export default function ArtistsTab({ studioId }) {
       setShowForm(false);
       setEditingId(null);
       fetchArtists();
-    } catch (e) {
-      const detail = e.response?.data?.detail || "";
-      if (detail.startsWith("PLAN_LIMIT:artists:")) {
-        const parts = detail.split(":");
-        const limit = parts[2]; const planName = parts[3];
-        const labels = { free: "Kostenlos", starter: "Starter", pro: "Pro", full_studio: "Full Studio" };
-        alert(`Artist-Limit erreicht!\n\nDein "${labels[planName] || planName}"-Plan erlaubt nur ${limit} Artist(s).\n\nJetzt upgraden: /pricing`);
-      } else { alert(detail || "Fehler"); }
-    } finally { setSaving(false); }
+    } catch (e) { alert(e.response?.data?.detail || "Fehler"); } finally { setSaving(false); }
   };
 
   const handleEdit = (artist) => {

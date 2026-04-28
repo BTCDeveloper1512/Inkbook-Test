@@ -138,8 +138,7 @@ function LandingNav() {
         {/* Center links */}
         <div style={{ display: "flex", gap: 4 }}>
           {[
-            { to: "/search",     label: "Studios finden" },
-            { to: "/ai-advisor", label: "KI-Stilberater" },
+            { to: "/search", label: "Studios finden" },
           ].map(({ to, label }) => (
             <Link
               key={to} to={to}
@@ -765,10 +764,9 @@ export default function LandingPage() {
               <p className="text-[10px] tracking-widest uppercase mb-4" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>Produkt</p>
               <div className="flex flex-col gap-2.5">
                 {[
-                  { to: "/search",     l: "Studios finden" },
-                  { to: "/ai-advisor", l: "KI-Stilberater" },
-                  { to: "/register",   l: "Jetzt registrieren" },
-                  { to: "/faq",        l: "FAQ" },
+                  { to: "/search",   l: "Studios finden" },
+                  { to: "/register", l: "Jetzt registrieren" },
+                  { to: "/faq",      l: "FAQ" },
                 ].map(({ to, l }) => (
                   <FooterLink key={to} to={to}>{l}</FooterLink>
                 ))}
