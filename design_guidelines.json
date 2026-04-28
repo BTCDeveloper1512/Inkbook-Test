@@ -1,128 +1,121 @@
 {
-  "theme": "light",
-  "archetype": "Premium Light Minimalist (Apple-like)",
-  "design_philosophy": "A very light, minimalist, high-quality Apple-like design. The UI is the invisible frame; the tattoo art is the masterpiece. We use off-white backgrounds, soft diffuse shadows, generous whitespace, and subtle typography to create a calming, premium, and trustworthy booking experience.",
-  "colors": {
-    "background": {
-      "primary": "#FFFFFF",
-      "secondary": "#FAFAFA",
-      "tertiary": "#F4F4F5"
-    },
-    "text": {
-      "primary": "#09090B",
-      "secondary": "#52525B",
-      "tertiary": "#A1A1AA",
-      "inverse": "#FFFFFF"
-    },
-    "accent": {
-      "primary": "#18181B",
-      "hover": "#27272A",
-      "subtle": "#F4F4F5"
-    },
-    "border": {
-      "default": "rgba(0,0,0,0.06)",
-      "focus": "rgba(0,0,0,0.15)"
-    },
-    "status": {
-      "success": "#3F6212",
-      "warning": "#B45309",
-      "error": "#991B1B"
-    }
+  "theme_archetype": {
+    "domain": "Tattoo Studio Booking",
+    "theme": "Light Theme",
+    "archetype": "Archetype 4 (Swiss & High-Contrast) + Editorial Elegance",
+    "vibe": "Premium, modern, hyper-organized, and sharply contrasted. Mixes the clinical precision of scheduling tools with the artistic, moody edge of a high-end tattoo studio."
   },
   "typography": {
-    "font_family": {
-      "heading": "Playfair Display, serif",
-      "body": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    "fonts": {
+      "headings": "Playfair Display, serif",
+      "body": "Inter, sans-serif",
+      "monospace": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
     },
-    "hierarchy": {
-      "h1": "text-5xl md:text-6xl font-normal tracking-tight leading-tight",
-      "h2": "text-3xl md:text-4xl font-normal tracking-tight leading-snug",
-      "h3": "text-xl md:text-2xl font-medium tracking-tight",
-      "h4": "text-lg font-medium",
-      "body": "text-base leading-relaxed text-zinc-600",
-      "small": "text-sm text-zinc-500",
-      "overline": "text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400"
+    "scale_rules": {
+      "H1": "text-4xl tracking-tight font-serif text-zinc-900",
+      "H2": "text-2xl font-serif text-zinc-900",
+      "H3": "text-lg font-serif text-zinc-900",
+      "H4": "text-base font-semibold font-inter text-zinc-900",
+      "Body": "text-sm font-inter text-zinc-600",
+      "Labels": "text-xs uppercase tracking-[0.15em] font-inter font-medium text-zinc-500",
+      "Timer": "text-sm font-mono tracking-widest text-red-600 font-semibold"
     }
   },
-  "spacing_and_layout": {
-    "container": "max-w-7xl mx-auto px-6 md:px-12",
-    "section_gap": "py-24 md:py-32",
-    "element_gap": "gap-6 md:gap-8",
-    "card_padding": "p-6 md:p-8",
-    "grid_strategy": "Bento Grid for marketing pages (grid-cols-1 md:grid-cols-12 gap-6), Control Room Grid for dashboards (grid-cols-1 md:grid-cols-4 gap-6)"
-  },
-  "surfaces_and_elevation": {
-    "cards": "bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300",
-    "cards_hover": "-translate-y-1 shadow-[0_20px_40px_rgb(0,0,0,0.08)] border-black/[0.08]",
-    "glass_header": "bg-white/70 backdrop-blur-xl border-b border-black/[0.04] backdrop-saturate-150",
-    "inputs": "bg-zinc-50 border border-transparent rounded-xl px-4 py-3 focus:bg-white focus:border-zinc-300 focus:ring-4 focus:ring-zinc-100 transition-all duration-200 outline-none",
-    "buttons": {
-      "primary": "bg-zinc-900 text-white rounded-full px-6 py-3 font-medium hover:bg-zinc-800 hover:shadow-[0_8px_20px_rgb(0,0,0,0.12)] transition-all duration-300 active:scale-95",
-      "secondary": "bg-white text-zinc-900 rounded-full px-6 py-3 font-medium border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-300 active:scale-95",
-      "ghost": "bg-transparent text-zinc-600 rounded-full px-4 py-2 hover:bg-zinc-100 hover:text-zinc-900 transition-all duration-200"
+  "color_palette": {
+    "background": {
+      "app": "bg-zinc-50",
+      "card": "bg-white",
+      "header_glass": "bg-white/80 backdrop-blur-xl"
     },
-    "radii": {
-      "small": "rounded-lg",
-      "default": "rounded-xl",
-      "large": "rounded-2xl",
-      "pill": "rounded-full"
+    "text": {
+      "primary": "text-zinc-900",
+      "secondary": "text-zinc-500",
+      "tertiary": "text-zinc-400"
+    },
+    "borders": {
+      "default": "border-zinc-200",
+      "subtle": "border-zinc-100",
+      "focus": "ring-zinc-900"
+    },
+    "status": {
+      "confirmed": {
+        "bg": "bg-emerald-50",
+        "text": "text-emerald-700",
+        "border": "border-emerald-200"
+      },
+      "pending": {
+        "bg": "bg-amber-50",
+        "text": "text-amber-700",
+        "border": "border-amber-200"
+      },
+      "cancelled": {
+        "bg": "bg-red-50",
+        "text": "text-red-700",
+        "border": "border-red-200"
+      }
+    },
+    "interactive": {
+      "primary_button": "bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-btn",
+      "secondary_button": "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 transition-colors shadow-soft",
+      "destructive_button": "bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
     }
   },
-  "animations": {
-    "page_transition": "Framer Motion: initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}",
-    "scroll_reveal": "Framer Motion: initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={{ duration: 0.7, ease: 'easeOut' }}",
-    "hover_micro": "CSS transition-all duration-300 ease-out",
-    "click_feedback": "Framer Motion: whileTap={{ scale: 0.97 }}"
+  "layout_and_spacing": {
+    "grid_system": "Mode B: 'The Control Room' Grid - gap-4 or gap-6. Dashboard uses strict geometric alignment.",
+    "spacing": "Generous spacing. Cards must have p-6 or p-8 padding. Sections separated by gap-8 or gap-12.",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "borderRadius": "Rounded corners (rounded-2xl) paired with crisp 1px borders to ground them. Buttons use rounded-xl."
   },
   "components": {
-    "navigation": "Sticky top-0 z-50 glass_header. Must have logo, main links, and CTA. Links show subtle underline or background pill on hover.",
-    "hero_section": "Large typography, minimal text. High-quality image with VERY subtle overlay if text is on top. Prefer text on white background next to image.",
-    "studio_cards": "Image takes top 60%, content bottom 40%. Soft shadow, rounded-2xl. Image scales slightly on hover.",
-    "booking_sidebar": "Sticky on desktop. Clean date picker (Shadcn Calendar with rounded corners and soft active states), prominent 'Book Now' primary button.",
-    "dashboard_layout": "Sidebar navigation with light grey background (bg-zinc-50). Main content area pure white. Tab navigation uses pill-shaped active states.",
-    "chat_interface": "Two-panel. Left panel list of chats, right panel conversation. Bubbles are rounded-2xl, soft grey for incoming, dark zinc for outgoing.",
-    "ai_advisor": "Minimalist chat-like interface. Upload area with dashed border and soft background, clear instructions.",
-    "icons": "lucide-react, thin stroke width (1.5px) for an elegant, Apple-like feel."
+    "cards": {
+      "booking_card": "Minimalist card layout. White bg, border-zinc-200, shadow-sm hover:shadow-card-hover transition-all duration-300 ease-apple. Use a structured layout: Left column for timestamp and status (Inter), Right column for Artist info (Playfair). Actions pinned to bottom.",
+      "studio_card": "Highlight immediate next appointments with an inverted theme (bg-zinc-900 text-white border-none shadow-card) to create high visual contrast in the overview tab."
+    },
+    "navigation": {
+      "tabs": "Clean underline tabs or minimalist pills. Active state: text-zinc-900 border-b-2 border-zinc-900. Inactive: text-zinc-500 hover:text-zinc-700.",
+      "header": "Sticky glassmorphism header (backdrop-blur-xl bg-white/70) with a 1px border-b border-zinc-200."
+    },
+    "badges": {
+      "style": "Pill shape (rounded-full), px-3 py-1 text-xs font-medium border. Eg: 'Pending' is bg-amber-50 text-amber-700 border-amber-200."
+    },
+    "video_button": {
+      "style": "Include a subtle pulsing red dot next to it for live status, and utilize font-mono for the countdown timer to simulate precision."
+    },
+    "empty_states": {
+      "style": "High negative space (py-24, flex col center). Use a 1.5px stroke Lucide icon (e.g., CalendarX or Moon) in text-zinc-300 and a Playfair heading like 'Rest & Recover' or 'Keine Buchungen'."
+    }
+  },
+  "motion_and_interactions": {
+    "hover": "Cards lift slightly (-translate-y-1) with shadow-card-hover. Buttons use active:scale-95.",
+    "transitions": "Use 'transition-all duration-300 ease-apple' for structural changes and 'duration-200' for color shifts.",
+    "loading": "Use skeleton loaders with 'animate-shimmer' or 'animate-pulse' in bg-zinc-200/50."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text meets APCA guidelines. Use zinc-900 for primary elements.",
+    "test_ids": "Every interactive element MUST have data-testid='...' (e.g. data-testid='cancel-booking-btn', data-testid='video-join-btn')."
   },
   "media": {
-    "images": [
+    "image_urls": [
       {
-        "url": "https://images.pexels.com/photos/28991540/pexels-photo-28991540.jpeg",
-        "category": "hero",
-        "description": "Modern, clean tattoo studio interior. Use for landing page hero or about section."
+        "url": "https://images.pexels.com/photos/6593432/pexels-photo-6593432.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "studio_placeholder",
+        "description": "Premium modern tattoo studio interior for studio profile backgrounds."
       },
       {
-        "url": "https://images.unsplash.com/photo-1547754145-ef9ff306e3f3",
-        "category": "feature",
-        "description": "Minimalist fine line tattoo on arm. Use for 'Featured Artists' or AI Style Advisor visual."
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1761276297550-27567ed50a1e",
-        "category": "feature",
-        "description": "Tattoo artist working with black gloves. Use for 'How it Works' or Studio Registration sections."
-      },
-      {
-        "url": "https://images.pexels.com/photos/6593369/pexels-photo-6593369.jpeg",
-        "category": "studio_gallery",
-        "description": "Tattoo artist in modern studio. Use for Studio Detail Page gallery."
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1577357922830-eae2e1c7b4de",
-        "category": "portfolio",
-        "description": "Woman with arm tattoo. Use for portfolio grids or search page placeholders."
+        "url": "https://images.pexels.com/photos/31554210/pexels-photo-31554210.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "artist_avatar",
+        "description": "Tattoo artist portrait for avatar placeholders."
       }
     ]
   },
   "instructions_to_main_agent": [
-    "Strictly adhere to the 'Premium Light Minimalist' aesthetic. Do NOT introduce dark mode or heavy colors.",
-    "Use Playfair Display for all main headings (h1, h2, h3). Use Inter for body text, UI elements, and buttons.",
-    "Never use pure black borders or harsh shadows. Use `border-black/[0.04]` and the defined soft shadows.",
-    "All interactive elements MUST have `data-testid` attributes.",
-    "Use Framer Motion for page loads and scroll reveals, keeping animations slow, soft, and elegant (ease-out).",
-    "For the Landing Page, ensure generous whitespace between sections (`py-24` or `py-32`).",
-    "For Studio Dashboard, avoid heavy card UI. Use light grey backgrounds and white panels with 1px soft borders.",
-    "Use Shadcn UI but heavily customize it to remove the 'Vercel look'. Increase border radii to `rounded-xl` or `rounded-2xl`, soften borders, and change primary colors to Zinc 900.",
-    "Buttons should have a subtle scale-down effect on click (active:scale-95) and a soft shadow on hover.",
-    "In the Booking Sidebar, ensure the form feels fluid. Use soft grey backgrounds for inputs that turn white on focus with a subtle ring."
+    "Redesign the Customer Dashboard using a clean tabbed layout (Heute, Kommend, Vergangen). Use the structured Booking Card layout.",
+    "Redesign the Studio Dashboard. Implement the Header, Übersicht, Buchungen, Kalender, Artists, Profil, and Einstellungen tabs.",
+    "For the Studio Übersicht tab, highlight the 'Today's immediate appointment' with a dark inverted card (bg-zinc-900, text-white) for sharp contrast.",
+    "Strictly apply Playfair Display (font-serif) for all Headings (H1-H3, Card Titles) and Inter (font-inter) for body text and data points.",
+    "Ensure the video consultation button incorporates a font-mono countdown timer and live polling logic.",
+    "Utilize lucide-react icons with strokeWidth={1.5} for a sharp, premium tech feel.",
+    "Integrate Shadcn primitives heavily customized with Tailwind classes matching these guidelines.",
+    "Include 'data-testid' on all interactive elements to support robust testing."
   ]
 }
