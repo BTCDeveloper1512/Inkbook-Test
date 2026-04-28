@@ -369,6 +369,7 @@ export default function MessagesPage() {
                 const isActive = activeConv?.other_id === conv.other_user_id;
                 const name = conv.other_name || "Nutzer";
                 const isBroadcast = conv.is_broadcast_conv || conv.other_user_id === "inkbook_system";
+                const unread = !isActive ? (conv.unread_count || 0) : 0;
                 return (
                   <button key={conv.conv_id} onClick={() => openConvFromData(conv)}
                     className={`w-full text-left px-4 py-3.5 border-b border-zinc-50 transition-all duration-150 ${isActive ? "bg-zinc-100" : "hover:bg-zinc-50"}`}
@@ -380,19 +381,34 @@ export default function MessagesPage() {
                           IB
                         </div>
                       ) : (
-                        <div className={`w-10 h-10 ${avatarBg(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0`}>
+                        <div className={`w-10 h-10 ${avatarBg(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0 relative`}>
                           {initials(name)}
+                          {unread > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                          )}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{name}</p>
-                            {isBroadcast && <span className="text-[9px] bg-zinc-900 text-white px-1 py-0.5 rounded font-inter">NEWS</span>}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className={`font-inter text-sm truncate ${unread > 0 ? "font-bold text-zinc-900" : "font-semibold text-zinc-900"}`}>{name}</p>
+                            {isBroadcast && <span className="text-[9px] bg-zinc-900 text-white px-1 py-0.5 rounded font-inter flex-shrink-0">NEWS</span>}
                           </div>
-                          <span className="text-xs text-zinc-400 font-inter flex-shrink-0 ml-2">{fmtConv(conv.last_message_at)}</span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                            {unread > 0 && (
+                              <motion.span
+                                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-inter font-bold rounded-full flex items-center justify-center leading-none"
+                                data-testid={`unread-count-${conv.conv_id}`}
+                              >
+                                {unread > 9 ? "9+" : unread}
+                              </motion.span>
+                            )}
+                            <span className="text-xs text-zinc-400 font-inter">{fmtConv(conv.last_message_at)}</span>
+                          </div>
                         </div>
-                        <p className="text-xs text-zinc-400 font-inter truncate">{conv.last_message || "Keine Nachrichten"}</p>
+                        <p className={`text-xs font-inter truncate ${unread > 0 ? "text-zinc-600 font-medium" : "text-zinc-400"}`}>{conv.last_message || "Keine Nachrichten"}</p>
                       </div>
                     </div>
                   </button>

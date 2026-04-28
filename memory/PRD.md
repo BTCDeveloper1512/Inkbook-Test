@@ -53,7 +53,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - **Add-ons**: 5 Einzelbuchbare Add-ons gelistet (Extra Artist, Newsletter-Boost, etc.)
 - Testing: 100% Backend (11/13, 2 skipped) + 100% Frontend ✅ (Iteration 22)
 
-### Mai 2026 (Iteration 24/Fork – Dashboard Redesign) ✅
+### April 2026 – Bug Fixes & Chat Unread Indicator ✅
+- **Bug Fix**: "Studio finden" Button im Customer Dashboard zeigte auf Landing Page (`/`) → jetzt korrekt `/search` (alle 3 Stellen)
+- **Navbar**: Zahl-Badge für ungelesene Nachrichten durch Text-Hinweis ersetzt: "Neue Nachricht" / "Neue Nachrichten" (Desktop + Dropdown); Mobile-Icon zeigt kleinen grünen animierten Punkt
+- **Chat**: `unread_count` pro Konversation im Backend (`GET /api/messages`) hinzugefügt; MessagesPage zeigt grünen Zähler-Badge + fetter Name + dunklerer letzter-Nachricht-Text für ungelesene Konversationen
+- Testing: Lint ✅ | API-Test ✅ | Routen-Test ✅
+
+
 - **CustomerDashboard**: KI-Beratung / Stilberatung Card entfernt (wie vom User gewünscht)
 - **Quick Actions**: 3-Spalten-Grid (Studio finden, Nachrichten, FAQs) mit Framer-Motion Hover-Lift-Animationen
 - **Animierter Header**: Playfair-Begrüßung + animiertes Emoji + Dekorationslinie (scaleX expand)

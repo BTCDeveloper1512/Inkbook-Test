@@ -92,14 +92,14 @@ export default function Navbar() {
                   {countToShow > 0 && (
                     <motion.span
                       key="badge"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-xs font-inter font-bold rounded-full leading-none"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="text-[10px] text-emerald-600 font-inter font-semibold"
                       data-testid="unread-badge"
                     >
-                      {countToShow > 99 ? "99+" : countToShow}
+                      {countToShow === 1 ? "Neue Nachricht" : "Neue Nachrichten"}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -118,9 +118,7 @@ export default function Navbar() {
                 <Link to="/messages" className="md:hidden relative p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all" data-testid="mobile-messages-btn">
                   <MessageSquare size={18} strokeWidth={1.5} />
                   {countToShow > 0 && (
-                    <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-inter font-bold rounded-full flex items-center justify-center leading-none" data-testid="mobile-unread-badge">
-                      {countToShow > 9 ? "9+" : countToShow}
-                    </span>
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white animate-pulse" data-testid="mobile-unread-badge" />
                   )}
                 </Link>
 
@@ -147,8 +145,8 @@ export default function Navbar() {
                         <Link to="/messages" className="flex items-center justify-between px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-messages-dropdown-link">
                           <span>{t("nav.messages")}</span>
                           {countToShow > 0 && (
-                            <span className="min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-xs font-inter font-bold rounded-full flex items-center justify-center leading-none" data-testid="dropdown-unread-badge">
-                              {countToShow > 99 ? "99+" : countToShow}
+                            <span className="text-[10px] text-emerald-600 font-inter font-semibold" data-testid="dropdown-unread-badge">
+                              {countToShow === 1 ? "Neue Nachricht" : "Neue Nachrichten"}
                             </span>
                           )}
                         </Link>

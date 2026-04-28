@@ -920,8 +920,12 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
                     other_name = studio.get("name") if studio else other_user.get("name", "Studio")
                 else:
                     other_name = other_user.get("name", "Nutzer")
+        unread = await db.messages.count_documents({
+            "sender_id": other_id, "recipient_id": user_id,
+            "read": False, "is_broadcast": {"$ne": True}, "is_system": {"$ne": True}
+        })
         enriched.append({**conv, "other_name": other_name, "other_role": other_role, "other_user_id": other_id,
-                          "last_sender_name": other_name})  # keep compat
+                          "last_sender_name": other_name, "unread_count": unread})  # keep compat
     return enriched
 
 @api_router.get("/messages/{other_user_id}")

@@ -328,7 +328,7 @@ export default function CustomerDashboard() {
                     {b.studio_name} · {b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} {b.start_time} – {b.end_time} wurde vom Studio storniert.
                   </p>
                 ))}
-                <Link to="/" className="text-xs text-red-700 font-inter font-semibold underline underline-offset-2 mt-1.5 inline-block">
+                <Link to="/search" className="text-xs text-red-700 font-inter font-semibold underline underline-offset-2 mt-1.5 inline-block">
                   Neues Studio finden →
                 </Link>
               </div>
@@ -382,7 +382,7 @@ export default function CustomerDashboard() {
           className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6"
         >
           {[
-            { to: "/", bg: "bg-zinc-900", textMain: "text-white", textSub: "opacity-50", label: "Neu buchen", title: "Studio finden", icon: Search, iconCls: "opacity-60 group-hover:opacity-100", dark: true, testId: "find-studio-btn" },
+            { to: "/search", bg: "bg-zinc-900", textMain: "text-white", textSub: "opacity-50", label: "Neu buchen", title: "Studio finden", icon: Search, iconCls: "opacity-60 group-hover:opacity-100", dark: true, testId: "find-studio-btn" },
             { to: "/messages", bg: "bg-white border border-zinc-200", textMain: "text-zinc-900", textSub: "text-zinc-400", label: "Chat", title: "Nachrichten", icon: MessageSquare, iconCls: "text-zinc-400 group-hover:text-zinc-900", dark: false, testId: "messages-btn" },
             { to: "/faq", bg: "bg-white border border-zinc-200", textMain: "text-zinc-900", textSub: "text-zinc-400", label: "Hilfe", title: "FAQs", icon: HelpCircle, iconCls: "text-zinc-400 group-hover:text-zinc-900", dark: false, testId: "customer-faq-link" }
           ].map(({ to, bg, textMain, textSub, label, title, icon: Icon, iconCls, testId }) => (
@@ -446,7 +446,7 @@ export default function CustomerDashboard() {
                 </p>
                 {activeTab === "upcoming" && (
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Link to="/" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                    <Link to="/search" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
                       <Search size={13} strokeWidth={1.5} /> Studio finden
                     </Link>
                   </motion.div>
