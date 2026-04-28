@@ -53,7 +53,20 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - **Add-ons**: 5 Einzelbuchbare Add-ons gelistet (Extra Artist, Newsletter-Boost, etc.)
 - Testing: 100% Backend (11/13, 2 skipped) + 100% Frontend ✅ (Iteration 22)
 
-### Mai 2026 (Iteration 24 – Video Consultation & Deposit Pro Features abgeschlossen) ✅
+### Mai 2026 (Iteration 24/Fork – Dashboard Redesign) ✅
+- **CustomerDashboard**: KI-Beratung / Stilberatung Card entfernt (wie vom User gewünscht)
+- **Quick Actions**: 3-Spalten-Grid (Studio finden, Nachrichten, FAQs) mit Framer-Motion Hover-Lift-Animationen
+- **Animierter Header**: Playfair-Begrüßung + animiertes Emoji + Dekorationslinie (scaleX expand)
+- **Stats-Karten**: `whileHover y:-4 + Box-Shadow` auf allen 4 Karten
+- **Buchungsliste**: `whileHover x:3` auf allen Buchungskarten + besserer Empty State (py-24, Playfair-Heading)
+- **Loading**: Bouncing-Dots statt Spinner
+- **StudioDashboard**: Dark Inverted Card (bg-zinc-900) für "Heutige Termine" mit Shimmer-Animation
+- **StudioDashboard**: Animierter Header + Dekorationslinie, kein "Abo"-Button mehr
+- **StudioDashboard**: Framer-Motion importiert, alle Tabs mit Eingangsanimation, Slots-Liste mit stagger
+- **Neue Test-Accounts**: kunde@test.com + studio_owner@test.com angelegt
+- Testing: Code-Review 100% bestätigt via Testing Agent (Iteration 23) ✅
+
+
 - **Videoberatung-Buchung (Customer Flow)**: `StudioPage.js` zeigt "Videoberatung" als 3. Buchungstyp-Option, wenn `studio.video_consultation_enabled = true` (responsives 3-Spalten-Grid)
 - **Video beitreten (Customer Dashboard)**: `CustomerDashboard.js` importiert `VideoCallModal`, zeigt "Video beitreten"-Button für `confirmed` + zukünftige `video_consultation`-Buchungen
 - **Buchungstyp-Label**: "Videoberatung" wird korrekt in der Buchungsliste des Kunden angezeigt (Icon + Label)
