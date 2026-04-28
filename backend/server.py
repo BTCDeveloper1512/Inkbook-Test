@@ -19,7 +19,10 @@ from pathlib import Path
 import base64
 import httpx
 import asyncio
-import resend
+try:
+    import resend
+except ImportError:
+    resend = None
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
 
@@ -29,7 +32,7 @@ SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 
 async def send_email(to: str, subject: str, html: str):
     if not RESEND_API_KEY:
-        logger.info(f"[EMAIL SKIPPED - no RESEND_API_KEY] To: {to}, Subject: {subject}")
+        logger.info("Email skipped (resend not available)")
         return
     try:
         resend.api_key = RESEND_API_KEY
