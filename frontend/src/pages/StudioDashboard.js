@@ -294,38 +294,78 @@ export default function StudioDashboard() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-          className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8"
-        >
-          <div>
-            <motion.p
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-              className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1"
-            >Studio Dashboard</motion.p>
-            <h1 className="text-3xl font-playfair font-semibold text-zinc-900">{studio?.name}</h1>
+
+      {/* ── Dark Hero Strip ── */}
+      <div className="relative bg-[#0d0d0d] overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
+          style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize: "180px" }} />
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-12">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <p className="text-[10px] tracking-[0.28em] uppercase font-inter" style={{ color: "rgba(255,255,255,0.28)" }}>Studio Dashboard</p>
+              {studio?.is_verified && (
+                <span className="text-[10px] tracking-[0.2em] uppercase font-inter px-2.5 py-1 rounded-full border" style={{ color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>Verifiziert</span>
+              )}
+            </div>
+            <h1 className="font-playfair font-bold text-white mb-7" style={{ fontSize: "clamp(28px, 5vw, 40px)" }}>
+              {studio?.name}
+            </h1>
+
+            {/* Quick Links – Landing Page Style */}
             <motion.div
-              initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
-              transition={{ delay: 0.35, duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
-              className="h-px bg-zinc-200 mt-3 origin-left"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap justify-end items-center">
-            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-              <Link to="/messages" className="btn-secondary flex items-center gap-1.5 text-sm px-4 py-2">
-                <MessageSquare size={13} strokeWidth={1.5} /> Nachrichten
-              </Link>
+              initial="hidden" animate="visible"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07, delayChildren: 0.25 } } }}
+              className="flex flex-wrap gap-2"
+            >
+              {[
+                { label: "Studio-Profil", to: studio?.studio_id ? `/studios/${studio.studio_id}` : "#", filled: true, testId: "ql-studio-profile" },
+                { label: "Slot hinzufügen", action: () => { setActiveTab("slots"); setShowAddSlot(true); }, filled: false, testId: "ql-add-slot" },
+                { label: "Buchungen", action: () => setActiveTab("bookings"), filled: false, testId: "ql-bookings" },
+                { label: "Nachrichten", to: "/messages", filled: false, testId: "ql-messages" },
+                { label: "Artists", action: () => setActiveTab("artists"), filled: false, testId: "ql-artists" },
+                { label: "Profil bearbeiten", action: () => setActiveTab("profile"), filled: false, testId: "ql-edit-profile" },
+                { label: "FAQ & Hilfe", to: "/faq", filled: false, testId: "ql-faq" },
+              ].map(({ label, to, action, filled, testId }) => (
+                <motion.div key={label}
+                  variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 340, damping: 24 } } }}
+                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                >
+                  {action ? (
+                    <button
+                      onClick={action}
+                      data-testid={testId}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] transition-all duration-200 cursor-pointer"
+                      style={{ fontFamily: "'Inter',sans-serif", fontWeight: 400, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"; e.currentTarget.style.color = "rgba(255,255,255,0.92)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "rgba(255,255,255,0.72)"; }}
+                    >{label}</button>
+                  ) : (
+                    <Link
+                      to={to}
+                      data-testid={testId}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] transition-all duration-200"
+                      style={filled
+                        ? { fontFamily: "'Inter',sans-serif", fontWeight: 500, background: "rgba(255,255,255,0.92)", color: "#0d0d0d" }
+                        : { fontFamily: "'Inter',sans-serif", fontWeight: 400, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)" }
+                      }
+                      onMouseEnter={e => { if (!filled) { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"; e.currentTarget.style.color = "rgba(255,255,255,0.92)"; } }}
+                      onMouseLeave={e => { if (!filled) { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "rgba(255,255,255,0.72)"; } }}
+                    >{label}</Link>
+                  )}
+                </motion.div>
+              ))}
             </motion.div>
-            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-              <Link to={`/studios/${studio?.studio_id}`} className="btn-secondary text-sm px-4 py-2">
-                Profil ansehen
-              </Link>
-            </motion.div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Fade to zinc-50 */}
+        <div className="absolute bottom-0 left-0 right-0 h-6 pointer-events-none"
+          style={{ background: "linear-gradient(to bottom, transparent, #f4f4f5)" }} />
+      </div>
+
+      {/* ── White Content ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Stats */}
         <motion.div
