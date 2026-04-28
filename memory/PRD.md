@@ -44,6 +44,15 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### April 2026 (Abo-Modell komplett implementiert) ✅
+- **4-Tier Subscription**: Free (€0) / Starter (€19,99) / Pro (€49,99) / Full Studio (€149,99)
+- **Hard Limits**: Slots/Monat, Artists, Portfolio-Bilder pro Plan mit Backend-Blocking (403 PLAN_LIMIT)
+- **Pricing Page** (`/pricing`): Alle 4 Karten, Beliebt/Premium-Badges, Vergleichstabelle, Add-ons, Navbar-Link "Preise"
+- **Studio Dashboard**: Plan-Badge + 3 Usage-Bars (Slots, Artists, Bilder) + Upgrade-CTA → /pricing
+- **Feature-Gates**: Deposit = Pro+, Videoberatung = Full Studio; beide mit "Ab X Plan"-Label + Upgrade-Link
+- **Add-ons**: 5 Einzelbuchbare Add-ons gelistet (Extra Artist, Newsletter-Boost, etc.)
+- Testing: 100% Backend (11/13, 2 skipped) + 100% Frontend ✅ (Iteration 22)
+
 ### Mai 2026 (Iteration 24 – Video Consultation & Deposit Pro Features abgeschlossen) ✅
 - **Videoberatung-Buchung (Customer Flow)**: `StudioPage.js` zeigt "Videoberatung" als 3. Buchungstyp-Option, wenn `studio.video_consultation_enabled = true` (responsives 3-Spalten-Grid)
 - **Video beitreten (Customer Dashboard)**: `CustomerDashboard.js` importiert `VideoCallModal`, zeigt "Video beitreten"-Button für `confirmed` + zukünftige `video_consultation`-Buchungen
