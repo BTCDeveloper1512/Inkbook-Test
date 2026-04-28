@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video } from "lucide-react";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
+import DashboardHeroSmoke from "../components/DashboardHeroSmoke";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -289,15 +290,17 @@ export default function CustomerDashboard() {
       <Navbar />
 
       {/* ── Dark Hero Strip ── */}
-      <div className="relative bg-[#0d0d0d] overflow-hidden">
-        {/* Grain texture overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(160deg, #111118 0%, #0d0d0d 60%, #0a0a14 100%)" }}>
+        <DashboardHeroSmoke />
+
+        {/* Grain texture */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.035]"
           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize: "180px" }} />
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-12">
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-12">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
             <p className="text-[10px] tracking-[0.28em] uppercase font-inter mb-2" style={{ color: "rgba(255,255,255,0.28)" }}>Mein Konto</p>
-            <div className="flex items-baseline gap-3 mb-7">
+            <div className="flex items-baseline gap-3">
               <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(28px, 5vw, 40px)" }}>
                 Hallo, {user?.name?.split(" ")[0]}
               </h1>
@@ -308,46 +311,11 @@ export default function CustomerDashboard() {
                 className="text-2xl select-none"
               >👋</motion.span>
             </div>
-
-            {/* Quick Links – Landing Page Style */}
-            <motion.div
-              initial="hidden" animate="visible"
-              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07, delayChildren: 0.25 } } }}
-              className="flex flex-wrap gap-2"
-            >
-              {[
-                { to: "/search", label: "Studios entdecken", filled: true, testId: "ql-search" },
-                { to: "/messages", label: "Nachrichten", filled: false, testId: "ql-messages" },
-                { to: "/faq", label: "FAQ & Hilfe", filled: false, testId: "ql-faq" },
-                { to: "/search?style=Fine+Line", label: "Fine Line", filled: false, testId: "ql-fineline" },
-                { to: "/search?style=Blackwork", label: "Blackwork", filled: false, testId: "ql-blackwork" },
-                { to: "/search?style=Realism", label: "Realism", filled: false, testId: "ql-realism" },
-                { to: "/search?style=Japanese", label: "Japanese", filled: false, testId: "ql-japanese" },
-              ].map(({ to, label, filled, testId }) => (
-                <motion.div key={to}
-                  variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 340, damping: 24 } } }}
-                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                >
-                  <Link to={to}
-                    data-testid={testId}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] transition-all duration-200"
-                    style={filled
-                      ? { fontFamily: "'Inter',sans-serif", fontWeight: 500, background: "rgba(255,255,255,0.92)", color: "#0d0d0d" }
-                      : { fontFamily: "'Inter',sans-serif", fontWeight: 400, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)" }
-                    }
-                    onMouseEnter={e => { if (!filled) { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"; e.currentTarget.style.color = "rgba(255,255,255,0.92)"; } }}
-                    onMouseLeave={e => { if (!filled) { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "rgba(255,255,255,0.72)"; } }}
-                  >
-                    {label}
-                  </Link>
-                </motion.div>
-              ))}
-            </motion.div>
           </motion.div>
         </div>
 
         {/* Fade to zinc-50 */}
-        <div className="absolute bottom-0 left-0 right-0 h-6 pointer-events-none"
+        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none"
           style={{ background: "linear-gradient(to bottom, transparent, #f4f4f5)" }} />
       </div>
 
