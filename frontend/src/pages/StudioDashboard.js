@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Edit3, Save, X, MessageSquare, Upload, Crown, HelpCircle, Video } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -176,7 +177,15 @@ export default function StudioDashboard() {
   if (loading) return (
     <div className="min-h-screen bg-zinc-50"><Navbar />
       <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+        <div className="flex gap-1.5">
+          {[0,1,2].map(i => (
+            <motion.div key={i}
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+              className="w-2 h-2 rounded-full bg-zinc-400"
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -287,42 +296,66 @@ export default function StudioDashboard() {
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+          className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8"
+        >
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Studio Dashboard</p>
+            <motion.p
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+              className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1"
+            >Studio Dashboard</motion.p>
             <h1 className="text-3xl font-playfair font-semibold text-zinc-900">{studio?.name}</h1>
+            <motion.div
+              initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
+              transition={{ delay: 0.35, duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
+              className="h-px bg-zinc-200 mt-3 origin-left"
+            />
           </div>
           <div className="flex gap-2 flex-wrap justify-end items-center">
-            <Link to="/subscription" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2" data-testid="subscription-btn">
-              <Crown size={13} strokeWidth={1.5} /> Abo
-            </Link>
-            <Link to="/messages" className="btn-secondary flex items-center gap-1.5 text-sm px-4 py-2">
-              <MessageSquare size={13} strokeWidth={1.5} /> Nachrichten
-            </Link>
-            <Link to={`/studios/${studio?.studio_id}`} className="btn-secondary text-sm px-4 py-2">
-              Profil ansehen
-            </Link>
+            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+              <Link to="/messages" className="btn-secondary flex items-center gap-1.5 text-sm px-4 py-2">
+                <MessageSquare size={13} strokeWidth={1.5} /> Nachrichten
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+              <Link to={`/studios/${studio?.studio_id}`} className="btn-secondary text-sm px-4 py-2">
+                Profil ansehen
+              </Link>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial="hidden" animate="visible"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+        >
           {[
             { label: "Buchungen", value: stats?.total_bookings || 0, icon: <Calendar size={16} strokeWidth={1.5} /> },
             { label: "Ausstehend", value: stats?.pending_bookings || 0, icon: <Clock size={16} strokeWidth={1.5} /> },
             { label: "Bestätigt", value: stats?.confirmed_bookings || 0, icon: <CheckCircle size={16} strokeWidth={1.5} /> },
             { label: "Einnahmen", value: `€${(stats?.revenue || 0).toFixed(0)}`, icon: <TrendingUp size={16} strokeWidth={1.5} /> }
           ].map((stat, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4">
+            <motion.div key={i}
+              variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 22 } } }}
+              whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.08)" }}
+              className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4 cursor-default"
+            >
               <div className="text-zinc-400 mb-2">{stat.icon}</div>
               <p className="text-2xl font-playfair font-semibold text-zinc-900">{stat.value}</p>
               <p className="text-xs text-zinc-500 font-inter mt-1">{stat.label}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto">
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+          className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto"
+        >
           {[
             { id: "overview", label: "Übersicht" },
             { id: "slots", label: "Slots" },
@@ -330,66 +363,104 @@ export default function StudioDashboard() {
             { id: "artists", label: "Artist hinzufügen" },
             { id: "profile", label: "Profil bearbeiten" }
           ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <motion.button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              whileTap={{ scale: 0.96 }}
               className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
               data-testid={`studio-tab-${tab.id}`}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
-          <div className="space-y-5">
-            {/* Heutige Termine */}
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Heutige Termine</h3>
-                <span className="text-xs font-inter font-medium text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">{todayUpcoming.length}</span>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 280, damping: 22 }}
+            className="space-y-5"
+          >
+            {/* Heutige Termine – Dark Inverted Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.05, type: "spring", stiffness: 280, damping: 22 }}
+              className="bg-zinc-900 rounded-2xl p-6 relative overflow-hidden"
+            >
+              {/* Shimmer effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none"
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: "linear", repeatDelay: 4 }}
+              />
+              <div className="flex items-center gap-2 mb-4 relative">
+                <div className="relative flex-shrink-0">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <div className="w-4 h-4 rounded-full bg-emerald-400/20 animate-ping absolute -top-1 -left-1" />
+                </div>
+                <h3 className="font-playfair font-semibold text-lg text-white">Heutige Termine</h3>
+                <span className="text-xs font-inter font-medium text-white/40 bg-white/10 px-2 py-0.5 rounded-full">{todayUpcoming.length}</span>
               </div>
               {todayUpcoming.length === 0 ? (
-                <p className="text-zinc-400 font-inter text-sm">Keine Termine heute</p>
+                <div className="py-8 flex flex-col items-center text-center">
+                  <p className="font-playfair text-lg text-white/70 mb-1">Keine Termine heute</p>
+                  <p className="text-xs text-white/40 font-inter">Freier Tag – genieße die Ruhe</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {todayUpcoming.map(b => (
-                    <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="space-y-3 relative">
+                  {todayUpcoming.map((b, idx) => (
+                    <motion.div key={b.booking_id}
+                      initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.08, type: "spring", stiffness: 300, damping: 22 }}
+                      className={`flex items-center justify-between p-4 rounded-xl ${idx === 0 ? "bg-white/10 border border-white/10" : "bg-white/5 border border-white/5"}`}
+                    >
                       <div>
-                        <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                        <p className="font-inter font-semibold text-sm text-white">{b.user_name}</p>
+                        <p className="text-xs text-white/50 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
                         <div className="flex items-center gap-2">
                           <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
                           {b.status === "pending" && (
-                            <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
+                            <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-white text-zinc-900 rounded-full font-inter font-semibold hover:bg-zinc-100 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
                           {b.booking_type === "video_consultation" && b.status === "confirmed" && (
-                            <button onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors" data-testid={`video-join-btn-overview-${b.booking_id}`}>
+                            <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-full font-inter hover:bg-emerald-400 transition-colors" data-testid={`video-join-btn-overview-${b.booking_id}`}>
                               <Video size={11} strokeWidth={2} /> Beitreten
-                            </button>
+                            </motion.button>
                           )}
                         </div>
                         {b.booking_type === "video_consultation" && b.status === "confirmed" && (
                           <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Kommende Termine */}
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 280, damping: 22 }}
+              className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6"
+            >
               <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Kommende Termine</h3>
               {futureUpcoming.length === 0 ? (
-                <p className="text-zinc-400 font-inter text-sm">Keine kommenden Buchungen</p>
+                <div className="py-12 flex flex-col items-center text-center">
+                  <Calendar size={28} className="text-zinc-200 mb-3" strokeWidth={1.5} />
+                  <p className="font-playfair text-lg text-zinc-900 mb-1">Keine Buchungen</p>
+                  <p className="text-xs text-zinc-400 font-inter">Neue Buchungen erscheinen hier automatisch</p>
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {futureUpcoming.map(b => (
-                    <div key={b.booking_id} className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                  {futureUpcoming.map((b, idx) => (
+                    <motion.div key={b.booking_id}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.06, type: "spring", stiffness: 300, damping: 22 }}
+                      whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
+                      className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100 transition-colors"
+                    >
                       <div>
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
@@ -397,29 +468,29 @@ export default function StudioDashboard() {
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
                         {b.status === "pending" && (
-                          <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</button>
+                          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
                         )}
                         {["pending", "confirmed"].includes(b.status) && (
-                          <button onClick={async () => { if (!window.confirm("Buchung stornieren?")) return; try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {} }}
+                          <motion.button whileTap={{ scale: 0.95 }} onClick={async () => { if (!window.confirm("Buchung stornieren?")) return; try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {} }}
                             className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 transition-all"
-                            data-testid={`cancel-btn-overview-${b.booking_id}`}>Stornieren</button>
+                            data-testid={`cancel-btn-overview-${b.booking_id}`}>Stornieren</motion.button>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* Slots Tab */}
         {activeTab === "slots" && (
-          <div>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
             <div className="flex justify-end mb-4">
-              <button onClick={() => setShowAddSlot(!showAddSlot)} className="btn-primary flex items-center gap-2 text-sm" data-testid="add-slot-btn">
+              <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }} onClick={() => setShowAddSlot(!showAddSlot)} className="btn-primary flex items-center gap-2 text-sm" data-testid="add-slot-btn">
                 <Plus size={15} strokeWidth={1.5} /> Slot hinzufügen
-              </button>
+              </motion.button>
             </div>
             {showAddSlot && (
               <form onSubmit={handleAddSlot} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6 mb-6 space-y-4">
@@ -452,51 +523,72 @@ export default function StudioDashboard() {
             )}
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
               {slots.length === 0 ? (
-                <div className="py-12 text-center"><p className="text-zinc-400 font-inter text-sm">Keine Slots vorhanden</p></div>
+                <div className="py-20 flex flex-col items-center text-center">
+                  <Calendar size={28} className="text-zinc-200 mb-4" strokeWidth={1.5} />
+                  <h3 className="font-playfair text-lg text-zinc-900 mb-1">Keine Slots</h3>
+                  <p className="text-xs text-zinc-400 font-inter">Füge deinen ersten verfügbaren Termin hinzu</p>
+                </div>
               ) : (
                 <div className="divide-y divide-zinc-50">
-                  {slots.slice(0, 30).map(slot => (
-                    <div key={slot.slot_id} className="flex items-center justify-between p-4 hover:bg-zinc-50 transition-colors" data-testid={`slot-item-${slot.slot_id}`}>
+                  {slots.slice(0, 30).map((slot, idx) => (
+                    <motion.div key={slot.slot_id}
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.04, type: "spring", stiffness: 300, damping: 22 }}
+                      whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
+                      className="flex items-center justify-between p-4 transition-colors" data-testid={`slot-item-${slot.slot_id}`}
+                    >
                       <div>
                         <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5">{slot.start_time} – {slot.end_time} · {slot.slot_type === "video_consultation" ? "Videoberatung" : slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
                       </div>
-                      <button onClick={() => handleDeleteSlot(slot.slot_id)} className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all" data-testid={`delete-slot-btn-${slot.slot_id}`}>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDeleteSlot(slot.slot_id)} className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all" data-testid={`delete-slot-btn-${slot.slot_id}`}>
                         <Trash2 size={14} strokeWidth={1.5} />
-                      </button>
-                    </div>
+                      </motion.button>
+                    </motion.div>
                   ))}
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Bookings Tab */}
         {activeTab === "bookings" && (
-          <div className="space-y-5">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-5">
             {/* Sub-tabs */}
             <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
               {[
                 { id: "active", label: `Aktuelle Buchungen (${activeBookings.length})` },
                 { id: "past", label: `Vergangene Termine (${pastStudioBookings.length})` }
               ].map(t => (
-                <button key={t.id} onClick={() => setStudioBookingsTab(t.id)}
+                <motion.button key={t.id} onClick={() => setStudioBookingsTab(t.id)} whileTap={{ scale: 0.96 }}
                   className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${studioBookingsTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
                   data-testid={`studio-bookings-${t.id}-tab`}>
                   {t.label}
-                </button>
+                </motion.button>
               ))}
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
               <div className="divide-y divide-zinc-50">
                 {(studioBookingsTab === "active" ? activeBookings : pastStudioBookings).length === 0 ? (
-                  <div className="py-12 text-center"><p className="text-zinc-400 font-inter text-sm">Keine Buchungen vorhanden</p></div>
-                ) : (studioBookingsTab === "active" ? activeBookings : pastStudioBookings).map(b => {
+                  <div className="py-20 flex flex-col items-center text-center">
+                    <Calendar size={28} className="text-zinc-200 mb-4" strokeWidth={1.5} />
+                    <h3 className="font-playfair text-lg text-zinc-900 mb-1">Keine Buchungen</h3>
+                    <p className="text-xs text-zinc-400 font-inter">
+                      {studioBookingsTab === "active" ? "Aktive Buchungen erscheinen hier" : "Vergangene Termine werden hier angezeigt"}
+                    </p>
+                  </div>
+                ) : (studioBookingsTab === "active" ? activeBookings : pastStudioBookings).map((b, idx) => {
                   const isPast = isBookingPast(b);
                   return (
-                    <div key={b.booking_id} className={`p-5 hover:bg-zinc-50 transition-colors ${isPast ? "opacity-70" : ""}`} data-testid={`studio-booking-${b.booking_id}`}>
+                    <motion.div key={b.booking_id}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05, type: "spring", stiffness: 300, damping: 22 }}
+                      whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
+                      className={`p-5 transition-colors ${isPast ? "opacity-70" : ""}`}
+                      data-testid={`studio-booking-${b.booking_id}`}
+                    >
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
@@ -522,63 +614,50 @@ export default function StudioDashboard() {
                             </span>
                           )}
                           {b.status === "pending" && !isPast && (
-                            <button onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</button>
+                            <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
-                          {/* Video beitreten + Timer */}
                           {b.booking_type === "video_consultation" && b.status === "confirmed" && !isPast && (
                             <div className="flex flex-col items-end gap-1">
-                              <button
-                                onClick={() => setVideoCallBooking(b)}
-                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
-                                data-testid={`video-join-btn-${b.booking_id}`}
-                              >
+                              <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors" data-testid={`video-join-btn-${b.booking_id}`}>
                                 <Video size={12} strokeWidth={2} /> Beitreten
-                              </button>
+                              </motion.button>
                               <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
                             </div>
                           )}
                           {["pending", "confirmed"].includes(b.status) && (
-                            <button
+                            <motion.button whileTap={{ scale: 0.95 }}
                               disabled={isPast}
                               onClick={async () => {
                                 if (isPast) return;
                                 if (!window.confirm("Buchung wirklich stornieren?")) return;
-                                try {
-                                  await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, {
-                                    params: { status: "cancelled" }, withCredentials: true
-                                  });
-                                  fetchStats();
-                                } catch {}
+                                try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {}
                               }}
-                              className={`text-xs px-3 py-1.5 rounded-full font-inter transition-all ${
-                                isPast
-                                  ? "border border-zinc-100 text-zinc-300 bg-zinc-50 cursor-not-allowed"
-                                  : "border border-zinc-200 text-zinc-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50"
-                              }`}
-                              title={isPast ? "Termin bereits abgeschlossen" : "Buchung stornieren"}
+                              className={`text-xs px-3 py-1.5 rounded-full font-inter transition-all ${isPast ? "border border-zinc-100 text-zinc-300 bg-zinc-50 cursor-not-allowed" : "border border-zinc-200 text-zinc-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50"}`}
                               data-testid={`cancel-booking-studio-${b.booking_id}`}
                             >
                               Stornieren
-                            </button>
+                            </motion.button>
                           )}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Artists Tab */}
         {activeTab === "artists" && stats?.studio && (
-          <ArtistsTab studioId={stats.studio.studio_id} />
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+            <ArtistsTab studioId={stats.studio.studio_id} />
+          </motion.div>
         )}
 
         {/* Profile Edit Tab */}
         {activeTab === "profile" && editForm && (
-          <form onSubmit={handleSaveProfile} className="space-y-6">
+          <motion.form initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} onSubmit={handleSaveProfile} className="space-y-6">
             {editSuccess && (
               <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-inter flex items-center gap-2" data-testid="profile-save-success">
                 <CheckCircle size={15} strokeWidth={1.5} /> Profil erfolgreich gespeichert!
@@ -740,10 +819,10 @@ export default function StudioDashboard() {
               </div>
             </div>
 
-            <button type="submit" disabled={editLoading} className="btn-primary flex items-center gap-2 disabled:opacity-50" data-testid="save-profile-btn">
+            <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} type="submit" disabled={editLoading} className="btn-primary flex items-center gap-2 disabled:opacity-50" data-testid="save-profile-btn">
               <Save size={15} strokeWidth={1.5} /> {editLoading ? "Speichern..." : "Profil speichern"}
-            </button>
-          </form>
+            </motion.button>
+          </motion.form>
         )}
       </div>
       {/* FAQ Help Strip */}

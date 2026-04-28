@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Sparkles, Star, HelpCircle, Video } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video } from "lucide-react";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import { motion, AnimatePresence } from "framer-motion";
@@ -271,7 +271,15 @@ export default function CustomerDashboard() {
   if (loading) return (
     <div className="min-h-screen bg-zinc-50"><Navbar />
       <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+        <div className="flex gap-1.5">
+          {[0,1,2].map(i => (
+            <motion.div key={i}
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+              className="w-2 h-2 rounded-full bg-zinc-400"
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -282,9 +290,27 @@ export default function CustomerDashboard() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1">Mein Konto</p>
-          <h1 className="text-3xl font-playfair font-semibold text-zinc-900">Hallo, {user?.name?.split(" ")[0]} 👋</h1>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }} className="mb-8">
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+            className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-1"
+          >Mein Konto</motion.p>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-3xl font-playfair font-semibold text-zinc-900">
+              Hallo, {user?.name?.split(" ")[0]}
+            </h1>
+            <motion.span
+              initial={{ opacity: 0, rotate: -30, scale: 0.5 }}
+              animate={{ opacity: 1, rotate: 0, scale: 1 }}
+              transition={{ delay: 0.35, type: "spring", stiffness: 260, damping: 15 }}
+              className="text-2xl select-none"
+            >👋</motion.span>
+          </div>
+          <motion.div
+            initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
+            transition={{ delay: 0.4, duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+            className="h-px bg-zinc-200 mt-4 origin-left"
+          />
         </motion.div>
 
         {/* Cancellation Alert Banner (Studio-seitig storniert) */}
@@ -323,7 +349,11 @@ export default function CustomerDashboard() {
         </AnimatePresence>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial="hidden" animate="visible"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } } }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+        >
           {[
             { label: "Buchungen gesamt", value: stats?.total_bookings || 0, icon: Calendar, color: "text-zinc-400" },
             { label: "Ausstehend", value: upcoming.filter(b => b.status === "pending").length, icon: Clock, color: "text-amber-400" },
@@ -332,8 +362,10 @@ export default function CustomerDashboard() {
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4"
+              <motion.div key={i}
+                variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 22 } } }}
+                whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.08)" }}
+                className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4 cursor-default"
               >
                 <Icon size={16} strokeWidth={1.5} className={`${stat.color} mb-2`} />
                 <p className="text-2xl font-playfair font-semibold text-zinc-900">{stat.value}</p>
@@ -341,39 +373,36 @@ export default function CustomerDashboard() {
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
-          <Link to="/" className="bg-zinc-900 text-white p-5 rounded-2xl flex items-center justify-between hover:bg-zinc-700 transition-all group" data-testid="find-studio-btn">
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase opacity-50 font-inter mb-1">Neu buchen</p>
-              <p className="font-playfair font-semibold text-base">Studio finden</p>
-            </div>
-            <Search size={20} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
-          </Link>
-          <Link to="/ai-advisor" className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between hover:border-zinc-400 transition-all group" data-testid="ai-advisor-btn">
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-zinc-400 font-inter mb-1">KI-Beratung</p>
-              <p className="font-playfair font-semibold text-zinc-900 text-base">Stilberatung</p>
-            </div>
-            <Sparkles size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
-          </Link>
-          <Link to="/messages" className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between hover:border-zinc-400 transition-all group" data-testid="messages-btn">
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-zinc-400 font-inter mb-1">Chat</p>
-              <p className="font-playfair font-semibold text-zinc-900 text-base">Nachrichten</p>
-            </div>
-            <MessageSquare size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
-          </Link>
-          <Link to="/faq" className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between hover:border-zinc-400 transition-all group" data-testid="customer-faq-link">
-            <div>
-              <p className="text-xs tracking-[0.15em] uppercase text-zinc-400 font-inter mb-1">Hilfe</p>
-              <p className="font-playfair font-semibold text-zinc-900 text-base">FAQs</p>
-            </div>
-            <HelpCircle size={20} className="text-zinc-400 group-hover:text-zinc-700 group-hover:translate-x-1 transition-all" strokeWidth={1.5} />
-          </Link>
-        </div>
+        <motion.div
+          initial="hidden" animate="visible"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08, delayChildren: 0.2 } } }}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6"
+        >
+          {[
+            { to: "/", bg: "bg-zinc-900", textMain: "text-white", textSub: "opacity-50", label: "Neu buchen", title: "Studio finden", icon: Search, iconCls: "opacity-60 group-hover:opacity-100", dark: true, testId: "find-studio-btn" },
+            { to: "/messages", bg: "bg-white border border-zinc-200", textMain: "text-zinc-900", textSub: "text-zinc-400", label: "Chat", title: "Nachrichten", icon: MessageSquare, iconCls: "text-zinc-400 group-hover:text-zinc-900", dark: false, testId: "messages-btn" },
+            { to: "/faq", bg: "bg-white border border-zinc-200", textMain: "text-zinc-900", textSub: "text-zinc-400", label: "Hilfe", title: "FAQs", icon: HelpCircle, iconCls: "text-zinc-400 group-hover:text-zinc-900", dark: false, testId: "customer-faq-link" }
+          ].map(({ to, bg, textMain, textSub, label, title, icon: Icon, iconCls, testId }) => (
+            <motion.div
+              key={to}
+              variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 22 } } }}
+              whileHover={{ y: -4, boxShadow: "0 16px 48px rgba(0,0,0,0.10)" }}
+              whileTap={{ scale: 0.97 }}
+              className="rounded-2xl"
+            >
+              <Link to={to} className={`${bg} p-5 rounded-2xl flex items-center justify-between transition-colors group block`} data-testid={testId}>
+                <div>
+                  <p className={`text-xs tracking-[0.15em] uppercase font-inter mb-1 ${textSub}`}>{label}</p>
+                  <p className={`font-playfair font-semibold text-base ${textMain}`}>{title}</p>
+                </div>
+                <Icon size={20} className={`${iconCls} group-hover:translate-x-1 transition-transform`} strokeWidth={1.5} />
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
 
         {/* Bookings Tabs */}
         <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto">
@@ -395,28 +424,52 @@ export default function CustomerDashboard() {
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
           <AnimatePresence mode="wait">
             {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).length === 0 ? (
-              <div className="py-14 text-center" data-testid="no-bookings">
-                <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Calendar size={20} className="text-zinc-400" strokeWidth={1.5} />
-                </div>
-                <p className="text-zinc-500 font-inter text-sm">
-                  {activeTab === "today" ? "Keine heutigen Termine" : t("dashboard.noBookings")}
+              <motion.div
+                key={`empty-${activeTab}`}
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}
+                className="py-24 flex flex-col items-center justify-center"
+                data-testid="no-bookings"
+              >
+                <motion.div
+                  initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 18 }}
+                  className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mb-5"
+                >
+                  <Calendar size={26} className="text-zinc-300" strokeWidth={1.5} />
+                </motion.div>
+                <h3 className="font-playfair text-xl text-zinc-900 mb-1.5">
+                  {activeTab === "today" ? "Freier Tag" : activeTab === "upcoming" ? "Keine Termine" : "Noch nichts vergangen"}
+                </h3>
+                <p className="text-zinc-400 font-inter text-sm mb-7 text-center max-w-xs">
+                  {activeTab === "today" ? "Keine Termine für heute geplant" : activeTab === "upcoming" ? "Buche dein nächstes Tattoo-Erlebnis." : "Vergangene Termine erscheinen hier"}
                 </p>
                 {activeTab === "upcoming" && (
-                  <Link to="/" className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-700 transition-colors">
-                    <Search size={13} strokeWidth={1.5} /> Studio finden
-                  </Link>
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                    <Link to="/" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                      <Search size={13} strokeWidth={1.5} /> Studio finden
+                    </Link>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             ) : (
-              <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="divide-y divide-zinc-50">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="divide-y divide-zinc-50"
+              >
                 {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).map((booking, i) => {
                   const isPast = isBookingPast(booking);
                   const sc = statusConfig[isPast && booking.status === "confirmed" ? "completed" : booking.status] || statusConfig.pending;
                   const isCancelledByStudio = booking.status === "cancelled" && booking.cancelled_by === "studio";
                   return (
-                    <motion.div key={booking.booking_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                      className={`p-5 flex items-start gap-4 hover:bg-zinc-50 transition-colors group ${isCancelledByStudio ? "bg-red-50/30" : ""}`}
+                    <motion.div key={booking.booking_id}
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 22 }}
+                      whileHover={{ x: 3, backgroundColor: isCancelledByStudio ? "rgb(254 242 242 / 0.6)" : "rgb(250 250 250)" }}
+                      className={`p-5 flex items-start gap-4 transition-colors group ${isCancelledByStudio ? "bg-red-50/30" : ""}`}
                       data-testid={`booking-item-${booking.booking_id}`}
                     >
                       {/* Date block */}
