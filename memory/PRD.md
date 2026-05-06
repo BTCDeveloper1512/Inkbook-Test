@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – CircularGallery WebGL Integration ✅
+- **CircularGallery**: WebGL-basierte Galerie (OGL-Bibliothek, `ogl@1.0.11`) in das Artist-Modal integriert
+- Ersetzt das alte 3x3-Portfolio-Grid mit einem scrollbaren, gebogenen (bend=1) Bild-Strip
+- `borderRadius=0.12` via GLSL-Shader für runde Bilder ohne DOM-Tricks
+- Klick auf Bild → öffnet Lightbox (Großansicht); "Alle anzeigen" Button öffnet Lightbox bei Index 0
+- Drag- und Scroll-Unterstützung; Events nur auf Container-Ebene (kein ungewolltes Scrollen außerhalb)
+- Testing: 100% Frontend (Iteration 28) ✅
+
 ### April 2026 (Abo-Modell komplett implementiert) ✅
 - **4-Tier Subscription**: Free (€0) / Starter (€19,99) / Pro (€49,99) / Full Studio (€149,99)
 - **Hard Limits**: Slots/Monat, Artists, Portfolio-Bilder pro Plan mit Backend-Blocking (403 PLAN_LIMIT)
