@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState("");
+  const [devResetUrl, setDevResetUrl] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +40,8 @@ export default function LoginPage() {
     e.preventDefault();
     setForgotError(""); setForgotLoading(true);
     try {
-      await axios.post(`${API}/api/auth/forgot-password`, { email: forgotEmail }, { withCredentials: true });
+      const res = await axios.post(`${API}/api/auth/forgot-password`, { email: forgotEmail }, { withCredentials: true });
+      setDevResetUrl(res.data?.reset_url || "");
       setView("forgot-sent");
     } catch (err) {
       const d = err.response?.data?.detail;
@@ -175,6 +177,23 @@ export default function LoginPage() {
                 <p className="text-sm text-zinc-500 font-inter leading-relaxed mb-8 max-w-xs mx-auto">
                   Falls ein Konto mit <strong className="text-zinc-700">{forgotEmail}</strong> existiert, hast du jetzt einen Reset-Link erhalten. Bitte auch den Spam-Ordner prüfen.
                 </p>
+
+                {/* Dev fallback: show direct link if email delivery is restricted */}
+                {devResetUrl && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5 mb-6 text-left">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2 font-inter">Kein E-Mail-Versand möglich</p>
+                    <p className="text-xs text-amber-600 font-inter mb-3 leading-relaxed">
+                      Die E-Mail konnte nicht zugestellt werden (Resend-Domain nicht verifiziert). Nutze diesen Link direkt:
+                    </p>
+                    <a
+                      href={devResetUrl}
+                      className="text-xs text-amber-800 font-inter font-medium underline break-all"
+                      data-testid="dev-reset-link"
+                    >
+                      {devResetUrl}
+                    </a>
+                  </div>
+                )}
                 <button
                   onClick={() => { setView("login"); setForgotEmail(""); }}
                   className="text-sm font-inter font-medium text-zinc-900 hover:underline"

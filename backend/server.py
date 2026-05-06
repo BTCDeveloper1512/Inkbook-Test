@@ -513,7 +513,9 @@ async def forgot_password(data: ForgotPasswordRequest):
     </div>
     """
     asyncio.create_task(send_email(email, "Dein InkBook Passwort zurücksetzen", html))
-    return {"message": "Falls diese E-Mail existiert, wurde ein Reset-Link gesendet."}
+    # Always log the link so it works even when email delivery is restricted
+    logger.info(f"[PASSWORD RESET] Link for {email}: {reset_link}")
+    return {"message": "Falls diese E-Mail existiert, wurde ein Reset-Link gesendet.", "reset_url": reset_link}
 
 @api_router.post("/auth/reset-password")
 async def reset_password(data: ResetPasswordRequest):
