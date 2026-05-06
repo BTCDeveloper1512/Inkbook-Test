@@ -20,10 +20,14 @@ export default function StudioCard({ studio, index = 0 }) {
       onClick={() => navigate(`/studios/${studio.studio_id}`)}
       data-testid={`studio-card-${studio.studio_id}`}
     >
-      {/* Image */}
+      {/* Banner / Image */}
       <div className="relative h-48 overflow-hidden bg-zinc-100">
-        {studio.images?.[0] ? (
-          <img src={studio.images[0]} alt={studio.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-apple" />
+        {(studio.banner_image || studio.images?.[0]) ? (
+          <img
+            src={studio.banner_image || studio.images[0]}
+            alt={studio.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-apple"
+          />
         ) : (
           <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
             <span className="text-zinc-300 text-4xl font-playfair">{studio.name[0]}</span>
