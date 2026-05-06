@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { ArrowRight, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
+import BlurText from "../components/BlurText/BlurText";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -126,13 +127,16 @@ function LandingNav() {
         display: "flex", alignItems: "center", justifyContent: "space-between", height: "100%",
       }}>
         {/* Logo */}
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }} data-testid="landing-nav-logo">
-          <img
-            src="/inkbook-logo.jpeg"
-            alt="InkBook"
-            style={{ width: 32, height: 32, borderRadius: 10, objectFit: "cover" }}
+        <Link to="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }} data-testid="landing-nav-logo">
+          <BlurText
+            text="InkBook"
+            animateBy="characters"
+            direction="top"
+            delay={55}
+            stepDuration={0.30}
+            className="font-playfair font-semibold select-none"
+            style={{ fontSize: 20, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.01em" }}
           />
-          <span style={{ fontFamily: "Playfair Display, serif", fontWeight: 600, fontSize: 16, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.01em" }}>InkBook</span>
         </Link>
 
         {/* Center links */}
@@ -751,8 +755,7 @@ export default function LandingPage() {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src="/inkbook-logo.jpeg" alt="InkBook" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
-                <p className="font-playfair text-white font-semibold text-sm">InkBook</p>
+                <p className="font-playfair text-white font-semibold text-base">InkBook</p>
               </div>
               <p className="text-[11px] leading-relaxed" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>
                 Die Premium Tattoo-Buchungsplattform für Deutschland.

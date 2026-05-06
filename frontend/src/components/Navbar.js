@@ -6,6 +6,7 @@ import { Menu, X, Globe, ChevronDown, Bell, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
 import axios from "axios";
+import BlurText from "./BlurText/BlurText";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -55,15 +56,16 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/[0.04]">
       <div className="max-w-7xl mx-auto px-5 lg:px-8">
         <div className="flex items-center justify-between h-[60px]">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group" data-testid="nav-logo">
-            <img
-              src="/inkbook-logo.jpeg"
-              alt="InkBook"
-              className="h-8 w-8 rounded-xl object-cover shadow-soft group-hover:shadow-btn transition-all duration-300"
-              style={{ filter: "invert(1)" }}
+          {/* Logo – nur Schriftzug mit BlurText */}
+          <Link to="/" className="flex items-center" data-testid="nav-logo">
+            <BlurText
+              text="InkBook"
+              animateBy="characters"
+              direction="top"
+              delay={60}
+              stepDuration={0.32}
+              className="text-xl font-playfair font-semibold tracking-tight text-zinc-900 select-none"
             />
-            <span className="text-lg font-playfair font-semibold tracking-tight text-zinc-900">InkBook</span>
           </Link>
 
           {/* Desktop Links */}
