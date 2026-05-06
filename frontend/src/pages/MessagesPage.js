@@ -3,8 +3,9 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
-import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, Calendar, CalendarPlus, Trash2 } from "lucide-react";
+import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, Calendar, CalendarPlus, Trash2, SmilePlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import EmojiPicker from "emoji-picker-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -37,6 +38,9 @@ export default function MessagesPage() {
   const [bookingMsgId, setBookingMsgId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingConv, setDeletingConv] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
+  const emojiButtonRef = useRef(null);
 
   // Refs – avoid stale closures in intervals
   const textRef = useRef("");               // always current text value
@@ -53,6 +57,21 @@ export default function MessagesPage() {
   useEffect(() => { textRef.current = text; }, [text]);
   useEffect(() => { imageUrlRef.current = imageUrl; }, [imageUrl]);
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handleClick = (e) => {
+      if (
+        emojiPickerRef.current && !emojiPickerRef.current.contains(e.target) &&
+        emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showEmojiPicker]);
 
   const userId = user?.id || user?.user_id;
 
@@ -845,6 +864,45 @@ export default function MessagesPage() {
                       data-testid="chat-image-btn">
                       <ImageIcon size={18} strokeWidth={1.5} />
                     </button>
+                    {/* Emoji picker button */}
+                    <div className="relative flex-shrink-0 mb-0.5">
+                      <button
+                        ref={emojiButtonRef}
+                        type="button"
+                        onClick={() => setShowEmojiPicker(p => !p)}
+                        className={`p-2.5 rounded-xl transition-all ${showEmojiPicker ? "bg-zinc-900 text-white" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"}`}
+                        data-testid="emoji-picker-btn"
+                        title="Emoji einfügen"
+                      >
+                        <SmilePlus size={18} strokeWidth={1.5} />
+                      </button>
+                      <AnimatePresence>
+                        {showEmojiPicker && (
+                          <motion.div
+                            ref={emojiPickerRef}
+                            initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: 8 }}
+                            transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                            className="absolute bottom-12 left-0 z-50"
+                            data-testid="emoji-picker"
+                          >
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                setText(prev => prev + emojiData.emoji);
+                                textRef.current = textRef.current + emojiData.emoji;
+                              }}
+                              theme="light"
+                              skinTonesDisabled
+                              searchPlaceholder="Emoji suchen..."
+                              height={380}
+                              width={320}
+                              previewConfig={{ showPreview: false }}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                     {/* Slot offer button – studio only */}
                     {user?.role === "studio_owner" && (
                       <button type="button"
