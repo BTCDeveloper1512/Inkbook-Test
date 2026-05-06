@@ -10,6 +10,7 @@ import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSqu
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
+import GradualBlur from "../components/GradualBlur/GradualBlur";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
@@ -197,6 +198,24 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
                     scrollSpeed={2}
                     scrollEase={0.06}
                     onItemClick={(index) => onOpenLightbox(artist.portfolio_images, index)}
+                  />
+                  {/* Gradual blur left edge */}
+                  <GradualBlur
+                    position="left"
+                    height="72px"
+                    strength={3}
+                    divCount={7}
+                    curve="ease-out"
+                    zIndex={10}
+                  />
+                  {/* Gradual blur right edge */}
+                  <GradualBlur
+                    position="right"
+                    height="72px"
+                    strength={3}
+                    divCount={7}
+                    curve="ease-out"
+                    zIndex={10}
                   />
                 </div>
 
