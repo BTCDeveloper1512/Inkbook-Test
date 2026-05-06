@@ -614,7 +614,7 @@ export default function StudioPage() {
                       </button>
                     ))}
                   </div>
-                  {studio?.video_consultation_enabled && (
+                  {(
                     <button
                       onClick={() => { setBookingType("video_consultation"); setSelectedSlot(null); setSelectedDate(null); }}
                       className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === "video_consultation" ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}

@@ -258,9 +258,8 @@ async def get_current_user(request: Request):
             user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        # Ensure id is always available in returned user dict
-        if not user.get("id") and not user.get("user_id"):
-            user["id"] = user_id
+        # Always expose the canonical id (JWT sub = ObjectId string) as "id"
+        user["id"] = user_id
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -714,8 +713,11 @@ async def get_slots(studio_id: str, date: Optional[str] = None, slot_type: Optio
     if date:
         query["date"] = date
     if slot_type and slot_type != "full_day":
-        # Show matching type AND full_day slots (full_day fits any booking)
-        query["slot_type"] = {"$in": [slot_type, "full_day"]}
+        if slot_type == "video_consultation":
+            # Video consultations are flexible – any open slot works
+            pass
+        else:
+            query["slot_type"] = {"$in": [slot_type, "full_day"]}
     slots = await db.slots.find(query, {"_id": 0}).to_list(200)
     return slots
 
@@ -733,7 +735,11 @@ async def get_available_dates(studio_id: str, year: int, month: int, slot_type: 
         "date": {"$gte": from_date, "$lte": last_day}
     }
     if slot_type and slot_type != "full_day":
-        match_filter["slot_type"] = {"$in": [slot_type, "full_day"]}
+        if slot_type == "video_consultation":
+            # Video consultations can use any available slot
+            pass
+        else:
+            match_filter["slot_type"] = {"$in": [slot_type, "full_day"]}
     pipeline = [
         {"$match": match_filter},
         {"$group": {"_id": "$date"}},
@@ -1637,8 +1643,15 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             "all_bookings": all_studio_bookings
         }
     else:
+        # Support both old UUID-based user_id and new ObjectId-string user_id
+        alt_user_id = current_user.get("user_id")
+        if alt_user_id and alt_user_id != user_id:
+            bookings_query = {"$or": [{"user_id": user_id}, {"user_id": alt_user_id}]}
+        else:
+            bookings_query = {"user_id": user_id}
+
         bookings = await db.bookings.find(
-            {"user_id": user_id}, {"_id": 0}
+            bookings_query, {"_id": 0}
         ).sort([("date", 1), ("start_time", 1)]).to_list(500)
         upcoming_list = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
         return {

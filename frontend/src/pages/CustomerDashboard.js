@@ -516,20 +516,28 @@ export default function CustomerDashboard() {
 
                       {/* Actions */}
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        {/* Video beitreten – nur für video_consultation, confirmed, nicht vergangen */}
-                        {booking.booking_type === "video_consultation" && booking.status === "confirmed" && !isPast && (
+                        {/* Video-Typ Badge + Beitreten-Button */}
+                        {booking.booking_type === "video_consultation" && !isPast && (
                           <div className="flex flex-col items-end gap-1.5">
-                            <button
-                              onClick={() => setVideoCallBooking(booking)}
-                              className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
-                              data-testid={`video-join-btn-${booking.booking_id}`}
-                            >
-                              <Video size={11} strokeWidth={1.5} /> Video beitreten
-                            </button>
-                            <VideoCountdownTimer
-                              booking={booking}
-                              onAutoCancel={fetchStats}
-                            />
+                            {booking.status === "confirmed" ? (
+                              <>
+                                <button
+                                  onClick={() => setVideoCallBooking(booking)}
+                                  className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
+                                  data-testid={`video-join-btn-${booking.booking_id}`}
+                                >
+                                  <Video size={11} strokeWidth={1.5} /> Video beitreten
+                                </button>
+                                <VideoCountdownTimer
+                                  booking={booking}
+                                  onAutoCancel={fetchStats}
+                                />
+                              </>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-zinc-100 text-zinc-500 text-xs font-inter rounded-full flex items-center gap-1 whitespace-nowrap">
+                                <Video size={10} strokeWidth={1.5} /> Videoberatung
+                              </span>
+                            )}
                           </div>
                         )}
 
