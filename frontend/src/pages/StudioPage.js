@@ -202,19 +202,21 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
                   {/* Gradual blur left edge */}
                   <GradualBlur
                     position="left"
-                    height="72px"
-                    strength={3}
-                    divCount={7}
+                    height="52px"
+                    strength={1.2}
+                    divCount={6}
                     curve="ease-out"
+                    opacity={0.7}
                     zIndex={10}
                   />
                   {/* Gradual blur right edge */}
                   <GradualBlur
                     position="right"
-                    height="72px"
-                    strength={3}
-                    divCount={7}
+                    height="52px"
+                    strength={1.2}
+                    divCount={6}
                     curve="ease-out"
+                    opacity={0.7}
                     zIndex={10}
                   />
                 </div>
