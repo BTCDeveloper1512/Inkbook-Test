@@ -6,9 +6,10 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, ZoomIn, Images, Video } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
+import CircularGallery from "../components/CircularGallery/CircularGallery";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
@@ -167,50 +168,58 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
               </div>
             )}
 
-            {/* Portfolio gallery */}
+            {/* Portfolio – CircularGallery */}
             {artist.portfolio_images?.length > 0 && (
               <div>
-                <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400 mb-2.5">Portfolio</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {artist.portfolio_images.map((img, i) => (
-                    <div key={i} className="relative group cursor-pointer overflow-hidden rounded-xl"
-                      onClick={() => onOpenLightbox(artist.portfolio_images, i)}>
-                      <img src={img} alt="" className="w-full h-24 object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
-                        <ZoomIn size={18} className="text-white" strokeWidth={1.5} />
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400">
+                    Portfolio · {artist.portfolio_images.length} {artist.portfolio_images.length === 1 ? "Bild" : "Bilder"}
+                  </p>
+                  <button
+                    onClick={() => onOpenLightbox(artist.portfolio_images, 0)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 hover:bg-zinc-900 hover:text-white text-zinc-600 transition-all text-xs font-inter font-medium"
+                    data-testid="modal-gallery-btn"
+                  >
+                    <Images size={12} strokeWidth={1.5} />
+                    Alle anzeigen
+                  </button>
                 </div>
+
+                {/* WebGL Gallery */}
+                <div
+                  className="relative rounded-2xl overflow-hidden bg-zinc-950"
+                  style={{ height: 260 }}
+                >
+                  <CircularGallery
+                    items={artist.portfolio_images.map(img => ({ image: img }))}
+                    bend={1}
+                    borderRadius={0.12}
+                    scrollSpeed={2}
+                    scrollEase={0.06}
+                    onItemClick={(index) => onOpenLightbox(artist.portfolio_images, index)}
+                  />
+                </div>
+
+                <p className="text-[11px] text-zinc-400 text-center mt-2.5 font-inter tracking-wide">
+                  Ziehen oder Scrollen zum Navigieren · Klicken für Großansicht
+                </p>
               </div>
             )}
 
-            {/* Action buttons – Galerie + Instagram */}
-            {(artist.portfolio_images?.length > 0 || artist.instagram) && (
-              <div className="flex flex-wrap gap-3 pt-1">
-                {artist.portfolio_images?.length > 0 && (
-                  <button
-                    onClick={() => onOpenLightbox(artist.portfolio_images, 0)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 text-white hover:bg-zinc-700 transition-all text-sm font-inter font-medium"
-                    data-testid="modal-gallery-btn"
-                  >
-                    <Images size={14} strokeWidth={1.5} />
-                    Galerie öffnen ({artist.portfolio_images.length})
-                  </button>
-                )}
-                {artist.instagram && (
-                  <a
-                    href={`https://instagram.com/${artist.instagram.replace(/^@/, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 transition-all text-sm font-inter font-medium group"
-                    data-testid="modal-instagram-btn"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Instagram size={14} strokeWidth={1.5} className="group-hover:text-pink-500 transition-colors" />
-                    @{artist.instagram.replace(/^@/, "")}
-                  </a>
-                )}
+            {/* Instagram */}
+            {artist.instagram && (
+              <div className="pt-1">
+                <a
+                  href={`https://instagram.com/${artist.instagram.replace(/^@/, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 transition-all text-sm font-inter font-medium group"
+                  data-testid="modal-instagram-btn"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Instagram size={14} strokeWidth={1.5} className="group-hover:text-pink-500 transition-colors" />
+                  @{artist.instagram.replace(/^@/, "")}
+                </a>
               </div>
             )}
 
