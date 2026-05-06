@@ -11,6 +11,7 @@ import ArtistsTab from "../components/ArtistsTab";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import DashboardHeroSmoke from "../components/DashboardHeroSmoke";
+import BorderGlow from "../components/BorderGlow/BorderGlow";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -296,31 +297,36 @@ export default function StudioDashboard() {
     <div className="min-h-screen bg-zinc-50">
       <Navbar />
 
-      {/* ── Dark Hero Strip ── */}
-      <div className="relative overflow-hidden" style={{ background: "linear-gradient(160deg, #111118 0%, #0d0d0d 60%, #0a0a14 100%)" }}>
-        <DashboardHeroSmoke />
-
-        {/* Grain texture */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.035]"
-          style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize: "180px" }} />
-
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-12">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
-            <div className="flex items-start justify-between gap-4 mb-2">
-              <p className="text-[10px] tracking-[0.28em] uppercase font-inter" style={{ color: "rgba(255,255,255,0.28)" }}>Studio Dashboard</p>
-              {studio?.is_verified && (
-                <span className="text-[10px] tracking-[0.2em] uppercase font-inter px-2.5 py-1 rounded-full border" style={{ color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>Verifiziert</span>
-              )}
+      {/* ── Dark Hero Card (rounded, bordered glow) ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <BorderGlow
+          backgroundColor="#0e0e18"
+          borderRadius={24}
+          glowColor="220 25 88"
+          colors={["rgba(210,220,255,0.55)", "rgba(160,140,255,0.35)", "rgba(120,170,255,0.25)"]}
+          glowIntensity={0.9}
+          glowRadius={44}
+          coneSpread={22}
+          animated
+          className="w-full"
+        >
+          <div className="relative overflow-hidden" style={{ borderRadius: 24 }}>
+            <DashboardHeroSmoke />
+            <div className="relative px-8 pt-8 pb-10">
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <p className="text-[10px] tracking-[0.28em] uppercase font-inter" style={{ color: "rgba(255,255,255,0.28)" }}>Studio Dashboard</p>
+                  {studio?.is_verified && (
+                    <span className="text-[10px] tracking-[0.2em] uppercase font-inter px-2.5 py-1 rounded-full border" style={{ color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>Verifiziert</span>
+                  )}
+                </div>
+                <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(26px, 4vw, 36px)" }}>
+                  {studio?.name}
+                </h1>
+              </motion.div>
             </div>
-            <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(28px, 5vw, 40px)" }}>
-              {studio?.name}
-            </h1>
-          </motion.div>
-        </div>
-
-        {/* Fade to zinc-50 */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none"
-          style={{ background: "linear-gradient(to bottom, transparent, #f4f4f5)" }} />
+          </div>
+        </BorderGlow>
       </div>
 
       {/* ── White Content ── */}
