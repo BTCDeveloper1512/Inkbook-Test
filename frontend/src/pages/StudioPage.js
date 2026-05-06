@@ -187,7 +187,7 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
 
                 {/* WebGL Gallery */}
                 <div
-                  className="relative rounded-2xl overflow-hidden bg-zinc-950"
+                  className="relative rounded-2xl overflow-hidden bg-white"
                   style={{ height: 260 }}
                 >
                   <CircularGallery
