@@ -12,6 +12,7 @@ import os
 import random
 import logging
 import uuid
+import secrets
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -455,6 +456,81 @@ async def logout():
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+# ── Password Reset ──────────────────────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    email = data.email.lower().strip()
+    user = await db.users.find_one({"email": email}, {"_id": 1, "name": 1})
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"message": "Falls diese E-Mail existiert, wurde ein Reset-Link gesendet."}
+
+    # Invalidate old tokens for this user
+    await db.password_reset_tokens.delete_many({"user_id": str(user["_id"])})
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    await db.password_reset_tokens.insert_one({
+        "token": token,
+        "user_id": str(user["_id"]),
+        "email": email,
+        "expires_at": expires_at,
+        "used": False,
+        "created_at": datetime.now(timezone.utc),
+    })
+
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    reset_link = f"{frontend_url}/reset-password?token={token}"
+    name = user.get("name", "")
+
+    html = f"""
+    <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;background:#ffffff;border-radius:16px;">
+      <div style="margin-bottom:32px;">
+        <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#0a0a0a;letter-spacing:-0.5px;">InkBook</span>
+      </div>
+      <h2 style="font-size:20px;font-weight:600;color:#0a0a0a;margin:0 0 12px;">Passwort zurücksetzen</h2>
+      <p style="font-size:15px;color:#52525b;line-height:1.6;margin:0 0 28px;">
+        Hallo{' ' + name if name else ''},<br><br>
+        du hast eine Anfrage zum Zurücksetzen deines Passworts gestellt. Klicke auf den Button, um ein neues Passwort zu vergeben.
+      </p>
+      <a href="{reset_link}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:12px;font-size:14px;font-weight:600;letter-spacing:0.01em;">
+        Passwort zurücksetzen
+      </a>
+      <p style="font-size:13px;color:#a1a1aa;margin-top:28px;line-height:1.5;">
+        Dieser Link ist <strong>1 Stunde</strong> gültig. Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.
+      </p>
+      <hr style="border:none;border-top:1px solid #f4f4f5;margin:28px 0;" />
+      <p style="font-size:12px;color:#d4d4d8;margin:0;">InkBook · Tattoo Booking Platform</p>
+    </div>
+    """
+    asyncio.create_task(send_email(email, "Dein InkBook Passwort zurücksetzen", html))
+    return {"message": "Falls diese E-Mail existiert, wurde ein Reset-Link gesendet."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    record = await db.password_reset_tokens.find_one({"token": data.token, "used": False})
+    if not record:
+        raise HTTPException(status_code=400, detail="Ungültiger oder bereits verwendeter Link.")
+
+    if datetime.now(timezone.utc) > record["expires_at"].replace(tzinfo=timezone.utc) if record["expires_at"].tzinfo is None else datetime.now(timezone.utc) > record["expires_at"]:
+        raise HTTPException(status_code=400, detail="Dieser Link ist abgelaufen. Bitte fordere einen neuen an.")
+
+    new_hash = hash_password(data.new_password)
+    await db.users.update_one(
+        {"_id": ObjectId(record["user_id"])},
+        {"$set": {"password_hash": new_hash}}
+    )
+    await db.password_reset_tokens.update_one({"token": data.token}, {"$set": {"used": True}})
+    return {"message": "Passwort erfolgreich geändert. Du kannst dich jetzt anmelden."}
 
 # Google OAuth (Emergent-managed)
 class GoogleSessionRequest(BaseModel):
