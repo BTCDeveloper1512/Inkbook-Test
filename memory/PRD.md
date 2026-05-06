@@ -44,7 +44,11 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
-### Mai 2026 – CircularGallery WebGL Integration ✅
+### Mai 2026 – Video Consultation Kalender Fix ✅
+- **Backend**: `video_consultation` Buchungstyp nutzt jetzt alle verfügbaren Slots (kein separater Slot-Typ nötig)
+- **Bug-Fix**: `get_current_user` setzt `user["id"]` immer korrekt aus JWT-Sub; Dashboard-Query unterstützt beide User-ID-Formate (UUID legacy + ObjectId)
+- **Frontend**: Videoberatungs-Button auf StudioPage immer sichtbar (kein `video_consultation_enabled` Flag); Kunden sehen Videoberatung-Badge (pending) und Video-Beitreten-Button (confirmed)
+- Testing: 100% Backend + Frontend (Iteration 29) ✅
 - **CircularGallery**: WebGL-basierte Galerie (OGL-Bibliothek, `ogl@1.0.11`) in das Artist-Modal integriert
 - Ersetzt das alte 3x3-Portfolio-Grid mit einem scrollbaren, gebogenen (bend=1) Bild-Strip
 - `borderRadius=0.12` via GLSL-Shader für runde Bilder ohne DOM-Tricks
