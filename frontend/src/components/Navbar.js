@@ -163,7 +163,7 @@ export default function Navbar() {
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 <Link to="/login" className="px-4 py-2 text-sm font-inter text-zinc-600 hover:text-zinc-900 transition-colors" data-testid="nav-login-btn">{t("nav.login")}</Link>
                 <Link to="/register" className="btn-primary text-sm px-5 py-2" data-testid="nav-register-btn">{t("nav.register")}</Link>
               </div>

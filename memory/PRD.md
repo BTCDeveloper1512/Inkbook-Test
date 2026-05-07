@@ -44,6 +44,16 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – Mobile-Optimierung (Responsive Design) ✅
+- **LandingPage**: Mobile Hamburger-Menü (`md:hidden`) + animiertes Overlay-Dropdown; Hero-Geräte (MacBook/iPhones) auf Mobile ausgeblendet (`hidden sm:flex`); Feature-Sektionen: `py-16 sm:py-24 lg:py-28`, `gap-8 lg:gap-20`; MacBook-Devices in Feature-Sektionen auf Mobile ausgeblendet
+- **Navbar**: Login/Register-Buttons auf Mobile ausgeblendet (`hidden sm:flex`), im mobilen Hamburger-Menü erreichbar
+- **Dashboards** (Customer+Studio): Hero-Card-Padding responsiv (`px-4 sm:px-8 pt-6 sm:pt-8`), Booking-Items mit `flex-wrap`
+- **StudioPage**: Booking-Sidebar `md:sticky md:top-20` (kein Sticky auf Mobile)
+- **SearchPage**: `flex-col sm:flex-row` Suchformular, reduziertes Padding
+- **MessagesPage**: Sidebar `w-full md:w-[300px]`, `calc(100dvh - 130px)` für dynamische Viewport-Höhe
+- **Tab-Bars** überall: `w-fit max-w-full overflow-x-auto` (scrollbar auf Mobile)
+- **Testing**: Iteration 30 – 100% Frontend-Pass, kein horizontaler Overflow auf allen Pages
+
 ### Mai 2026 – Video Consultation Kalender Fix ✅
 - **Backend**: `video_consultation` Buchungstyp nutzt jetzt alle verfügbaren Slots (kein separater Slot-Typ nötig)
 - **Bug-Fix**: `get_current_user` setzt `user["id"]` immer korrekt aus JWT-Sub; Dashboard-Query unterstützt beide User-ID-Formate (UUID legacy + ObjectId)
