@@ -305,7 +305,7 @@ export default function CustomerDashboard() {
         >
           <div className="relative overflow-hidden" style={{ borderRadius: 24 }}>
             <DashboardHeroSmoke />
-            <div className="relative px-8 pt-8 pb-10">
+            <div className="relative px-4 sm:px-8 pt-6 sm:pt-8 pb-8 sm:pb-10">
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
                 <p className="text-[10px] tracking-[0.28em] uppercase font-inter mb-2" style={{ color: "rgba(255,255,255,0.28)" }}>Mein Konto</p>
                 <div className="flex items-baseline gap-3">
@@ -392,7 +392,7 @@ export default function CustomerDashboard() {
 
 
         {/* Bookings Tabs */}
-        <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto">
+        <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto">
           {[
             { id: "today", label: `Heutige Termine (${todayBookings.length})` },
             { id: "upcoming", label: `${t("dashboard.upcoming")} (${upcoming.length})` },

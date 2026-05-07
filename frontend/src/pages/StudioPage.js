@@ -454,7 +454,7 @@ export default function StudioPage() {
           {/* ── Main Content ── */}
           <div className="lg:col-span-2">
             {/* Tabs */}
-            <div className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto">
+            <div className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto">
               {TABS.map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   data-testid={`tab-${tab.id}`}
@@ -570,7 +570,7 @@ export default function StudioPage() {
 
           {/* ── Booking Sidebar ── */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_24px_rgb(0,0,0,0.06)] p-6 sticky top-20">
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_24px_rgb(0,0,0,0.06)] p-6 md:sticky md:top-20">
               <h3 className="font-playfair font-semibold text-xl text-zinc-900 mb-5">{t("booking.title")}</h3>
 
               {/* ── Not logged in: prompt ── */}

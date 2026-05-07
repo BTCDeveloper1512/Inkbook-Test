@@ -3,7 +3,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ArrowRight, Globe } from "lucide-react";
+import { ArrowRight, Globe, Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import BlurText from "../components/BlurText/BlurText";
@@ -95,6 +95,7 @@ function NewsletterSection() {
 ══════════════════════════════════════════════════════ */
 function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -108,6 +109,7 @@ function LandingNav() {
   }, []);
 
   return (
+    <>
     <nav
       data-testid="landing-nav"
       style={{
@@ -122,10 +124,7 @@ function LandingNav() {
         borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "1px solid transparent",
       }}
     >
-      <div style={{
-        maxWidth: 1200, margin: "0 auto", padding: "0 32px",
-        display: "flex", alignItems: "center", justifyContent: "space-between", height: "100%",
-      }}>
+      <div className="flex items-center justify-between h-full px-4 sm:px-8" style={{ maxWidth: 1200, margin: "0 auto" }}>
         {/* Logo */}
         <Link to="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }} data-testid="landing-nav-logo">
           <BlurText
@@ -139,8 +138,8 @@ function LandingNav() {
           />
         </Link>
 
-        {/* Center links */}
-        <div style={{ display: "flex", gap: 4 }}>
+        {/* Center links – Desktop only */}
+        <div className="hidden md:flex" style={{ gap: 4 }}>
           {[
             { to: "/search", label: "Studios finden" },
           ].map(({ to, label }) => (
@@ -161,13 +160,13 @@ function LandingNav() {
           ))}
         </div>
 
-        {/* Right: auth + language */}
+        {/* Right: auth + language + hamburger */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
             onClick={() => i18n.changeLanguage(i18n.language === "de" ? "en" : "de")}
+            className="hidden sm:flex items-center"
             style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "6px 12px", borderRadius: 20, border: "none",
+              gap: 5, padding: "6px 12px", borderRadius: 20, border: "none",
               background: "transparent", cursor: "pointer",
               fontSize: 11, fontFamily: "Inter, sans-serif", fontWeight: 600,
               color: "rgba(255,255,255,0.4)",
@@ -181,7 +180,7 @@ function LandingNav() {
           </button>
 
           {user ? (
-            <Link to={dashboardPath}
+            <Link to={dashboardPath} className="hidden sm:block"
               style={{
                 padding: "8px 18px", borderRadius: 20, fontSize: 13,
                 fontFamily: "Inter, sans-serif",
@@ -196,7 +195,7 @@ function LandingNav() {
             </Link>
           ) : (
             <>
-              <Link to="/login"
+              <Link to="/login" className="hidden sm:block"
                 style={{
                   padding: "8px 16px", fontSize: 13, fontFamily: "Inter, sans-serif",
                   color: "rgba(255,255,255,0.5)", textDecoration: "none",
@@ -207,7 +206,7 @@ function LandingNav() {
               >
                 Anmelden
               </Link>
-              <Link to="/register"
+              <Link to="/register" className="hidden sm:block"
                 style={{
                   padding: "8px 20px", borderRadius: 20, fontSize: 13,
                   fontFamily: "Inter, sans-serif",
@@ -225,9 +224,84 @@ function LandingNav() {
               </Link>
             </>
           )}
+
+          {/* Hamburger – Mobile only */}
+          <button
+            onClick={() => setMobileOpen(o => !o)}
+            className="md:hidden flex items-center justify-center"
+            style={{
+              width: 36, height: 36, borderRadius: 10, border: "none", cursor: "pointer",
+              background: "rgba(255,255,255,0.1)", transition: "background 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.18)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+            data-testid="landing-mobile-menu-btn"
+            aria-label="Menü öffnen"
+          >
+            {mobileOpen
+              ? <X size={17} strokeWidth={1.5} style={{ color: "rgba(255,255,255,0.88)" }} />
+              : <Menu size={17} strokeWidth={1.5} style={{ color: "rgba(255,255,255,0.88)" }} />
+            }
+          </button>
         </div>
       </div>
     </nav>
+
+    {/* Mobile Menu Overlay */}
+    {mobileOpen && (
+      <div
+        data-testid="landing-mobile-menu"
+        style={{
+          position: "fixed", top: 60, left: 0, right: 0, zIndex: 99,
+          background: "rgba(7,7,7,0.97)",
+          backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          padding: "16px 20px 24px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {[
+            { to: "/search", label: "Studios finden" },
+            ...(user
+              ? [{ to: dashboardPath, label: "Dashboard" }]
+              : [
+                  { to: "/login",    label: "Anmelden" },
+                  { to: "/register", label: "Kostenlos registrieren" },
+                ]
+            ),
+          ].map(({ to, label }) => (
+            <Link
+              key={to} to={to}
+              onClick={() => setMobileOpen(false)}
+              style={{
+                padding: "13px 16px", borderRadius: 12, fontSize: 15,
+                fontFamily: "Inter, sans-serif", fontWeight: 500,
+                color: "rgba(255,255,255,0.82)", textDecoration: "none",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              {label}
+            </Link>
+          ))}
+          <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "8px 4px" }} />
+          <button
+            onClick={() => { i18n.changeLanguage(i18n.language === "de" ? "en" : "de"); setMobileOpen(false); }}
+            style={{
+              padding: "10px 16px", borderRadius: 12, fontSize: 13,
+              display: "flex", alignItems: "center", gap: 8,
+              fontFamily: "Inter, sans-serif", fontWeight: 500,
+              color: "rgba(255,255,255,0.38)", background: "none", border: "none", cursor: "pointer",
+            }}
+          >
+            <Globe size={14} strokeWidth={1.5} style={{ color: "inherit" }} />
+            {i18n.language === "de" ? "English" : "Deutsch"}
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -531,9 +605,9 @@ export default function LandingPage() {
         style={{ background: "#090909" }}>
         <Smoke dark />
 
-        {/* Devices stage */}
+        {/* Devices stage – hidden on mobile, visible sm+ */}
         <div ref={devicesRef}
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute inset-0 hidden sm:flex items-center justify-center"
           style={{ perspective: "1200px", perspectiveOrigin: "50% 44%" }}>
 
           {/* MacBook – centered, behind phones */}
@@ -570,7 +644,7 @@ export default function LandingPage() {
         </div>
 
         {/* Hero copy */}
-        <div className="relative z-10 text-center">
+        <div className="relative z-10 text-center px-4 sm:px-6">
           <h1 ref={titleRef}
             className="font-playfair font-bold text-white leading-none tracking-tight mb-3"
             style={{ fontSize: "clamp(64px,11vw,124px)", transformPerspective: 800 }}>
@@ -603,9 +677,9 @@ export default function LandingPage() {
       <WeatherTransition fromDark={true} />
 
       {/* ═══ FEATURE 1 – Search (White) ═══════════════════════════ */}
-      <section className="feat-sec relative min-h-screen flex items-center px-6 py-28 overflow-hidden bg-white">
+      <section className="feat-sec relative min-h-screen flex items-center px-4 sm:px-6 py-16 sm:py-24 lg:py-28 overflow-hidden bg-white">
         <Smoke dark={false} />
-        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20 items-center">
           <div>
             <p className="f-line text-[10px] tracking-[.28em] uppercase text-zinc-400 mb-5"
               style={{ fontFamily: "'Inter',sans-serif" }}>01 — Discover</p>
@@ -625,7 +699,7 @@ export default function LandingPage() {
               <ArrowRight size={13} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
-          <div className="f-device flex justify-center" style={{ perspective: "1000px" }}>
+          <div className="f-device hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
             <MacBook src="/screenshots/desktop.jpg" width={440}
               style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }} />
           </div>
@@ -636,11 +710,11 @@ export default function LandingPage() {
       <WeatherTransition fromDark={false} />
 
       {/* ═══ FEATURE 2 – Booking (Dark) ═══════════════════════════ */}
-      <section className="feat-sec relative min-h-screen flex items-center px-6 py-28 overflow-hidden"
+      <section className="feat-sec relative min-h-screen flex items-center px-4 sm:px-6 py-16 sm:py-24 lg:py-28 overflow-hidden"
         style={{ background: "#0d0d0d" }}>
         <Smoke dark />
-        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-          <div className="f-device order-2 lg:order-1 flex justify-center" style={{ perspective: "1000px" }}>
+        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20 items-center">
+          <div className="f-device order-2 lg:order-1 hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
             <MacBook src="/screenshots/desktop-booking.jpg" width={440} />
           </div>
           <div className="order-1 lg:order-2">
@@ -673,9 +747,9 @@ export default function LandingPage() {
       <WeatherTransition fromDark={true} />
 
       {/* ═══ FEATURE 3 – Chat (White) ══════════════════════════════ */}
-      <section className="feat-sec relative min-h-screen flex items-center px-6 py-28 overflow-hidden bg-white">
+      <section className="feat-sec relative min-h-screen flex items-center px-4 sm:px-6 py-16 sm:py-24 lg:py-28 overflow-hidden bg-white">
         <Smoke dark={false} />
-        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20 items-center">
           <div>
             <p className="f-line text-[10px] tracking-[.28em] uppercase text-zinc-400 mb-5"
               style={{ fontFamily: "'Inter',sans-serif" }}>03 — Connect</p>
@@ -695,7 +769,7 @@ export default function LandingPage() {
               <ArrowRight size={13} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
-          <div className="f-device flex justify-center" style={{ perspective: "1000px" }}>
+          <div className="f-device hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
             <MacBook src="/screenshots/desktop-chat.jpg" width={440}
               style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }} />
           </div>
@@ -706,7 +780,7 @@ export default function LandingPage() {
       <WeatherTransition fromDark={false} />
 
       {/* ═══ CTA FINALE ════════════════════════════════════════════ */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center py-32 px-6 overflow-hidden"
+      <section className="relative min-h-screen flex flex-col items-center justify-center py-20 sm:py-32 px-4 sm:px-6 overflow-hidden"
         style={{ background: "#050505" }}>
         <Smoke dark />
         <div className="absolute inset-0 pointer-events-none"
@@ -720,7 +794,7 @@ export default function LandingPage() {
             style={{ color: "rgba(255,255,255,.94)" }}>
             Tausende Buchungen.<br />Ein Ziel.
           </h2>
-          <div className="grid grid-cols-3 gap-10 sm:gap-20 mb-20">
+          <div className="grid grid-cols-3 gap-6 sm:gap-16 mb-14 sm:mb-20">
             {[["500+","Studios"],["10k+","Buchungen"],["4.9★","Bewertung"]].map(([v,l]) => (
               <div key={l} className="stat-i">
                 <p className="font-playfair text-4xl sm:text-5xl font-bold" style={{ color: "rgba(255,255,255,.94)" }}>{v}</p>

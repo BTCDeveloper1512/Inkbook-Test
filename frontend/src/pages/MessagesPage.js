@@ -364,10 +364,10 @@ export default function MessagesPage() {
     <div className="min-h-screen bg-zinc-50 flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-stretch max-w-6xl mx-auto w-full px-4 md:px-6 py-4 md:py-6" style={{ minHeight: 0 }}>
-        <div className="flex w-full rounded-2xl overflow-hidden border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white" style={{ height: "calc(100vh - 130px)" }}>
+        <div className="flex w-full rounded-2xl overflow-hidden border border-black/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.08)] bg-white" style={{ height: "calc(100dvh - 130px)", minHeight: 400 }}>
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-          <div className={`flex-shrink-0 border-r border-zinc-100 flex flex-col bg-white ${activeConv ? "hidden md:flex" : "flex"}`} style={{ width: 300 }}>
+          <div className={`flex-shrink-0 border-r border-zinc-100 flex flex-col bg-white w-full md:w-[300px] ${activeConv ? "hidden md:flex" : "flex"}`}>
             <div className="px-5 py-4 border-b border-zinc-100">
               <h2 className="font-playfair font-semibold text-xl text-zinc-900">Nachrichten</h2>
             </div>

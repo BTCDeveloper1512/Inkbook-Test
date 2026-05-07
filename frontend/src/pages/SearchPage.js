@@ -65,13 +65,13 @@ export default function SearchPage() {
       <Navbar />
 
       {/* Search Header */}
-      <div className="bg-white border-b border-zinc-100 py-12 px-6">
+      <div className="bg-white border-b border-zinc-100 py-8 sm:py-12 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-2">Tattoo Studios entdecken</p>
             <h1 className="text-4xl md:text-5xl font-playfair font-semibold text-zinc-900 mb-2">Dein perfektes Studio.</h1>
             <p className="text-zinc-400 font-inter text-sm mb-7">Suche, vergleiche und buche Tattoo-Studios in deiner Nähe.</p>
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1 relative">
                 <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" strokeWidth={1.5} />
                 <input
@@ -96,7 +96,7 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Filters Bar */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <button

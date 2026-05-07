@@ -312,7 +312,7 @@ export default function StudioDashboard() {
         >
           <div className="relative overflow-hidden" style={{ borderRadius: 24 }}>
             <DashboardHeroSmoke />
-            <div className="relative px-8 pt-8 pb-10">
+            <div className="relative px-4 sm:px-8 pt-6 sm:pt-8 pb-8 sm:pb-10">
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
                 <div className="flex items-start justify-between gap-4 mb-2">
                   <p className="text-[10px] tracking-[0.28em] uppercase font-inter" style={{ color: "rgba(255,255,255,0.28)" }}>Studio Dashboard</p>
@@ -359,7 +359,7 @@ export default function StudioDashboard() {
         {/* Tabs */}
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-          className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit overflow-x-auto"
+          className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto"
         >
           {[
             { id: "overview", label: "Übersicht" },
@@ -416,7 +416,7 @@ export default function StudioDashboard() {
                     <motion.div key={b.booking_id}
                       initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.08, type: "spring", stiffness: 300, damping: 22 }}
-                      className={`flex items-center justify-between p-4 rounded-xl ${idx === 0 ? "bg-white/10 border border-white/10" : "bg-white/5 border border-white/5"}`}
+                      className={`flex flex-wrap items-start justify-between gap-3 p-4 rounded-xl ${idx === 0 ? "bg-white/10 border border-white/10" : "bg-white/5 border border-white/5"}`}
                     >
                       <div>
                         <p className="font-inter font-semibold text-sm text-white">{b.user_name}</p>
@@ -464,7 +464,7 @@ export default function StudioDashboard() {
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.06, type: "spring", stiffness: 300, damping: 22 }}
                       whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
-                      className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100 transition-colors"
+                      className="flex flex-wrap items-start justify-between gap-2 p-3.5 bg-zinc-50 rounded-xl border border-zinc-100 transition-colors"
                     >
                       <div>
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
