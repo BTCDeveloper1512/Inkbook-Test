@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CookieBanner from "./components/CookieBanner";
 import SupportChat from "./components/SupportChat";
+import PWAInstallBanner from "./components/PWAInstallBanner";
 import AuthCallback from "./pages/AuthCallback";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -67,6 +68,7 @@ function AppRouter() {
       </Routes>
       <CookieBanner />
       <SupportChat />
+      <PWAInstallBanner />
     </>
   );
 }

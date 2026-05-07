@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – PWA (Progressive Web App) ✅
+- Service Worker mit Caching-Strategie (network-first API, cache-first static)
+- manifest.json optimiert (maskable icon, dark theme, portrait-primary)
+- Alle Icons erstellt: logo192.png, logo512.png, apple-touch-icon.png (180x180), maskable-icon.png
+- apple-touch-icon in index.html verlinkt
+- Service Worker in index.js registriert
+- `PWAInstallBanner` Komponente: Android (beforeinstallprompt), iOS (Schritt-für-Schritt Safari-Anleitung)
+
 ### Mai 2026 – Mobile-Optimierung (Responsive Design) ✅
 - **LandingPage**: Mobile Hamburger-Menü (`md:hidden`) + animiertes Overlay-Dropdown; Hero-Geräte (MacBook/iPhones) auf Mobile ausgeblendet (`hidden sm:flex`); Feature-Sektionen: `py-16 sm:py-24 lg:py-28`, `gap-8 lg:gap-20`; MacBook-Devices in Feature-Sektionen auf Mobile ausgeblendet
 - **Navbar**: Login/Register-Buttons auf Mobile ausgeblendet (`hidden sm:flex`), im mobilen Hamburger-Menü erreichbar
