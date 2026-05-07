@@ -76,7 +76,7 @@ export default function PWAInstallBanner() {
         data-testid="pwa-install-banner"
         style={{
           position: "fixed",
-          bottom: 20,
+          bottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
           left: 16,
           right: 16,
           zIndex: 9990,

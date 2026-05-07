@@ -122,6 +122,7 @@ function LandingNav() {
         backdropFilter: scrolled ? "blur(16px)" : "none",
         WebkitBackdropFilter: scrolled ? "blur(16px)" : "none",
         borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "1px solid transparent",
+        paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
       <div className="flex items-center justify-between h-full px-4 sm:px-8" style={{ maxWidth: 1200, margin: "0 auto" }}>

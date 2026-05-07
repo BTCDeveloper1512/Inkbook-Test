@@ -474,7 +474,7 @@ export default function CustomerDashboard() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-1">
-                          <h4 className={`font-playfair font-semibold text-base truncate ${booking.status === "cancelled" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
+                          <h4 className={`font-playfair font-semibold text-base break-words leading-snug ${booking.status === "cancelled" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
                             {booking.studio_name}
                           </h4>
                           <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border font-inter ${sc.cls}`}
@@ -512,13 +512,12 @@ export default function CustomerDashboard() {
                             </span>
                           )}
                         </div>
-                      </div>
 
-                      {/* Actions */}
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        {/* Actions – unterhalb, flex-wrap für Mobile */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
                         {/* Video-Typ Badge + Beitreten-Button */}
                         {booking.booking_type === "video_consultation" && !isPast && (
-                          <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {booking.status === "confirmed" ? (
                               <>
                                 <button
@@ -591,7 +590,8 @@ export default function CustomerDashboard() {
                             <CheckCircle size={11} className="text-emerald-500" strokeWidth={2} /> Bewertet
                           </span>
                         )}
-                      </div>
+                        </div>{/* end actions flex-wrap */}
+                      </div>{/* end content flex-1 */}
                     </motion.div>
                   );
                 })}

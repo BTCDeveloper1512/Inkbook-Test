@@ -12,6 +12,11 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── iOS PWA Safe Area: fill notch with dark to match app branding ── */
+html {
+    background-color: #090909;
+}
+
 code {
     font-family:
         source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
