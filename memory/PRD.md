@@ -44,6 +44,13 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – iOS Safe Area + Booking Cards Fix ✅
+- Navbar (sticky) + LandingNav (fixed): `paddingTop: "env(safe-area-inset-top, 0px)"` → notch/Dynamic Island kein Problem mehr
+- `html { background-color: #090909 }` in index.css → notch-Bereich dunkel gefüllt
+- PWAInstallBanner: `bottom: calc(20px + env(safe-area-inset-bottom))` → Home-Indicator-Sicherheitsbereich
+- CustomerDashboard Buchungskarten: `break-words leading-snug` (kein truncate mehr), Action-Buttons in flex-wrap-Row unterhalb der Buchungsinfo
+- Testing: Iteration 31 – 100% Frontend-Pass
+
 ### Mai 2026 – PWA (Progressive Web App) ✅
 - Service Worker mit Caching-Strategie (network-first API, cache-first static)
 - manifest.json optimiert (maskable icon, dark theme, portrait-primary)
