@@ -39,6 +39,7 @@ export default function MessagesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingConv, setDeletingConv] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [broadcastRatings, setBroadcastRatings] = useState({});
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
 
@@ -110,6 +111,21 @@ export default function MessagesPage() {
     } catch {}
   }, []);
 
+  // ─── Fetch user's broadcast ratings ──────────────────────────────────────
+  const fetchMyBroadcastRatings = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/broadcast/my-ratings`, { withCredentials: true });
+      setBroadcastRatings(data);
+    } catch {}
+  }, []);
+
+  const handleRateBroadcast = async (broadcastId, rating) => {
+    try {
+      await axios.post(`${API}/broadcast/${broadcastId}/rate`, { rating }, { withCredentials: true });
+      setBroadcastRatings(prev => ({ ...prev, [broadcastId]: rating }));
+    } catch {}
+  };
+
   // ─── Init: start conversation polling ─────────────────────────────────────
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -137,6 +153,8 @@ export default function MessagesPage() {
     if (!activeConv?.other_id) return;
 
     fetchMessages(activeConv.other_id);
+    // Fetch broadcast ratings when opening InkBook system conversation
+    if (activeConv.other_id === "inkbook_system") fetchMyBroadcastRatings();
 
     // Poll messages every 2s using ref to avoid stale closure
     pollMsgRef.current = setInterval(() => {
@@ -533,6 +551,8 @@ export default function MessagesPage() {
                           const lines = (msg.content || "").split("\n");
                           const title = lines[0]?.replace(/\*\*/g, "") || "";
                           const body = lines.slice(2).join("\n");
+                          const bid = msg.broadcast_id;
+                          const myRating = bid ? broadcastRatings[bid] : null;
                           return (
                             <div key={msg.message_id} className="flex justify-center my-2" data-testid={`broadcast-msg-${msg.message_id}`}>
                               <div className="bg-zinc-900 text-white rounded-2xl px-4 py-3 max-w-[85%] text-center">
@@ -540,6 +560,33 @@ export default function MessagesPage() {
                                 {title && <p className="text-sm font-inter font-semibold leading-tight mb-1">{title}</p>}
                                 {body && <p className="text-xs text-zinc-300 font-inter leading-relaxed">{body}</p>}
                                 <p className="text-[9px] text-zinc-500 font-inter mt-1.5">{fmt(msg.created_at)}</p>
+                                {/* Rating buttons – only if message has broadcast_id */}
+                                {bid && (
+                                  <div className="mt-2.5 pt-2 border-t border-white/10">
+                                    {myRating ? (
+                                      <p className="text-[10px] text-zinc-400 font-inter italic" data-testid={`broadcast-rated-${bid}`}>
+                                        {myRating === "star" ? "⭐ Danke für dein Feedback!" : "Danke für dein Feedback!"}
+                                      </p>
+                                    ) : (
+                                      <div className="flex gap-2 justify-center">
+                                        <button
+                                          onClick={() => handleRateBroadcast(bid, "star")}
+                                          className="flex items-center gap-1 px-3 py-1 text-[10px] font-inter bg-white/10 hover:bg-amber-400/20 text-zinc-300 hover:text-amber-300 rounded-full transition-all border border-white/10 whitespace-nowrap"
+                                          data-testid={`broadcast-rate-star-${bid}`}
+                                        >
+                                          ⭐ Gute Idee
+                                        </button>
+                                        <button
+                                          onClick={() => handleRateBroadcast(bid, "x")}
+                                          className="flex items-center gap-1 px-3 py-1 text-[10px] font-inter bg-white/10 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-full transition-all border border-white/10 whitespace-nowrap"
+                                          data-testid={`broadcast-rate-x-${bid}`}
+                                        >
+                                          ✕ Brauche ich nicht
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );

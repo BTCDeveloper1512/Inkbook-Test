@@ -141,6 +141,7 @@ export default function AdminPage() {
   const [nlResult, setNlResult] = useState(null);
   const [broadcastForm, setBroadcastForm] = useState({ title: "", message: "", target: "all" });
   const [broadcastResult, setBroadcastResult] = useState(null);
+  const [broadcastRatings, setBroadcastRatings] = useState(null);
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -190,9 +191,11 @@ export default function AdminPage() {
         setNewTickets((await ax().get(`${API}/admin/support-tickets-new`)).data);
       if (section === "support-tickets")
         setDirectChats((await ax().get(`${API}/admin/direct-chats`)).data);
+      if (section === "broadcast" && broadcastRatings === null)
+        setBroadcastRatings((await ax().get(`${API}/admin/broadcast/ratings`)).data);
     } catch {}
   }, [bookings.length, subscriptions.length, revenue, reviews.length, faqs.length,
-      announcements.length, subscribers.length, reports.length, tickets.length]);
+      announcements.length, subscribers.length, reports.length, tickets.length, broadcastRatings]);
 
   const switchSection = (id) => { setActiveSection(id); lazyFetch(id); };
 
@@ -794,6 +797,7 @@ export default function AdminPage() {
 
                 {/* ══════════════════════════════════════════ BROADCAST */}
                 {activeSection === "broadcast" && (
+                  <div className="space-y-4">
                   <SectionCard title="Push-Nachricht an Nutzer">
                     <div className="p-5 space-y-4">
                       <p className="text-sm text-zinc-500 font-inter">Sendet eine Push-Benachrichtigung an alle Nutzer mit aktiven Browser-Notifications.</p>
@@ -819,6 +823,62 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </SectionCard>
+
+                  {/* Feedback-Übersicht */}
+                  <SectionCard title="Nutzer-Feedback zu Broadcasts">
+                    <div className="p-5">
+                      {broadcastRatings === null ? (
+                        <div className="flex items-center gap-2 text-sm text-zinc-400 font-inter py-4">
+                          <Loader2 size={14} className="animate-spin" /> Lade Feedback…
+                        </div>
+                      ) : broadcastRatings.length === 0 ? (
+                        <p className="text-sm text-zinc-400 font-inter py-4 text-center">Noch keine Broadcasts gesendet.</p>
+                      ) : (
+                        <div className="space-y-3" data-testid="broadcast-ratings-list">
+                          {broadcastRatings.map((bc) => {
+                            const pct = bc.total > 0 ? Math.round((bc.stars / bc.total) * 100) : null;
+                            return (
+                              <div key={bc.broadcast_id} className="flex items-start gap-4 p-4 bg-zinc-50 rounded-xl border border-zinc-100" data-testid={`bc-rating-${bc.broadcast_id}`}>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-inter font-semibold text-zinc-900 truncate">{bc.title}</p>
+                                  <p className="text-xs text-zinc-400 font-inter mt-0.5">
+                                    {new Date(bc.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                    {" · "}
+                                    {bc.target === "all" ? "Alle" : bc.target === "customers" ? "Kunden" : "Studios"}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <span className="flex items-center gap-1 text-sm font-inter font-semibold text-amber-600" data-testid={`bc-stars-${bc.broadcast_id}`}>
+                                    ⭐ {bc.stars}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-sm font-inter font-semibold text-zinc-400" data-testid={`bc-xs-${bc.broadcast_id}`}>
+                                    ✕ {bc.xs}
+                                  </span>
+                                  {pct !== null && (
+                                    <span className={`text-xs font-inter font-semibold px-2 py-0.5 rounded-full ${pct >= 60 ? "bg-emerald-50 text-emerald-700" : pct >= 40 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}
+                                      data-testid={`bc-pct-${bc.broadcast_id}`}>
+                                      {pct}% positiv
+                                    </span>
+                                  )}
+                                  {bc.total === 0 && (
+                                    <span className="text-xs font-inter text-zinc-300 italic">kein Feedback</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => { setBroadcastRatings(null); lazyFetch("broadcast"); }}
+                        className="mt-3 text-xs font-inter text-zinc-400 hover:text-zinc-700 transition-colors flex items-center gap-1"
+                        data-testid="refresh-broadcast-ratings-btn"
+                      >
+                        <Activity size={11} /> Aktualisieren
+                      </button>
+                    </div>
+                  </SectionCard>
+                  </div>
                 )}
 
                 {/* ══════════════════════════════════════════ SUPPORT TICKETS */}

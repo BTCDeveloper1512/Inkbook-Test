@@ -2496,8 +2496,12 @@ class BroadcastRequest(BaseModel):
     message: str
     target: str = "all"
 
+class BroadcastRateRequest(BaseModel):
+    rating: str  # "star" or "x"
+
 @api_router.post("/admin/broadcast")
 async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(require_admin)):
+    broadcast_id = f"bc_{uuid.uuid4().hex[:12]}"
     query: dict = {}
     if data.target == "customers":
         query = {"role": "customer"}
@@ -2506,9 +2510,17 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
     users = await db.users.find(query, {"_id": 1, "user_id": 1}).to_list(10000)
     sent = 0
     now = datetime.now(timezone.utc).isoformat()
+    # Store broadcast campaign metadata
+    await db.broadcasts.insert_one({
+        "broadcast_id": broadcast_id,
+        "title": data.title,
+        "message": data.message,
+        "target": data.target,
+        "created_at": now
+    })
     # Create broadcast message entries in messages collection
     for u in users:
-        uid = u.get("user_id") or (str(u["_id"]) if u.get("_id") else None)
+        uid = str(u["_id"]) if u.get("_id") else u.get("user_id")
         if uid:
             # Push notification
             asyncio.create_task(send_push_notification(user_id=uid, title=data.title, body=data.message, url="/messages"))
@@ -2522,6 +2534,7 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
                 "image_url": "",
                 "slot_offer": None,
                 "is_broadcast": True,
+                "broadcast_id": broadcast_id,
                 "created_at": now,
                 "read": False
             }
@@ -2541,7 +2554,37 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
                 upsert=True
             )
             sent += 1
-    return {"sent": sent}
+    return {"sent": sent, "broadcast_id": broadcast_id}
+
+@api_router.post("/broadcast/{broadcast_id}/rate")
+async def rate_broadcast(broadcast_id: str, data: BroadcastRateRequest, current_user: dict = Depends(get_current_user)):
+    if data.rating not in ("star", "x"):
+        raise HTTPException(status_code=400, detail="Rating must be 'star' or 'x'")
+    uid = current_user.get("user_id")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.broadcast_ratings.update_one(
+        {"broadcast_id": broadcast_id, "user_id": uid},
+        {"$set": {"broadcast_id": broadcast_id, "user_id": uid, "rating": data.rating, "updated_at": now}},
+        upsert=True
+    )
+    return {"ok": True}
+
+@api_router.get("/broadcast/my-ratings")
+async def get_my_broadcast_ratings(current_user: dict = Depends(get_current_user)):
+    uid = current_user.get("user_id")
+    ratings = await db.broadcast_ratings.find({"user_id": uid}, {"_id": 0}).to_list(1000)
+    return {r["broadcast_id"]: r["rating"] for r in ratings}
+
+@api_router.get("/admin/broadcast/ratings")
+async def admin_broadcast_ratings(current_user: dict = Depends(require_admin)):
+    broadcasts = await db.broadcasts.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    result = []
+    for bc in broadcasts:
+        bid = bc["broadcast_id"]
+        stars = await db.broadcast_ratings.count_documents({"broadcast_id": bid, "rating": "star"})
+        xs = await db.broadcast_ratings.count_documents({"broadcast_id": bid, "rating": "x"})
+        result.append({**bc, "stars": stars, "xs": xs, "total": stars + xs})
+    return result
 
 # ─── Admin: All Bookings, Revenue, Subscriptions ─────────────────────────────
 
