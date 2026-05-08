@@ -63,22 +63,16 @@ export default function StudioDashboard() {
 
   const handleContactCustomer = async (booking) => {
     const studioName = stats?.studio?.name || "unser Studio";
-    try {
-      const existing = await axios.get(`${API}/messages/${booking.user_id}`, { withCredentials: true });
-      if (existing.data.length === 0) {
-        const dateStr = booking.date
-          ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
-          : "";
-        const typeMap = { tattoo: "Tattoo-Termin", consultation: "Beratung", full_day: "Ganztages-Termin", video_consultation: "Videoberatung" };
-        const typeStr = typeMap[booking.booking_type] || "Termin";
-        let msg = `Hallo ${booking.user_name} 👋\n\nHier meldet sich ${studioName} zu deiner Buchung:\n\n📅 ${dateStr} · ${booking.start_time} – ${booking.end_time}\n✏️ ${typeStr}`;
-        if (booking.notes) msg += `\n\nDeine Anmerkungen: „${booking.notes}"`;
-        if (booking.reference_images?.length > 0) msg += `\n\n📎 Ich habe dein Referenzbild bereits gesehen – freue mich darauf!`;
-        msg += `\n\nBei Fragen oder Wünschen, schreib mir gerne hier. Bis bald! 🎨`;
-        await axios.post(`${API}/messages`, { recipient_id: booking.user_id, content: msg }, { withCredentials: true });
-      }
-    } catch {}
-    navigate(`/messages/${booking.user_id}`, { state: { recipientName: booking.user_name, recipientRole: "customer" } });
+    const firstName = (booking.user_name || "").split(" ")[0] || booking.user_name;
+    const dateStr = booking.date
+      ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
+      : "";
+    const typeMap = { tattoo: "Tattoo-Termin", consultation: "Beratung", full_day: "Ganztages-Termin", video_consultation: "Videoberatung" };
+    const typeStr = typeMap[booking.booking_type] || "Termin";
+    const msg = `Hallo ${firstName} 👋\n\nHier meldet sich ${studioName} zu deiner Buchung:\n\n📅 ${dateStr} · ${booking.start_time} – ${booking.end_time}\n✏️ ${typeStr}\n\nBei Fragen oder Wünschen, schreib mir gerne hier. Bis bald! 🎨`;
+    navigate(`/messages/${booking.user_id}`, {
+      state: { recipientName: booking.user_name, recipientRole: "customer", initialMessage: msg }
+    });
   };
 
   const fetchStats = async () => {
