@@ -562,28 +562,31 @@ export default function MessagesPage() {
                                 <p className="text-[9px] text-zinc-500 font-inter mt-1.5">{fmt(msg.created_at)}</p>
                                 {/* Rating buttons – only if message has broadcast_id */}
                                 {bid && (
-                                  <div className="mt-2.5 pt-2 border-t border-white/10">
+                                  <div className="mt-3 pt-2.5 border-t border-white/20">
                                     {myRating ? (
-                                      <p className="text-[10px] text-zinc-400 font-inter italic" data-testid={`broadcast-rated-${bid}`}>
-                                        {myRating === "star" ? "⭐ Danke für dein Feedback!" : "Danke für dein Feedback!"}
+                                      <p className="text-xs text-zinc-300 font-inter" data-testid={`broadcast-rated-${bid}`}>
+                                        {myRating === "star" ? "⭐ Danke – du findest das gut!" : "✓ Danke für dein Feedback!"}
                                       </p>
                                     ) : (
-                                      <div className="flex gap-2 justify-center">
-                                        <button
-                                          onClick={() => handleRateBroadcast(bid, "star")}
-                                          className="flex items-center gap-1 px-3 py-1 text-[10px] font-inter bg-white/10 hover:bg-amber-400/20 text-zinc-300 hover:text-amber-300 rounded-full transition-all border border-white/10 whitespace-nowrap"
-                                          data-testid={`broadcast-rate-star-${bid}`}
-                                        >
-                                          ⭐ Gute Idee
-                                        </button>
-                                        <button
-                                          onClick={() => handleRateBroadcast(bid, "x")}
-                                          className="flex items-center gap-1 px-3 py-1 text-[10px] font-inter bg-white/10 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-full transition-all border border-white/10 whitespace-nowrap"
-                                          data-testid={`broadcast-rate-x-${bid}`}
-                                        >
-                                          ✕ Brauche ich nicht
-                                        </button>
-                                      </div>
+                                      <>
+                                        <p className="text-[10px] text-zinc-400 font-inter mb-2">Was hältst du davon?</p>
+                                        <div className="flex gap-2 justify-center flex-wrap">
+                                          <button
+                                            onClick={() => handleRateBroadcast(bid, "star")}
+                                            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-inter font-medium bg-amber-400/20 hover:bg-amber-400/40 text-amber-300 hover:text-amber-200 rounded-full transition-all border border-amber-400/30 whitespace-nowrap"
+                                            data-testid={`broadcast-rate-star-${bid}`}
+                                          >
+                                            ⭐ Gute Idee
+                                          </button>
+                                          <button
+                                            onClick={() => handleRateBroadcast(bid, "x")}
+                                            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-inter font-medium bg-white/15 hover:bg-white/25 text-zinc-200 hover:text-white rounded-full transition-all border border-white/20 whitespace-nowrap"
+                                            data-testid={`broadcast-rate-x-${bid}`}
+                                          >
+                                            ✕ Nicht nötig
+                                          </button>
+                                        </div>
+                                      </>
                                     )}
                                   </div>
                                 )}
