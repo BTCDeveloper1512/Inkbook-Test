@@ -44,6 +44,7 @@ export default function MessagesPage() {
   const [presenceMap, setPresenceMap] = useState({});          // uid → {online, last_seen}
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
+  const initialMessageApplied = useRef(false);
 
   // Refs – avoid stale closures in intervals
   const textRef = useRef("");               // always current text value
@@ -64,6 +65,15 @@ export default function MessagesPage() {
   useEffect(() => { textRef.current = text; }, [text]);
   useEffect(() => { imageUrlRef.current = imageUrl; }, [imageUrl]);
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
+
+  // Pre-fill chat input from router state (only for pending bookings – no auto-send)
+  useEffect(() => {
+    if (activeConv?.other_id && location.state?.initialMessage && !initialMessageApplied.current) {
+      initialMessageApplied.current = true;
+      setText(location.state.initialMessage);
+      textRef.current = location.state.initialMessage;
+    }
+  }, [activeConv?.other_id]);
 
   // Close emoji picker on outside click
   useEffect(() => {

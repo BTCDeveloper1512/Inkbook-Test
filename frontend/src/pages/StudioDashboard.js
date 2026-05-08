@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -43,6 +43,7 @@ export default function StudioDashboard() {
   const [videoCallBooking, setVideoCallBooking] = useState(null);
   const [studioBookingsTab, setStudioBookingsTab] = useState("active");
   const [tick, setTick] = useState(0);
+  const [notesModal, setNotesModal] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -62,17 +63,23 @@ export default function StudioDashboard() {
   };
 
   const handleContactCustomer = async (booking) => {
-    const studioName = stats?.studio?.name || "unser Studio";
-    const firstName = (booking.user_name || "").split(" ")[0] || booking.user_name;
-    const dateStr = booking.date
-      ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
-      : "";
-    const typeMap = { tattoo: "Tattoo-Termin", consultation: "Beratung", full_day: "Ganztages-Termin", video_consultation: "Videoberatung" };
-    const typeStr = typeMap[booking.booking_type] || "Termin";
-    const msg = `Hallo ${firstName} 👋\n\nHier meldet sich ${studioName} zu deiner Buchung:\n\n📅 ${dateStr} · ${booking.start_time} – ${booking.end_time}\n✏️ ${typeStr}\n\nBei Fragen oder Wünschen, schreib mir gerne hier. Bis bald! 🎨`;
-    navigate(`/messages/${booking.user_id}`, {
-      state: { recipientName: booking.user_name, recipientRole: "customer", initialMessage: msg }
-    });
+    if (booking.status === "pending") {
+      const studioName = stats?.studio?.name || "unser Studio";
+      const firstName = (booking.user_name || "").split(" ")[0] || booking.user_name;
+      const dateStr = booking.date
+        ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
+        : "";
+      const typeMap = { tattoo: "Tattoo-Termin", consultation: "Beratung", full_day: "Ganztages-Termin", video_consultation: "Videoberatung" };
+      const typeStr = typeMap[booking.booking_type] || "Termin";
+      const msg = `Hallo ${firstName} 👋\n\nHier meldet sich ${studioName} zu deiner Buchung:\n\n📅 ${dateStr} · ${booking.start_time} – ${booking.end_time}\n✏️ ${typeStr}\n\nBei Fragen oder Wünschen, schreib mir gerne hier. Bis bald! 🎨`;
+      navigate(`/messages/${booking.user_id}`, {
+        state: { recipientName: booking.user_name, recipientRole: "customer", initialMessage: msg }
+      });
+    } else {
+      navigate(`/messages/${booking.user_id}`, {
+        state: { recipientName: booking.user_name, recipientRole: "customer" }
+      });
+    }
   };
 
   const fetchStats = async () => {
@@ -437,7 +444,13 @@ export default function StudioDashboard() {
                         <p className="text-xs text-white/50 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          <motion.button whileTap={{ scale: 0.95 }}
+                            onClick={() => setNotesModal(b)}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-white/20 text-white/70 rounded-full font-inter hover:bg-white/10 hover:text-white transition-all"
+                            data-testid={`notes-btn-today-${b.booking_id}`}>
+                            <FileText size={11} strokeWidth={1.5} /> Bemerkungen
+                          </motion.button>
                           <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
                           {b.status === "pending" && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-white text-zinc-900 rounded-full font-inter font-semibold hover:bg-zinc-100 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
@@ -490,6 +503,12 @@ export default function StudioDashboard() {
                         <p className="text-xs text-zinc-500 font-inter mt-0.5 group-hover:text-zinc-700 transition-colors">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <motion.button whileTap={{ scale: 0.95 }}
+                          onClick={() => setNotesModal(b)}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
+                          data-testid={`notes-btn-upcoming-${b.booking_id}`}>
+                          <FileText size={11} strokeWidth={1.5} /> Bemerkungen
+                        </motion.button>
                         <motion.button whileTap={{ scale: 0.95 }}
                           onClick={() => handleContactCustomer(b)}
                           className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
@@ -675,6 +694,13 @@ export default function StudioDashboard() {
                               Stornieren
                             </motion.button>
                           )}
+                          <motion.button whileTap={{ scale: 0.95 }}
+                            onClick={() => setNotesModal(b)}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
+                            data-testid={`notes-btn-booking-${b.booking_id}`}
+                          >
+                            <FileText size={11} strokeWidth={1.5} /> Bemerkungen
+                          </motion.button>
                           <motion.button whileTap={{ scale: 0.95 }}
                             onClick={() => handleContactCustomer(b)}
                             className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
@@ -897,6 +923,69 @@ export default function StudioDashboard() {
         />
       )}
       */}
+
+      {/* Bemerkungen Modal */}
+      <AnimatePresence>
+        {notesModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setNotesModal(null)}
+            data-testid="notes-modal-overlay"
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 340, damping: 26 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full"
+              onClick={e => e.stopPropagation()}
+              data-testid="notes-modal"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Kundenanmerkungen</h3>
+                <button onClick={() => setNotesModal(null)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors" data-testid="notes-modal-close">
+                  <X size={16} strokeWidth={1.5} />
+                </button>
+              </div>
+              <p className="text-xs text-zinc-400 font-inter mb-4">
+                Buchung von <span className="font-semibold text-zinc-600">{notesModal.user_name}</span>
+                {notesModal.date ? ` · ${new Date(notesModal.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })}` : ""}
+              </p>
+
+              {!notesModal.notes && (!notesModal.reference_images || notesModal.reference_images.length === 0) ? (
+                <div className="py-10 flex flex-col items-center text-center">
+                  <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-3">
+                    <FileText size={20} className="text-zinc-300" strokeWidth={1.5} />
+                  </div>
+                  <p className="text-sm text-zinc-400 font-inter">Keine Kundenanmerkung vorhanden</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {notesModal.notes && (
+                    <div>
+                      <p className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400 mb-2">Anmerkung</p>
+                      <p className="text-sm font-inter text-zinc-700 bg-zinc-50 rounded-xl p-3.5 leading-relaxed border border-zinc-100">
+                        "{notesModal.notes}"
+                      </p>
+                    </div>
+                  )}
+                  {notesModal.reference_images?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400 mb-2">Referenzbilder ({notesModal.reference_images.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {notesModal.reference_images.map((img, i) => (
+                          <a key={i} href={img} target="_blank" rel="noopener noreferrer">
+                            <img src={img} alt="" className="w-24 h-24 object-cover rounded-xl border border-zinc-100 hover:opacity-80 transition-opacity cursor-zoom-in" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
