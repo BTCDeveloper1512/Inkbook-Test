@@ -139,7 +139,7 @@ export default function AdminPage() {
   const [annForm, setAnnForm] = useState({ text: "", type: "info", link: "", link_label: "" });
   const [nlForm, setNlForm] = useState({ subject: "", content: "", preview_email: "" });
   const [nlResult, setNlResult] = useState(null);
-  const [broadcastForm, setBroadcastForm] = useState({ title: "", message: "", target: "all" });
+  const [broadcastForm, setBroadcastForm] = useState({ title: "", message: "", target: "all", rating_enabled: true });
   const [broadcastResult, setBroadcastResult] = useState(null);
   const [broadcastRatings, setBroadcastRatings] = useState(null);
 
@@ -811,6 +811,20 @@ export default function AdminPage() {
                           <option value="customers">Nur Kunden</option>
                           <option value="studio_owners">Nur Studios</option>
                         </select>
+                      </div>
+                      {/* Rating toggle */}
+                      <div className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                        <div>
+                          <p className="text-sm font-inter font-medium text-zinc-800">Nutzer-Feedback aktivieren</p>
+                          <p className="text-xs font-inter text-zinc-400 mt-0.5">Nutzer können diese Nachricht mit ⭐ oder ✕ bewerten</p>
+                        </div>
+                        <div
+                          onClick={() => setBroadcastForm(p => ({ ...p, rating_enabled: !p.rating_enabled }))}
+                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer flex-shrink-0 ${broadcastForm.rating_enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
+                          data-testid="broadcast-rating-toggle"
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${broadcastForm.rating_enabled ? "translate-x-5" : "translate-x-0"}`} />
+                        </div>
                       </div>
                       {broadcastResult && (
                         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-inter text-emerald-700">

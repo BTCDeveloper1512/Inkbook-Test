@@ -568,7 +568,8 @@ export default function MessagesPage() {
                           const title = lines[0]?.replace(/\*\*/g, "") || "";
                           const body = lines.slice(2).join("\n");
                           const bid = msg.broadcast_id;
-                          const myRating = bid ? broadcastRatings[bid] : null;
+                          const ratingEnabled = msg.rating_enabled !== false;
+                          const myRating = bid && ratingEnabled ? broadcastRatings[bid] : null;
                           return (
                             <div key={msg.message_id} className="flex justify-center my-2" data-testid={`broadcast-msg-${msg.message_id}`}>
                               <div className="bg-zinc-900 text-white rounded-2xl px-4 py-3 max-w-[85%] text-center">
@@ -576,8 +577,8 @@ export default function MessagesPage() {
                                 {title && <p className="text-sm font-inter font-semibold leading-tight mb-1">{title}</p>}
                                 {body && <p className="text-xs text-zinc-300 font-inter leading-relaxed">{body}</p>}
                                 <p className="text-[9px] text-zinc-500 font-inter mt-1.5">{fmt(msg.created_at)}</p>
-                                {/* Rating buttons – only if message has broadcast_id */}
-                                {bid && (
+                                {/* Rating buttons – only if message has broadcast_id AND rating is enabled */}
+                                {bid && ratingEnabled && (
                                   <div className="mt-3 pt-2.5 border-t border-white/20">
                                     {myRating ? (
                                       <p className="text-xs text-zinc-300 font-inter" data-testid={`broadcast-rated-${bid}`}>

@@ -2495,6 +2495,7 @@ class BroadcastRequest(BaseModel):
     title: str
     message: str
     target: str = "all"
+    rating_enabled: bool = True
 
 class BroadcastRateRequest(BaseModel):
     rating: str  # "star" or "x"
@@ -2516,6 +2517,7 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
         "title": data.title,
         "message": data.message,
         "target": data.target,
+        "rating_enabled": data.rating_enabled,
         "created_at": now
     })
     # Create broadcast message entries in messages collection
@@ -2535,6 +2537,7 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
                 "slot_offer": None,
                 "is_broadcast": True,
                 "broadcast_id": broadcast_id,
+                "rating_enabled": data.rating_enabled,
                 "created_at": now,
                 "read": False
             }
