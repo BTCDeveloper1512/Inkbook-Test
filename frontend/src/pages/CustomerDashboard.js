@@ -455,10 +455,11 @@ export default function CustomerDashboard() {
                     <motion.div key={booking.booking_id}
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 22 }}
-                      whileHover={{ x: 3, backgroundColor: isCancelledByStudio ? "rgb(254 242 242 / 0.6)" : "rgb(250 250 250)" }}
-                      className={`p-5 flex items-start gap-4 transition-colors group ${isCancelledByStudio ? "bg-red-50/30" : ""}`}
+                      whileHover={{ y: -1, boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}
+                      className={`group relative p-5 flex items-start gap-4 transition-colors rounded-xl mx-1 my-0.5 hover:bg-zinc-50 cursor-default ${isCancelledByStudio ? "bg-red-50/30 hover:bg-red-50/50" : ""}`}
                       data-testid={`booking-item-${booking.booking_id}`}
                     >
+                      <span className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center ${isCancelledByStudio ? "bg-red-400" : "bg-zinc-900"}`} />
                       {/* Date block */}
                       <div className={`flex-shrink-0 w-12 text-center rounded-xl py-2 px-1 border ${
                         booking.status === "cancelled" ? "bg-zinc-50 border-zinc-200" :

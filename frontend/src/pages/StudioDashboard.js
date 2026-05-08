@@ -462,17 +462,18 @@ export default function StudioDashboard() {
                   <p className="text-xs text-zinc-400 font-inter">Neue Buchungen erscheinen hier automatisch</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 px-1">
                   {futureUpcoming.map((b, idx) => (
                     <motion.div key={b.booking_id}
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.06, type: "spring", stiffness: 300, damping: 22 }}
-                      whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
-                      className="flex flex-wrap items-start justify-between gap-2 p-3.5 bg-zinc-50 rounded-xl border border-zinc-100 transition-colors"
+                      whileHover={{ y: -1, boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}
+                      className="group relative flex flex-wrap items-start justify-between gap-2 p-3.5 bg-zinc-50 rounded-xl border border-zinc-100 transition-colors hover:bg-white cursor-default"
                     >
-                      <div>
+                      <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-zinc-900 rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center" />
+                      <div className="pl-1.5">
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
-                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                        <p className="text-xs text-zinc-500 font-inter mt-0.5 group-hover:text-zinc-700 transition-colors">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
@@ -598,10 +599,11 @@ export default function StudioDashboard() {
                     <motion.div key={b.booking_id}
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05, type: "spring", stiffness: 300, damping: 22 }}
-                      whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
-                      className={`p-5 transition-colors ${isPast ? "opacity-70" : ""}`}
+                      whileHover={{ y: -1, boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}
+                      className={`group relative px-5 py-4 rounded-xl mx-1 my-0.5 transition-colors hover:bg-zinc-50 cursor-default ${isPast ? "opacity-60" : ""}`}
                       data-testid={`studio-booking-${b.booking_id}`}
                     >
+                      <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-zinc-900 rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center" />
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
