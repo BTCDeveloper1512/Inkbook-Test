@@ -792,13 +792,12 @@ export default function StudioPage() {
               )}
 
               {user && (
-                <button
-                  onClick={() => navigate(`/messages/${studio.owner_id}`, { state: { recipientName: studio.name, recipientRole: "studio_owner" } })}
-                  className="w-full mt-3 py-2.5 border border-zinc-200 hover:border-zinc-900 text-sm font-inter text-zinc-600 hover:text-zinc-900 rounded-xl flex items-center justify-center gap-2 transition-all"
-                  data-testid="contact-studio-btn"
-                >
-                  <MessageSquare size={14} strokeWidth={1.5} /> Studio kontaktieren
-                </button>
+                <div className="w-full mt-3 py-3 px-4 bg-zinc-50 border border-zinc-100 rounded-xl flex items-start gap-2.5" data-testid="contact-studio-info">
+                  <MessageSquare size={14} strokeWidth={1.5} className="text-zinc-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-zinc-500 font-inter leading-relaxed">
+                    Nach deiner Buchung meldet sich das Studio direkt per Nachricht bei dir. Du findest das Gespräch dann unter <strong className="text-zinc-700">Nachrichten</strong>.
+                  </p>
+                </div>
               )}
               </>
               )}

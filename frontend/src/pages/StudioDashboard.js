@@ -61,6 +61,26 @@ export default function StudioDashboard() {
     } catch {}
   };
 
+  const handleContactCustomer = async (booking) => {
+    const studioName = stats?.studio?.name || "unser Studio";
+    try {
+      const existing = await axios.get(`${API}/messages/${booking.user_id}`, { withCredentials: true });
+      if (existing.data.length === 0) {
+        const dateStr = booking.date
+          ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
+          : "";
+        const typeMap = { tattoo: "Tattoo-Termin", consultation: "Beratung", full_day: "Ganztages-Termin", video_consultation: "Videoberatung" };
+        const typeStr = typeMap[booking.booking_type] || "Termin";
+        let msg = `Hallo ${booking.user_name} 👋\n\nHier meldet sich ${studioName} zu deiner Buchung:\n\n📅 ${dateStr} · ${booking.start_time} – ${booking.end_time}\n✏️ ${typeStr}`;
+        if (booking.notes) msg += `\n\nDeine Anmerkungen: „${booking.notes}"`;
+        if (booking.reference_images?.length > 0) msg += `\n\n📎 Ich habe dein Referenzbild bereits gesehen – freue mich darauf!`;
+        msg += `\n\nBei Fragen oder Wünschen, schreib mir gerne hier. Bis bald! 🎨`;
+        await axios.post(`${API}/messages`, { recipient_id: booking.user_id, content: msg }, { withCredentials: true });
+      }
+    } catch {}
+    navigate(`/messages/${booking.user_id}`, { state: { recipientName: booking.user_name, recipientRole: "customer" } });
+  };
+
   const fetchStats = async () => {
     try {
       const { data } = await axios.get(`${API}/dashboard/stats`, { withCredentials: true });
@@ -477,7 +497,7 @@ export default function StudioDashboard() {
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <motion.button whileTap={{ scale: 0.95 }}
-                          onClick={() => navigate(`/messages/${b.user_id}`, { state: { recipientName: b.user_name, recipientRole: "customer" } })}
+                          onClick={() => handleContactCustomer(b)}
                           className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
                           data-testid={`contact-customer-btn-${b.booking_id}`}>
                           <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
@@ -662,7 +682,7 @@ export default function StudioDashboard() {
                             </motion.button>
                           )}
                           <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate(`/messages/${b.user_id}`, { state: { recipientName: b.user_name, recipientRole: "customer" } })}
+                            onClick={() => handleContactCustomer(b)}
                             className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
                             data-testid={`contact-customer-booking-${b.booking_id}`}
                           >
