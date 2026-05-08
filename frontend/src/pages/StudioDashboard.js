@@ -475,7 +475,13 @@ export default function StudioDashboard() {
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5 group-hover:text-zinc-700 transition-colors">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <motion.button whileTap={{ scale: 0.95 }}
+                          onClick={() => navigate(`/messages/${b.user_id}`, { state: { recipientName: b.user_name, recipientRole: "customer" } })}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+                          data-testid={`contact-customer-btn-${b.booking_id}`}>
+                          <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
+                        </motion.button>
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
                         {b.status === "pending" && (
                           <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
@@ -655,6 +661,13 @@ export default function StudioDashboard() {
                               Stornieren
                             </motion.button>
                           )}
+                          <motion.button whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate(`/messages/${b.user_id}`, { state: { recipientName: b.user_name, recipientRole: "customer" } })}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+                            data-testid={`contact-customer-booking-${b.booking_id}`}
+                          >
+                            <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
+                          </motion.button>
                         </div>
                       </div>
                     </motion.div>

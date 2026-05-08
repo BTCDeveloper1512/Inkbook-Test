@@ -670,7 +670,7 @@ export default function StudioPage() {
                       <button
                         key={iso}
                         disabled={isPast}
-                        onClick={() => { setSelectedDate(iso); setSelectedSlot(null); }}
+                        onClick={() => { setSelectedDate(iso); setSelectedSlot(null); setBookingSuccess(null); }}
                         className={`
                           relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all
                           ${isPast ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"}
@@ -708,7 +708,7 @@ export default function StudioPage() {
                       {slots.map(slot => (
                         <button
                           key={slot.slot_id}
-                          onClick={() => setSelectedSlot(slot)}
+                          onClick={() => { setSelectedSlot(slot); setBookingSuccess(null); }}
                           className={`py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${selectedSlot?.slot_id === slot.slot_id ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
                           data-testid={`slot-btn-${slot.slot_id}`}
                         >
