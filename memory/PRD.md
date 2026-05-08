@@ -44,6 +44,10 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – Chat Scroll-Fix + Über-Uns Gründer-Seite ✅
+- MessagesPage.js: Auto-Scroll nur noch wenn User am unteren Ende ist (userScrolledUp-Ref). Beim manuellen Hochscrollen wird nicht mehr automatisch nach unten gescrollt
+- UeberUnsPage.js: Team-Placeholder entfernt, Gründer-Karte mit echtem Foto (Profibild), Titel "Founder & Developer", kreative Bio über IT/Fachinformatiker-Hintergrund + Tattoo-Entdeckung + InkBook-Vision
+
 ### Mai 2026 – Broadcast-Bewertungssystem ✅
 - Neue DB-Collections: `broadcasts` (Kampagnen-Metadaten) und `broadcast_ratings` (Nutzer-Stimmen)
 - Backend: `POST /api/broadcast/{broadcast_id}/rate`, `GET /api/broadcast/my-ratings`, `GET /api/admin/broadcast/ratings`

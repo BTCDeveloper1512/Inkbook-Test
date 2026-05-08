@@ -3,16 +3,6 @@ import Navbar from "../components/Navbar";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 
-const TeamMember = ({ initials, name, role }) => (
-  <div className="flex flex-col items-center text-center">
-    <div className="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center mb-3">
-      <span className="text-white font-playfair font-bold text-lg">{initials}</span>
-    </div>
-    <p className="font-inter font-semibold text-sm text-zinc-900">{name}</p>
-    <p className="font-inter text-xs text-zinc-400 mt-0.5">{role}</p>
-  </div>
-);
-
 const ValueCard = ({ title, text }) => (
   <div className="bg-white rounded-2xl border border-zinc-100 p-6">
     <h3 className="font-playfair text-lg font-semibold text-zinc-900 mb-2">{title}</h3>
@@ -80,18 +70,37 @@ export default function UeberUnsPage() {
           </div>
         </div>
 
-        {/* Team Placeholder */}
+        {/* Founder */}
         <div className="bg-white rounded-2xl border border-zinc-100 p-8">
-          <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-6">Das Team</p>
-          <div className="flex flex-wrap gap-8 justify-center sm:justify-start">
-            <TeamMember initials="?" name="Folgt noch" role="CEO & Gründer" />
-            <TeamMember initials="?" name="Folgt noch" role="CTO" />
-            <TeamMember initials="?" name="Folgt noch" role="Design" />
-            <TeamMember initials="?" name="Folgt noch" role="Business Dev." />
+          <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-8">Der Gründer</p>
+          <div className="flex flex-col sm:flex-row gap-8 items-start">
+            <div className="flex-shrink-0 mx-auto sm:mx-0">
+              <img
+                src="https://customer-assets.emergentagent.com/job_artist-connect-82/artifacts/mbnukf0c_fd29300d-306b-4d46-897e-8117f2919c2d.png"
+                alt="Founder"
+                className="w-36 h-36 rounded-2xl object-cover object-top shadow-md"
+              />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="inline-block px-2.5 py-0.5 bg-zinc-100 rounded-full text-[10px] tracking-widest uppercase font-inter text-zinc-500 mb-3">
+                Founder &amp; Developer
+              </div>
+              <p className="font-playfair text-xl font-semibold text-zinc-900 mb-3 leading-snug">
+                IT-Background. Tattoo-Passion.<br className="hidden sm:block" /> Eine Idee daraus gemacht.
+              </p>
+              <p className="text-sm text-zinc-500 font-inter leading-relaxed">
+                Als ausgebildeter Fachinformatiker und leidenschaftlicher Tech-Enthusiast arbeite ich seit Jahren
+                in der IT-Branche. Parallel entdeckte ich das Tätowieren für mich – und merkte schnell,
+                wie umständlich die gesamte Welt rund um Studio-Termine, Kommunikation und Buchungen ist.
+                Verstreute Messenger, keine Übersicht, keine einfache Möglichkeit für Kunden zu buchen.
+              </p>
+              <p className="text-sm text-zinc-500 font-inter leading-relaxed mt-3">
+                InkBook ist meine Antwort darauf: Eine Plattform, die Termine, Chats, Studio-Profile
+                und Kundenverwaltung in einem vereint – durchdacht, modern und speziell für
+                die Tattoo-Community entwickelt.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-zinc-400 font-inter mt-6">
-            Team-Profile werden in Kürze ergänzt.
-          </p>
         </div>
 
         {/* CTA */}

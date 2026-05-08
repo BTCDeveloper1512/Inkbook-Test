@@ -48,6 +48,8 @@ export default function MessagesPage() {
   const imageUrlRef = useRef("");           // always current imageUrl
   const activeConvRef = useRef(null);       // always current active conv
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const userScrolledUp = useRef(false);
   const fileRef = useRef();
   const pollMsgRef = useRef(null);
   const pollConvRef = useRef(null);
@@ -153,6 +155,8 @@ export default function MessagesPage() {
     if (!activeConv?.other_id) return;
 
     fetchMessages(activeConv.other_id);
+    // Reset scroll state when opening a different conversation
+    userScrolledUp.current = false;
     // Fetch broadcast ratings when opening InkBook system conversation
     if (activeConv.other_id === "inkbook_system") fetchMyBroadcastRatings();
 
@@ -177,10 +181,20 @@ export default function MessagesPage() {
     };
   }, [activeConv?.other_id]);
 
-  // ─── Scroll to bottom on new messages ────────────────────────────────────
+  // ─── Scroll to bottom on new messages (only if user hasn't scrolled up) ────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!userScrolledUp.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, otherIsTyping]);
+
+  // ─── Detect manual scroll up/down ────────────────────────────────────────
+  const handleChatScroll = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledUp.current = distanceFromBottom > 120;
+  }, []);
 
   // ─── Send message (uses refs to avoid stale closure) ─────────────────────
   const sendMessage = useCallback(async () => {
@@ -190,6 +204,8 @@ export default function MessagesPage() {
 
     if (!currentText && !currentImage) return;
     if (!conv?.other_id) return;
+    // Scroll to bottom when user sends a message
+    userScrolledUp.current = false;
 
     setSending(true);
     // Optimistic clear
@@ -523,7 +539,7 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+                <div ref={chatContainerRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
                   style={{ backgroundImage: "radial-gradient(circle at 1px 1px,rgba(0,0,0,0.03) 1px,transparent 0)", backgroundSize: "20px 20px" }}>
 
                   {Object.values(grouped).map(group => (
