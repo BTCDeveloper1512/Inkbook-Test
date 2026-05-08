@@ -15,6 +15,7 @@ import uuid
 import secrets
 import bcrypt
 import jwt
+import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import base64
@@ -2026,9 +2027,264 @@ async def support_chat(req: SupportChatRequest):
         logger.error(f"Support chat error: {e}")
         raise HTTPException(status_code=500, detail="KI-Antwort konnte nicht generiert werden")
 
+
+# ─── AI Booking Agent ──────────────────────────────────────────────────────────
+
+AGENT_SYSTEM_PROMPT = """Du bist "Ink", der intelligente KI-Buchungsassistent von InkBook – Deutschlands führender Plattform für Tattoo-Studio-Buchungen.
+
+## Deine Fähigkeiten – Tools
+Wenn du eine Aktion ausführen willst, antworte mit EXAKT dieser Syntax (NUR die TOOL-Zeile, kein weiterer Text):
+TOOL: tool_name | {"param": "wert"}
+
+Verfügbare Tools:
+- TOOL: search_studios | {"city": "Stadtname", "limit": 3}
+  Nutze dies wenn jemand Studios in einer Stadt oder Region sucht.
+
+- TOOL: get_slots | {"studio_id": "ID", "studio_name": "Studioname"}
+  Freie Termine eines Studios abrufen. studio_id wenn bekannt, sonst studio_name.
+
+- TOOL: create_booking | {"studio_id": "ID", "slot_id": "ID", "booking_type": "tattoo", "notes": ""}
+  Termin buchen. Buchungstypen: tattoo | consultation | video_consultation
+
+- TOOL: get_studio_info | {"studio_id_or_name": "Name oder ID"}
+  Detailinfos eines Studios abrufen.
+
+## REGELN
+1. Tool aufrufen -> NUR die TOOL: Zeile schreiben, KEIN Text davor/danach
+2. Normale Antwort -> kein TOOL: Präfix
+3. IMMER auf Deutsch antworten, freundlich und persönlich (max. 3-4 Sätze)
+4. Buchungen ohne Login -> sage dem Nutzer er soll sich zuerst anmelden
+5. Buchungstyp nicht angegeben -> frage danach bevor du buchst
+
+## InkBook Plattform-Wissen
+- Buchungstypen: tattoo (Tätowierung vor Ort), consultation (Beratung vor Ort), video_consultation (Remote Video-Call)
+- Kunden: kostenlos, Studios suchen/buchen/bewerten, Live-Chat mit Studios, Video-Konsultationen
+- Studios: monatliches Abo, Kalender verwalten, Buchungen annehmen/ablehnen
+- Buchungen erscheinen sofort in BEIDEN Dashboards (Kunde + Studio)
+- Alle Buchungen starten als "Ausstehend" -> Studio muss bestätigen
+"""
+
+class AIChatAgentRequest(BaseModel):
+    session_id: str
+    message: str
+
+async def _execute_agent_tool(tool_name: str, params: dict, current_user=None) -> dict:
+    try:
+        if tool_name == "search_studios":
+            city = params.get("city", "")
+            limit = min(int(params.get("limit", 3)), 6)
+            query = {"$or": [
+                {"city": {"$regex": city, "$options": "i"}},
+                {"address": {"$regex": city, "$options": "i"}},
+                {"name": {"$regex": city, "$options": "i"}},
+                {"description": {"$regex": city, "$options": "i"}},
+            ]}
+            studios = await db.studios.find(
+                query,
+                {"_id": 0, "studio_id": 1, "name": 1, "city": 1, "address": 1,
+                 "avg_rating": 1, "booking_types": 1, "price_from": 1,
+                 "avatar_url": 1, "cover_url": 1, "styles": 1, "description": 1}
+            ).limit(limit).to_list(limit)
+            return {"tool": "search_studios", "studios": studios, "city": city, "count": len(studios)}
+
+        elif tool_name == "get_slots":
+            studio_id = params.get("studio_id", "")
+            studio_name_hint = params.get("studio_name", "")
+            if not studio_id and studio_name_hint:
+                doc = await db.studios.find_one(
+                    {"name": {"$regex": studio_name_hint, "$options": "i"}},
+                    {"_id": 0, "studio_id": 1, "name": 1}
+                )
+                if doc:
+                    studio_id = doc["studio_id"]
+                    studio_name_hint = doc["name"]
+            if not studio_id:
+                return {"tool": "get_slots", "error": "Studio nicht gefunden", "slots": []}
+            today = datetime.now(timezone.utc).date().isoformat()
+            future_date = (datetime.now(timezone.utc).date() + timedelta(days=30)).isoformat()
+            slots = await db.slots.find(
+                {"studio_id": studio_id, "is_booked": False,
+                 "date": {"$gte": today, "$lte": future_date}},
+                {"_id": 0}
+            ).sort("date", 1).limit(8).to_list(8)
+            if not studio_name_hint:
+                s = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0, "name": 1})
+                studio_name_hint = s["name"] if s else "Unbekannt"
+            return {"tool": "get_slots", "slots": slots, "studio_id": studio_id, "studio_name": studio_name_hint}
+
+        elif tool_name == "create_booking":
+            if not current_user:
+                return {"tool": "create_booking", "error": "not_authenticated"}
+            studio_id = params.get("studio_id", "")
+            slot_id = params.get("slot_id", "")
+            booking_type = params.get("booking_type", "tattoo")
+            notes = params.get("notes", "")
+            slot = await db.slots.find_one(
+                {"slot_id": slot_id, "studio_id": studio_id, "is_booked": False}, {"_id": 0}
+            )
+            if not slot:
+                return {"tool": "create_booking", "error": "slot_not_available"}
+            studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0, "name": 1, "owner_id": 1})
+            if not studio:
+                return {"tool": "create_booking", "error": "studio_not_found"}
+            user_id = current_user.get("id") or current_user.get("user_id")
+            booking_doc = {
+                "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+                "user_id": user_id,
+                "user_name": current_user.get("name", ""),
+                "user_email": current_user.get("email", ""),
+                "studio_id": studio_id,
+                "studio_name": studio.get("name", ""),
+                "slot_id": slot_id,
+                "date": slot.get("date"),
+                "start_time": slot.get("start_time"),
+                "end_time": slot.get("end_time"),
+                "booking_type": booking_type,
+                "notes": notes,
+                "reference_images": [],
+                "status": "pending",
+                "payment_status": "unpaid",
+                "deposit_amount": 50.0,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "source": "ai_chat",
+            }
+            await db.bookings.insert_one(booking_doc)
+            await db.slots.update_one({"slot_id": slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
+            booking_doc.pop("_id", None)
+            if booking_doc["user_email"]:
+                asyncio.create_task(send_email(
+                    to=booking_doc["user_email"],
+                    subject=f"Buchungsbestätigung – {studio.get('name', '')}",
+                    html=booking_confirmation_html(booking_doc)
+                ))
+            owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
+            if owner and owner.get("email"):
+                asyncio.create_task(send_email(
+                    to=owner["email"],
+                    subject=f"Neue Buchung via KI-Assistent – {booking_doc['user_name']} · {slot.get('date','')}",
+                    html=booking_confirmation_studio_html(booking_doc)
+                ))
+            asyncio.create_task(send_push_notification(
+                user_id=studio.get("owner_id", ""),
+                title="Neue Buchung via KI-Assistent",
+                body=f"{booking_doc['user_name']} hat {slot.get('date','')} gebucht",
+                url="/studio-dashboard"
+            ))
+            return {"tool": "create_booking", "success": True, "booking": booking_doc}
+
+        elif tool_name == "get_studio_info":
+            name_or_id = params.get("studio_id_or_name", "")
+            studio = await db.studios.find_one(
+                {"$or": [{"studio_id": name_or_id}, {"name": {"$regex": name_or_id, "$options": "i"}}]},
+                {"_id": 0}
+            )
+            if not studio:
+                return {"tool": "get_studio_info", "error": "Studio nicht gefunden"}
+            return {"tool": "get_studio_info", "studio": studio}
+
+        return {"tool": tool_name, "error": f"Unbekanntes Tool: {tool_name}"}
+    except Exception as e:
+        logger.error(f"Agent tool error [{tool_name}]: {e}")
+        return {"tool": tool_name, "error": str(e)}
+
+
+@api_router.post("/chat/agent")
+async def ai_chat_agent(
+    req: AIChatAgentRequest,
+    current_user=Depends(get_current_user_optional)
+):
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="Nachricht darf nicht leer sein")
+
+    emergent_key = os.environ.get("EMERGENT_LLM_KEY", "")
+    if not LlmChat or not emergent_key:
+        raise HTTPException(status_code=500, detail="KI nicht konfiguriert")
+
+    hist_doc = await db.ai_agent_chats.find_one({"session_id": req.session_id}, {"_id": 0})
+    history = hist_doc.get("messages", []) if hist_doc else []
+
+    ctx_lines = []
+    for m in history[-12:]:
+        label = "Nutzer" if m["role"] == "user" else "Ink"
+        ctx_lines.append(f"{label}: {m['content']}")
+
+    user_ctx = ""
+    if current_user:
+        user_ctx = f"\n\nEINGELOGGTER NUTZER: {current_user.get('name','?')} (Rolle: {current_user.get('role','customer')})"
+
+    system = AGENT_SYSTEM_PROMPT + user_ctx
+    full_msg = ("\n".join(ctx_lines) + f"\nNutzer: {req.message}") if ctx_lines else req.message
+
+    tool_result_data = None
+    final_text = ""
+    import time as _time
+
+    try:
+        chat1 = LlmChat(
+            api_key=emergent_key,
+            session_id=f"agent_{req.session_id}_{int(_time.time()*1000)}",
+            system_message=system,
+        ).with_model("anthropic", "claude-haiku-4-5-20251001")
+        r1 = (await chat1.send_message(UserMessage(text=full_msg))).strip()
+
+        # Extract TOOL: line even if Claude added extra text before it
+        tool_line_match = None
+        for _line in r1.split("\n"):
+            stripped = _line.strip()
+            if stripped.startswith("TOOL:"):
+                tool_line_match = stripped
+                break
+
+        if tool_line_match:
+            try:
+                line = tool_line_match[5:].strip()
+                pipe = line.index("|")
+                tool_name = line[:pipe].strip()
+                params = json.loads(line[pipe + 1:].strip())
+                tool_result = await _execute_agent_tool(tool_name, params, current_user)
+                tool_result_data = tool_result
+
+                if tool_result.get("error") == "not_authenticated":
+                    final_text = "Um einen Termin zu buchen, musst du dich zuerst anmelden. Bitte melde dich an oder registriere dich kostenlos – es dauert nur eine Minute!"
+                    tool_result_data = {"tool": "create_booking", "error": "not_authenticated"}
+                else:
+                    summary_json = json.dumps(tool_result, ensure_ascii=False, default=str)
+                    follow_up = (
+                        f"Tool-Ergebnis ({tool_name}):\n{summary_json}\n\n"
+                        "Formuliere jetzt eine kurze, freundliche deutsche Antwort (max. 2 Sätze). "
+                        "Die UI-Karten werden automatisch angezeigt, liste Details NICHT auf."
+                    )
+                    chat2 = LlmChat(
+                        api_key=emergent_key,
+                        session_id=f"agent_{req.session_id}_r2_{int(_time.time()*1000)}",
+                        system_message=system,
+                    ).with_model("anthropic", "claude-haiku-4-5-20251001")
+                    final_text = (await chat2.send_message(UserMessage(text=follow_up))).strip()
+            except Exception as pe:
+                logger.warning(f"Tool parse error: {pe} | {tool_line_match}")
+                final_text = r1
+        else:
+            final_text = r1
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        new_history = history + [
+            {"role": "user", "content": req.message, "timestamp": now_iso},
+            {"role": "assistant", "content": final_text, "timestamp": now_iso},
+        ]
+        await db.ai_agent_chats.update_one(
+            {"session_id": req.session_id},
+            {"$set": {"session_id": req.session_id, "messages": new_history, "updated_at": now_iso}},
+            upsert=True,
+        )
+        return {"response": final_text, "session_id": req.session_id, "tool_result": tool_result_data}
+
+    except Exception as e:
+        logger.error(f"AI agent error: {e}")
+        raise HTTPException(status_code=500, detail="KI-Antwort nicht verfügbar")
+
+
 @api_router.get("/support/admin-id")
 async def get_support_admin_id():
-    admin = await db.users.find_one({"role": "admin"})
     if not admin:
         raise HTTPException(status_code=404, detail="Kein Admin gefunden")
     # Try user_id first, fall back to str(_id)
