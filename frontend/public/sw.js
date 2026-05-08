@@ -1,6 +1,6 @@
 // InkBook Service Worker – Push Notifications + Offline Caching
 
-const CACHE_NAME = 'inkbook-v2';
+const CACHE_NAME = 'inkbook-v3';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -50,7 +50,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets (JS, CSS, images, fonts)
+  // Network-first for JS and CSS (ensures latest code changes are always loaded)
+  if (url.includes('/static/js/') || url.includes('/static/css/')) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for images and other static assets (logos, fonts, icons)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
