@@ -44,6 +44,7 @@ export default function StudioDashboard() {
   const [studioBookingsTab, setStudioBookingsTab] = useState("active");
   const [tick, setTick] = useState(0);
   const [notesModal, setNotesModal] = useState(null);
+  const [notesLightbox, setNotesLightbox] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -973,9 +974,9 @@ export default function StudioDashboard() {
                       <p className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400 mb-2">Referenzbilder ({notesModal.reference_images.length})</p>
                       <div className="flex flex-wrap gap-2">
                         {notesModal.reference_images.map((img, i) => (
-                          <a key={i} href={img} target="_blank" rel="noopener noreferrer">
+                          <button key={i} type="button" onClick={() => setNotesLightbox(img)} className="focus:outline-none">
                             <img src={img} alt="" className="w-24 h-24 object-cover rounded-xl border border-zinc-100 hover:opacity-80 transition-opacity cursor-zoom-in" />
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -983,6 +984,38 @@ export default function StudioDashboard() {
                 </div>
               )}
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Bemerkungen Lightbox */}
+      <AnimatePresence>
+        {notesLightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setNotesLightbox(null)}
+            data-testid="notes-lightbox-overlay"
+          >
+            <motion.img
+              src={notesLightbox}
+              alt="Referenzbild"
+              initial={{ scale: 0.88, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.88, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+              onClick={e => e.stopPropagation()}
+              data-testid="notes-lightbox-img"
+            />
+            <button
+              onClick={() => setNotesLightbox(null)}
+              className="absolute top-4 right-4 w-9 h-9 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors"
+              data-testid="notes-lightbox-close"
+            >
+              <X size={16} strokeWidth={2} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
