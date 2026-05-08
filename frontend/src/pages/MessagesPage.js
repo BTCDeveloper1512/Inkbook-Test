@@ -40,6 +40,8 @@ export default function MessagesPage() {
   const [deletingConv, setDeletingConv] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [broadcastRatings, setBroadcastRatings] = useState({});
+  const [otherPresence, setOtherPresence] = useState(null);   // {online, last_seen}
+  const [presenceMap, setPresenceMap] = useState({});          // uid → {online, last_seen}
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
 
@@ -51,6 +53,8 @@ export default function MessagesPage() {
   const chatContainerRef = useRef(null);
   const userScrolledUp = useRef(false);
   const fileRef = useRef();
+  const pingIntervalRef = useRef(null);
+  const presenceIntervalRef = useRef(null);
   const pollMsgRef = useRef(null);
   const pollConvRef = useRef(null);
   const pollTypingRef = useRef(null);
@@ -112,6 +116,49 @@ export default function MessagesPage() {
       setMessages(data);
     } catch {}
   }, []);
+
+  // ─── Format last seen timestamp ──────────────────────────────────────────
+  const formatLastSeen = useCallback((lastSeen) => {
+    if (!lastSeen) return null;
+    const diff = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 1000);
+    if (diff < 10) return "gerade eben";
+    if (diff < 60) return `vor ${diff} Sek.`;
+    if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min.`;
+    if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std.`;
+    if (diff < 604800) return `vor ${Math.floor(diff / 86400)} Tagen`;
+    return new Date(lastSeen).toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
+  }, []);
+
+  // ─── Ping own presence every 30 s ────────────────────────────────────────
+  useEffect(() => {
+    const ping = () => axios.post(`${API}/presence/ping`, {}, { withCredentials: true }).catch(() => {});
+    ping();
+    pingIntervalRef.current = setInterval(ping, 30000);
+    return () => clearInterval(pingIntervalRef.current);
+  }, []);
+
+  // ─── Batch-fetch presence for all conversations (sidebar dots) ───────────
+  useEffect(() => {
+    const ids = conversations
+      .filter(c => c.other_user_id && c.other_user_id !== "inkbook_system")
+      .map(c => c.other_user_id);
+    if (!ids.length) return;
+    axios.get(`${API}/presence?user_ids=${ids.join(",")}`, { withCredentials: true })
+      .then(r => setPresenceMap(r.data))
+      .catch(() => {});
+  }, [conversations]);
+
+  // ─── Poll active conversation partner's presence every 30 s ─────────────
+  useEffect(() => {
+    clearInterval(presenceIntervalRef.current);
+    setOtherPresence(null);
+    if (!activeConv?.other_id || activeConv.other_id === "inkbook_system") return;
+    const fetch = () => axios.get(`${API}/presence/${activeConv.other_id}`, { withCredentials: true })
+      .then(r => setOtherPresence(r.data)).catch(() => {});
+    fetch();
+    presenceIntervalRef.current = setInterval(fetch, 30000);
+    return () => clearInterval(presenceIntervalRef.current);
+  }, [activeConv?.other_id]);
 
   // ─── Fetch user's broadcast ratings ──────────────────────────────────────
   const fetchMyBroadcastRatings = useCallback(async () => {
@@ -436,8 +483,13 @@ export default function MessagesPage() {
                       ) : (
                         <div className={`w-10 h-10 ${avatarBg(name)} text-white rounded-full flex items-center justify-center text-sm font-bold font-inter flex-shrink-0 relative`}>
                           {initials(name)}
+                          {/* Online dot – bottom right */}
+                          {presenceMap[conv.other_user_id]?.online && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white" data-testid={`presence-dot-${conv.other_user_id}`} />
+                          )}
+                          {/* Unread dot – top right */}
                           {unread > 0 && (
-                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-zinc-900 rounded-full ring-2 ring-white" />
                           )}
                         </div>
                       )}
@@ -516,8 +568,19 @@ export default function MessagesPage() {
                             className="text-xs text-red-400 font-inter leading-tight">
                             Unterhaltung beendet
                           </motion.p>
+                        ) : otherPresence?.online ? (
+                          <motion.p key="online" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="text-xs text-emerald-500 font-inter leading-tight font-medium flex items-center gap-1.5" data-testid="presence-online">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0 animate-pulse" />
+                            Online
+                          </motion.p>
+                        ) : otherPresence?.last_seen ? (
+                          <motion.p key="lastseen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="text-xs text-zinc-400 font-inter leading-tight" data-testid="presence-last-seen">
+                            Zuletzt online {formatLastSeen(otherPresence.last_seen)}
+                          </motion.p>
                         ) : (
-                          <motion.p key="r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          <motion.p key="role" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="text-xs text-zinc-400 font-inter leading-tight">
                             {activeConv.other_role === "studio_owner" ? "Tattoo Studio" : "Kunde"}
                           </motion.p>

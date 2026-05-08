@@ -2589,6 +2589,49 @@ async def admin_broadcast_ratings(current_user: dict = Depends(require_admin)):
         result.append({**bc, "stars": stars, "xs": xs, "total": stars + xs})
     return result
 
+# ─── Online Presence ──────────────────────────────────────────────────────────
+
+@api_router.post("/presence/ping")
+async def presence_ping(current_user: dict = Depends(get_current_user)):
+    uid = current_user.get("id")
+    try:
+        await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"last_seen": datetime.now(timezone.utc).isoformat()}})
+    except Exception:
+        pass
+    return {"ok": True}
+
+@api_router.get("/presence")
+async def get_presence_batch(user_ids: str, current_user: dict = Depends(get_current_user)):
+    ids = [i.strip() for i in user_ids.split(",") if i.strip()][:20]
+    result = {}
+    now = datetime.now(timezone.utc)
+    for uid in ids:
+        try:
+            user = await db.users.find_one({"_id": ObjectId(uid)}, {"_id": 0, "last_seen": 1})
+            if user and user.get("last_seen"):
+                ls_dt = datetime.fromisoformat(user["last_seen"].replace("Z", "+00:00"))
+                result[uid] = {"online": (now - ls_dt).total_seconds() < 120, "last_seen": user["last_seen"]}
+            else:
+                result[uid] = {"online": False, "last_seen": None}
+        except Exception:
+            result[uid] = {"online": False, "last_seen": None}
+    return result
+
+@api_router.get("/presence/{user_id}")
+async def get_presence(user_id: str, current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    try:
+        user = await db.users.find_one({"_id": ObjectId(user_id)}, {"_id": 0, "last_seen": 1})
+    except Exception:
+        user = None
+    if not user or not user.get("last_seen"):
+        return {"online": False, "last_seen": None}
+    try:
+        ls_dt = datetime.fromisoformat(user["last_seen"].replace("Z", "+00:00"))
+        return {"online": (now - ls_dt).total_seconds() < 120, "last_seen": user["last_seen"]}
+    except Exception:
+        return {"online": False, "last_seen": None}
+
 # ─── Admin: All Bookings, Revenue, Subscriptions ─────────────────────────────
 
 @api_router.get("/admin/bookings/all")
