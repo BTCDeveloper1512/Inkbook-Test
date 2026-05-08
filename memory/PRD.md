@@ -44,6 +44,12 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – Studio-Kontakt Flow: Pre-fill Chat + Kundenanmerkungen Modal ✅
+- `StudioDashboard.js`: `handleContactCustomer` sendet bei Status "pending" eine vorgefertigte Vorlage-Nachricht (nur Vorname, Datum, Uhrzeit, Typ) via Router State. Bei Status "confirmed": einfaches Navigieren in den Chat ohne Vorlage.
+- `MessagesPage.js`: `useEffect` liest `location.state?.initialMessage` und setzt es im Chat-Textfeld (KEIN auto-send)
+- `StudioDashboard.js`: "Bemerkungen"-Button in allen 3 Buchungs-Bereichen (dunkle Heute-Karte, Kommende Termine, Buchungen-Tab) → Overlay-Modal zeigt `booking.notes` + `booking.reference_images`. Leere Buchungen: "Keine Kundenanmerkung vorhanden"
+- Testing: Iteration 34 – 95% Frontend-Pass ✅
+
 ### Mai 2026 – Chat Scroll-Fix + Über-Uns Gründer-Seite ✅
 - MessagesPage.js: Auto-Scroll nur noch wenn User am unteren Ende ist (userScrolledUp-Ref). Beim manuellen Hochscrollen wird nicht mehr automatisch nach unten gescrollt
 - UeberUnsPage.js: Team-Placeholder entfernt, Gründer-Karte mit echtem Foto (Profibild), Titel "Founder & Developer", kreative Bio über IT/Fachinformatiker-Hintergrund + Tattoo-Entdeckung + InkBook-Vision
