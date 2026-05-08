@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – Broadcast-Bewertungssystem ✅
+- Neue DB-Collections: `broadcasts` (Kampagnen-Metadaten) und `broadcast_ratings` (Nutzer-Stimmen)
+- Backend: `POST /api/broadcast/{broadcast_id}/rate`, `GET /api/broadcast/my-ratings`, `GET /api/admin/broadcast/ratings`
+- Broadcast-Nachrichten erhalten jetzt eine eindeutige `broadcast_id` (eine pro Kampagne)
+- MessagesPage.js: Rating-Buttons ⭐/✕ unter jeder InkBook-News-Karte; kein Doppel-Voting
+- AdminPage.js: Feedback-Übersicht mit ⭐/✕-Zählern und %-Wert pro Broadcast
+- Bugfix (Testing Agent): Broadcast nutzte UUID als uid statt ObjectId-String → Kunden sahen keine Nachrichten
+
 ### Mai 2026 – Videoberatung ausgeblendet ✅
 - `StudioPage.js`: Video-Konsultations-Buchungsbutton auskommentiert (nicht gelöscht)
 - `CustomerDashboard.js`: Video-Beitreten-Button und VideoCallModal auskommentiert
