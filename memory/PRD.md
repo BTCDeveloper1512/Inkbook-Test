@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – KI-Buchungsassistent "Ink" ✅
+- Backend: `/api/chat/agent` mit 4 Tools: `search_studios`, `get_slots`, `create_booking`, `get_studio_info`
+- Robuste TOOL:-Zeilen-Erkennung (auch wenn Claude extra Text hinzufügt)
+- Frontend: SupportChat komplett überarbeitet – StudioCard, SlotCard, BookingConfirmationCard inline im Chat
+- Markdown-Rendering (bold, italic, Zeilenumbrüche) in Chat-Bubbles
+- Session-History in MongoDB (`ai_agent_chats`), `Sparkles`-Icon, "KI"-Badge
+- Testing: Iteration 32 – 100% Backend + Frontend
+
 ### Mai 2026 – iOS Safe Area + Booking Cards Fix ✅
 - Navbar (sticky) + LandingNav (fixed): `paddingTop: "env(safe-area-inset-top, 0px)"` → notch/Dynamic Island kein Problem mehr
 - `html { background-color: #090909 }` in index.css → notch-Bereich dunkel gefüllt
