@@ -543,14 +543,18 @@ export default function StudioDashboard() {
                     <motion.div key={slot.slot_id}
                       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.04, type: "spring", stiffness: 300, damping: 22 }}
-                      whileHover={{ x: 3, backgroundColor: "rgb(250 250 250)" }}
-                      className="flex items-center justify-between p-4 transition-colors" data-testid={`slot-item-${slot.slot_id}`}
+                      whileHover={{ y: -1, boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}
+                      className="group relative flex items-center justify-between px-4 py-3.5 rounded-xl mx-1 my-0.5 transition-colors hover:bg-zinc-50 cursor-default" data-testid={`slot-item-${slot.slot_id}`}
                     >
-                      <div>
+                      {/* Left accent bar */}
+                      <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-zinc-900 rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center" />
+                      <div className="pl-1.5">
                         <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</p>
-                        <p className="text-xs text-zinc-500 font-inter mt-0.5">{slot.start_time} – {slot.end_time} · {slot.slot_type === "video_consultation" ? "Videoberatung" : slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
+                        <p className="text-xs text-zinc-400 font-inter mt-0.5 group-hover:text-zinc-600 transition-colors">{slot.start_time} – {slot.end_time} · {slot.slot_type === "video_consultation" ? "Videoberatung" : slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
                       </div>
-                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDeleteSlot(slot.slot_id)} className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all" data-testid={`delete-slot-btn-${slot.slot_id}`}>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDeleteSlot(slot.slot_id)}
+                        className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                        data-testid={`delete-slot-btn-${slot.slot_id}`}>
                         <Trash2 size={14} strokeWidth={1.5} />
                       </motion.button>
                     </motion.div>
