@@ -45,6 +45,7 @@ export default function MessagesPage() {
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
   const initialMessageApplied = useRef(false);
+  const textareaRef = useRef(null);
 
   // Refs – avoid stale closures in intervals
   const textRef = useRef("");               // always current text value
@@ -65,6 +66,16 @@ export default function MessagesPage() {
   useEffect(() => { textRef.current = text; }, [text]);
   useEffect(() => { imageUrlRef.current = imageUrl; }, [imageUrl]);
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const newHeight = Math.min(el.scrollHeight, 180);
+    el.style.height = newHeight + "px";
+    el.style.overflowY = el.scrollHeight > 180 ? "auto" : "hidden";
+  }, [text]);
 
   // Pre-fill chat input from router state (only for pending bookings – no auto-send)
   useEffect(() => {
@@ -1055,13 +1066,14 @@ export default function MessagesPage() {
                     )}
                     <div className="flex-1">
                       <textarea
+                        ref={textareaRef}
                         value={text}
                         onChange={handleTextChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Nachricht schreiben... (Enter senden, Shift+Enter neue Zeile)"
                         rows={1}
-                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all resize-none overflow-hidden"
-                        style={{ lineHeight: "1.5", maxHeight: "112px", overflowY: "auto" }}
+                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all resize-none"
+                        style={{ lineHeight: "1.5", overflowY: "hidden" }}
                         data-testid="chat-input"
                       />
                     </div>
