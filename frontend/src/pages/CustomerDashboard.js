@@ -515,7 +515,7 @@ export default function CustomerDashboard() {
 
                         {/* Actions – unterhalb, flex-wrap für Mobile */}
                         <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                        {/* Video-Typ Badge + Beitreten-Button */}
+                        {/* VIDEO CONSULTATION HIDDEN – auskommentiert bis Feature wieder aktiviert wird
                         {booking.booking_type === "video_consultation" && !isPast && (
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {booking.status === "confirmed" ? (
@@ -539,6 +539,7 @@ export default function CustomerDashboard() {
                             )}
                           </div>
                         )}
+                        */}
 
                         {booking.status === "pending" && booking.payment_status !== "paid" && (
                           <button onClick={() => handlePayDeposit(booking)}
@@ -707,7 +708,7 @@ export default function CustomerDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Video Call Modal */}
+      {/* VIDEO CONSULTATION HIDDEN – auskommentiert bis Feature wieder aktiviert wird
       {videoCallBooking && (
         <VideoCallModal
           booking={videoCallBooking}
@@ -715,6 +716,7 @@ export default function CustomerDashboard() {
           onClose={() => setVideoCallBooking(null)}
         />
       )}
+      */}
 
       <Footer />
     </div>

@@ -44,6 +44,12 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – Videoberatung ausgeblendet ✅
+- `StudioPage.js`: Video-Konsultations-Buchungsbutton auskommentiert (nicht gelöscht)
+- `CustomerDashboard.js`: Video-Beitreten-Button und VideoCallModal auskommentiert
+- `StudioDashboard.js`: Alle Video-Buttons, VideoCountdownTimer, Videoberatungs-Toggle und VideoCallModal auskommentiert; Videoberatung aus Slot-Typ-Dropdown entfernt
+- Code bleibt vollständig erhalten und kann jederzeit durch Entkommentieren reaktiviert werden
+
 ### Mai 2026 – KI-Buchungsassistent "Ink" ✅
 - Backend: `/api/chat/agent` mit 4 Tools: `search_studios`, `get_slots`, `create_booking`, `get_studio_info`
 - Robuste TOOL:-Zeilen-Erkennung (auch wenn Claude extra Text hinzufügt)

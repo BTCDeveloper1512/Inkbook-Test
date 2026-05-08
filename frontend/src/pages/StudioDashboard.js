@@ -428,15 +428,19 @@ export default function StudioDashboard() {
                           {b.status === "pending" && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-white text-zinc-900 rounded-full font-inter font-semibold hover:bg-zinc-100 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
+                          {/* VIDEO CONSULTATION HIDDEN
                           {b.booking_type === "video_consultation" && b.status === "confirmed" && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-full font-inter hover:bg-emerald-400 transition-colors" data-testid={`video-join-btn-overview-${b.booking_id}`}>
                               <Video size={11} strokeWidth={2} /> Beitreten
                             </motion.button>
                           )}
+                          */}
                         </div>
+                        {/* VIDEO CONSULTATION HIDDEN
                         {b.booking_type === "video_consultation" && b.status === "confirmed" && (
                           <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
                         )}
+                        */}
                       </div>
                     </motion.div>
                   ))}
@@ -516,7 +520,7 @@ export default function StudioDashboard() {
                   <div>
                     <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Art</label>
                     <select value={slotForm.slot_type} onChange={e => setSlotForm({...slotForm, slot_type: e.target.value})} className="input-base w-full" data-testid="slot-type-select">
-                      <option value="consultation">Beratung</option><option value="tattoo">Tattoo</option><option value="video_consultation">Videoberatung</option><option value="full_day">Ganzer Tag</option>
+                      <option value="consultation">Beratung</option><option value="tattoo">Tattoo</option>{/* <option value="video_consultation">Videoberatung</option> VIDEO HIDDEN */}<option value="full_day">Ganzer Tag</option>
                     </select>
                   </div>
                 </div>
@@ -621,6 +625,7 @@ export default function StudioDashboard() {
                           {b.status === "pending" && !isPast && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
+                          {/* VIDEO CONSULTATION HIDDEN
                           {b.booking_type === "video_consultation" && b.status === "confirmed" && !isPast && (
                             <div className="flex flex-col items-end gap-1">
                               <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors" data-testid={`video-join-btn-${b.booking_id}`}>
@@ -629,6 +634,7 @@ export default function StudioDashboard() {
                               <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
                             </div>
                           )}
+                          */}
                           {["pending", "confirmed"].includes(b.status) && (
                             <motion.button whileTap={{ scale: 0.95 }}
                               disabled={isPast}
@@ -739,7 +745,7 @@ export default function StudioDashboard() {
               )}
             </div>
 
-            {/* Video Consultation Toggle */}
+            {/* VIDEO CONSULTATION TOGGLE HIDDEN – auskommentiert bis Feature wieder aktiviert wird
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-4">Videoberatung</h3>
               <div className="flex items-center gap-4 mb-3">
@@ -758,6 +764,7 @@ export default function StudioDashboard() {
                 Wenn aktiviert, können Kunden bei der Buchung "Videoberatungsgespräch" auswählen. Zum Termin erscheint ein "Beitreten"-Button.
               </p>
             </div>
+            */}
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Tattoo-Stile</h3>
@@ -848,6 +855,7 @@ export default function StudioDashboard() {
         </div>
       </div>
       <Footer />
+      {/* VIDEO CONSULTATION HIDDEN
       {videoCallBooking && (
         <VideoCallModal
           booking={videoCallBooking}
@@ -855,6 +863,7 @@ export default function StudioDashboard() {
           onClose={() => setVideoCallBooking(null)}
         />
       )}
+      */}
     </div>
   );
 }
