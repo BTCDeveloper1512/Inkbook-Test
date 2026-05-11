@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search } from "lucide-react";
 import ArtistsTab from "../components/ArtistsTab";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -45,6 +45,7 @@ export default function StudioDashboard() {
   const [tick, setTick] = useState(0);
   const [notesModal, setNotesModal] = useState(null);
   const [notesLightbox, setNotesLightbox] = useState(null);
+  const [bookingSearch, setBookingSearch] = useState("");
 
   useEffect(() => {
     fetchStats();
@@ -609,6 +610,25 @@ export default function StudioDashboard() {
         {/* Bookings Tab */}
         {activeTab === "bookings" && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-5">
+
+            {/* Search bar */}
+            <div className="relative">
+              <Search size={15} strokeWidth={1.8} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                value={bookingSearch}
+                onChange={e => setBookingSearch(e.target.value)}
+                placeholder="Suchen nach Name, Datum, Art oder Status..."
+                className="w-full pl-9 pr-10 py-2.5 bg-white border border-zinc-200 rounded-2xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 transition-all"
+                data-testid="booking-search-input"
+              />
+              {bookingSearch && (
+                <button onClick={() => setBookingSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 transition-colors">
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
+            </div>
+
             {/* Sub-tabs */}
             <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
               {[
@@ -625,15 +645,37 @@ export default function StudioDashboard() {
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
               <div className="divide-y divide-zinc-50">
-                {(studioBookingsTab === "active" ? activeBookings : pastStudioBookings).length === 0 ? (
-                  <div className="py-20 flex flex-col items-center text-center">
-                    <Calendar size={28} className="text-zinc-200 mb-4" strokeWidth={1.5} />
-                    <h3 className="font-playfair text-lg text-zinc-900 mb-1">Keine Buchungen</h3>
-                    <p className="text-xs text-zinc-400 font-inter">
-                      {studioBookingsTab === "active" ? "Aktive Buchungen erscheinen hier" : "Vergangene Termine werden hier angezeigt"}
-                    </p>
-                  </div>
-                ) : (studioBookingsTab === "active" ? activeBookings : pastStudioBookings).map((b, idx) => {
+                {(() => {
+                  const typeMap = { tattoo: "tattoo", consultation: "beratung", full_day: "ganztag", video_consultation: "video" };
+                  const statusMap = { pending: "ausstehend", confirmed: "bestätigt", cancelled: "abgesagt" };
+                  const q = bookingSearch.toLowerCase().trim();
+                  const base = studioBookingsTab === "active" ? activeBookings : pastStudioBookings;
+                  const filtered = q ? base.filter(b => {
+                    const dateStr = b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : "";
+                    return (
+                      (b.user_name || "").toLowerCase().includes(q) ||
+                      (b.user_email || "").toLowerCase().includes(q) ||
+                      dateStr.includes(q) ||
+                      (typeMap[b.booking_type] || b.booking_type || "").includes(q) ||
+                      (b.booking_type || "").toLowerCase().includes(q) ||
+                      (statusMap[b.status] || b.status || "").includes(q) ||
+                      (b.start_time || "").includes(q) ||
+                      (b.notes || "").toLowerCase().includes(q)
+                    );
+                  }) : base;
+
+                  if (filtered.length === 0) return (
+                    <div className="py-20 flex flex-col items-center text-center">
+                      <Calendar size={28} className="text-zinc-200 mb-4" strokeWidth={1.5} />
+                      <h3 className="font-playfair text-lg text-zinc-900 mb-1">{q ? "Keine Ergebnisse" : "Keine Buchungen"}</h3>
+                      <p className="text-xs text-zinc-400 font-inter">
+                        {q ? `Keine Buchungen für "${bookingSearch}" gefunden` : studioBookingsTab === "active" ? "Aktive Buchungen erscheinen hier" : "Vergangene Termine werden hier angezeigt"}
+                      </p>
+                      {q && <button onClick={() => setBookingSearch("")} className="mt-3 text-xs text-zinc-500 underline font-inter hover:text-zinc-900">Filter zurücksetzen</button>}
+                    </div>
+                  );
+
+                  return filtered.map((b, idx) => {
                   const isPast = isBookingPast(b);
                   return (
                     <motion.div key={b.booking_id}
@@ -713,7 +755,8 @@ export default function StudioDashboard() {
                       </div>
                     </motion.div>
                   );
-                })}
+                  }); // end filtered.map
+                })()} {/* end IIFE */}
               </div>
             </div>
           </motion.div>

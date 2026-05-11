@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
-import { Menu, X, Globe, ChevronDown, Bell, MessageSquare } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Bell, MessageSquare, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
 import axios from "axios";
@@ -52,22 +52,45 @@ export default function Navbar() {
   const isMessagesPage = location.pathname.startsWith("/messages");
   const countToShow = isMessagesPage ? 0 : unreadCount;
 
+  const noBackPaths = ["/", "/login", "/register"];
+  const showBack = !noBackPaths.includes(location.pathname);
+
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/[0.04]"
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <div className="max-w-7xl mx-auto px-5 lg:px-8">
         <div className="flex items-center justify-between h-[60px]">
-          {/* Logo – nur Schriftzug mit BlurText */}
-          <Link to="/" className="flex items-center" data-testid="nav-logo">
-            <BlurText
-              text="InkBook"
-              animateBy="characters"
-              direction="top"
-              delay={60}
-              stepDuration={0.32}
-              className="text-xl font-playfair font-semibold tracking-tight text-zinc-900 select-none"
-            />
-          </Link>
+          {/* Left: back button + logo */}
+          <div className="flex items-center gap-2">
+            <AnimatePresence>
+              {showBack && (
+                <motion.button
+                  key="back-btn"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.18 }}
+                  onClick={() => navigate(-1)}
+                  whileTap={{ scale: 0.88 }}
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-all"
+                  data-testid="back-btn"
+                  aria-label="Zurück"
+                >
+                  <ArrowLeft size={17} strokeWidth={2} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+            <Link to="/" className="flex items-center" data-testid="nav-logo">
+              <BlurText
+                text="InkBook"
+                animateBy="characters"
+                direction="top"
+                delay={60}
+                stepDuration={0.32}
+                className="text-xl font-playfair font-semibold tracking-tight text-zinc-900 select-none"
+              />
+            </Link>
+          </div>
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-1">
