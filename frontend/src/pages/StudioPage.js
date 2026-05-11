@@ -6,7 +6,7 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
@@ -21,8 +21,14 @@ const formatDate = (d) => {
   return `${day}.${m}.${y}`;
 };
 
-/* ── Lightbox ───────────────────────────────────────── */
-function Lightbox({ imgs, idx, onClose, onPrev, onNext }) {
+/* ── Lightbox (professional) ────────────────────────── */
+const slideVariants = {
+  enter: (dir) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
+};
+
+function Lightbox({ imgs, idx, onClose, onPrev, onNext, onJump }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -33,49 +39,89 @@ function Lightbox({ imgs, idx, onClose, onPrev, onNext }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [imgs, onClose, onPrev, onNext]);
 
+  const dragDir = useRef(0);
+
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center"
-        style={{ background: "rgba(0,0,0,0.92)" }}
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.96)" }}
         onClick={onClose}
       >
         {/* Close */}
         <button onClick={onClose}
-          className="absolute top-5 right-5 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10">
+          className="absolute top-5 right-5 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-20">
           <X size={18} strokeWidth={1.5} />
         </button>
 
-        {/* Image */}
-        <motion.img
-          key={idx}
-          initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.22 }}
-          src={imgs[idx]} alt=""
-          className="max-w-[90vw] max-h-[88vh] object-contain rounded-xl shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        />
-
         {/* Counter */}
         {imgs.length > 1 && (
-          <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/50 font-inter">
+          <p className="absolute top-5 left-1/2 -translate-x-1/2 text-xs text-white/40 font-inter tracking-widest z-20">
             {idx + 1} / {imgs.length}
           </p>
         )}
 
-        {/* Arrows */}
+        {/* Main Image with slide animation */}
+        <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden px-16">
+          <AnimatePresence initial={false} custom={dragDir.current}>
+            <motion.img
+              key={idx}
+              src={imgs[idx]}
+              custom={dragDir.current}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "spring", stiffness: 340, damping: 34, mass: 0.8 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.15}
+              onDragEnd={(e, info) => {
+                if (info.offset.x < -60 && imgs.length > 1) { dragDir.current = 1; onNext(); }
+                else if (info.offset.x > 60 && imgs.length > 1) { dragDir.current = -1; onPrev(); }
+              }}
+              className="max-w-full max-h-[72vh] object-contain rounded-xl shadow-2xl cursor-grab active:cursor-grabbing select-none"
+              style={{ position: "absolute" }}
+              onClick={(e) => e.stopPropagation()}
+              draggable={false}
+            />
+          </AnimatePresence>
+        </div>
+
+        {/* Prev / Next Arrows */}
         {imgs.length > 1 && (
           <>
-            <button onClick={(e) => { e.stopPropagation(); onPrev(); }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); dragDir.current = -1; onPrev(); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all hover:scale-110">
               <ChevronLeft size={22} strokeWidth={1.5} />
             </button>
-            <button onClick={(e) => { e.stopPropagation(); onNext(); }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); dragDir.current = 1; onNext(); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all hover:scale-110">
               <ChevronRight size={22} strokeWidth={1.5} />
             </button>
           </>
+        )}
+
+        {/* Thumbnail Strip */}
+        {imgs.length > 1 && (
+          <div
+            className="w-full flex-shrink-0 pb-6 pt-4 flex justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex gap-2.5 overflow-x-auto px-6 max-w-3xl">
+              {imgs.map((img, i) => (
+                <motion.button
+                  key={i}
+                  onClick={() => { dragDir.current = i > idx ? 1 : -1; onJump(i); }}
+                  whileTap={{ scale: 0.93 }}
+                  className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden transition-all duration-200 ${i === idx ? "ring-2 ring-white scale-105 opacity-100" : "opacity-35 hover:opacity-65"}`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
+                </motion.button>
+              ))}
+            </div>
+          </div>
         )}
       </motion.div>
     </AnimatePresence>
@@ -83,6 +129,126 @@ function Lightbox({ imgs, idx, onClose, onPrev, onNext }) {
 }
 
 /* ── Artist Detail Modal ────────────────────────────── */
+/* ── Portfolio Slider ───────────────────────────────── */
+function PortfolioSlider({ images, onOpenLightbox }) {
+  const [current, setCurrent] = useState(0);
+  const dragDir = useRef(0);
+  const thumbsRef = useRef(null);
+
+  const go = (idx) => {
+    dragDir.current = idx > current ? 1 : -1;
+    setCurrent(idx);
+    // Scroll thumbnail into view
+    if (thumbsRef.current) {
+      const btn = thumbsRef.current.children[idx];
+      btn?.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" });
+    }
+  };
+  const prev = () => go((current - 1 + images.length) % images.length);
+  const next = () => go((current + 1) % images.length);
+
+  return (
+    <div className="select-none">
+      {/* ── Main Stage ─────────────────────────────── */}
+      <div className="relative rounded-2xl overflow-hidden bg-zinc-950 group" style={{ height: 300 }}>
+        <AnimatePresence initial={false} custom={dragDir.current}>
+          <motion.img
+            key={current}
+            src={images[current]}
+            custom={dragDir.current}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 360, damping: 36, mass: 0.75 }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.12}
+            onDragEnd={(_, info) => {
+              if (info.offset.x < -50) { dragDir.current = 1; next(); }
+              else if (info.offset.x > 50) { dragDir.current = -1; prev(); }
+            }}
+            className="absolute inset-0 w-full h-full object-cover cursor-grab active:cursor-grabbing"
+            draggable={false}
+          />
+        </AnimatePresence>
+
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+
+        {/* Prev / Next */}
+        {images.length > 1 && (
+          <>
+            <motion.button
+              whileTap={{ scale: 0.88 }}
+              onClick={prev}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/65 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <ChevronLeft size={18} strokeWidth={2} />
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.88 }}
+              onClick={next}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/65 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <ChevronRight size={18} strokeWidth={2} />
+            </motion.button>
+          </>
+        )}
+
+        {/* Lightbox expand */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => onOpenLightbox(images, current)}
+          className="absolute bottom-3 right-3 w-8 h-8 bg-black/40 hover:bg-black/65 backdrop-blur-md rounded-full flex items-center justify-center text-white/80 hover:text-white opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+          data-testid="portfolio-expand-btn"
+        >
+          <Maximize2 size={13} strokeWidth={2} />
+        </motion.button>
+
+        {/* Counter pill */}
+        {images.length > 1 && (
+          <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-full z-10">
+            <span className="text-white/80 text-[11px] font-inter tabular-nums">{current + 1} / {images.length}</span>
+          </div>
+        )}
+
+        {/* Progress dots (max 8) */}
+        {images.length > 1 && images.length <= 12 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {images.map((_, i) => (
+              <button key={i} onClick={() => go(i)}
+                className={`transition-all duration-300 rounded-full ${i === current ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40 hover:bg-white/70"}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Thumbnail Strip ─────────────────────────── */}
+      {images.length > 1 && (
+        <div
+          ref={thumbsRef}
+          className="flex gap-2 mt-3 overflow-x-auto pb-0.5"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {images.map((img, i) => (
+            <motion.button
+              key={i}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => go(i)}
+              className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden transition-all duration-200 ${i === current ? "ring-2 ring-zinc-900 opacity-100 scale-[1.04]" : "opacity-45 hover:opacity-75 hover:scale-[1.02]"}`}
+              data-testid={`thumb-${i}`}
+            >
+              <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
+            </motion.button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -169,61 +335,16 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
               </div>
             )}
 
-            {/* Portfolio – CircularGallery */}
+            {/* Portfolio – Professional Slider */}
             {artist.portfolio_images?.length > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400">
-                    Portfolio · {artist.portfolio_images.length} {artist.portfolio_images.length === 1 ? "Bild" : "Bilder"}
-                  </p>
-                  <button
-                    onClick={() => onOpenLightbox(artist.portfolio_images, 0)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 hover:bg-zinc-900 hover:text-white text-zinc-600 transition-all text-xs font-inter font-medium"
-                    data-testid="modal-gallery-btn"
-                  >
-                    <Images size={12} strokeWidth={1.5} />
-                    Alle anzeigen
-                  </button>
-                </div>
-
-                {/* WebGL Gallery */}
-                <div
-                  className="relative rounded-2xl overflow-hidden bg-white"
-                  style={{ height: 260 }}
-                >
-                  <CircularGallery
-                    items={artist.portfolio_images.map(img => ({ image: img }))}
-                    bend={1}
-                    borderRadius={0.12}
-                    scrollSpeed={2}
-                    scrollEase={0.06}
-                    onItemClick={(index) => onOpenLightbox(artist.portfolio_images, index)}
-                  />
-                  {/* Gradual blur left edge */}
-                  <GradualBlur
-                    position="left"
-                    height="52px"
-                    strength={1.2}
-                    divCount={6}
-                    curve="ease-out"
-                    opacity={0.7}
-                    zIndex={10}
-                  />
-                  {/* Gradual blur right edge */}
-                  <GradualBlur
-                    position="right"
-                    height="52px"
-                    strength={1.2}
-                    divCount={6}
-                    curve="ease-out"
-                    opacity={0.7}
-                    zIndex={10}
-                  />
-                </div>
-
-                <p className="text-[11px] text-zinc-400 text-center mt-2.5 font-inter tracking-wide">
-                  Ziehen oder Scrollen zum Navigieren · Klicken für Großansicht
+                <p className="text-xs font-inter font-semibold tracking-[0.18em] uppercase text-zinc-400 mb-3">
+                  Portfolio · {artist.portfolio_images.length} {artist.portfolio_images.length === 1 ? "Bild" : "Bilder"}
                 </p>
+                <PortfolioSlider
+                  images={artist.portfolio_images}
+                  onOpenLightbox={onOpenLightbox}
+                />
               </div>
             )}
 
@@ -816,6 +937,7 @@ export default function StudioPage() {
           onClose={() => setLightbox(null)}
           onPrev={() => setLightbox(l => ({ ...l, idx: (l.idx - 1 + l.imgs.length) % l.imgs.length }))}
           onNext={() => setLightbox(l => ({ ...l, idx: (l.idx + 1) % l.imgs.length }))}
+          onJump={(i) => setLightbox(l => ({ ...l, idx: i }))}
         />
       )}
 
