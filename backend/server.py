@@ -916,6 +916,24 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
 
     return {"message": "Booking updated"}
 
+
+@api_router.put("/bookings/{booking_id}/complete")
+async def complete_booking(booking_id: str, request: Request, current_user: dict = Depends(get_current_user)):
+    data = await request.json()
+    revenue = float(data.get("revenue", 0) or 0)
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {"status": "completed", "revenue": revenue, "completed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"success": True}
+
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
 @api_router.post("/messages/unread-count")
 async def get_unread_count_post(current_user: dict = Depends(get_current_user)):

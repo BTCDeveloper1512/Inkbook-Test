@@ -16,7 +16,7 @@ import BorderGlow from "../components/BorderGlow/BorderGlow";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const STYLES_LIST = ["Fine Line", "Blackwork", "Traditional", "Neo-Traditional", "Japanese", "Realism", "Portrait", "Geometric", "Watercolor", "Tribal", "Minimalist", "Color", "Abstract", "Surrealism", "Illustrative", "Black & Grey"];
-const statusColors = { pending: "bg-amber-50 text-amber-700 border-amber-200", confirmed: "bg-green-50 text-green-700 border-green-200", cancelled: "bg-red-50 text-red-700 border-red-200" };
+const statusColors = { pending: "bg-amber-50 text-amber-700 border-amber-200", confirmed: "bg-green-50 text-green-700 border-green-200", cancelled: "bg-red-50 text-red-700 border-red-200", completed: "bg-zinc-100 text-zinc-500 border-zinc-200" };
 
 export default function StudioDashboard() {
   const { user } = useAuth();
@@ -46,6 +46,7 @@ export default function StudioDashboard() {
   const [notesModal, setNotesModal] = useState(null);
   const [notesLightbox, setNotesLightbox] = useState(null);
   const [bookingSearch, setBookingSearch] = useState("");
+  const [revenueInputs, setRevenueInputs] = useState({});
 
   useEffect(() => {
     fetchStats();
@@ -62,6 +63,21 @@ export default function StudioDashboard() {
       const { data } = await axios.get(`${API}/subscriptions/status`, { withCredentials: true });
       setSubscription(data?.subscription);
     } catch {}
+  };
+
+  const handleCompleteBooking = async (bookingId) => {
+    const revenue = parseFloat(revenueInputs[bookingId] || 0);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_BACKEND_URL}/api/bookings/${bookingId}/complete`,
+        { revenue },
+        { withCredentials: true }
+      );
+      setRevenueInputs(prev => { const n = { ...prev }; delete n[bookingId]; return n; });
+      fetchStats();
+    } catch (e) {
+      alert("Fehler beim Abschließen des Termins.");
+    }
   };
 
   const handleContactCustomer = async (booking) => {
@@ -316,6 +332,17 @@ export default function StudioDashboard() {
     isBookingPast(b) || ["cancelled", "completed"].includes(b.status)
   );
 
+  // Revenue calculations (only completed bookings)
+  const completedBookings = allStudioBookings.filter(b => b.status === "completed");
+  const firstDayOfMonth = `${nowTime.getFullYear()}-${String(nowTime.getMonth()+1).padStart(2,'0')}-01`;
+  const todayRevenue = completedBookings
+    .filter(b => b.date === todayStr)
+    .reduce((s, b) => s + (b.revenue || 0), 0);
+  const monthRevenue = completedBookings
+    .filter(b => b.date >= firstDayOfMonth)
+    .reduce((s, b) => s + (b.revenue || 0), 0);
+  const totalRevenue = completedBookings.reduce((s, b) => s + (b.revenue || 0), 0);
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <Navbar />
@@ -359,13 +386,13 @@ export default function StudioDashboard() {
         <motion.div
           initial="hidden" animate="visible"
           variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
         >
           {[
             { label: "Buchungen", value: stats?.total_bookings || 0, icon: <Calendar size={16} strokeWidth={1.5} /> },
             { label: "Ausstehend", value: stats?.pending_bookings || 0, icon: <Clock size={16} strokeWidth={1.5} /> },
             { label: "Bestätigt", value: stats?.confirmed_bookings || 0, icon: <CheckCircle size={16} strokeWidth={1.5} /> },
-            { label: "Einnahmen", value: `€${(stats?.revenue || 0).toFixed(0)}`, icon: <TrendingUp size={16} strokeWidth={1.5} /> }
+            { label: "Abgeschlossen", value: completedBookings.length, icon: <TrendingUp size={16} strokeWidth={1.5} /> }
           ].map((stat, i) => (
             <motion.div key={i}
               variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 22 } } }}
@@ -375,6 +402,29 @@ export default function StudioDashboard() {
               <div className="text-zinc-400 mb-2">{stat.icon}</div>
               <p className="text-2xl font-playfair font-semibold text-zinc-900">{stat.value}</p>
               <p className="text-xs text-zinc-500 font-inter mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Revenue strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, type: "spring", stiffness: 280, damping: 22 }}
+          className="grid grid-cols-3 gap-3 mb-6"
+        >
+          {[
+            { label: "Tagesumsatz", value: todayRevenue, accent: true },
+            { label: "Monatsumsatz", value: monthRevenue },
+            { label: "Gesamtumsatz", value: totalRevenue },
+          ].map((r, i) => (
+            <motion.div key={i}
+              whileHover={{ y: -3, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
+              className={`rounded-2xl border p-4 cursor-default transition-shadow ${r.accent ? "bg-zinc-900 border-zinc-800" : "bg-white border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]"}`}
+              data-testid={`revenue-card-${i}`}
+            >
+              <p className={`text-xs font-inter font-semibold uppercase tracking-wider mb-1.5 ${r.accent ? "text-white/50" : "text-zinc-400"}`}>{r.label}</p>
+              <p className={`text-xl font-playfair font-semibold ${r.accent ? "text-white" : "text-zinc-900"}`}>
+                €&thinsp;{r.value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
             </motion.div>
           ))}
         </motion.div>
@@ -682,7 +732,7 @@ export default function StudioDashboard() {
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05, type: "spring", stiffness: 300, damping: 22 }}
                       whileHover={{ y: -1, boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}
-                      className={`group relative px-5 py-4 rounded-xl mx-1 my-0.5 transition-colors hover:bg-zinc-50 cursor-default ${isPast ? "opacity-60" : ""}`}
+                      className={`group relative px-5 py-4 rounded-xl mx-1 my-0.5 transition-colors hover:bg-zinc-50 cursor-default ${isPast && b.status !== "completed" ? "opacity-75" : ""}`}
                       data-testid={`studio-booking-${b.booking_id}`}
                     >
                       <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-zinc-900 rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center" />
@@ -700,16 +750,52 @@ export default function StudioDashboard() {
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {isPast && b.status === "confirmed" ? (
+                        <div className="flex flex-col items-end gap-2 min-w-[120px]">
+                          {/* Status badge */}
+                          {b.status === "completed" ? (
                             <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 font-inter flex items-center gap-1">
-                              <CheckCircle size={10} strokeWidth={2} className="text-zinc-400" /> Abgeschlossen
+                              <CheckCircle size={10} strokeWidth={2} /> Abgeschlossen
                             </span>
                           ) : (
                             <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
                               {b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}
                             </span>
                           )}
+
+                          {/* Revenue display for completed bookings */}
+                          {b.status === "completed" && (b.revenue || 0) > 0 && (
+                            <span className="text-sm font-playfair font-semibold text-emerald-600" data-testid={`revenue-display-${b.booking_id}`}>
+                              + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          )}
+
+                          {/* Revenue entry + complete for past confirmed */}
+                          {isPast && b.status === "confirmed" && (
+                            <div className="flex flex-col items-end gap-1.5 mt-0.5">
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-inter">€</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0,00"
+                                  value={revenueInputs[b.booking_id] || ""}
+                                  onChange={e => setRevenueInputs(prev => ({ ...prev, [b.booking_id]: e.target.value }))}
+                                  className="pl-7 pr-3 py-1.5 w-28 text-xs border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 text-zinc-900 bg-white transition-colors"
+                                  data-testid={`revenue-input-${b.booking_id}`}
+                                />
+                              </div>
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleCompleteBooking(b.booking_id)}
+                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors w-28 justify-center"
+                                data-testid={`complete-booking-btn-${b.booking_id}`}
+                              >
+                                <CheckCircle size={11} strokeWidth={2} /> Abschließen
+                              </motion.button>
+                            </div>
+                          )}
+
                           {b.status === "pending" && !isPast && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
@@ -723,15 +809,13 @@ export default function StudioDashboard() {
                             </div>
                           )}
                           */}
-                          {["pending", "confirmed"].includes(b.status) && (
+                          {["pending", "confirmed"].includes(b.status) && !isPast && (
                             <motion.button whileTap={{ scale: 0.95 }}
-                              disabled={isPast}
                               onClick={async () => {
-                                if (isPast) return;
                                 if (!window.confirm("Buchung wirklich stornieren?")) return;
                                 try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {}
                               }}
-                              className={`text-xs px-3 py-1.5 rounded-full font-inter transition-all ${isPast ? "border border-zinc-100 text-zinc-300 bg-zinc-50 cursor-not-allowed" : "border border-zinc-200 text-zinc-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50"}`}
+                              className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
                               data-testid={`cancel-booking-studio-${b.booking_id}`}
                             >
                               Stornieren

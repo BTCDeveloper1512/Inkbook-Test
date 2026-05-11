@@ -44,6 +44,14 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
+### Mai 2026 – Zurück-Button, Buchungs-Suche, Umsatz-Tracking ✅
+- Navbar: Zurück-Button (ArrowLeft, Framer-Motion) auf allen Seiten außer `/`, `/login`, `/register`
+- StudioDashboard Buchungen-Tab: Suchleiste filtert nach Name, E-Mail, Datum, Buchungsart, Status, Uhrzeit, Anmerkungen
+- Backend: `PUT /api/bookings/{booking_id}/complete` – speichert `revenue` (float) + setzt Status `completed`
+- Frontend: Revenue-Eingabefeld (€) + "Abschließen"-Button für vergangene bestätigte Termine
+- Dashboard-Stats: 3 Umsatz-Karten (Tagesumsatz, Monatsumsatz, Gesamtumsatz) – berechnet aus `completed` Buchungen
+- Testing: API-Endpunkt manuell mit curl getestet ✅
+
 ### Mai 2026 – Studio-Kontakt Flow: Pre-fill Chat + Kundenanmerkungen Modal ✅
 - `StudioDashboard.js`: `handleContactCustomer` sendet bei Status "pending" eine vorgefertigte Vorlage-Nachricht (nur Vorname, Datum, Uhrzeit, Typ) via Router State. Bei Status "confirmed": einfaches Navigieren in den Chat ohne Vorlage.
 - `MessagesPage.js`: `useEffect` liest `location.state?.initialMessage` und setzt es im Chat-Textfeld (KEIN auto-send)
