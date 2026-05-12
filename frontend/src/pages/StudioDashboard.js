@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -65,8 +67,107 @@ export default function StudioDashboard() {
     } catch {}
   };
 
-  const handleCompleteBooking = async (bookingId) => {
-    const revenue = parseFloat(revenueInputs[bookingId] || 0);
+  const generateRevenuePDF = () => {
+    const doc = new jsPDF();
+    const studioName = stats?.studio?.name || "Studio";
+    const now = new Date();
+    const monthLabel = now.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+    const typeLabels = { tattoo: "Tattoo", consultation: "Beratung", full_day: "Ganztag", video_consultation: "Videoberatung" };
+
+    // Sort completed bookings for current month by date asc
+    const rows = completedBookings
+      .filter(b => b.date >= firstDayOfMonth)
+      .sort((a, b) => (a.date > b.date ? 1 : -1));
+
+    // ── Header ────────────────────────────────────────────────
+    doc.setFillColor(24, 24, 27);
+    doc.rect(0, 0, 210, 36, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text("InkBook", 14, 16);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(180, 180, 180);
+    doc.text("Umsatzbericht", 14, 25);
+
+    // ── Meta ──────────────────────────────────────────────────
+    doc.setTextColor(24, 24, 27);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(`Monatsumsatz · ${monthLabel}`, 14, 48);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    doc.text(studioName, 14, 56);
+    doc.text(
+      `Erstellt am ${now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`,
+      14, 63
+    );
+
+    // ── Summary boxes ─────────────────────────────────────────
+    const sumBoxes = [
+      { label: "Abgeschlossene Termine", value: String(rows.length) },
+      { label: "Monatsumsatz", value: `\u20AC ${monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+    ];
+    const boxW = 86; const boxH = 16; const boxY = 70;
+    sumBoxes.forEach((b, i) => {
+      const x = 14 + i * (boxW + 6);
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(x, boxY, boxW, boxH, 3, 3, "F");
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(b.label, x + 4, boxY + 6);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 24, 27);
+      doc.text(b.value, x + 4, boxY + 13);
+      doc.setFont("helvetica", "normal");
+    });
+
+    // ── Table ─────────────────────────────────────────────────
+    autoTable(doc, {
+      startY: 94,
+      head: [["Datum", "Uhrzeit", "Kunde", "Art des Termins", "Betrag"]],
+      body: rows.length > 0
+        ? rows.map(b => [
+            b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : "–",
+            b.start_time && b.end_time ? `${b.start_time} – ${b.end_time}` : b.start_time || "–",
+            b.user_name || "–",
+            typeLabels[b.booking_type] || b.booking_type || "–",
+            `\u20AC ${(b.revenue || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          ])
+        : [["–", "–", "Keine abgeschlossenen Termine in diesem Monat", "", ""]],
+      foot: rows.length > 0
+        ? [["", "", "", "Gesamt", `\u20AC ${monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]]
+        : undefined,
+      styles: { font: "helvetica", fontSize: 10, cellPadding: 4 },
+      headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
+      footStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [249, 249, 249] },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 40 },
+        4: { cellWidth: 30, halign: "right" },
+      },
+      tableLineColor: [235, 235, 235],
+      tableLineWidth: 0.1,
+    });
+
+    // ── Footer ────────────────────────────────────────────────
+    const pageH = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.setTextColor(180, 180, 180);
+    doc.text("Erstellt mit InkBook · inkbook.io", 14, pageH - 8);
+
+    const fname = `inkbook-monatsumsatz-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}.pdf`;
+    doc.save(fname);
+  };
+
+  const handleCompleteBooking = async (bookingId) => {    const revenue = parseFloat(revenueInputs[bookingId] || 0);
     try {
       await axios.put(
         `${process.env.REACT_APP_BACKEND_URL}/api/bookings/${bookingId}/complete`,
@@ -428,6 +529,19 @@ export default function StudioDashboard() {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* PDF Export Button */}
+        <div className="flex justify-end -mt-3 mb-4">
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={generateRevenuePDF}
+            className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-full font-inter text-sm text-zinc-600 hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+            data-testid="pdf-export-btn"
+          >
+            <Download size={14} strokeWidth={1.8} />
+            Monatsumsatz PDF
+          </motion.button>
+        </div>
 
         {/* Tabs */}
         <motion.div
