@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
 import GradualBlur from "../components/GradualBlur/GradualBlur";
+import StudioMap from "../components/StudioMap";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
@@ -608,6 +609,17 @@ export default function StudioPage() {
                     {studio.phone && <p className="flex items-center gap-3 text-sm font-inter text-zinc-600"><Phone size={14} className="text-zinc-400 flex-shrink-0" strokeWidth={1.5} />{studio.phone}</p>}
                     {studio.email && <p className="flex items-center gap-3 text-sm font-inter text-zinc-600"><Mail size={14} className="text-zinc-400 flex-shrink-0" strokeWidth={1.5} />{studio.email}</p>}
                     {studio.website && <p className="flex items-center gap-3 text-sm font-inter text-zinc-600"><Globe size={14} className="text-zinc-400 flex-shrink-0" strokeWidth={1.5} /><a href={studio.website} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-zinc-900 transition-colors">{studio.website}</a></p>}
+
+                    {/* Map */}
+                    {(studio.address || studio.city) && (
+                      <div className="pt-1">
+                        <StudioMap
+                          address={studio.address}
+                          city={studio.city}
+                          studioName={studio.name}
+                        />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
