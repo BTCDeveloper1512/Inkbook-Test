@@ -1032,7 +1032,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="f-device hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
-            <MacBook width={440} style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }}><MockupDashboard /></MacBook>
+            <MacBook width={440} style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }}><MockupStudioProfile /></MacBook>
           </div>
         </div>
       </section>
@@ -1101,8 +1101,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="f-device hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
-            <MacBook src="/screenshots/desktop-chat.jpg" width={440}
-              style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }} />
+            <MacBook width={440} style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }}><MockupChatDesktop /></MacBook>
           </div>
         </div>
       </section>
