@@ -91,8 +91,341 @@ function NewsletterSection() {
 }
 
 /* ══════════════════════════════════════════════════════
-   Custom Landing Navbar (transparent → glass on scroll)
+   Custom UI Mockups (no screenshots needed)
 ══════════════════════════════════════════════════════ */
+const F = { inter: "'Inter',sans-serif", play: "'Playfair Display',serif" };
+
+/** Phone – Studio-Suche / Discovery */
+function MockupSearch() {
+  const studios = [
+    { name: "Dark Ink Studio", city: "Berlin · Mitte", rating: "4.9", img: "#d4d4d8" },
+    { name: "Sacred Needles",  city: "Berlin · Prenzlberg", rating: "4.8", img: "#e4e4e7" },
+    { name: "Noir Collective", city: "Berlin · Kreuzberg",  rating: "4.7", img: "#cacaca" },
+  ];
+  return (
+    <div style={{ flex: 1, background: "#fafafa", paddingTop: 28, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: F.inter }}>
+      <div style={{ padding: "0 12px 10px" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#18181b", marginBottom: 8 }}>Studios entdecken</div>
+        <div style={{ background: "white", borderRadius: 10, padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, border: "1px solid #e4e4e7", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", border: "1.5px solid #a1a1aa" }} />
+          <div style={{ height: 6, width: "55%", borderRadius: 3, background: "#e4e4e7" }} />
+          <div style={{ marginLeft: "auto", height: 6, width: "18%", borderRadius: 3, background: "#f0f0f0" }} />
+        </div>
+        <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
+          {["Tattoo", "Fine Line", "Realism"].map((t, i) => (
+            <div key={i} style={{ padding: "3px 9px", borderRadius: 20, fontSize: 7, fontWeight: 600, background: i === 0 ? "#18181b" : "#f4f4f5", color: i === 0 ? "white" : "#71717a", border: i === 0 ? "none" : "1px solid #e4e4e7" }}>{t}</div>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: "0 12px", display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
+        {studios.map((s, i) => (
+          <div key={i} style={{ background: "white", borderRadius: 12, overflow: "hidden", border: "1px solid #f0f0f0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ height: 56, background: `linear-gradient(135deg, ${s.img}, #f8f8f8)`, position: "relative" }}>
+              <div style={{ position: "absolute", bottom: 5, right: 7, background: "white", borderRadius: 6, padding: "2px 6px", fontSize: 7, fontWeight: 700, color: "#18181b" }}>★ {s.rating}</div>
+            </div>
+            <div style={{ padding: "6px 8px" }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: "#18181b", marginBottom: 2 }}>{s.name}</div>
+              <div style={{ fontSize: 7, color: "#71717a" }}>{s.city}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Phone – Buchungs-Flow (dark) */
+function MockupBooking() {
+  return (
+    <div style={{ flex: 1, background: "#09090b", paddingTop: 28, display: "flex", flexDirection: "column", padding: "28px 12px 12px", gap: 11, fontFamily: F.inter }}>
+      <div>
+        <div style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 3 }}>Termin buchen</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "white", fontFamily: F.play, letterSpacing: "-0.01em" }}>Dark Ink Studio</div>
+      </div>
+      {/* Wochentage */}
+      <div style={{ display: "flex", gap: 4 }}>
+        {[["Mo","12"],["Di","13"],["Mi","14"],["Do","15"],["Fr","16"]].map(([d,n], i) => (
+          <div key={i} style={{ flex: 1, padding: "5px 2px", borderRadius: 8, textAlign: "center", background: i === 2 ? "white" : "rgba(255,255,255,0.05)", border: `1px solid ${i === 2 ? "white" : "rgba(255,255,255,0.07)"}` }}>
+            <div style={{ fontSize: 6, color: i === 2 ? "#71717a" : "rgba(255,255,255,0.3)" }}>{d}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: i === 2 ? "#18181b" : "rgba(255,255,255,0.7)", marginTop: 2 }}>{n}</div>
+          </div>
+        ))}
+      </div>
+      {/* Slots */}
+      <div>
+        <div style={{ fontSize: 7, color: "rgba(255,255,255,0.28)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 7 }}>Verfügbare Zeiten</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5 }}>
+          {[["10:00",true],["11:30",false],["13:00",false],["14:30",false],["16:00",true],["17:30",false]].map(([t, booked], i) => (
+            <div key={i} style={{ padding: "7px 3px", borderRadius: 8, textAlign: "center", background: i === 1 ? "white" : "rgba(255,255,255,0.04)", border: `1px solid ${i === 1 ? "white" : "rgba(255,255,255,0.06)"}`, opacity: booked ? 0.25 : 1 }}>
+              <div style={{ fontSize: 8, fontWeight: 600, color: i === 1 ? "#18181b" : "rgba(255,255,255,0.75)" }}>{t}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Artist card */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 9px", background: "rgba(255,255,255,0.05)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,0.12)", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 5, width: 55, background: "rgba(255,255,255,0.22)", borderRadius: 3 }} />
+          <div style={{ height: 4, width: 35, background: "rgba(255,255,255,0.09)", borderRadius: 3, marginTop: 4 }} />
+        </div>
+        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.35)" }}>★ 4.9</div>
+      </div>
+      {/* CTA */}
+      <div style={{ marginTop: "auto", padding: "11px 0", background: "white", borderRadius: 11, textAlign: "center" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#18181b", fontFamily: F.inter }}>Jetzt buchen →</span>
+      </div>
+    </div>
+  );
+}
+
+/** Phone – Chat */
+function MockupChat() {
+  return (
+    <div style={{ flex: 1, background: "white", paddingTop: 24, display: "flex", flexDirection: "column", fontFamily: F.inter }}>
+      <div style={{ padding: "0 10px 10px", borderBottom: "1px solid #f4f4f5", display: "flex", alignItems: "center", gap: 7 }}>
+        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#18181b", flexShrink: 0, position: "relative" }}>
+          <div style={{ position: "absolute", bottom: 0, right: 0, width: 8, height: 8, borderRadius: "50%", background: "#22c55e", border: "2px solid white" }} />
+        </div>
+        <div>
+          <div style={{ height: 5, width: 52, background: "#18181b", borderRadius: 3 }} />
+          <div style={{ height: 4, width: 28, background: "#e4e4e7", borderRadius: 3, marginTop: 3 }} />
+        </div>
+      </div>
+      <div style={{ flex: 1, padding: "10px", display: "flex", flexDirection: "column", gap: 9, overflow: "hidden" }}>
+        {/* Incoming */}
+        <div style={{ alignSelf: "flex-start", maxWidth: "72%" }}>
+          <div style={{ background: "#f4f4f5", borderRadius: "11px 11px 11px 3px", padding: "7px 9px" }}>
+            <div style={{ height: 5, width: 72, background: "#d4d4d8", borderRadius: 3, marginBottom: 3 }} />
+            <div style={{ height: 5, width: 50, background: "#d4d4d8", borderRadius: 3 }} />
+          </div>
+        </div>
+        {/* Outgoing */}
+        <div style={{ alignSelf: "flex-end", maxWidth: "72%" }}>
+          <div style={{ background: "#18181b", borderRadius: "11px 11px 3px 11px", padding: "7px 9px" }}>
+            <div style={{ height: 5, width: 58, background: "rgba(255,255,255,0.28)", borderRadius: 3, marginBottom: 3 }} />
+            <div style={{ height: 5, width: 38, background: "rgba(255,255,255,0.14)", borderRadius: 3 }} />
+          </div>
+        </div>
+        {/* Incoming */}
+        <div style={{ alignSelf: "flex-start", maxWidth: "72%" }}>
+          <div style={{ background: "#f4f4f5", borderRadius: "11px 11px 11px 3px", padding: "7px 9px" }}>
+            <div style={{ height: 5, width: 62, background: "#d4d4d8", borderRadius: 3 }} />
+          </div>
+        </div>
+        {/* Timestamp */}
+        <div style={{ alignSelf: "center", fontSize: 7, color: "#a1a1aa" }}>Heute · 14:32</div>
+        {/* Outgoing 2 */}
+        <div style={{ alignSelf: "flex-end", maxWidth: "72%" }}>
+          <div style={{ background: "#18181b", borderRadius: "11px 11px 3px 11px", padding: "7px 9px" }}>
+            <div style={{ height: 5, width: 45, background: "rgba(255,255,255,0.28)", borderRadius: 3 }} />
+          </div>
+        </div>
+      </div>
+      {/* Input */}
+      <div style={{ padding: "8px 10px", borderTop: "1px solid #f4f4f5", display: "flex", gap: 5, alignItems: "center" }}>
+        <div style={{ flex: 1, height: 24, borderRadius: 12, background: "#f4f4f5", border: "1px solid #e4e4e7" }} />
+        <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#18181b", flexShrink: 0 }} />
+      </div>
+    </div>
+  );
+}
+
+/** MacBook – Studio Dashboard */
+function MockupDashboard() {
+  return (
+    <div style={{ width: "100%", height: "100%", background: "#f5f5f5", display: "flex", fontFamily: F.inter, overflow: "hidden" }}>
+      {/* Sidebar */}
+      <div style={{ width: 120, background: "#09090b", height: "100%", padding: "14px 9px", display: "flex", flexDirection: "column", gap: 3, flexShrink: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "white", fontFamily: F.play, marginBottom: 14, padding: "0 5px", letterSpacing: "-0.01em" }}>InkBook</div>
+        {[["Übersicht", true],["Buchungen", false],["Nachrichten", false],["Kalender", false],["Einstellungen", false]].map(([item, active], i) => (
+          <div key={i} style={{ padding: "6px 8px", borderRadius: 7, fontSize: 8.5, background: active ? "rgba(255,255,255,0.1)" : "transparent", color: active ? "white" : "rgba(255,255,255,0.35)" }}>{item}</div>
+        ))}
+      </div>
+      {/* Content */}
+      <div style={{ flex: 1, padding: "14px 13px", display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ height: 7, width: 90, background: "#18181b", borderRadius: 3, marginBottom: 4 }} />
+            <div style={{ height: 5, width: 130, background: "#d4d4d8", borderRadius: 3 }} />
+          </div>
+          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+            <div style={{ height: 5, width: 60, background: "#e4e4e7", borderRadius: 3 }} />
+            <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#18181b" }} />
+          </div>
+        </div>
+        {/* Stat cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 7 }}>
+          {[["12","Buchungen"],["4","Heute"],["8","Bestätigt"],["★ 4.9","Bewertung"]].map(([v,l], i) => (
+            <div key={i} style={{ background: "white", borderRadius: 9, padding: "9px 8px", border: "1px solid #ececec" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#18181b", marginBottom: 3 }}>{v}</div>
+              <div style={{ fontSize: 7, color: "#a1a1aa" }}>{l}</div>
+            </div>
+          ))}
+        </div>
+        {/* Revenue row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 7 }}>
+          {[["Tagesumsatz","€ 320",true],["Monatsumsatz","€ 2.840",false],["Gesamtumsatz","€ 11.200",false]].map(([l,v,dark], i) => (
+            <div key={i} style={{ background: dark ? "#18181b" : "white", borderRadius: 9, padding: "8px 9px", border: dark ? "none" : "1px solid #ececec" }}>
+              <div style={{ fontSize: 6.5, color: dark ? "rgba(255,255,255,0.4)" : "#a1a1aa", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>{l}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: dark ? "white" : "#18181b" }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Booking list */}
+        <div style={{ background: "white", borderRadius: 10, border: "1px solid #ececec", overflow: "hidden", flex: 1 }}>
+          <div style={{ padding: "8px 10px 6px", borderBottom: "1px solid #f5f5f5", display: "flex", justifyContent: "space-between" }}>
+            <div style={{ height: 5, width: 80, background: "#18181b", borderRadius: 3 }} />
+            <div style={{ height: 5, width: 40, background: "#e4e4e7", borderRadius: 3 }} />
+          </div>
+          {[["Lena M.","14:00"],["Max K.","15:30"],["Jana S.","17:00"]].map(([n,t], i) => (
+            <div key={i} style={{ padding: "7px 10px", borderBottom: i < 2 ? "1px solid #f9f9f9" : "none", display: "flex", alignItems: "center", gap: 7 }}>
+              <div style={{ width: 26, height: 26, borderRadius: 7, background: "#f4f4f5", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ height: 5, width: 55, background: "#18181b", borderRadius: 3, marginBottom: 3 }} />
+                <div style={{ height: 4, width: 38, background: "#e4e4e7", borderRadius: 3 }} />
+              </div>
+              <div style={{ fontSize: 8, color: "#71717a" }}>{t}</div>
+              <div style={{ padding: "2px 7px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 7, color: "#16a34a" }}>Bestätigt</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** MacBook – InkBook Logo Showcase (dark) */
+function MockupLogo() {
+  return (
+    <div style={{ width: "100%", height: "100%", background: "#060606", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, position: "relative", overflow: "hidden" }}>
+      {/* Radial glow */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(255,255,255,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
+      {/* Grid dots decoration */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.06, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+      {/* Logo */}
+      <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
+        <div style={{ fontSize: 38, fontWeight: 700, color: "white", fontFamily: F.play, letterSpacing: "-0.025em", lineHeight: 1, marginBottom: 10 }}>InkBook</div>
+        <div style={{ width: 36, height: 1, background: "rgba(255,255,255,0.15)", margin: "0 auto 10px" }} />
+        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", letterSpacing: "0.26em", textTransform: "uppercase", fontFamily: F.inter }}>Premium Tattoo Booking</div>
+      </div>
+      {/* 3 feature pills */}
+      <div style={{ display: "flex", gap: 8, marginTop: 24, position: "relative", zIndex: 1 }}>
+        {["Studios finden", "Sofort buchen", "Direkt chatten"].map((t, i) => (
+          <div key={i} style={{ padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", fontSize: 8, color: "rgba(255,255,255,0.45)", fontFamily: F.inter }}>{t}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** MacBook – Studio-Profil Ansicht (dark) */
+function MockupStudioProfile() {
+  return (
+    <div style={{ width: "100%", height: "100%", background: "#09090b", display: "flex", flexDirection: "column", fontFamily: F.inter, overflow: "hidden" }}>
+      {/* Nav */}
+      <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "white", fontFamily: F.play }}>InkBook</div>
+        <div style={{ display: "flex", gap: 5 }}>
+          {["Studios","Nachrichten","Account"].map((n,i) => <div key={i} style={{ fontSize: 7.5, color: "rgba(255,255,255,0.3)", padding: "3px 8px" }}>{n}</div>)}
+        </div>
+      </div>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Studio profile content */}
+        <div style={{ flex: 1, padding: "14px" }}>
+          {/* Hero image */}
+          <div style={{ height: 80, borderRadius: 10, background: "linear-gradient(135deg,#1e1e1e,#2d2d2d)", marginBottom: 10, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, opacity: 0.3, backgroundImage: "linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px)", backgroundSize: "16px 16px" }} />
+            <div style={{ position: "absolute", bottom: 10, left: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: "#18181b", border: "2px solid rgba(255,255,255,0.1)" }} />
+              <div>
+                <div style={{ height: 6, width: 80, background: "white", borderRadius: 3, marginBottom: 3, opacity: 0.9 }} />
+                <div style={{ height: 4, width: 50, background: "rgba(255,255,255,0.4)", borderRadius: 3 }} />
+              </div>
+            </div>
+          </div>
+          {/* Gallery row */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {[55,70,65,60].map((w,i) => (
+              <div key={i} style={{ flex: 1, height: 55, borderRadius: 8, background: `hsl(0,0%,${14+i*3}%)`, border: "1px solid rgba(255,255,255,0.06)" }} />
+            ))}
+          </div>
+          {/* Info row */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 7, color: "rgba(255,255,255,0.5)" }}>★ 4.9 (128)</div>
+            <div style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 7, color: "rgba(255,255,255,0.5)" }}>Berlin · Mitte</div>
+            <div style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 7, color: "rgba(255,255,255,0.5)" }}>Tattoo · Fine Line</div>
+          </div>
+        </div>
+        {/* Booking panel */}
+        <div style={{ width: 130, background: "rgba(255,255,255,0.03)", borderLeft: "1px solid rgba(255,255,255,0.06)", padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "white" }}>Termin buchen</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+            {["10:00","11:30","13:00","15:00"].map((t,i) => (
+              <div key={i} style={{ padding: "5px 3px", borderRadius: 7, textAlign: "center", background: i===1 ? "white" : "rgba(255,255,255,0.05)", border: `1px solid ${i===1 ? "white" : "rgba(255,255,255,0.06)"}` }}>
+                <span style={{ fontSize: 7.5, fontWeight: 600, color: i===1 ? "#18181b" : "rgba(255,255,255,0.6)" }}>{t}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: "auto", padding: "8px 0", background: "white", borderRadius: 8, textAlign: "center" }}>
+            <span style={{ fontSize: 8, fontWeight: 700, color: "#18181b" }}>Buchen</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** MacBook – Chat Desktop */
+function MockupChatDesktop() {
+  return (
+    <div style={{ width: "100%", height: "100%", background: "#fafafa", display: "flex", fontFamily: F.inter, overflow: "hidden" }}>
+      {/* Conversation list */}
+      <div style={{ width: 130, background: "white", borderRight: "1px solid #f0f0f0", display: "flex", flexDirection: "column", padding: "12px 0" }}>
+        <div style={{ padding: "0 10px 10px", fontSize: 10, fontWeight: 700, color: "#18181b" }}>Nachrichten</div>
+        {[["Dark Ink Studio","Bis bald!",true],["Sacred Needles","Termin bestätigt",""],["Noir Collective","Dankeschön",""]].map(([name,preview,online],i) => (
+          <div key={i} style={{ padding: "8px 10px", background: i===0 ? "#f5f5f5" : "transparent", display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: i===0 ? "#18181b" : "#e4e4e7", flexShrink: 0, position: "relative" }}>
+              {i===0 && <div style={{ position: "absolute", bottom: -1, right: -1, width: 8, height: 8, borderRadius: "50%", background: "#22c55e", border: "1.5px solid white" }} />}
+            </div>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ fontSize: 8, fontWeight: i===0 ? 700 : 400, color: "#18181b", marginBottom: 2 }}>{name}</div>
+              <div style={{ fontSize: 7, color: "#a1a1aa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preview}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Chat area */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#18181b", position: "relative" }}>
+            <div style={{ position: "absolute", bottom: 0, right: 0, width: 8, height: 8, borderRadius: "50%", background: "#22c55e", border: "1.5px solid white" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>Dark Ink Studio</div>
+            <div style={{ fontSize: 7, color: "#22c55e" }}>Online</div>
+          </div>
+        </div>
+        <div style={{ flex: 1, padding: "14px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {[[false,"Hallo! Hier meldet sich Dark Ink Studio zu deiner Buchung."],[true,"Super, ich freue mich auf den Termin!"],[false,"Wir sehen uns am Mittwoch um 14:00 Uhr. Bis dann!"]].map(([out,msg],i) => (
+            <div key={i} style={{ alignSelf: out ? "flex-end" : "flex-start", maxWidth: "65%" }}>
+              <div style={{ background: out ? "#18181b" : "white", border: out ? "none" : "1px solid #f0f0f0", borderRadius: out ? "12px 12px 3px 12px" : "12px 12px 12px 3px", padding: "8px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <div style={{ fontSize: 8, color: out ? "rgba(255,255,255,0.85)" : "#374151", lineHeight: 1.5 }}>{msg}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "8px 14px", borderTop: "1px solid #f0f0f0", display: "flex", gap: 7, alignItems: "center" }}>
+          <div style={{ flex: 1, height: 28, borderRadius: 14, background: "white", border: "1px solid #e4e4e7" }} />
+          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#18181b" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -307,9 +640,9 @@ function LandingNav() {
 }
 
 /* ══════════════════════════════════════════════════════
-   iPhone Mockup
+   iPhone Mockup  (src OR children)
 ══════════════════════════════════════════════════════ */
-function Phone({ src, width = 220, className = "", style = {} }) {
+function Phone({ src, children, width = 220, className = "", style = {} }) {
   const h = Math.round(width * 2.165);
   const r = Math.round(width * 0.13);
   return (
@@ -340,10 +673,10 @@ function Phone({ src, width = 220, className = "", style = {} }) {
           position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
           width: "28%", height: 11, background: "#000", borderRadius: 6, zIndex: 10,
         }} />
-        <img src={src} alt="" style={{
-          width: "100%", height: "100%", objectFit: "cover",
-          objectPosition: "top center", display: "block",
-        }} />
+        {src
+          ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" }} />
+          : <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>{children}</div>
+        }
         <div style={{
           position: "absolute", inset: 0,
           background: "linear-gradient(135deg, rgba(255,255,255,.07) 0%, transparent 45%)",
@@ -355,9 +688,9 @@ function Phone({ src, width = 220, className = "", style = {} }) {
 }
 
 /* ══════════════════════════════════════════════════════
-   MacBook Mockup
+   MacBook Mockup  (src OR children)
 ══════════════════════════════════════════════════════ */
-function MacBook({ src, width = 520, className = "", style = {} }) {
+function MacBook({ src, children, width = 520, className = "", style = {} }) {
   const screenW   = Math.round(width * 0.84);
   const screenH   = Math.round(screenW / 1.6);
   const bezelT    = Math.round(width * 0.04);
@@ -391,15 +724,13 @@ function MacBook({ src, width = 520, className = "", style = {} }) {
           width: "100%", height: "100%", borderRadius: 3,
           overflow: "hidden", background: "#050505", position: "relative",
         }}>
-          <img src={src} alt="" style={{
-            width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "top left", display: "block",
-          }} />
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "linear-gradient(140deg, rgba(255,255,255,.055) 0%, transparent 42%)",
-            pointerEvents: "none",
-          }} />
+          {src
+            ? <>
+                <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top left", display: "block" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(140deg, rgba(255,255,255,.055) 0%, transparent 42%)", pointerEvents: "none" }} />
+              </>
+            : children
+          }
         </div>
       </div>
       <div style={{
@@ -611,12 +942,12 @@ export default function LandingPage() {
           className="absolute inset-0 hidden sm:flex items-center justify-center"
           style={{ perspective: "1200px", perspectiveOrigin: "50% 44%" }}>
 
-          {/* MacBook – centered, behind phones */}
+          {/* MacBook – Dashboard */}
           <div className="hero-macbook absolute" style={{
             left: "50%", top: "50%", transform: "translateX(-50%)",
             marginTop: -190, transformStyle: "preserve-3d", zIndex: 1,
           }}>
-            <MacBook src="/screenshots/desktop.jpg" width={520} />
+            <MacBook width={520}><MockupDashboard /></MacBook>
           </div>
 
           {/* Phone 1 – left (Search) */}
@@ -624,7 +955,7 @@ export default function LandingPage() {
             left: "calc(50% - 334px)", top: "50%", marginTop: -158,
             transformStyle: "preserve-3d", zIndex: 2,
           }}>
-            <Phone src="/screenshots/search.jpg" width={152} />
+            <Phone width={152}><MockupSearch /></Phone>
           </div>
 
           {/* Phone 2 – center (Booking, tallest) */}
@@ -632,7 +963,7 @@ export default function LandingPage() {
             left: "calc(50% + 18px)", top: "50%", marginTop: -206,
             transformStyle: "preserve-3d", zIndex: 3,
           }}>
-            <Phone src="/screenshots/booking.jpg" width={192} />
+            <Phone width={192}><MockupBooking /></Phone>
           </div>
 
           {/* Phone 3 – right (Chat) */}
@@ -640,7 +971,7 @@ export default function LandingPage() {
             left: "calc(50% + 240px)", top: "50%", marginTop: -152,
             transformStyle: "preserve-3d", zIndex: 2,
           }}>
-            <Phone src="/screenshots/chat.jpg" width={152} />
+            <Phone width={152}><MockupChat /></Phone>
           </div>
         </div>
 
@@ -701,8 +1032,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="f-device hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
-            <MacBook src="/screenshots/desktop.jpg" width={440}
-              style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }} />
+            <MacBook width={440} style={{ filter: "drop-shadow(0 40px 70px rgba(0,0,0,0.16))" }}><MockupDashboard /></MacBook>
           </div>
         </div>
       </section>
@@ -716,7 +1046,7 @@ export default function LandingPage() {
         <Smoke dark />
         <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-20 items-center">
           <div className="f-device order-2 lg:order-1 hidden sm:flex justify-center" style={{ perspective: "1000px" }}>
-            <MacBook src="/screenshots/desktop-booking.jpg" width={440} />
+            <MacBook width={440}><MockupLogo /></MacBook>
           </div>
           <div className="order-1 lg:order-2">
             <p className="f-line text-[10px] tracking-[.28em] uppercase mb-5"
