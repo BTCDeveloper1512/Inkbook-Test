@@ -2488,9 +2488,40 @@ async def submit_report(data: ReportCreate, current_user: dict = Depends(get_cur
     doc = {"report_id": f"rep_{uuid.uuid4().hex[:10]}", "reporter_id": user_id, "reporter_name": current_user.get("name", ""),
            "target_type": data.target_type, "target_id": data.target_id, "reason": data.reason,
            "status": "open", "created_at": datetime.now(timezone.utc).isoformat()}
+    # Store review context so admin can read it without extra lookup
+    if data.target_type == "review":
+        review = await db.reviews.find_one({"review_id": data.target_id}, {"_id": 0})
+        if review:
+            doc["target_preview"] = {
+                "rating": review.get("rating"),
+                "comment": review.get("comment", ""),
+                "user_name": review.get("user_name", ""),
+                "studio_id": review.get("studio_id", ""),
+            }
     await db.reports.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+@api_router.delete("/admin/reports/{report_id}/delete-review")
+async def admin_delete_review_from_report(report_id: str, current_user: dict = Depends(require_admin)):
+    """Delete both the report and the associated review, recalculate studio avg_rating."""
+    report = await db.reports.find_one({"report_id": report_id})
+    if not report:
+        raise HTTPException(status_code=404, detail="Meldung nicht gefunden")
+    review_id = report.get("target_id")
+    review = await db.reviews.find_one({"review_id": review_id}) if review_id else None
+    if review:
+        studio_id = review.get("studio_id")
+        await db.reviews.delete_one({"review_id": review_id})
+        if studio_id:
+            remaining = await db.reviews.find({"studio_id": studio_id}).to_list(1000)
+            if remaining:
+                avg = sum(r["rating"] for r in remaining) / len(remaining)
+                await db.studios.update_one({"studio_id": studio_id}, {"$set": {"avg_rating": round(avg, 1), "review_count": len(remaining)}})
+            else:
+                await db.studios.update_one({"studio_id": studio_id}, {"$set": {"avg_rating": 0, "review_count": 0}})
+    await db.reports.delete_one({"report_id": report_id})
+    return {"deleted": True}
 
 @api_router.get("/admin/reports")
 async def admin_get_reports(current_user: dict = Depends(require_admin)):

@@ -246,6 +246,11 @@ export default function AdminPage() {
     await ax().delete(`${API}/admin/reports/${reportId}`);
     setReports(p => p.filter(r => r.report_id !== reportId));
   };
+  const deleteReviewFromReport = async (reportId) => {
+    if (!window.confirm("Bewertung dauerhaft löschen und Meldung schließen?")) return;
+    await ax().delete(`${API}/admin/reports/${reportId}/delete-review`);
+    setReports(p => p.filter(r => r.report_id !== reportId));
+  };
   const saveFaq = async () => {
     if (faqModal === "new") {
       const r = await ax().post(`${API}/admin/faq`, faqForm);
@@ -1078,18 +1083,41 @@ export default function AdminPage() {
                       <div className="divide-y divide-zinc-50">
                         {reports.map((r) => (
                           <div key={r.report_id} className={`px-5 py-4 flex items-start justify-between hover:bg-zinc-50 ${r.status === "dismissed" ? "opacity-50" : ""}`}>
-                            <div>
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <Pill type={r.status}>{r.status}</Pill>
                                 <span className="text-xs text-zinc-400 font-inter">{r.target_type} · {r.reporter_name || "Anonym"}</span>
                               </div>
                               <p className="text-sm font-inter text-zinc-800">{r.reason}</p>
+                              {/* Show review preview if target_type is review */}
+                              {r.target_type === "review" && r.target_preview && (
+                                <div className="mt-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="text-xs font-inter font-semibold text-zinc-700">{r.target_preview.user_name || "Unbekannt"}</span>
+                                    <div className="flex gap-0.5">
+                                      {[1,2,3,4,5].map(n => (
+                                        <span key={n} style={{ fontSize: 10, color: n <= r.target_preview.rating ? "#f59e0b" : "#e4e4e7" }}>★</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs font-inter text-zinc-600 italic">"{r.target_preview.comment}"</p>
+                                </div>
+                              )}
                               <p className="text-xs text-zinc-400 font-inter mt-1">{r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : ""}</p>
                             </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
                               {r.status === "open" && (
                                 <button onClick={() => dismissReport(r.report_id)} className="text-xs px-2.5 py-1 rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-50 font-inter transition-colors" data-testid={`dismiss-report-${r.report_id}`}>
                                   Schließen
+                                </button>
+                              )}
+                              {r.target_type === "review" && r.status !== "dismissed" && (
+                                <button
+                                  onClick={() => deleteReviewFromReport(r.report_id)}
+                                  className="text-xs px-2.5 py-1 rounded-full bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 font-inter transition-colors"
+                                  data-testid={`delete-review-from-report-${r.report_id}`}
+                                >
+                                  Bewertung löschen
                                 </button>
                               )}
                               <button onClick={() => deleteReport(r.report_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>

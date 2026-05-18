@@ -6,7 +6,7 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
@@ -399,6 +399,11 @@ export default function StudioPage() {
   const [igActive, setIgActive] = useState(null); // artist_id currently showing instagram popup
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [lightbox, setLightbox] = useState(null); // { imgs: [], idx: 0 }
+  // Review reporting
+  const [reportingReviewId, setReportingReviewId] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportedIds, setReportedIds] = useState(new Set());
 
   // Load lottie animation once (local file to avoid CORS)
   useEffect(() => {
@@ -495,6 +500,25 @@ export default function StudioPage() {
       const { data } = await axios.post(`${API}/upload/image`, formData, { withCredentials: true });
       setRefImages(prev => [...prev, data.url]);
     } catch {} finally { setUploadingRef(false); }
+  };
+
+  const submitReviewReport = async () => {
+    if (!reportingReviewId || !reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await axios.post(`${API}/reports`, {
+        target_type: "review",
+        target_id: reportingReviewId,
+        reason: reportReason.trim(),
+      }, { withCredentials: true });
+      setReportedIds(prev => new Set([...prev, reportingReviewId]));
+      setReportingReviewId(null);
+      setReportReason("");
+    } catch (e) {
+      alert(e.response?.data?.detail || "Meldung fehlgeschlagen");
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   if (loading) return (
@@ -686,14 +710,68 @@ export default function StudioPage() {
                           <div className="w-8 h-8 bg-zinc-900 text-white rounded-full flex items-center justify-center text-xs font-bold font-inter">{r.user_name?.[0]?.toUpperCase()}</div>
                           <span className="font-inter font-semibold text-sm text-zinc-900">{r.user_name}</span>
                         </div>
-                        <div className="flex gap-0.5">
-                          {[1,2,3,4,5].map(n => (
-                            <Star key={n} size={13} className={n <= r.rating ? "fill-amber-400 text-amber-400" : "text-zinc-200"} strokeWidth={1.5} />
-                          ))}
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-0.5">
+                            {[1,2,3,4,5].map(n => (
+                              <Star key={n} size={13} className={n <= r.rating ? "fill-amber-400 text-amber-400" : "text-zinc-200"} strokeWidth={1.5} />
+                            ))}
+                          </div>
+                          {user && (
+                            reportedIds.has(r.review_id)
+                              ? <span className="text-[10px] text-zinc-400 font-inter">Gemeldet</span>
+                              : <button
+                                  onClick={() => { setReportingReviewId(r.review_id); setReportReason(""); }}
+                                  className="p-1.5 rounded-lg text-zinc-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                                  title="Bewertung melden"
+                                  data-testid={`report-review-btn-${r.review_id}`}
+                                >
+                                  <Flag size={13} strokeWidth={1.5} />
+                                </button>
+                          )}
                         </div>
                       </div>
                       <p className="text-sm text-zinc-600 font-inter leading-relaxed">{r.comment}</p>
                       <p className="text-xs text-zinc-400 font-inter mt-2">{new Date(r.created_at).toLocaleDateString("de-DE")}</p>
+
+                      {/* Inline report form */}
+                      <AnimatePresence>
+                        {reportingReviewId === r.review_id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-4 pt-4 border-t border-zinc-100">
+                              <p className="text-xs font-inter font-semibold text-zinc-700 mb-2">Grund der Meldung</p>
+                              <textarea
+                                value={reportReason}
+                                onChange={e => setReportReason(e.target.value)}
+                                placeholder="Beschreibe kurz, warum du diese Bewertung meldest..."
+                                rows={2}
+                                className="w-full text-xs font-inter text-zinc-700 border border-zinc-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:border-zinc-400 transition-colors"
+                                data-testid="report-review-reason-input"
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={submitReviewReport}
+                                  disabled={reportSubmitting || !reportReason.trim()}
+                                  className="px-3 py-1.5 bg-zinc-900 text-white rounded-lg text-xs font-inter font-medium hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                                  data-testid="report-review-submit-btn"
+                                >
+                                  {reportSubmitting ? "..." : "Melden"}
+                                </button>
+                                <button
+                                  onClick={() => { setReportingReviewId(null); setReportReason(""); }}
+                                  className="px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg text-xs font-inter hover:bg-zinc-50 transition-colors"
+                                >
+                                  Abbrechen
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                 </motion.div>
