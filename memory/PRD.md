@@ -44,7 +44,17 @@ Design a web app ("InkBook") similar to Doctolib, exclusively for Tattoo Studios
 - `messages`: id, sender_id, receiver_id, content, timestamp, image_url
 - `subscriptions`: studio_id, plan, status, expires_at
 
-### Mai 2026 – Zurück-Button, Buchungs-Suche, Umsatz-Tracking ✅
+### Mai 2026 – Bewertungen Melden + Admin Review-Moderation ✅
+- `StudioPage.js`: Flag-Button (Lucide `Flag`) pro Bewertungskarte – nur für eingeloggte Nutzer sichtbar
+- Inline-Formular öffnet sich per AnimatePresence: Textarea für Meldegrund + "Melden"/"Abbrechen"-Buttons
+- Nach erfolgreicher Meldung: "Gemeldet"-Status statt Button (verhindert Doppelmeldung per Session)
+- Backend: `POST /api/reports` erweitert – speichert `target_preview` (rating, comment, user_name) bei `target_type="review"`
+- Backend: `DELETE /api/admin/reports/{id}/delete-review` – löscht Meldung + zugehörige Bewertung + aktualisiert Studio-Avg-Rating
+- `AdminPage.js`: Meldungen-Sektion zeigt bei Review-Meldungen amber-farbige Preview-Box (Rating-Sterne + Kommentar)
+- Neuer "Bewertung löschen"-Button (rot) für Review-Meldungen; normales "Schließen" bleibt für alle Meldungstypen
+- Testing: Iteration 37 – 100% Backend (5/5) + 100% Frontend ✅
+
+
 - Navbar: Zurück-Button (ArrowLeft, Framer-Motion) auf allen Seiten außer `/`, `/login`, `/register`
 - StudioDashboard Buchungen-Tab: Suchleiste filtert nach Name, E-Mail, Datum, Buchungsart, Status, Uhrzeit, Anmerkungen
 - Backend: `PUT /api/bookings/{booking_id}/complete` – speichert `revenue` (float) + setzt Status `completed`
