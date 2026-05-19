@@ -401,7 +401,7 @@ async def register(data: UserRegister, response: JSONResponse = None):
     
     user_doc = {
         "email": email,
-        "password_hash": hash_password(data.password),
+        "password_hash": await asyncio.to_thread(hash_password, data.password),
         "name": data.name,
         "role": data.role,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -430,7 +430,7 @@ async def login(data: UserLogin):
     from fastapi.responses import JSONResponse as JR
     email = data.email.lower()
     user = await db.users.find_one({"email": email})
-    if not user or not verify_password(data.password, user.get("password_hash", "")):
+    if not user or not await asyncio.to_thread(verify_password, data.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     user_id = str(user["_id"])
