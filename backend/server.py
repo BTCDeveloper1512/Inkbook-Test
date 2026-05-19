@@ -1291,7 +1291,7 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
         raise HTTPException(status_code=403, detail="Not authorized")
 
     session_id = f"pay_{uuid.uuid4().hex[:16]}"
-    amount = float(booking.get("deposit_amount", 50.0))
+    amount = 0.01  # TEST MODE – feste Anzahlung für Tests
 
     studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1})
     studio_name = studio.get("name", "Studio") if studio else "Studio"
