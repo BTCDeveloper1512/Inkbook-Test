@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings } from "lucide-react";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import DashboardHeroSmoke from "../components/DashboardHeroSmoke";
@@ -307,17 +307,33 @@ export default function CustomerDashboard() {
             <DashboardHeroSmoke />
             <div className="relative px-4 sm:px-8 pt-6 sm:pt-8 pb-8 sm:pb-10">
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
-                <p className="text-[10px] tracking-[0.28em] uppercase font-inter mb-2" style={{ color: "rgba(255,255,255,0.28)" }}>Mein Konto</p>
-                <div className="flex items-baseline gap-3">
-                  <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(26px, 4vw, 36px)" }}>
-                    Hallo, {user?.name?.split(" ")[0]}
-                  </h1>
-                  <motion.span
-                    initial={{ opacity: 0, rotate: -30, scale: 0.5 }}
-                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                    transition={{ delay: 0.35, type: "spring", stiffness: 260, damping: 15 }}
-                    className="text-2xl select-none"
-                  >👋</motion.span>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-[10px] tracking-[0.28em] uppercase font-inter mb-2" style={{ color: "rgba(255,255,255,0.28)" }}>Mein Konto</p>
+                    <div className="flex items-baseline gap-3">
+                      <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(26px, 4vw, 36px)" }}>
+                        Hallo, {user?.name?.split(" ")[0]}
+                      </h1>
+                      <motion.span
+                        initial={{ opacity: 0, rotate: -30, scale: 0.5 }}
+                        animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                        transition={{ delay: 0.35, type: "spring", stiffness: 260, damping: 15 }}
+                        className="text-2xl select-none"
+                      >👋</motion.span>
+                    </div>
+                  </div>
+                  <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 260, damping: 18 }}>
+                    <Link
+                      to="/settings"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-inter font-medium transition-all"
+                      style={{ background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.12)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "#fff"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; e.currentTarget.style.color = "rgba(255,255,255,0.75)"; }}
+                    >
+                      <Settings size={14} strokeWidth={1.5} />
+                      Einstellungen
+                    </Link>
+                  </motion.div>
                 </div>
               </motion.div>
             </div>

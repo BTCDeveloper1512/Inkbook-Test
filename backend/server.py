@@ -460,6 +460,52 @@ async def logout():
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
+# ── User Profile ─────────────────────────────────────────────────────────────
+
+class UpdateProfileRequest(BaseModel):
+    name: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@api_router.put("/users/me")
+async def update_profile(data: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name darf nicht leer sein")
+    user_id = current_user["id"]
+    await db.users.update_one({"_id": user_id}, {"$set": {"name": name}})
+    return {**current_user, "name": name}
+
+@api_router.put("/users/me/password")
+async def change_password(data: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    user = await db.users.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    if not user.get("password_hash"):
+        raise HTTPException(status_code=400, detail="Passwort-Änderung nicht möglich (Social Login)")
+    ok = await asyncio.to_thread(verify_password, data.current_password, user["password_hash"])
+    if not ok:
+        raise HTTPException(status_code=400, detail="Aktuelles Passwort ist falsch")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Neues Passwort muss mindestens 8 Zeichen haben")
+    new_hash = await asyncio.to_thread(hash_password, data.new_password)
+    await db.users.update_one({"_id": user_id}, {"$set": {"password_hash": new_hash}})
+    return {"message": "Passwort erfolgreich geändert"}
+
+@api_router.delete("/users/me")
+async def delete_account(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    await db.bookings.delete_many({"user_id": user_id})
+    await db.users.delete_one({"_id": user_id})
+    from fastapi.responses import JSONResponse as JR
+    resp = JR(content={"message": "Konto erfolgreich gelöscht"})
+    resp.delete_cookie("access_token", path="/")
+    resp.delete_cookie("refresh_token", path="/")
+    return resp
+
 # ── Password Reset ──────────────────────────────────────────────────────────
 
 class ForgotPasswordRequest(BaseModel):

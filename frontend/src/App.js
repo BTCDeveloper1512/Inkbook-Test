@@ -13,6 +13,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SearchPage from "./pages/SearchPage";
 import StudioPage from "./pages/StudioPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import CustomerSettingsPage from "./pages/CustomerSettingsPage";
 import StudioDashboard from "./pages/StudioDashboard";
 import MessagesPage from "./pages/MessagesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
@@ -57,6 +58,9 @@ function AppRouter() {
         } />
         <Route path="/dashboard" element={
           <ProtectedRoute><CustomerDashboard /></ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute><CustomerSettingsPage /></ProtectedRoute>
         } />
         <Route path="/studio-dashboard" element={
           <ProtectedRoute requiredRole="studio_owner"><StudioDashboard /></ProtectedRoute>
