@@ -318,6 +318,9 @@ class StudioUpdate(BaseModel):
     banner_image: Optional[str] = None
     logo_image: Optional[str] = None
     video_consultation_enabled: Optional[bool] = None
+    bank_holder: Optional[str] = None
+    bank_iban: Optional[str] = None
+    bank_bic: Optional[str] = None
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
@@ -1290,8 +1293,11 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     session_id = f"pay_{uuid.uuid4().hex[:16]}"
     amount = float(booking.get("deposit_amount", 50.0))
 
-    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1})
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1})
     studio_name = studio.get("name", "Studio") if studio else "Studio"
+    bank_holder = studio.get("bank_holder", "") if studio else ""
+    bank_iban = studio.get("bank_iban", "") if studio else ""
+    bank_bic = studio.get("bank_bic", "") if studio else ""
 
     await db.payment_transactions.insert_one({
         "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
@@ -1311,7 +1317,10 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
         "currency": "eur",
         "studio_name": studio_name,
         "booking_date": booking.get("date", ""),
-        "booking_time": booking.get("start_time", "")
+        "booking_time": booking.get("start_time", ""),
+        "bank_holder": bank_holder,
+        "bank_iban": bank_iban,
+        "bank_bic": bank_bic
     }
 
 @api_router.post("/payments/confirm/{session_id}")
