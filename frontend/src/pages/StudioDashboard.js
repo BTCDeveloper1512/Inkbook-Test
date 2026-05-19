@@ -1100,7 +1100,7 @@ export default function StudioDashboard() {
                       setEditForm(prev => ({
                         ...prev,
                         bank_iban: raw,
-                        bank_bic: lookup ? lookup.bic : prev.bank_bic,
+                        bank_bic: (lookup && lookup.bic) ? lookup.bic : prev.bank_bic,
                         bank_institution: lookup ? lookup.name : ""
                       }));
                     }}
