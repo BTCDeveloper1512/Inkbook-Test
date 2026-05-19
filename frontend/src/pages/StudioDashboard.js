@@ -210,7 +210,7 @@ export default function StudioDashboard() {
         fetchSlots(data.studio.studio_id);
         const studio = data.studio;
         const ibanLookup = studio.bank_iban ? lookupIban(studio.bank_iban) : null;
-        setEditForm({ ...studio, bank_institution: ibanLookup ? ibanLookup.name : "" });
+        setEditForm(prev => prev === null ? { ...studio, bank_institution: ibanLookup ? ibanLookup.name : "" } : prev);
       }
     } catch { navigate("/login"); } finally { setLoading(false); }
   };
