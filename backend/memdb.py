@@ -55,10 +55,16 @@ _STORE: Dict[str, List] = _load_db()
 
 def _match_value(doc_val, condition):
     if not isinstance(condition, dict):
+        # Array "contains" check: {"participants": user_id} → list contains value
+        if isinstance(doc_val, list):
+            return _to_str(condition) in [_to_str(v) for v in doc_val]
         return _to_str(doc_val) == _to_str(condition)
     for op, val in condition.items():
         if op == "$eq":
-            if _to_str(doc_val) != _to_str(val):
+            if isinstance(doc_val, list):
+                if _to_str(val) not in [_to_str(v) for v in doc_val]:
+                    return False
+            elif _to_str(doc_val) != _to_str(val):
                 return False
         elif op == "$ne":
             if _to_str(doc_val) == _to_str(val):
@@ -80,6 +86,19 @@ def _match_value(doc_val, condition):
                 return False
         elif op == "$nin":
             if _to_str(doc_val) in [_to_str(v) for v in val]:
+                return False
+        elif op == "$exists":
+            exists = doc_val is not None
+            if val and not exists:
+                return False
+            if not val and exists:
+                return False
+        elif op == "$regex":
+            import re
+            flags = 0
+            if condition.get("$options", "") and "i" in condition.get("$options", ""):
+                flags = re.IGNORECASE
+            if doc_val is None or not re.search(str(val), str(doc_val), flags):
                 return False
         else:
             return False
