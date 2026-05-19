@@ -1115,18 +1115,6 @@ export default function StudioDashboard() {
                     </p>
                   )}
                 </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">BIC / SWIFT</label>
-                  <input
-                    type="text"
-                    value={editForm.bank_bic || ""}
-                    onChange={e => setEditForm({ ...editForm, bank_bic: e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 11) })}
-                    placeholder="Wird automatisch erkannt"
-                    className="input-base w-full font-mono"
-                    data-testid="bank-bic-input"
-                  />
-                  <p className="mt-1 text-[10px] text-zinc-400 font-inter">Wird automatisch aus der IBAN ermittelt</p>
-                </div>
               </div>
               {editForm.bank_iban && editForm.bank_iban.replace(/\s/g,"").length >= 15 && (
                 <div className="mt-4 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-2">
