@@ -1289,6 +1289,142 @@ def get_stripe_client():
     stripe_lib.api_key = sk
     return stripe_lib
 
+# ─── Stripe Connect ───────────────────────────────────────────────────────────
+
+@api_router.post("/stripe/connect/create")
+async def create_connect_account(request: Request, current_user: dict = Depends(get_current_user)):
+    """Create a Stripe Connect Express account for a studio and return the onboarding URL."""
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": owner_id}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Kein Studio gefunden")
+
+    stripe = get_stripe_client()
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+
+    # If already has a connect account, just create a new onboarding link
+    existing_account_id = studio.get("stripe_connect_account_id")
+    if existing_account_id:
+        account = await asyncio.to_thread(stripe_lib.Account.retrieve, existing_account_id)
+        # If already fully onboarded, return status
+        if account.get("details_submitted"):
+            return {
+                "status": "complete",
+                "account_id": existing_account_id,
+                "onboarding_url": None
+            }
+        # Otherwise create a fresh account link
+        origin = str(request.base_url).rstrip("/")
+        account_link = await asyncio.to_thread(
+            stripe_lib.AccountLink.create,
+            account=existing_account_id,
+            refresh_url=f"{origin}/api/stripe/connect/refresh",
+            return_url=f"{origin}/api/stripe/connect/return",
+            type="account_onboarding",
+        )
+        return {"status": "pending", "account_id": existing_account_id, "onboarding_url": account_link["url"]}
+
+    # Create a fresh Express account
+    studio_email = studio.get("email") or current_user.get("email", "")
+    account = await asyncio.to_thread(
+        stripe_lib.Account.create,
+        type="express",
+        country="DE",
+        email=studio_email if studio_email else None,
+        capabilities={"transfers": {"requested": True}, "card_payments": {"requested": True}},
+        business_type="individual",
+        metadata={"studio_id": studio["studio_id"], "owner_id": owner_id},
+    )
+    account_id = account["id"]
+
+    # Persist account id on studio
+    await db.studios.update_one(
+        {"studio_id": studio["studio_id"]},
+        {"$set": {"stripe_connect_account_id": account_id, "stripe_connect_status": "pending"}}
+    )
+
+    origin = str(request.base_url).rstrip("/")
+    account_link = await asyncio.to_thread(
+        stripe_lib.AccountLink.create,
+        account=account_id,
+        refresh_url=f"{origin}/api/stripe/connect/refresh",
+        return_url=f"{origin}/api/stripe/connect/return",
+        type="account_onboarding",
+    )
+    return {"status": "pending", "account_id": account_id, "onboarding_url": account_link["url"]}
+
+
+@api_router.get("/stripe/connect/status")
+async def get_connect_status(current_user: dict = Depends(get_current_user)):
+    """Return the Stripe Connect status for the studio owned by the current user."""
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": owner_id}, {"_id": 0, "stripe_connect_account_id": 1, "stripe_connect_status": 1})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Kein Studio gefunden")
+
+    account_id = studio.get("stripe_connect_account_id")
+    if not account_id:
+        return {"status": "not_connected", "account_id": None}
+
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    try:
+        account = await asyncio.to_thread(stripe_lib.Account.retrieve, account_id)
+        details_submitted = account.get("details_submitted", False)
+        charges_enabled = account.get("charges_enabled", False)
+        payouts_enabled = account.get("payouts_enabled", False)
+        status = "complete" if (details_submitted and charges_enabled) else "pending"
+        await db.studios.update_one(
+            {"stripe_connect_account_id": account_id},
+            {"$set": {"stripe_connect_status": status}}
+        )
+        return {
+            "status": status,
+            "account_id": account_id,
+            "details_submitted": details_submitted,
+            "charges_enabled": charges_enabled,
+            "payouts_enabled": payouts_enabled,
+        }
+    except Exception as e:
+        return {"status": "error", "account_id": account_id, "error": str(e)}
+
+
+@api_router.get("/stripe/connect/return")
+async def connect_return(request: Request):
+    """Redirect target after Stripe Connect onboarding completes."""
+    return JSONResponse({"message": "Onboarding abgeschlossen. Du kannst dieses Fenster schließen."})
+
+
+@api_router.get("/stripe/connect/refresh")
+async def connect_refresh(request: Request):
+    """Redirect target when onboarding link expires — tell frontend to start again."""
+    return JSONResponse({"message": "Der Link ist abgelaufen. Bitte starte das Onboarding erneut."})
+
+
+@api_router.post("/stripe/connect/webhook")
+async def stripe_connect_webhook(request: Request):
+    """Handle Stripe Connect account.updated webhooks to sync status."""
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    payload = await request.body()
+    try:
+        event = stripe_lib.Event.construct_from(json.loads(payload), stripe_lib.api_key)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+
+    if event["type"] == "account.updated":
+        account = event["data"]["object"]
+        account_id = account["id"]
+        details_submitted = account.get("details_submitted", False)
+        charges_enabled = account.get("charges_enabled", False)
+        status = "complete" if (details_submitted and charges_enabled) else "pending"
+        await db.studios.update_one(
+            {"stripe_connect_account_id": account_id},
+            {"$set": {"stripe_connect_status": status}}
+        )
+    return {"received": True}
+
 @api_router.post("/payments/create-session")
 async def create_payment_session(data: PaymentCreateRequest, request: Request, current_user: dict = Depends(get_current_user)):
     booking = await db.bookings.find_one({"booking_id": data.booking_id}, {"_id": 0})
@@ -1299,7 +1435,7 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     if booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1, "deposit_amount": 1})
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1, "deposit_amount": 1, "stripe_connect_account_id": 1, "stripe_connect_status": 1})
     studio_name = studio.get("name", "Studio") if studio else "Studio"
     bank_holder = studio.get("bank_holder", "") if studio else ""
     bank_iban = studio.get("bank_iban", "") if studio else ""
@@ -1312,11 +1448,12 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
 
     session_id = f"pay_{uuid.uuid4().hex[:16]}"
 
-    # Create real Stripe PaymentIntent
+    # Build PaymentIntent kwargs — route to studio's Connect account if available
     customer_email = current_user.get("email", "")
     stripe = get_stripe_client()
-    intent = await asyncio.to_thread(
-        stripe.PaymentIntent.create,
+    connect_account_id = studio.get("stripe_connect_account_id") if studio else None
+    connect_status = studio.get("stripe_connect_status") if studio else None
+    pi_kwargs = dict(
         amount=amount_cents,
         currency="eur",
         automatic_payment_methods={"enabled": True},
@@ -1327,7 +1464,15 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
             "user_id": user_id,
             "studio_name": studio_name,
         },
-        description=f"Anzahlung – {studio_name}"
+        description=f"Anzahlung – {studio_name}",
+    )
+    if connect_account_id and connect_status == "complete":
+        pi_kwargs["transfer_data"] = {"destination": connect_account_id}
+
+    # Create real Stripe PaymentIntent
+    intent = await asyncio.to_thread(
+        stripe.PaymentIntent.create,
+        **pi_kwargs,
     )
 
     await db.payment_transactions.insert_one({

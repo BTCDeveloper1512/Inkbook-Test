@@ -50,6 +50,8 @@ export default function StudioDashboard() {
   const [notesLightbox, setNotesLightbox] = useState(null);
   const [bookingSearch, setBookingSearch] = useState("");
   const [revenueInputs, setRevenueInputs] = useState({});
+  const [connectStatus, setConnectStatus] = useState(null);
+  const [connectLoading, setConnectLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -208,11 +210,32 @@ export default function StudioDashboard() {
       setStats(data);
       if (data.has_studio && data.studio) {
         fetchSlots(data.studio.studio_id);
+        fetchConnectStatus();
         const studio = data.studio;
         const ibanLookup = studio.bank_iban ? lookupIban(studio.bank_iban) : null;
         setEditForm(prev => prev === null ? { ...studio, bank_institution: ibanLookup ? ibanLookup.name : "" } : prev);
       }
     } catch { navigate("/login"); } finally { setLoading(false); }
+  };
+
+  const fetchConnectStatus = async () => {
+    try {
+      const { data } = await axios.get(`${API}/stripe/connect/status`, { withCredentials: true });
+      setConnectStatus(data);
+    } catch {}
+  };
+
+  const handleConnectStripe = async () => {
+    setConnectLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/stripe/connect/create`, {}, { withCredentials: true });
+      if (data.onboarding_url) {
+        window.open(data.onboarding_url, "_blank", "noopener,noreferrer");
+        setTimeout(() => fetchConnectStatus(), 3000);
+      } else if (data.status === "complete") {
+        fetchConnectStatus();
+      }
+    } catch (e) { alert(e.response?.data?.detail || "Stripe-Fehler"); } finally { setConnectLoading(false); }
   };
 
   const fetchSlots = async (studioId) => {
@@ -1107,6 +1130,69 @@ export default function StudioDashboard() {
               </p>
             </div>
             */}
+
+            {/* ── Stripe Connect ── */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <div className="flex items-start justify-between mb-1">
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Stripe Konto verbinden</h3>
+                {connectStatus?.status === "complete" ? (
+                  <span className="text-[10px] font-inter font-semibold tracking-widest uppercase bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <CheckCircle size={10} strokeWidth={2} /> Verbunden
+                  </span>
+                ) : connectStatus?.status === "pending" ? (
+                  <span className="text-[10px] font-inter font-semibold tracking-widest uppercase bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">Ausstehend</span>
+                ) : (
+                  <span className="text-[10px] font-inter font-semibold tracking-widest uppercase bg-zinc-100 text-zinc-500 px-2.5 py-1 rounded-full">Nicht verbunden</span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 font-inter mb-5">
+                Verbinde dein Stripe-Konto damit Anzahlungen direkt auf dein Bankkonto ausgezahlt werden. Stripe führt dich durch das Onboarding (KYC, Bankdaten).
+              </p>
+
+              {connectStatus?.status === "complete" ? (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle size={16} className="text-emerald-600" strokeWidth={2} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-inter font-semibold text-emerald-800">Stripe erfolgreich verbunden</p>
+                    <p className="text-xs text-emerald-600 font-inter mt-0.5">Anzahlungen werden direkt auf dein Bankkonto überwiesen.</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {connectStatus?.status === "pending" && (
+                    <div className="mb-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                      <p className="text-xs text-amber-700 font-inter font-medium">Onboarding noch nicht abgeschlossen. Klicke auf "Weiter bei Stripe" um fortzufahren.</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleConnectStripe}
+                      disabled={connectLoading}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                      data-testid="connect-stripe-btn"
+                    >
+                      <CreditCard size={14} strokeWidth={1.5} />
+                      {connectLoading ? "Wird geöffnet…" : connectStatus?.status === "pending" ? "Weiter bei Stripe" : "Bei Stripe registrieren"}
+                    </button>
+                    {connectStatus?.status === "pending" && (
+                      <button
+                        type="button"
+                        onClick={fetchConnectStatus}
+                        className="text-xs text-zinc-500 font-inter hover:text-zinc-800 transition-colors"
+                      >
+                        Status aktualisieren
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 font-inter mt-3">
+                    Nach dem Klick öffnet sich ein neues Fenster mit dem Stripe-Onboarding. Du hinterlegst dort deine Bankdaten sicher direkt bei Stripe.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* ── Anzahlung Einstellungen ── */}
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
