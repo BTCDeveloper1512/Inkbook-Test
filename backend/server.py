@@ -1279,7 +1279,15 @@ async def book_slot_from_chat(message_id: str, current_user: dict = Depends(get_
     booking_doc.pop("_id", None)
     return booking_doc
 
-# ─── Payments (Internal) ─────────────────────────────────────────────────────
+# ─── Payments (Stripe) ───────────────────────────────────────────────────────
+def get_stripe_client():
+    import stripe as stripe_lib
+    sk = os.environ.get("STRIPE_SECRET_KEY", "")
+    if not sk:
+        raise HTTPException(status_code=500, detail="Stripe nicht konfiguriert")
+    stripe_lib.api_key = sk
+    return stripe_lib
+
 @api_router.post("/payments/create-session")
 async def create_payment_session(data: PaymentCreateRequest, request: Request, current_user: dict = Depends(get_current_user)):
     booking = await db.bookings.find_one({"booking_id": data.booking_id}, {"_id": 0})
@@ -1290,8 +1298,8 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     if booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    session_id = f"pay_{uuid.uuid4().hex[:16]}"
     amount = 0.01  # TEST MODE – feste Anzahlung für Tests
+    amount_cents = int(round(amount * 100))
 
     studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1})
     studio_name = studio.get("name", "Studio") if studio else "Studio"
@@ -1299,11 +1307,30 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     bank_iban = studio.get("bank_iban", "") if studio else ""
     bank_bic = studio.get("bank_bic", "") if studio else ""
 
+    session_id = f"pay_{uuid.uuid4().hex[:16]}"
+
+    # Create real Stripe PaymentIntent
+    stripe = get_stripe_client()
+    intent = await asyncio.to_thread(
+        stripe.PaymentIntent.create,
+        amount=amount_cents,
+        currency="eur",
+        automatic_payment_methods={"enabled": True},
+        metadata={
+            "session_id": session_id,
+            "booking_id": data.booking_id,
+            "user_id": user_id,
+            "studio_name": studio_name,
+        },
+        description=f"Anzahlung – {studio_name}"
+    )
+
     await db.payment_transactions.insert_one({
         "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
         "booking_id": data.booking_id,
         "user_id": user_id,
         "session_id": session_id,
+        "stripe_payment_intent_id": intent["id"],
         "amount": amount,
         "currency": "eur",
         "payment_status": "pending",
@@ -1313,6 +1340,7 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
 
     return {
         "session_id": session_id,
+        "client_secret": intent["client_secret"],
         "amount": amount,
         "currency": "eur",
         "studio_name": studio_name,
@@ -1335,6 +1363,14 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
 
     if txn.get("payment_status") == "paid":
         return {"payment_status": "paid"}
+
+    # Verify with Stripe if we have a payment intent
+    pi_id = txn.get("stripe_payment_intent_id")
+    if pi_id:
+        stripe = get_stripe_client()
+        intent = await asyncio.to_thread(stripe.PaymentIntent.retrieve, pi_id)
+        if intent["status"] != "succeeded":
+            raise HTTPException(status_code=400, detail="Zahlung noch nicht abgeschlossen")
 
     await db.payment_transactions.update_one(
         {"session_id": session_id},
