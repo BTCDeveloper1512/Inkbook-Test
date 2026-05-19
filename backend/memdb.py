@@ -1,15 +1,57 @@
 """
-In-memory database that mimics the Motor (async MongoDB) API.
-Supports the subset of MongoDB operations used by server.py.
+Persistent in-memory database that mimics the Motor (async MongoDB) API.
+Data is saved to data.json after every write and loaded on startup.
 """
 import copy
-from typing import Any, Dict, List, Optional
+import json
+import os
+from typing import Any, Dict, List
 from bson import ObjectId
 
+_DATA_FILE = os.path.join(os.path.dirname(__file__), "data.json")
+
+
+# ── JSON serialisation helpers ────────────────────────────────────────────────
 
 def _to_str(v):
     return str(v) if isinstance(v, ObjectId) else v
 
+
+def _json_default(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
+def _save_db(collections: Dict[str, List]):
+    """Write all collection data to disk."""
+    try:
+        tmp = _DATA_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(collections, f, default=_json_default, ensure_ascii=False)
+        os.replace(tmp, _DATA_FILE)
+    except Exception as e:
+        print(f"[memdb] Warning: could not save data.json: {e}")
+
+
+def _load_db() -> Dict[str, List]:
+    """Load collection data from disk, returning empty dict on first run."""
+    if not os.path.exists(_DATA_FILE):
+        return {}
+    try:
+        with open(_DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[memdb] Warning: could not load data.json ({e}), starting fresh.")
+        return {}
+
+
+# ── Shared storage (loaded once at module import) ─────────────────────────────
+
+_STORE: Dict[str, List] = _load_db()
+
+
+# ── Query helpers ─────────────────────────────────────────────────────────────
 
 def _match_value(doc_val, condition):
     if not isinstance(condition, dict):
@@ -122,7 +164,9 @@ def _apply_update(doc, update_dict):
                 if k in doc and isinstance(doc[k], list):
                     if isinstance(condition, dict):
                         doc[k] = [item for item in doc[k]
-                                   if not _matches_filter(item if isinstance(item, dict) else {"_v": item}, condition if not any(kk.startswith("$") for kk in condition) else condition)]
+                                   if not _matches_filter(
+                                       item if isinstance(item, dict) else {"_v": item},
+                                       condition if not any(kk.startswith("$") for kk in condition) else condition)]
                     else:
                         doc[k] = [item for item in doc[k] if item != condition]
         elif op == "$addToSet":
@@ -138,6 +182,15 @@ def _apply_update(doc, update_dict):
     return doc
 
 
+def _sort_key(doc, key):
+    val = doc.get(key)
+    if val is None:
+        return (1, "")
+    return (0, str(val))
+
+
+# ── Cursor classes ────────────────────────────────────────────────────────────
+
 class UpdateResult:
     def __init__(self, matched, modified):
         self.matched_count = matched
@@ -147,13 +200,6 @@ class UpdateResult:
 class InsertOneResult:
     def __init__(self, inserted_id):
         self.inserted_id = inserted_id
-
-
-def _sort_key(doc, key):
-    val = doc.get(key)
-    if val is None:
-        return (1, "")
-    return (0, str(val))
 
 
 class FindCursor:
@@ -207,9 +253,20 @@ class AggregateCursor:
         return self._docs
 
 
+# ── Collection ────────────────────────────────────────────────────────────────
+
 class Collection:
-    def __init__(self):
-        self._docs: List[Dict] = []
+    def __init__(self, name: str):
+        self._name = name
+        if name not in _STORE:
+            _STORE[name] = []
+
+    @property
+    def _docs(self) -> List:
+        return _STORE[self._name]
+
+    def _save(self):
+        _save_db(_STORE)
 
     async def create_index(self, *args, **kwargs):
         pass
@@ -234,14 +291,18 @@ class Collection:
     async def insert_one(self, doc):
         new_doc = copy.deepcopy(doc)
         if "_id" not in new_doc:
-            new_doc["_id"] = ObjectId()
+            new_doc["_id"] = str(ObjectId())
+        else:
+            new_doc["_id"] = _to_str(new_doc["_id"])
         self._docs.append(new_doc)
+        self._save()
         return InsertOneResult(new_doc["_id"])
 
     async def update_one(self, filter_dict, update_dict, upsert=False):
         for doc in self._docs:
             if _matches_filter(doc, filter_dict):
                 _apply_update(doc, update_dict)
+                self._save()
                 return UpdateResult(1, 1)
         if upsert:
             new_doc = {}
@@ -250,8 +311,9 @@ class Collection:
                     new_doc[k] = v
             _apply_update(new_doc, update_dict)
             if "_id" not in new_doc:
-                new_doc["_id"] = ObjectId()
+                new_doc["_id"] = str(ObjectId())
             self._docs.append(new_doc)
+            self._save()
             return UpdateResult(0, 1)
         return UpdateResult(0, 0)
 
@@ -261,16 +323,22 @@ class Collection:
             if _matches_filter(doc, filter_dict):
                 _apply_update(doc, update_dict)
                 count += 1
+        if count:
+            self._save()
         return UpdateResult(count, count)
 
     async def delete_one(self, filter_dict):
         for i, doc in enumerate(self._docs):
             if _matches_filter(doc, filter_dict):
                 self._docs.pop(i)
+                self._save()
                 return
 
     async def delete_many(self, filter_dict):
-        self._docs = [d for d in self._docs if not _matches_filter(d, filter_dict)]
+        before = len(self._docs)
+        _STORE[self._name] = [d for d in self._docs if not _matches_filter(d, filter_dict)]
+        if len(self._docs) != before:
+            self._save()
 
     async def count_documents(self, filter_dict=None):
         return sum(1 for d in self._docs if _matches_filter(d, filter_dict or {}))
@@ -291,7 +359,6 @@ class Collection:
                         gk = doc.get(id_expr[1:])
                     else:
                         gk = id_expr
-
                     if gk not in groups:
                         groups[gk] = {"_id": gk}
                         for out_key, agg_expr in group_spec.items():
@@ -299,7 +366,6 @@ class Collection:
                                 continue
                             if isinstance(agg_expr, dict) and "$sum" in agg_expr:
                                 groups[gk][out_key] = 0
-
                     for out_key, agg_expr in group_spec.items():
                         if out_key == "_id":
                             continue
@@ -321,8 +387,10 @@ class Collection:
         return AggregateCursor(docs)
 
 
-class InMemoryDatabase:
-    """In-memory database — holds named collections."""
+# ── Database ──────────────────────────────────────────────────────────────────
+
+class PersistentDatabase:
+    """Persistent database — collections backed by data.json."""
 
     def __init__(self):
         self._collections: Dict[str, Collection] = {}
@@ -331,11 +399,12 @@ class InMemoryDatabase:
         if name.startswith("_"):
             raise AttributeError(name)
         if name not in self._collections:
-            self._collections[name] = Collection()
+            self._collections[name] = Collection(name)
         return self._collections[name]
 
     def __getitem__(self, name):
         return getattr(self, name)
 
 
-db = InMemoryDatabase()
+db = PersistentDatabase()
+print(f"[memdb] Loaded {sum(len(v) for v in _STORE.values())} documents from {_DATA_FILE}")
