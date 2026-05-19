@@ -1108,6 +1108,55 @@ export default function StudioDashboard() {
             </div>
             */}
 
+            {/* ── Anzahlung Einstellungen ── */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <div className="flex items-start justify-between mb-1">
+                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Anzahlung</h3>
+                <span className="text-[10px] font-inter font-semibold tracking-widest uppercase bg-zinc-100 text-zinc-500 px-2.5 py-1 rounded-full">Stripe</span>
+              </div>
+              <p className="text-xs text-zinc-400 font-inter mb-5">Lege fest ob Kunden bei der Buchung eine Anzahlung leisten müssen und in welcher Höhe.</p>
+
+              {/* Toggle */}
+              <label className="flex items-center gap-3 cursor-pointer mb-5">
+                <div
+                  onClick={() => setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer flex-shrink-0 ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.deposit_required ? "translate-x-5" : "translate-x-0"}`} />
+                </div>
+                <div>
+                  <span className="text-sm font-inter font-medium text-zinc-800">Anzahlung erforderlich</span>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">
+                    {editForm?.deposit_required ? "Kunden müssen vor Terminbestätigung bezahlen" : "Kunden können ohne Anzahlung buchen"}
+                  </p>
+                </div>
+              </label>
+
+              {/* Amount — only when toggle is ON */}
+              {editForm?.deposit_required && (
+                <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-400 font-inter text-sm">€</span>
+                    <input
+                      type="number"
+                      min="0.50"
+                      step="0.50"
+                      value={editForm.deposit_amount ?? ""}
+                      onChange={e => setEditForm(prev => ({ ...prev, deposit_amount: parseFloat(e.target.value) || 0 }))}
+                      placeholder="z.B. 50"
+                      className="input-base w-36 text-right font-playfair text-lg"
+                      data-testid="deposit-amount-input"
+                    />
+                    <span className="text-xs text-zinc-400 font-inter">Mindestbetrag: €0,50</span>
+                  </div>
+                  <p className="text-xs text-zinc-400 font-inter mt-2">
+                    Dieser Betrag wird bei der Buchung per Stripe eingezogen und auf dein Konto überwiesen.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <div className="flex items-start justify-between mb-1">
                 <h3 className="font-playfair font-semibold text-lg text-zinc-900">Bankkonto &amp; Auszahlung</h3>

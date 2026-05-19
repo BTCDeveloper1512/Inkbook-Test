@@ -857,7 +857,8 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
         "reference_images": data.reference_images,
         "status": "pending",
         "payment_status": "unpaid",
-        "deposit_amount": 50.0,
+        "deposit_required": studio.get("deposit_required", False),
+        "deposit_amount": studio.get("deposit_amount", 50.0),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.bookings.insert_one(booking_doc)
@@ -1298,14 +1299,16 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     if booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    amount = 0.50  # TEST MODE – Stripe Minimum für EUR
-    amount_cents = int(round(amount * 100))
-
-    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1})
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1, "deposit_amount": 1})
     studio_name = studio.get("name", "Studio") if studio else "Studio"
     bank_holder = studio.get("bank_holder", "") if studio else ""
     bank_iban = studio.get("bank_iban", "") if studio else ""
     bank_bic = studio.get("bank_bic", "") if studio else ""
+
+    # Use studio-configured deposit amount (min €0.50 for Stripe)
+    raw_amount = studio.get("deposit_amount", 0.50) if studio else 0.50
+    amount = max(float(raw_amount), 0.50)
+    amount_cents = int(round(amount * 100))
 
     session_id = f"pay_{uuid.uuid4().hex[:16]}"
 
