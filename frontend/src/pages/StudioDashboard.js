@@ -1244,62 +1244,6 @@ export default function StudioDashboard() {
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <div className="flex items-start justify-between mb-1">
-                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Bankkonto &amp; Auszahlung</h3>
-                <span className="text-[10px] font-inter font-semibold tracking-widest uppercase bg-zinc-100 text-zinc-500 px-2.5 py-1 rounded-full">Sicher verschlüsselt</span>
-              </div>
-              <p className="text-xs text-zinc-400 font-inter mb-5">Hinterlege dein Konto, auf das Anzahlungen von Kunden gutgeschrieben werden.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Kontoinhaber</label>
-                  <input
-                    type="text"
-                    value={editForm.bank_holder || ""}
-                    onChange={e => setEditForm({ ...editForm, bank_holder: e.target.value })}
-                    placeholder="Max Mustermann"
-                    className="input-base w-full"
-                    data-testid="bank-holder-input"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">IBAN</label>
-                  <input
-                    type="text"
-                    value={editForm.bank_iban || ""}
-                    onChange={e => {
-                      const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9\s]/g, "");
-                      const lookup = lookupIban(raw);
-                      setEditForm(prev => ({
-                        ...prev,
-                        bank_iban: raw,
-                        bank_bic: (lookup && lookup.bic) ? lookup.bic : prev.bank_bic,
-                        bank_institution: lookup ? lookup.name : ""
-                      }));
-                    }}
-                    placeholder="DE89 3704 0044 0532 0130 00"
-                    className="input-base w-full font-mono tracking-wider"
-                    data-testid="bank-iban-input"
-                  />
-                  {editForm.bank_institution && (
-                    <p className="mt-1.5 text-xs text-zinc-500 font-inter flex items-center gap-1.5">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><polyline points="20 6 9 17 4 12"/></svg>
-                      <span className="font-medium text-zinc-700">{editForm.bank_institution}</span> erkannt
-                    </p>
-                  )}
-                </div>
-              </div>
-              {editForm.bank_iban && editForm.bank_iban.replace(/\s/g,"").length >= 15 && (
-                <div className="mt-4 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-2">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span className="text-xs text-emerald-700 font-inter">
-                    Anzahlungen werden auf dieses Konto überwiesen
-                    {editForm.bank_institution ? ` (${editForm.bank_institution})` : ""}.
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Tattoo-Stile</h3>
               <div className="flex flex-wrap gap-2">
                 {STYLES_LIST.map(s => (

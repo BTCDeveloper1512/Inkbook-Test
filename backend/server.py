@@ -1386,8 +1386,10 @@ async def get_connect_status(current_user: dict = Depends(get_current_user)):
             "charges_enabled": charges_enabled,
             "payouts_enabled": payouts_enabled,
         }
-    except Exception as e:
-        return {"status": "error", "account_id": account_id, "error": str(e)}
+    except Exception:
+        # Stripe API unavailable or invalid account ID — return stored status from DB
+        stored_status = studio.get("stripe_connect_status", "pending")
+        return {"status": stored_status, "account_id": account_id}
 
 
 @api_router.get("/stripe/connect/return")
