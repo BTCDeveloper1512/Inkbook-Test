@@ -4,7 +4,6 @@ load_dotenv()
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from pydantic import BaseModel, Field, EmailStr, BeforeValidator
 from typing import Optional, List, Annotated, Dict, Any
@@ -189,15 +188,17 @@ def booking_status_html(booking: dict, status: str) -> str:
     </div>"""
 
 # ─── Database ────────────────────────────────────────────────────────────────
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+from memdb import db
 
 app = FastAPI(title="InkBook API")
 api_router = APIRouter(prefix="/api")
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", os.environ.get("FRONTEND_URL", "http://localhost:3000")).split(",") if o.strip()]
+_replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+_default_origins = "http://localhost:3000,http://localhost:5000"
+if _replit_domain:
+    _default_origins += f",https://{_replit_domain}"
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", os.environ.get("FRONTEND_URL", _default_origins)).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -221,8 +222,10 @@ PyObjectId = Annotated[str, BeforeValidator(coerce_objectid)]
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
 JWT_ALGORITHM = "HS256"
 
+_DEFAULT_JWT_SECRET = "inkbook-dev-secret-key-change-in-production"
+
 def get_jwt_secret() -> str:
-    return os.environ["JWT_SECRET"]
+    return os.environ.get("JWT_SECRET", _DEFAULT_JWT_SECRET)
 
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
@@ -2981,34 +2984,39 @@ async def video_leave(booking_id: str, current_user: dict = Depends(get_current_
     )
     return {"left": True}
 
-@app.on_event("startup")
-async def startup_event():
+async def _init_db():
     await db.users.create_index("email", unique=True)
     await db.studios.create_index("studio_id", unique=True)
     await db.bookings.create_index("booking_id", unique=True)
     await db.slots.create_index("slot_id", unique=True)
-    
+
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@inkbook.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
+        pw_hash = await asyncio.to_thread(hash_password, admin_password)
         await db.users.insert_one({
             "email": admin_email,
-            "password_hash": hash_password(admin_password),
+            "password_hash": pw_hash,
             "name": "InkBook Admin",
             "role": "admin",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "auth_provider": "email"
         })
         logger.info(f"Admin user created: {admin_email}")
-    elif not verify_password(admin_password, existing.get("password_hash", "")):
-        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
-    
+    elif not await asyncio.to_thread(verify_password, admin_password, existing.get("password_hash", "")):
+        pw_hash = await asyncio.to_thread(hash_password, admin_password)
+        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": pw_hash}})
+
     await seed_demo_data()
     logger.info("InkBook API started")
 
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(_init_db())
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    pass
 
 app.include_router(api_router)
