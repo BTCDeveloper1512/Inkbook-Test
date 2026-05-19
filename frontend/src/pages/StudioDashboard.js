@@ -10,6 +10,7 @@ import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, Messag
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
+import { lookupIban, formatIban } from "../utils/ibanLookup";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import DashboardHeroSmoke from "../components/DashboardHeroSmoke";
@@ -207,7 +208,9 @@ export default function StudioDashboard() {
       setStats(data);
       if (data.has_studio && data.studio) {
         fetchSlots(data.studio.studio_id);
-        setEditForm({ ...data.studio });
+        const studio = data.studio;
+        const ibanLookup = studio.bank_iban ? lookupIban(studio.bank_iban) : null;
+        setEditForm({ ...studio, bank_institution: ibanLookup ? ibanLookup.name : "" });
       }
     } catch { navigate("/login"); } finally { setLoading(false); }
   };
@@ -259,7 +262,8 @@ export default function StudioDashboard() {
     e.preventDefault();
     setEditLoading(true);
     try {
-      await axios.put(`${API}/studios/${stats.studio.studio_id}`, editForm, { withCredentials: true });
+      const { bank_institution, ...payload } = editForm;
+      await axios.put(`${API}/studios/${stats.studio.studio_id}`, payload, { withCredentials: true });
       setEditSuccess(true);
       setTimeout(() => setEditSuccess(false), 3000);
       fetchStats();
@@ -1090,11 +1094,26 @@ export default function StudioDashboard() {
                   <input
                     type="text"
                     value={editForm.bank_iban || ""}
-                    onChange={e => setEditForm({ ...editForm, bank_iban: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 34) })}
+                    onChange={e => {
+                      const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9\s]/g, "");
+                      const lookup = lookupIban(raw);
+                      setEditForm(prev => ({
+                        ...prev,
+                        bank_iban: raw,
+                        bank_bic: lookup ? lookup.bic : prev.bank_bic,
+                        bank_institution: lookup ? lookup.name : ""
+                      }));
+                    }}
                     placeholder="DE89 3704 0044 0532 0130 00"
                     className="input-base w-full font-mono tracking-wider"
                     data-testid="bank-iban-input"
                   />
+                  {editForm.bank_institution && (
+                    <p className="mt-1.5 text-xs text-zinc-500 font-inter flex items-center gap-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span className="font-medium text-zinc-700">{editForm.bank_institution}</span> erkannt
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">BIC / SWIFT</label>
@@ -1102,16 +1121,20 @@ export default function StudioDashboard() {
                     type="text"
                     value={editForm.bank_bic || ""}
                     onChange={e => setEditForm({ ...editForm, bank_bic: e.target.value.toUpperCase().replace(/\s/g, "").slice(0, 11) })}
-                    placeholder="COBADEFFXXX"
+                    placeholder="Wird automatisch erkannt"
                     className="input-base w-full font-mono"
                     data-testid="bank-bic-input"
                   />
+                  <p className="mt-1 text-[10px] text-zinc-400 font-inter">Wird automatisch aus der IBAN ermittelt</p>
                 </div>
               </div>
-              {editForm.bank_iban && (
+              {editForm.bank_iban && editForm.bank_iban.replace(/\s/g,"").length >= 15 && (
                 <div className="mt-4 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-2">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span className="text-xs text-emerald-700 font-inter">Anzahlungen werden auf dieses Konto überwiesen.</span>
+                  <span className="text-xs text-emerald-700 font-inter">
+                    Anzahlungen werden auf dieses Konto überwiesen
+                    {editForm.bank_institution ? ` (${editForm.bank_institution})` : ""}.
+                  </span>
                 </div>
               )}
             </div>
