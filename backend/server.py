@@ -1728,7 +1728,23 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         studio_bookings = await db.bookings.find({"studio_id": studio_id, "payment_status": "paid"}, {"booking_id": 1, "_id": 0}).to_list(1000)
         studio_booking_ids = {b["booking_id"] for b in studio_bookings}
         revenue = sum(t.get("amount", 0) for t in revenue_docs if t.get("booking_id") in studio_booking_ids)
-        
+
+        # Deposit stats – all paid transactions linked to this studio's bookings
+        all_studio_booking_ids_for_deposits = {
+            b["booking_id"] for b in await db.bookings.find(
+                {"studio_id": studio_id}, {"booking_id": 1, "_id": 0}
+            ).to_list(5000)
+        }
+        deposit_txns = [t for t in revenue_docs if t.get("booking_id") in all_studio_booking_ids_for_deposits]
+        deposit_count = len(deposit_txns)
+        deposit_total = sum(t.get("amount", 0) for t in deposit_txns)
+        now_iso = datetime.now(timezone.utc)
+        month_prefix = f"{now_iso.year}-{str(now_iso.month).zfill(2)}"
+        deposit_month = sum(
+            t.get("amount", 0) for t in deposit_txns
+            if (t.get("paid_at") or t.get("created_at", "")).startswith(month_prefix)
+        )
+
         upcoming = await db.bookings.find(
             {"studio_id": studio_id, "status": {"$in": ["pending", "confirmed"]}},
             {"_id": 0}
@@ -1747,7 +1763,10 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             "confirmed_bookings": confirmed,
             "revenue": revenue,
             "upcoming_bookings": upcoming,
-            "all_bookings": all_studio_bookings
+            "all_bookings": all_studio_bookings,
+            "deposit_count": deposit_count,
+            "deposit_total": deposit_total,
+            "deposit_month": deposit_month,
         }
     else:
         # Support both old UUID-based user_id and new ObjectId-string user_id

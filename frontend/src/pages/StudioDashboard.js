@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -532,6 +532,43 @@ export default function StudioDashboard() {
               </p>
             </motion.div>
           ))}
+        </motion.div>
+
+        {/* Anzahlungen Kachel */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: "spring", stiffness: 280, damping: 22 }}
+          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5 mb-4"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
+                <CreditCard size={14} className="text-white" strokeWidth={1.5} />
+              </div>
+              <p className="text-sm font-inter font-semibold text-zinc-900">Stripe Anzahlungen</p>
+            </div>
+            <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live-Daten</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-zinc-50 rounded-xl p-3.5">
+              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Anzahl gesamt</p>
+              <p className="text-2xl font-playfair font-semibold text-zinc-900">{stats?.deposit_count ?? 0}</p>
+              <p className="text-xs text-zinc-400 font-inter mt-0.5">Zahlungen</p>
+            </div>
+            <div className="bg-zinc-50 rounded-xl p-3.5">
+              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Diesen Monat</p>
+              <p className="text-2xl font-playfair font-semibold text-zinc-900">
+                €&thinsp;{(stats?.deposit_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-zinc-400 font-inter mt-0.5">Anzahlungen</p>
+            </div>
+            <div className="bg-zinc-900 rounded-xl p-3.5">
+              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Gesamt</p>
+              <p className="text-2xl font-playfair font-semibold text-white">
+                €&thinsp;{(stats?.deposit_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-white/40 font-inter mt-0.5">Eingenommen</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* PDF Export Button */}
