@@ -1276,84 +1276,76 @@ async def book_slot_from_chat(message_id: str, current_user: dict = Depends(get_
     booking_doc.pop("_id", None)
     return booking_doc
 
-# ─── Payments (Stripe) ────────────────────────────────────────────────────────
+# ─── Payments (Internal) ─────────────────────────────────────────────────────
 @api_router.post("/payments/create-session")
 async def create_payment_session(data: PaymentCreateRequest, request: Request, current_user: dict = Depends(get_current_user)):
     booking = await db.bookings.find_one({"booking_id": data.booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
     user_id = current_user.get("id") or current_user.get("user_id")
     if booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
-    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
-    origin = data.origin_url
-    success_url = f"{origin}/dashboard?payment=success&session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin}/dashboard?payment=cancelled"
-    
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=f"{str(request.base_url)}api/webhook/stripe")
-    
-    checkout_req = CheckoutSessionRequest(
-        amount=float(booking.get("deposit_amount", 50.0)),
-        currency="eur",
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata={"booking_id": data.booking_id, "user_id": user_id}
-    )
-    session = await stripe_checkout.create_checkout_session(checkout_req)
-    
+
+    session_id = f"pay_{uuid.uuid4().hex[:16]}"
+    amount = float(booking.get("deposit_amount", 50.0))
+
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1})
+    studio_name = studio.get("name", "Studio") if studio else "Studio"
+
     await db.payment_transactions.insert_one({
         "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
         "booking_id": data.booking_id,
         "user_id": user_id,
-        "session_id": session.session_id,
-        "amount": float(booking.get("deposit_amount", 50.0)),
+        "session_id": session_id,
+        "amount": amount,
         "currency": "eur",
         "payment_status": "pending",
+        "studio_name": studio_name,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    
-    return {"url": session.url, "session_id": session.session_id}
+
+    return {
+        "session_id": session_id,
+        "amount": amount,
+        "currency": "eur",
+        "studio_name": studio_name,
+        "booking_date": booking.get("date", ""),
+        "booking_time": booking.get("start_time", "")
+    }
+
+@api_router.post("/payments/confirm/{session_id}")
+async def confirm_payment(session_id: str, current_user: dict = Depends(get_current_user)):
+    txn = await db.payment_transactions.find_one({"session_id": session_id})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Zahlung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if txn.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if txn.get("payment_status") == "paid":
+        return {"payment_status": "paid"}
+
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"payment_status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if txn.get("booking_id"):
+        await db.bookings.update_one(
+            {"booking_id": txn["booking_id"]},
+            {"$set": {"payment_status": "paid", "status": "confirmed"}}
+        )
+
+    return {"payment_status": "paid"}
 
 @api_router.get("/payments/status/{session_id}")
-async def get_payment_status(session_id: str, request: Request, current_user: dict = Depends(get_current_user)):
-    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=f"{str(request.base_url)}api/webhook/stripe")
-    status = await stripe_checkout.get_checkout_status(session_id)
-    
-    if status.payment_status == "paid":
-        txn = await db.payment_transactions.find_one({"session_id": session_id})
-        if txn and txn.get("payment_status") != "paid":
-            await db.payment_transactions.update_one(
-                {"session_id": session_id},
-                {"$set": {"payment_status": "paid"}}
-            )
-            if txn.get("booking_id"):
-                await db.bookings.update_one(
-                    {"booking_id": txn["booking_id"]},
-                    {"$set": {"payment_status": "paid", "status": "confirmed"}}
-                )
-    
-    return {"status": status.status, "payment_status": status.payment_status}
-
-@api_router.post("/webhook/stripe")
-async def stripe_webhook(request: Request):
-    body = await request.body()
-    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url="")
-    try:
-        webhook_response = await stripe_checkout.handle_webhook(body, request.headers.get("Stripe-Signature", ""))
-        if webhook_response.payment_status == "paid":
-            booking_id = webhook_response.metadata.get("booking_id")
-            if booking_id:
-                await db.bookings.update_one(
-                    {"booking_id": booking_id},
-                    {"$set": {"payment_status": "paid", "status": "confirmed"}}
-                )
-    except Exception as e:
-        logger.error(f"Webhook error: {e}")
-    return {"received": True}
+async def get_payment_status(session_id: str, current_user: dict = Depends(get_current_user)):
+    txn = await db.payment_transactions.find_one({"session_id": session_id})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Zahlung nicht gefunden")
+    return {"status": "complete" if txn.get("payment_status") == "paid" else "open",
+            "payment_status": txn.get("payment_status", "pending")}
 
 # ─── Subscriptions ────────────────────────────────────────────────────────────
 SUBSCRIPTION_PLANS = {

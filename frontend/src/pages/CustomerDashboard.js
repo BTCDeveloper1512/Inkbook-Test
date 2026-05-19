@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings } from "lucide-react";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
+import PaymentModal from "../components/PaymentModal";
 import DashboardHeroSmoke from "../components/DashboardHeroSmoke";
 import BorderGlow from "../components/BorderGlow/BorderGlow";
 import { motion, AnimatePresence } from "framer-motion";
@@ -140,7 +141,7 @@ export default function CustomerDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [paymentSessionId, setPaymentSessionId] = useState(null);
+  const [paymentSession, setPaymentSession] = useState(null);
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
   const [rescheduleSlots, setRescheduleSlots] = useState([]);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -157,29 +158,11 @@ export default function CustomerDashboard() {
   const [tick, setTick] = useState(0); // forces re-render every minute for live time checks
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get("session_id");
-    if (sessionId) setPaymentSessionId(sessionId);
     fetchStats();
-    // Poll every 8s for live updates (new bookings pop up fast)
     const pollInterval = setInterval(fetchStats, 8000);
-    // Re-evaluate time every 60s
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
     return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
   }, []);
-
-  useEffect(() => {
-    if (paymentSessionId) pollPaymentStatus(paymentSessionId);
-  }, [paymentSessionId]);
-
-  const pollPaymentStatus = async (sessionId, attempts = 0) => {
-    if (attempts >= 5) return;
-    try {
-      const { data } = await axios.get(`${API}/payments/status/${sessionId}`, { withCredentials: true });
-      if (data.payment_status === "paid") fetchStats();
-      else setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), 2000);
-    } catch {}
-  };
 
   const fetchStats = async () => {
     try {
@@ -193,7 +176,7 @@ export default function CustomerDashboard() {
       const { data } = await axios.post(`${API}/payments/create-session`, {
         booking_id: booking.booking_id, origin_url: window.location.origin
       }, { withCredentials: true });
-      window.location.href = data.url;
+      setPaymentSession(data);
     } catch (e) { alert(e.response?.data?.detail || "Zahlungsfehler"); }
   };
 
@@ -734,6 +717,16 @@ export default function CustomerDashboard() {
         />
       )}
       */}
+
+      <AnimatePresence>
+        {paymentSession && (
+          <PaymentModal
+            session={paymentSession}
+            onClose={() => setPaymentSession(null)}
+            onSuccess={() => { setPaymentSession(null); fetchStats(); }}
+          />
+        )}
+      </AnimatePresence>
 
       <Footer />
     </div>
