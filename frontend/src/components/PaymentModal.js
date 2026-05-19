@@ -63,7 +63,7 @@ function StripeForm({ session, onSuccess, onClose }) {
     } catch {}
 
     setStep("success");
-    setTimeout(() => { onSuccess(); onClose(); }, hasBankInfo ? 4500 : 2800);
+    setTimeout(() => { onSuccess(); onClose(); }, 2800);
   };
 
   return (
@@ -106,35 +106,8 @@ function StripeForm({ session, onSuccess, onClose }) {
                 Deine Anzahlung von <strong className="text-zinc-800">€ {amount.toFixed(2)}</strong> wurde verarbeitet.<br />
                 Deine Buchung wurde bestätigt.
               </p>
+              <p className="text-xs text-zinc-400 font-inter mt-2">Eine Zahlungsbestätigung wurde an deine E-Mail gesendet.</p>
             </div>
-            {hasBankInfo && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-                className="w-full bg-zinc-50 border border-zinc-100 rounded-xl p-4 text-left space-y-2"
-              >
-                <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Empfänger-Konto</p>
-                {bankHolder && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500 font-inter">Kontoinhaber</span>
-                    <span className="text-xs font-inter font-medium text-zinc-800">{bankHolder}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500 font-inter">IBAN</span>
-                  <span className="text-xs font-mono font-medium text-zinc-800 tracking-wider">{formatIban(bankIban)}</span>
-                </div>
-                {bankBic && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500 font-inter">BIC</span>
-                    <span className="text-xs font-mono font-medium text-zinc-800">{bankBic}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between border-t border-zinc-200 pt-2 mt-1">
-                  <span className="text-xs text-zinc-500 font-inter">Betrag</span>
-                  <span className="text-sm font-playfair font-bold text-zinc-900">€ {amount.toFixed(2)}</span>
-                </div>
-              </motion.div>
-            )}
           </motion.div>
         )}
 

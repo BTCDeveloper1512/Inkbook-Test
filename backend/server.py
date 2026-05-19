@@ -1310,12 +1310,14 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     session_id = f"pay_{uuid.uuid4().hex[:16]}"
 
     # Create real Stripe PaymentIntent
+    customer_email = current_user.get("email", "")
     stripe = get_stripe_client()
     intent = await asyncio.to_thread(
         stripe.PaymentIntent.create,
         amount=amount_cents,
         currency="eur",
         automatic_payment_methods={"enabled": True},
+        receipt_email=customer_email if customer_email else None,
         metadata={
             "session_id": session_id,
             "booking_id": data.booking_id,
