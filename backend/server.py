@@ -1298,7 +1298,7 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     if booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    amount = 0.01  # TEST MODE – feste Anzahlung für Tests
+    amount = 0.50  # TEST MODE – Stripe Minimum für EUR
     amount_cents = int(round(amount * 100))
 
     studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"_id": 0, "name": 1, "bank_holder": 1, "bank_iban": 1, "bank_bic": 1})
