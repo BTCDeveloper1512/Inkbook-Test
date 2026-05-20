@@ -249,7 +249,15 @@ export default function StudioDashboard() {
       if (!dismissed && data?.status !== "complete") {
         setTimeout(() => setShowDepositPopup(true), 800);
       }
-    } catch {}
+    } catch (e) {
+      // 404 = kein Stripe-Account → definitiv nicht verbunden → Popup zeigen
+      const status = e?.response?.status;
+      if (status === 404 || status === undefined) {
+        setConnectStatus(null);
+        const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
+        if (!dismissed) setTimeout(() => setShowDepositPopup(true), 800);
+      }
+    }
   };
 
   const dismissDepositPopup = (permanent = false) => {
