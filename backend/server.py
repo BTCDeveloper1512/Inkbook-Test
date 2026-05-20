@@ -524,6 +524,43 @@ async def activate_account(data: ActivateAccountRequest):
     resp.set_cookie("refresh_token", refresh_token, httponly=True, samesite="lax", max_age=604800, path="/")
     return resp
 
+@api_router.post("/auth/resend-activation")
+async def resend_activation_email(data: dict):
+    email = (data.get("email") or "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="E-Mail fehlt.")
+    user = await db.users.find_one({"email": email, "is_ghost": True})
+    if not user:
+        return {"ok": True}
+    ghost_token = user.get("ghost_token", "")
+    guest_name = user.get("name", "Gast")
+    frontend_url = _get_frontend_url()
+    activate_url = f"{frontend_url}/activate?email={email}&token={ghost_token}"
+    html = f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 10px;color:#111;letter-spacing:-0.4px;">Hallo {guest_name}!</h2>
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.6;">
+          Hier ist dein neuer Aktivierungs-Link für dein InkBook-Konto. Klicke unten, um dein Passwort festzulegen und dein Konto zu aktivieren.
+        </p>
+        <a href="{activate_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
+          Konto aktivieren →
+        </a>
+        <p style="font-size:12px;color:#aaa;margin:24px 0 0;line-height:1.6;">
+          Oder kopiere diesen Link in deinen Browser:<br/>
+          <a href="{activate_url}" style="color:#666;word-break:break-all;">{activate_url}</a>
+        </p>
+      </div>
+      {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
+    </div>"""
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"activation_email_sent": True}}
+    )
+    asyncio.create_task(send_email(email, "Dein InkBook Aktivierungs-Link", html))
+    return {"ok": True, "activate_url": activate_url}
+
 @api_router.post("/inquiries")
 async def create_guest_inquiry(data: GuestInquiryCreate):
     import secrets as secrets_mod
