@@ -1609,15 +1609,25 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
 
     # Create a fresh Express account
     studio_email = studio.get("email") or current_user.get("email", "")
-    account = await asyncio.to_thread(
-        stripe_lib.Account.create,
-        type="express",
-        country="DE",
-        email=studio_email if studio_email else None,
-        capabilities={"transfers": {"requested": True}, "card_payments": {"requested": True}},
-        business_type="individual",
-        metadata={"studio_id": studio["studio_id"], "owner_id": owner_id},
-    )
+    try:
+        account = await asyncio.to_thread(
+            stripe_lib.Account.create,
+            type="express",
+            country="DE",
+            email=studio_email if studio_email else None,
+            capabilities={"transfers": {"requested": True}, "card_payments": {"requested": True}},
+            business_type="individual",
+            metadata={"studio_id": studio["studio_id"], "owner_id": owner_id},
+        )
+    except Exception as stripe_err:
+        err_msg = str(stripe_err)
+        if "signed up for Connect" in err_msg or "connect" in err_msg.lower():
+            raise HTTPException(
+                status_code=402,
+                detail="STRIPE_CONNECT_NOT_ENABLED"
+            )
+        raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {err_msg}")
+
     account_id = account["id"]
 
     # Persist account id on studio

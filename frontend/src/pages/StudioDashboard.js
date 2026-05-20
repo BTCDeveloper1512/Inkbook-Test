@@ -52,6 +52,7 @@ export default function StudioDashboard() {
   const [revenueInputs, setRevenueInputs] = useState({});
   const [connectStatus, setConnectStatus] = useState(null);
   const [connectLoading, setConnectLoading] = useState(false);
+  const [stripeConnectError, setStripeConnectError] = useState(null);
   const [inquiries, setInquiries] = useState([]);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const inquiriesInitialized = React.useRef(false);
@@ -299,6 +300,7 @@ export default function StudioDashboard() {
 
   const handleConnectStripe = async () => {
     setConnectLoading(true);
+    setStripeConnectError(null);
     try {
       const { data } = await axios.post(`${API}/stripe/connect/create`, {}, { withCredentials: true });
       if (data.onboarding_url) {
@@ -307,7 +309,14 @@ export default function StudioDashboard() {
       } else if (data.status === "complete") {
         fetchConnectStatus();
       }
-    } catch (e) { alert(e.response?.data?.detail || "Stripe-Fehler"); } finally { setConnectLoading(false); }
+    } catch (e) {
+      const detail = e.response?.data?.detail;
+      if (detail === "STRIPE_CONNECT_NOT_ENABLED") {
+        setStripeConnectError("not_enabled");
+      } else {
+        setStripeConnectError(detail || "Stripe-Fehler");
+      }
+    } finally { setConnectLoading(false); }
   };
 
   const fetchSlots = async (studioId) => {
@@ -1457,6 +1466,35 @@ export default function StudioDashboard() {
                   <p className="text-xs text-zinc-400 font-inter mt-3">
                     Nach dem Klick öffnet sich ein neues Fenster mit dem Stripe-Onboarding. Du hinterlegst dort deine Bankdaten sicher direkt bei Stripe.
                   </p>
+
+                  {/* Stripe Connect error */}
+                  {stripeConnectError && (
+                    <div className="mt-4 rounded-xl border overflow-hidden">
+                      {stripeConnectError === "not_enabled" ? (
+                        <div className="bg-amber-50 border-amber-200 px-4 py-4">
+                          <p className="text-sm font-inter font-semibold text-amber-900 mb-1">Stripe Connect noch nicht aktiviert</p>
+                          <p className="text-xs text-amber-700 font-inter leading-relaxed mb-3">
+                            Dein Stripe-Konto unterstützt noch kein Connect. Aktiviere es einmalig kostenlos direkt bei Stripe — dauert nur 2 Minuten.
+                          </p>
+                          <a
+                            href="https://dashboard.stripe.com/connect"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-700 text-white text-xs font-inter font-semibold rounded-lg hover:bg-amber-800 transition-colors"
+                          >
+                            Zu Stripe Connect → Aktivieren
+                          </a>
+                          <p className="text-[10px] text-amber-600 font-inter mt-2.5">
+                            Nach der Aktivierung bei Stripe hier erneut auf „Bei Stripe registrieren" klicken.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-red-50 border-red-100 px-4 py-3">
+                          <p className="text-xs text-red-600 font-inter">{stripeConnectError}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
