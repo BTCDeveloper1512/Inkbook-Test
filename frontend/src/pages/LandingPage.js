@@ -987,29 +987,68 @@ export default function LandingPage() {
             style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.32)" }}>
             Premium Tattoo Buchungsplattform
           </p>
-          <div ref={ctaHeroRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <Link to="/search"
-              className="inline-flex items-center gap-3 px-9 py-3.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:gap-5 group"
-              style={{
-                fontFamily: "'Inter',sans-serif",
-                background: "rgba(255,255,255,.94)", border: "1px solid rgba(255,255,255,.3)",
-                color: "#0a0a0a", backdropFilter: "blur(14px)",
-              }}>
-              Jetzt Termin anfragen
-              <ArrowRight size={14} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
-            </Link>
+          <div ref={ctaHeroRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            {/* Primary CTA */}
+            <div style={{ position: "relative" }}>
+              {/* Pulse ring */}
+              <span style={{
+                position: "absolute", inset: -6, borderRadius: 9999,
+                border: "1.5px solid rgba(255,255,255,0.22)",
+                animation: "ctaPulse 2.4s ease-in-out infinite",
+                pointerEvents: "none",
+              }} />
+              <span style={{
+                position: "absolute", inset: -13, borderRadius: 9999,
+                border: "1px solid rgba(255,255,255,0.09)",
+                animation: "ctaPulse 2.4s ease-in-out infinite",
+                animationDelay: "0.4s",
+                pointerEvents: "none",
+              }} />
+              <Link to="/search"
+                className="inline-flex items-center gap-3 rounded-full font-semibold transition-all duration-300 hover:gap-5 group"
+                style={{
+                  fontFamily: "'Inter',sans-serif",
+                  fontSize: 15,
+                  padding: "16px 36px",
+                  background: "rgba(255,255,255,0.97)",
+                  border: "1px solid rgba(255,255,255,0.4)",
+                  color: "#0a0a0a",
+                  backdropFilter: "blur(14px)",
+                  boxShadow: "0 0 40px rgba(255,255,255,0.14), 0 8px 32px rgba(0,0,0,0.4)",
+                  letterSpacing: "-0.01em",
+                  position: "relative", zIndex: 1,
+                }}>
+                Studio finden & Termin anfragen
+                <ArrowRight size={16} strokeWidth={2} className="transition-transform duration-300 group-hover:translate-x-1.5" />
+              </Link>
+            </div>
+
+            {/* Social proof */}
+            <p style={{
+              fontFamily: "'Inter',sans-serif", fontSize: 11,
+              color: "rgba(255,255,255,.3)", letterSpacing: "0.04em",
+            }}>
+              Kostenlos · Keine Registrierung nötig
+            </p>
+
             <Link to="/register?role=studio"
               style={{
                 fontFamily: "'Inter',sans-serif", fontSize: 12,
-                color: "rgba(255,255,255,.38)", textDecoration: "none",
+                color: "rgba(255,255,255,.32)", textDecoration: "none",
                 transition: "color 0.2s",
               }}
-              onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,.7)"}
-              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.38)"}
+              onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,.65)"}
+              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.32)"}
             >
               Du bist ein Studio? Hier registrieren →
             </Link>
           </div>
+          <style>{`
+            @keyframes ctaPulse {
+              0%, 100% { opacity: 0.6; transform: scale(1); }
+              50% { opacity: 0.15; transform: scale(1.04); }
+            }
+          `}</style>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
