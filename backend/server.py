@@ -1054,6 +1054,12 @@ async def create_review(studio_id: str, data: ReviewCreate, current_user: dict =
     review_doc.pop("_id", None)
     return review_doc
 
+@api_router.get("/reviews/my-reviewed-bookings")
+async def get_my_reviewed_bookings(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    reviews = await db.reviews.find({"user_id": user_id, "booking_id": {"$exists": True, "$ne": None}}, {"_id": 0, "booking_id": 1}).to_list(1000)
+    return [r["booking_id"] for r in reviews if r.get("booking_id")]
+
 # ─── Slots / Availability ─────────────────────────────────────────────────────
 @api_router.get("/studios/{studio_id}/slots")
 async def get_slots(studio_id: str, date: Optional[str] = None, slot_type: Optional[str] = None):

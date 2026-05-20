@@ -159,9 +159,17 @@ export default function CustomerDashboard() {
   const [conversations, setConversations] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const fetchReviewedIds = async () => {
+    try {
+      const { data } = await axios.get(`${API}/reviews/my-reviewed-bookings`, { withCredentials: true });
+      setReviewedBookingIds(new Set(data));
+    } catch {}
+  };
+
   useEffect(() => {
     fetchStats();
     fetchMessages();
+    fetchReviewedIds();
     const pollInterval = setInterval(fetchStats, 8000);
     const msgInterval = setInterval(fetchMessages, 15000);
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
