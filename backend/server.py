@@ -178,6 +178,20 @@ def booking_status_html(booking: dict, status: str) -> str:
         if is_confirmed else
         "Leider musste dein Termin abgesagt werden. Gerne kannst du einen neuen Termin buchen."
     )
+
+    deposit_required = booking.get("deposit_required", False)
+    deposit_amount = booking.get("deposit_amount", 0)
+    deposit_block = ""
+    if is_confirmed and deposit_required and deposit_amount:
+        deposit_block = f"""
+        <div style="margin-top:20px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;">
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#92400e;">Anzahlung erforderlich</p>
+          <p style="margin:0;font-size:13px;color:#78350f;line-height:1.5;">
+            Bitte zahle die Anzahlung von <strong>€ {float(deposit_amount):.2f}</strong> über dein InkBook-Dashboard,
+            um deinen Termin zu sichern. Dein Platz ist bis zur Zahlung reserviert.
+          </p>
+        </div>"""
+
     return f"""
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
       {_email_header()}
@@ -194,6 +208,8 @@ def booking_status_html(booking: dict, status: str) -> str:
           {_detail_row("Zeit", f"{booking.get('start_time', '')} – {booking.get('end_time', '')}")}
           {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
         </table>
+
+        {deposit_block}
 
         {'<div style="margin-top:28px;text-align:center;"><a href="#" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:13px;font-weight:700;">Neuen Termin buchen</a></div>' if not is_confirmed else ''}
       </div>
@@ -1094,15 +1110,6 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
     await db.bookings.insert_one(booking_doc)
     await db.slots.update_one({"slot_id": data.slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
     
-    # Send confirmation email to customer (fire & forget)
-    user_email = current_user.get("email", "")
-    if user_email:
-        asyncio.create_task(send_email(
-            to=user_email,
-            subject=f"Buchungsbestätigung – {studio.get('name', '')}",
-            html=booking_confirmation_html(booking_doc)
-        ))
-
     # Notify studio owner by email
     studio_owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
     if studio_owner and studio_owner.get("email"):
