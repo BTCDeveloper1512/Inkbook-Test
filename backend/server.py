@@ -1227,7 +1227,7 @@ async def get_unread_count_post(current_user: dict = Depends(get_current_user)):
         "sender_id": {"$ne": "inkbook_system"},
         "is_system": {"$ne": True}
     })
-    return {"count": count}
+    return {"count": count, "unread_count": count}
 
 @api_router.get("/messages/unread-count")
 async def get_unread_count(current_user: dict = Depends(get_current_user)):
@@ -1238,7 +1238,7 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
         "sender_id": {"$ne": "inkbook_system"},
         "is_system": {"$ne": True}
     })
-    return {"count": count}
+    return {"count": count, "unread_count": count}
 
 @api_router.post("/messages/{other_user_id}/mark-read")
 async def mark_messages_read(other_user_id: str, current_user: dict = Depends(get_current_user)):
