@@ -54,7 +54,6 @@ export default function StudioDashboard() {
   const [connectLoading, setConnectLoading] = useState(false);
   const [inquiries, setInquiries] = useState([]);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
-  const [showHiddenInquiries, setShowHiddenInquiries] = useState(false);
   const inquiriesInitialized = React.useRef(false);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -249,13 +248,6 @@ export default function StudioDashboard() {
     try {
       await axios.patch(`${API}/inquiries/${inquiryId}/status`, { status }, { withCredentials: true });
       setInquiries(prev => prev.map(i => i.inquiry_id === inquiryId ? { ...i, status } : i));
-    } catch {}
-  };
-
-  const toggleInquiryHidden = async (inquiryId, hidden) => {
-    try {
-      await axios.patch(`${API}/inquiries/${inquiryId}/status`, { hidden }, { withCredentials: true });
-      setInquiries(prev => prev.map(i => i.inquiry_id === inquiryId ? { ...i, hidden } : i));
     } catch {}
   };
 
@@ -1085,14 +1077,6 @@ export default function StudioDashboard() {
                 <p className="text-xs text-zinc-500 font-inter mt-0.5">Anfragen von Kunden ohne Account — direkt vom Studio-Profil</p>
               </div>
               <div className="flex items-center gap-2">
-                {inquiries.some(i => i.hidden) && (
-                  <button
-                    onClick={() => setShowHiddenInquiries(v => !v)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-inter border rounded-xl transition-colors ${showHiddenInquiries ? "bg-zinc-900 text-white border-zinc-900" : "text-zinc-500 border-zinc-200 hover:bg-zinc-50"}`}
-                  >
-                    {showHiddenInquiries ? "Ausgeblendet verstecken" : `Ausgeblendet anzeigen (${inquiries.filter(i => i.hidden).length})`}
-                  </button>
-                )}
                 <button onClick={() => fetchInquiries(stats?.studio?.studio_id, false)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6A4 4 0 1 1 6 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M10 2v4H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Aktualisieren
@@ -1112,7 +1096,7 @@ export default function StudioDashboard() {
                 ))}
               </div>
             ) : (() => {
-              const visible = inquiries.filter(i => showHiddenInquiries ? true : !i.hidden);
+              const visible = inquiries;
               if (visible.length === 0) return (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-12 text-center">
                   <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -1147,7 +1131,7 @@ export default function StudioDashboard() {
                     const isExpanded = expandedInquiry === inq.inquiry_id;
 
                     return (
-                      <motion.div key={inq.inquiry_id} layout className={`border-b border-zinc-50 last:border-0 ${inq.hidden ? "opacity-40" : ""}`}>
+                      <motion.div key={inq.inquiry_id} layout className="border-b border-zinc-50 last:border-0">
                         {/* Compact row */}
                         <div
                           className="grid grid-cols-[90px_180px_1fr_90px_100px] gap-3 px-5 py-3 items-center cursor-pointer hover:bg-zinc-50/60 transition-colors"
@@ -1180,16 +1164,6 @@ export default function StudioDashboard() {
                               title="Nachricht senden"
                             >
                               <MessageSquare size={11} strokeWidth={1.5} />
-                            </button>
-                            <button
-                              onClick={() => toggleInquiryHidden(inq.inquiry_id, !inq.hidden)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors"
-                              title={inq.hidden ? "Einblenden" : "Ausblenden"}
-                            >
-                              {inq.hidden
-                                ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                              }
                             </button>
                             <button
                               onClick={() => { setRejectModal(inq); setRejectReason(""); }}
