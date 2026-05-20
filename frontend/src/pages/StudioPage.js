@@ -6,6 +6,7 @@ import axios from "axios";
 import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import GuestBookingModal from "../components/GuestBookingModal";
 import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
@@ -399,6 +400,7 @@ export default function StudioPage() {
   const [igActive, setIgActive] = useState(null); // artist_id currently showing instagram popup
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [lightbox, setLightbox] = useState(null); // { imgs: [], idx: 0 }
+  const [showGuestModal, setShowGuestModal] = useState(false);
   // Review reporting
   const [reportingReviewId, setReportingReviewId] = useState(null);
   const [reportReason, setReportReason] = useState("");
@@ -478,7 +480,7 @@ export default function StudioPage() {
   }, [selectedDate, bookingType, studioId]);
 
   const handleBook = async () => {
-    if (!user) { navigate("/login"); return; }
+    if (!user) { setShowGuestModal(true); return; }
     if (!selectedSlot) return;
     setBookingLoading(true);
     try {
@@ -784,26 +786,45 @@ export default function StudioPage() {
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_24px_rgb(0,0,0,0.06)] p-6 md:sticky md:top-20">
               <h3 className="font-playfair font-semibold text-xl text-zinc-900 mb-5">{t("booking.title")}</h3>
 
-              {/* ── Not logged in: prompt ── */}
+              {/* ── Not logged in: guest inquiry prompt ── */}
               {!user ? (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-center py-6">
-                  <div className="w-14 h-14 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Calendar size={22} className="text-zinc-400" strokeWidth={1.5} />
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="py-4">
+                  {/* Progress indicator */}
+                  <div className="flex items-center gap-1.5 mb-5">
+                    {[
+                      { n: 1, label: "Anfrage" },
+                      { n: 2, label: "Preis" },
+                      { n: 3, label: "Zahlen" },
+                    ].map((s, i) => (
+                      <React.Fragment key={s.n}>
+                        <div className="flex items-center gap-1">
+                          <div className="w-4 h-4 rounded-full bg-zinc-100 flex items-center justify-center text-[9px] font-inter font-bold text-zinc-400">{s.n}</div>
+                          <span className="text-[10px] text-zinc-400 font-inter">{s.label}</span>
+                        </div>
+                        {i < 2 && <div className="flex-1 h-px bg-zinc-200 min-w-[4px]" />}
+                      </React.Fragment>
+                    ))}
                   </div>
-                  <p className="font-playfair font-semibold text-zinc-900 text-base mb-1">Termin buchen</p>
-                  <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-5">
-                    Melde dich an oder registriere dich, um einen Termin bei diesem Studio zu buchen.
+                  <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-4">
+                    Sende eine Anfrage direkt an das Studio — ganz ohne Account.
                   </p>
-                  <div className="flex flex-col gap-2">
-                    <Link to="/login" data-testid="booking-login-btn"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-medium text-sm hover:bg-zinc-700 transition-colors">
-                      <LogIn size={15} strokeWidth={1.5} /> Anmelden
-                    </Link>
-                    <Link to="/register" data-testid="booking-register-btn"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-inter font-medium text-sm hover:border-zinc-400 transition-colors">
-                      <UserPlus size={15} strokeWidth={1.5} /> Kostenlos registrieren
-                    </Link>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setShowGuestModal(true)}
+                    className="btn-primary w-full justify-center gap-2"
+                    data-testid="guest-inquiry-btn"
+                  >
+                    <Calendar size={15} strokeWidth={1.5} /> Termin anfragen
+                  </motion.button>
+                  <div className="flex items-center gap-3 mt-3">
+                    <div className="flex-1 h-px bg-zinc-100" />
+                    <span className="text-[11px] text-zinc-400 font-inter">oder</span>
+                    <div className="flex-1 h-px bg-zinc-100" />
                   </div>
+                  <Link to="/login" data-testid="booking-login-btn"
+                    className="flex items-center justify-center gap-2 w-full mt-3 py-2 border border-zinc-200 text-zinc-600 rounded-xl font-inter font-medium text-sm hover:border-zinc-400 transition-colors">
+                    <LogIn size={14} strokeWidth={1.5} /> Anmelden
+                  </Link>
                 </motion.div>
               ) : (
               <>
@@ -1039,6 +1060,11 @@ export default function StudioPage() {
           onClose={() => setSelectedArtist(null)}
           onOpenLightbox={(imgs, idx) => setLightbox({ imgs, idx })}
         />
+      )}
+
+      {/* Guest Inquiry Modal */}
+      {showGuestModal && studio && (
+        <GuestBookingModal studio={studio} onClose={() => setShowGuestModal(false)} />
       )}
     </div>
   );

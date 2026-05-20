@@ -327,8 +327,20 @@ class SlotCreate(BaseModel):
     start_time: str  # HH:MM
     end_time: str  # HH:MM
     slot_type: str = "tattoo"  # consultation | tattoo | video_consultation | full_day
-    duration_minutes: int = 60
-    notes: str = ""
+
+class GuestInquiryCreate(BaseModel):
+    studio_id: str
+    name: str
+    email: EmailStr
+    tattoo_description: str
+    size: Optional[str] = None
+    body_part: Optional[str] = None
+    reference_images: Optional[List[str]] = []
+
+class ActivateAccountRequest(BaseModel):
+    email: EmailStr
+    ghost_token: str
+    password: str
 
 class BookingCreate(BaseModel):
     studio_id: str
@@ -462,6 +474,83 @@ async def logout():
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+@api_router.post("/auth/activate")
+async def activate_account(data: ActivateAccountRequest):
+    from fastapi.responses import JSONResponse as JR
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email, "is_ghost": True})
+    if not user:
+        raise HTTPException(status_code=404, detail="Kein Ghost-Account für diese E-Mail gefunden.")
+    if data.ghost_token and user.get("ghost_token") and user.get("ghost_token") != data.ghost_token:
+        raise HTTPException(status_code=400, detail="Ungültiger Aktivierungstoken.")
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="Passwort muss mindestens 8 Zeichen haben.")
+    pw_hash = await asyncio.to_thread(hash_password, data.password)
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"password_hash": pw_hash, "is_active": True, "is_ghost": False}}
+    )
+    user_id = str(user["_id"])
+    access_token = create_access_token(user_id, email)
+    refresh_token = create_refresh_token(user_id)
+    resp = JR(content={
+        "id": user_id, "email": email,
+        "name": user.get("name", ""), "role": user.get("role", "customer"), "avatar": user.get("avatar", "")
+    })
+    resp.set_cookie("access_token", access_token, httponly=True, samesite="lax", max_age=86400, path="/")
+    resp.set_cookie("refresh_token", refresh_token, httponly=True, samesite="lax", max_age=604800, path="/")
+    return resp
+
+@api_router.post("/inquiries")
+async def create_guest_inquiry(data: GuestInquiryCreate):
+    import secrets as secrets_mod
+    email = data.email.lower().strip()
+
+    studio = await db.studios.find_one({"studio_id": data.studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden.")
+
+    existing_user = await db.users.find_one({"email": email})
+    if existing_user:
+        user_id = str(existing_user["_id"])
+        user_name = existing_user.get("name", data.name)
+        ghost_token = existing_user.get("ghost_token", "")
+    else:
+        ghost_token = secrets_mod.token_urlsafe(32)
+        user_doc = {
+            "email": email,
+            "name": data.name,
+            "password_hash": None,
+            "role": "customer",
+            "is_ghost": True,
+            "is_active": False,
+            "ghost_token": ghost_token,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "avatar": "",
+            "auth_provider": "email",
+        }
+        result = await db.users.insert_one(user_doc)
+        user_id = str(result.inserted_id)
+        user_name = data.name
+
+    inquiry_id = f"inq_{uuid.uuid4().hex[:12]}"
+    inquiry = {
+        "inquiry_id": inquiry_id,
+        "user_id": user_id,
+        "user_name": user_name,
+        "user_email": email,
+        "studio_id": data.studio_id,
+        "studio_name": studio.get("name", ""),
+        "tattoo_description": data.tattoo_description,
+        "size": data.size,
+        "body_part": data.body_part,
+        "reference_images": data.reference_images or [],
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.inquiries.insert_one(inquiry)
+    return {"inquiry_id": inquiry_id, "status": "sent"}
 
 # ── User Profile ─────────────────────────────────────────────────────────────
 

@@ -540,7 +540,7 @@ function LandingNav() {
               >
                 Anmelden
               </Link>
-              <Link to="/register" className="hidden sm:block"
+              <Link to="/register?role=studio" className="hidden sm:block"
                 style={{
                   padding: "8px 20px", borderRadius: 20, fontSize: 13,
                   fontFamily: "Inter, sans-serif",
@@ -554,7 +554,7 @@ function LandingNav() {
                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.16)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; }}
               >
-                Registrieren
+                Als Studio registrieren
               </Link>
             </>
           )}
@@ -600,7 +600,7 @@ function LandingNav() {
               ? [{ to: dashboardPath, label: "Dashboard" }]
               : [
                   { to: "/login",    label: "Anmelden" },
-                  { to: "/register", label: "Kostenlos registrieren" },
+                  { to: "/register?role=studio", label: "Als Studio registrieren" },
                 ]
             ),
           ].map(({ to, label }) => (
@@ -987,16 +987,27 @@ export default function LandingPage() {
             style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.32)" }}>
             Premium Tattoo Buchungsplattform
           </p>
-          <div ref={ctaHeroRef}>
+          <div ref={ctaHeroRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <Link to="/search"
               className="inline-flex items-center gap-3 px-9 py-3.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:gap-5 group"
               style={{
                 fontFamily: "'Inter',sans-serif",
-                background: "rgba(255,255,255,.09)", border: "1px solid rgba(255,255,255,.16)",
-                color: "rgba(255,255,255,.88)", backdropFilter: "blur(14px)",
+                background: "rgba(255,255,255,.94)", border: "1px solid rgba(255,255,255,.3)",
+                color: "#0a0a0a", backdropFilter: "blur(14px)",
               }}>
-              Studios entdecken
+              Jetzt Termin anfragen
               <ArrowRight size={14} strokeWidth={1.5} className="transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
+            <Link to="/register?role=studio"
+              style={{
+                fontFamily: "'Inter',sans-serif", fontSize: 12,
+                color: "rgba(255,255,255,.38)", textDecoration: "none",
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,.7)"}
+              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.38)"}
+            >
+              Du bist ein Studio? Hier registrieren →
             </Link>
           </div>
         </div>

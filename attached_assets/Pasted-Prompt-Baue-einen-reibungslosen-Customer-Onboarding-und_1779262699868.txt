@@ -1,0 +1,96 @@
+Prompt:
+
+Baue einen reibungslosen Customer-Onboarding- und Buchungs-Flow, bei dem Nutzer eine Tattoo-Anfrage starten können, ohne vorher einen Account erstellen zu müssen.
+
+Ziel:
+
+Entferne die Hürde der Registrierung am Anfang. Nutzer sollen sofort eine Anfrage starten können. Ein Account wird erst später benötigt (z.B. für Chat, Zahlung oder Bestätigung).
+
+1. Landingpage / Studio-Seite
+Haupt-Call-to-Action darf NICHT „Registrieren“ sein
+Verwende stattdessen:
+„Termin anfragen“
+„Jetzt buchen“
+Füge einen kleinen sekundären Button im Header hinzu:
+„Login“
+optional: „Registrieren“
+Füge eine klare CTA für Studios hinzu:
+„Als Studio registrieren“
+2. Anfrage-Flow (OHNE LOGIN)
+
+Wenn der Nutzer auf „Termin anfragen“ klickt:
+
+Zeige ein Formular mit:
+
+Name
+E-Mail
+Tattoo-Beschreibung
+Größe (optional)
+Körperstelle (optional)
+Referenzbilder hochladen
+
+👉 KEIN Passwort, KEINE Account-Erstellung an dieser Stelle
+
+3. Backend-Logik
+Erstelle automatisch einen temporären Nutzer („Ghost User“):
+E-Mail = eingegebene E-Mail
+Passwort = null
+is_active = false
+Speichere die Anfrage und verknüpfe sie mit diesem Nutzer
+4. Nach dem Absenden
+
+Zeige eine Erfolgsseite:
+
+„Deine Anfrage wurde gesendet. Das Studio wird sich in Kürze bei dir melden.“
+
+Zusätzlich:
+
+„Du erhältst eine E-Mail mit Updates oder kannst später in deinem Dashboard weitermachen.“
+
+5. Account-Erstellung auslösen (WICHTIG)
+
+Erst dann verlangen, wenn der Nutzer:
+
+den Chat öffnen will
+auf eine Nachricht antworten will
+einen Preis bestätigen will
+eine Anzahlung leisten will
+
+Zeige dann ein Modal:
+
+„Erstelle dein Konto, um deine Buchung fortzusetzen“
+
+Felder:
+
+Passwort
+Passwort bestätigen
+
+Beim Absenden:
+
+Nutzer aktivieren (is_active = true)
+6. Chat-Integration
+Studio kann direkt antworten
+Nutzer bekommt eine E-Mail:
+
+„Du hast eine neue Nachricht erhalten – setze deine Buchung fort“
+
+Link führt zurück zur Plattform
+7. UI/UX Details
+Fortschritt anzeigen:
+„Schritt 1: Anfrage gesendet ✅“
+„Schritt 2: Preis erhalten 💬“
+„Schritt 3: Bestätigen & zahlen 💳“
+KEINE harte Registrierung am Anfang
+8. Studio-Registrierung CTA
+
+Füge sichtbar hinzu:
+
+„Du bist Tattoo-Artist? Registriere dein Studio“
+
+👉 führt zu separatem Onboarding für Studios
+
+9. Wichtige Regeln
+Nutzer NICHT am Anfang zur Registrierung zwingen
+Registrierung so lange wie möglich verzögern
+Fokus: Anfrage abschließen
+Registrierung soll sich wie ein „nächster Schritt“ anfühlen, nicht wie eine Hürde

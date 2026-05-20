@@ -23,6 +23,7 @@ import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
 import FAQPage from "./pages/FAQPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
+import ActivatePage from "./pages/ActivatePage";
 import "./App.css";
 
 function AppRouter() {
@@ -47,6 +48,7 @@ function AppRouter() {
         <Route path="/agb"           element={<AGBPage />} />
         <Route path="/faq"           element={<FAQPage />} />
         <Route path="/ueber-uns"     element={<UeberUnsPage />} />
+        <Route path="/activate"      element={<ActivatePage />} />
         <Route path="/messages" element={
           <ProtectedRoute><MessagesPage /></ProtectedRoute>
         } />
