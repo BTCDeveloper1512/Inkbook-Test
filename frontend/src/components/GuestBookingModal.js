@@ -64,8 +64,8 @@ export default function GuestBookingModal({ studio, onClose }) {
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
-        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }}
+        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-6"
+        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", zIndex: 9999 }}
         onClick={onClose}
       >
         <motion.div
