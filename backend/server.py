@@ -3213,21 +3213,43 @@ async def admin_all_bookings(current_user: dict = Depends(require_admin)):
 async def admin_revenue(current_user: dict = Depends(require_admin)):
     txns = await db.payment_transactions.find({"payment_status": "paid"}, {"_id": 0}).to_list(10000)
     monthly: dict = {}
+    monthly_fees: dict = {}
     for txn in txns:
         try:
             date = datetime.fromisoformat(txn["created_at"].replace("Z", "+00:00"))
             key = date.strftime("%Y-%m")
             monthly[key] = round(monthly.get(key, 0) + float(txn.get("amount", 0)), 2)
+            fee_cents = float(txn.get("platform_fee_amount", 0))
+            monthly_fees[key] = round(monthly_fees.get(key, 0) + fee_cents / 100, 2)
         except Exception:
             pass
     subs = await db.subscriptions.find({}, {"_id": 0, "plan": 1, "status": 1}).to_list(1000)
     plan_prices = {"free": 0.0, "starter": 19.99, "pro": 49.99, "full_studio": 149.99, "basic": 29.0}
     mrr = sum(plan_prices.get(s.get("plan", ""), 0) for s in subs if s.get("status") == "active")
+    total_platform_fees = round(sum(float(t.get("platform_fee_amount", 0)) / 100 for t in txns), 2)
+    recent_txns = sorted(txns, key=lambda t: t.get("created_at", ""), reverse=True)[:50]
+    transactions = [
+        {
+            "transaction_id": t.get("transaction_id", ""),
+            "studio_name": t.get("studio_name", "—"),
+            "amount": float(t.get("amount", 0)),
+            "platform_fee_amount": round(float(t.get("platform_fee_amount", 0)) / 100, 2),
+            "platform_fee_percent": float(t.get("platform_fee_percent", 0)),
+            "created_at": t.get("created_at", ""),
+        }
+        for t in recent_txns
+    ]
+    breakdown = sorted(monthly.items())[-6:]
     return {
-        "monthly_breakdown": [{"month": k, "amount": v} for k, v in sorted(monthly.items())[-6:]],
+        "monthly_breakdown": [
+            {"month": k, "amount": v, "platform_fee": round(monthly_fees.get(k, 0), 2)}
+            for k, v in breakdown
+        ],
         "mrr": round(mrr, 2),
         "active_subscriptions": sum(1 for s in subs if s.get("status") == "active"),
         "total_from_payments": round(sum(float(t.get("amount", 0)) for t in txns), 2),
+        "total_platform_fees": total_platform_fees,
+        "transactions": transactions,
     }
 
 @api_router.get("/admin/subscriptions")

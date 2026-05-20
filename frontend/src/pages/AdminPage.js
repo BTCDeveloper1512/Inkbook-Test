@@ -609,11 +609,12 @@ export default function AdminPage() {
                 {/* ══════════════════════════════════════════ REVENUE */}
                 {activeSection === "revenue" && revenue && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-4 gap-4">
                       {[
                         { l: "Monatl. Wiederkehrend (MRR)", v: `€ ${(revenue.mrr || 0).toFixed(2)}`, c: "text-emerald-600" },
                         { l: "Aktive Abonnements", v: revenue.active_subscriptions || 0, c: "text-zinc-900" },
                         { l: "Zahlungen gesamt", v: `€ ${(revenue.total_from_payments || 0).toFixed(2)}`, c: "text-zinc-900" },
+                        { l: "Plattformgebühren (5%)", v: `€ ${(revenue.total_platform_fees || 0).toFixed(2)}`, c: "text-violet-600" },
                       ].map(({ l, v, c }) => (
                         <div key={l} className="bg-white rounded-xl border border-zinc-100 p-5">
                           <p className={`text-2xl font-playfair font-semibold ${c}`}>{v}</p>
@@ -624,6 +625,12 @@ export default function AdminPage() {
                     <SectionCard title="Letzte 6 Monate">
                       {revenue.monthly_breakdown?.length === 0 ? <EmptyState text="Keine Zahlungsdaten" /> : (
                         <div className="p-5 space-y-3">
+                          <div className="flex items-center gap-4 mb-1">
+                            <span className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 w-20">Monat</span>
+                            <span className="flex-1 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Umsatz</span>
+                            <span className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 w-24 text-right">Betrag</span>
+                            <span className="text-[10px] font-inter font-semibold uppercase tracking-widest text-violet-400 w-24 text-right">Gebühr (5%)</span>
+                          </div>
                           {(revenue.monthly_breakdown || []).map((m) => (
                             <div key={m.month} className="flex items-center gap-4">
                               <span className="text-sm font-inter text-zinc-500 w-20">{m.month}</span>
@@ -631,9 +638,35 @@ export default function AdminPage() {
                                 <div className="h-full bg-zinc-900 rounded-lg transition-all"
                                   style={{ width: `${Math.min(100, (m.amount / Math.max(...(revenue.monthly_breakdown || []).map(x => x.amount))) * 100)}%` }} />
                               </div>
-                              <span className="text-sm font-inter font-semibold text-zinc-900 w-20 text-right">€ {m.amount.toFixed(2)}</span>
+                              <span className="text-sm font-inter font-semibold text-zinc-900 w-24 text-right">€ {m.amount.toFixed(2)}</span>
+                              <span className="text-sm font-inter font-semibold text-violet-600 w-24 text-right">€ {(m.platform_fee || 0).toFixed(2)}</span>
                             </div>
                           ))}
+                        </div>
+                      )}
+                    </SectionCard>
+                    <SectionCard title={`Transaktionen (${(revenue.transactions || []).length})`}>
+                      {(revenue.transactions || []).length === 0 ? <EmptyState text="Keine Transaktionen" /> : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead><tr className="border-b border-zinc-100">
+                              {["Datum", "Studio", "Betrag", "Plattformgebühr (5%)"].map(h => (
+                                <th key={h} className="px-5 py-3 text-left text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400">{h}</th>
+                              ))}
+                            </tr></thead>
+                            <tbody className="divide-y divide-zinc-50">
+                              {(revenue.transactions || []).map((t, i) => (
+                                <tr key={t.transaction_id || i} className="hover:bg-zinc-50">
+                                  <td className="px-5 py-3.5 text-xs text-zinc-400 font-inter whitespace-nowrap">
+                                    {t.created_at ? new Date(t.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
+                                  </td>
+                                  <td className="px-5 py-3.5 text-sm font-inter font-medium text-zinc-900">{t.studio_name || "—"}</td>
+                                  <td className="px-5 py-3.5 text-sm font-inter font-semibold text-zinc-900">€ {(t.amount || 0).toFixed(2)}</td>
+                                  <td className="px-5 py-3.5 text-sm font-inter font-semibold text-violet-600">€ {(t.platform_fee_amount || 0).toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </SectionCard>
