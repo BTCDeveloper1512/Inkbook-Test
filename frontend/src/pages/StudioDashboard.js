@@ -565,7 +565,6 @@ export default function StudioDashboard() {
                 { id: "inquiries", icon: <Inbox         size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "slots",     icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Freie Slots",  badge: 0 },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
-                { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
                 { id: "profile",   icon: <Settings2     size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
               ].map(item => (
                 <button key={item.id}
@@ -595,7 +594,6 @@ export default function StudioDashboard() {
                 { id: "inquiries", label: "Anfragen" },
                 { id: "slots",     label: "Slots" },
                 { id: "artists",   label: "Artists" },
-                { id: "messages",  label: "Nachrichten", href: "/messages", badge: unreadMessages },
                 { id: "profile",   label: "Profil" },
               ].map(tab => (
                 <button key={tab.id}
