@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -518,160 +518,80 @@ export default function StudioDashboard() {
     <div className="min-h-screen bg-zinc-50">
       <Navbar />
 
-      {/* ── Dark Hero Card (rounded, bordered glow) ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <BorderGlow
-          backgroundColor="#0e0e18"
-          borderRadius={24}
-          glowColor="220 25 88"
-          colors={["rgba(210,220,255,0.55)", "rgba(160,140,255,0.35)", "rgba(120,170,255,0.25)"]}
-          glowIntensity={0.9}
-          glowRadius={44}
-          coneSpread={22}
-          animated
-          className="w-full"
-        >
-          <div className="relative overflow-hidden" style={{ borderRadius: 24 }}>
-            <DashboardHeroSmoke />
-            <div className="relative px-4 sm:px-8 pt-6 sm:pt-8 pb-8 sm:pb-10">
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}>
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <p className="text-[10px] tracking-[0.28em] uppercase font-inter" style={{ color: "rgba(255,255,255,0.28)" }}>Studio Dashboard</p>
-                  {studio?.is_verified && (
-                    <span className="text-[10px] tracking-[0.2em] uppercase font-inter px-2.5 py-1 rounded-full border" style={{ color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)" }}>Verifiziert</span>
-                  )}
+      {/* ── Dashboard Layout ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">
+        <div className="flex gap-6 items-start">
+
+          {/* ── Sidebar ── */}
+          <aside className="w-52 flex-shrink-0 sticky top-20 hidden md:flex flex-col gap-3">
+            {/* Studio card */}
+            <div className="bg-zinc-900 rounded-2xl p-4 relative overflow-hidden">
+              <DashboardHeroSmoke />
+              <div className="relative">
+                <p className="text-[9px] tracking-widest uppercase font-inter mb-1.5" style={{ color: "rgba(255,255,255,0.28)" }}>Studio Dashboard</p>
+                <h2 className="font-playfair font-bold text-white text-base leading-tight">{studio?.name}</h2>
+                {studio?.is_verified && (
+                  <span className="text-[9px] font-inter mt-1 block" style={{ color: "rgba(255,255,255,0.45)" }}>● Verifiziert</span>
+                )}
+                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                  <div className="rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.07)" }}>
+                    <p className="text-sm font-playfair font-semibold text-white">{stats?.total_bookings || 0}</p>
+                    <p className="text-[9px] font-inter mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Buchungen</p>
+                  </div>
+                  <div className="rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.07)" }}>
+                    <p className="text-sm font-playfair font-semibold text-white">{stats?.pending_bookings || 0}</p>
+                    <p className="text-[9px] font-inter mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Ausstehend</p>
+                  </div>
                 </div>
-                <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(26px, 4vw, 36px)" }}>
-                  {studio?.name}
-                </h1>
-              </motion.div>
-            </div>
-          </div>
-        </BorderGlow>
-      </div>
-
-      {/* ── White Content ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        {/* Stats */}
-        <motion.div
-          initial="hidden" animate="visible"
-          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
-        >
-          {[
-            { label: "Buchungen", value: stats?.total_bookings || 0, icon: <Calendar size={16} strokeWidth={1.5} /> },
-            { label: "Ausstehend", value: stats?.pending_bookings || 0, icon: <Clock size={16} strokeWidth={1.5} /> },
-            { label: "Bestätigt", value: stats?.confirmed_bookings || 0, icon: <CheckCircle size={16} strokeWidth={1.5} /> },
-            { label: "Abgeschlossen", value: completedBookings.length, icon: <TrendingUp size={16} strokeWidth={1.5} /> }
-          ].map((stat, i) => (
-            <motion.div key={i}
-              variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 22 } } }}
-              whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.08)" }}
-              className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4 cursor-default"
-            >
-              <div className="text-zinc-400 mb-2">{stat.icon}</div>
-              <p className="text-2xl font-playfair font-semibold text-zinc-900">{stat.value}</p>
-              <p className="text-xs text-zinc-500 font-inter mt-1">{stat.label}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Revenue strip */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, type: "spring", stiffness: 280, damping: 22 }}
-          className="grid grid-cols-3 gap-3 mb-6"
-        >
-          {[
-            { label: "Tagesumsatz", value: todayRevenue, accent: true },
-            { label: "Monatsumsatz", value: monthRevenue },
-            { label: "Gesamtumsatz", value: totalRevenue },
-          ].map((r, i) => (
-            <motion.div key={i}
-              whileHover={{ y: -3, boxShadow: "0 12px 32px rgba(0,0,0,0.08)" }}
-              className={`rounded-2xl border p-4 cursor-default transition-shadow ${r.accent ? "bg-zinc-900 border-zinc-800" : "bg-white border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]"}`}
-              data-testid={`revenue-card-${i}`}
-            >
-              <p className={`text-xs font-inter font-semibold uppercase tracking-wider mb-1.5 ${r.accent ? "text-white/50" : "text-zinc-400"}`}>{r.label}</p>
-              <p className={`text-xl font-playfair font-semibold ${r.accent ? "text-white" : "text-zinc-900"}`}>
-                €&thinsp;{r.value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Anzahlungen Kachel */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: "spring", stiffness: 280, damping: 22 }}
-          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5 mb-4"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
-                <CreditCard size={14} className="text-white" strokeWidth={1.5} />
               </div>
-              <p className="text-sm font-inter font-semibold text-zinc-900">Stripe Anzahlungen</p>
             </div>
-            <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live-Daten</span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-zinc-50 rounded-xl p-3.5">
-              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Anzahl gesamt</p>
-              <p className="text-2xl font-playfair font-semibold text-zinc-900">{stats?.deposit_count ?? 0}</p>
-              <p className="text-xs text-zinc-400 font-inter mt-0.5">Zahlungen</p>
-            </div>
-            <div className="bg-zinc-50 rounded-xl p-3.5">
-              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Diesen Monat</p>
-              <p className="text-2xl font-playfair font-semibold text-zinc-900">
-                €&thinsp;{(stats?.deposit_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-zinc-400 font-inter mt-0.5">Anzahlungen</p>
-            </div>
-            <div className="bg-zinc-900 rounded-xl p-3.5">
-              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Gesamt</p>
-              <p className="text-2xl font-playfair font-semibold text-white">
-                €&thinsp;{(stats?.deposit_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-white/40 font-inter mt-0.5">Eingenommen</p>
-            </div>
-          </div>
-        </motion.div>
 
-        {/* PDF Export Button */}
-        <div className="flex justify-end -mt-3 mb-4">
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={generateRevenuePDF}
-            className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-full font-inter text-sm text-zinc-600 hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
-            data-testid="pdf-export-btn"
-          >
-            <Download size={14} strokeWidth={1.8} />
-            Monatsumsatz PDF
-          </motion.button>
-        </div>
+            {/* Nav */}
+            <nav className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-2 space-y-0.5">
+              {[
+                { id: "overview",  icon: <LayoutGrid   size={15} strokeWidth={1.5} />, label: "Übersicht",    badge: 0 },
+                { id: "bookings",  icon: <BookOpen     size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => b.status === "pending").length },
+                { id: "inquiries", icon: <Inbox        size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
+                { id: "slots",     icon: <CalendarPlus size={15} strokeWidth={1.5} />, label: "Freie Slots",  badge: 0 },
+                { id: "artists",   icon: <Users        size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
+                { id: "profile",   icon: <Settings2    size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
+              ].map(item => (
+                <button key={item.id} onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === item.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+                  data-testid={`studio-tab-${item.id}`}
+                >
+                  {item.icon}
+                  <span className="flex-1 text-left text-xs">{item.label}</span>
+                  {item.badge > 0 && (
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${activeTab === item.id ? "bg-white/20 text-white" : "bg-zinc-900 text-white"}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </aside>
 
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-          className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto"
-        >
-          {[
-            { id: "overview", label: "Übersicht" },
-            { id: "inquiries", label: `Anfragen${inquiries.length > 0 ? ` (${inquiries.filter(i => i.status === "pending").length})` : ""}` },
-            { id: "slots", label: "Slots" },
-            { id: "bookings", label: `Buchungen (${stats?.total_bookings || 0})` },
-            { id: "artists", label: "Artist hinzufügen" },
-            { id: "profile", label: "Profil bearbeiten" }
-          ].map(tab => (
-            <motion.button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              whileTap={{ scale: 0.96 }}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
-              data-testid={`studio-tab-${tab.id}`}
-            >
-              {tab.label}
-            </motion.button>
-          ))}
-        </motion.div>
+          {/* ── Main content ── */}
+          <div className="flex-1 min-w-0">
+            {/* Mobile tab bar */}
+            <div className="flex gap-1 mb-5 md:hidden bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 overflow-x-auto">
+              {[
+                { id: "overview",  label: "Übersicht" },
+                { id: "bookings",  label: "Buchungen" },
+                { id: "inquiries", label: "Anfragen" },
+                { id: "slots",     label: "Slots" },
+                { id: "artists",   label: "Artists" },
+                { id: "profile",   label: "Profil" },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-inter font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+                  data-testid={`studio-tab-${tab.id}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
@@ -680,6 +600,90 @@ export default function StudioDashboard() {
             transition={{ type: "spring", stiffness: 280, damping: 22 }}
             className="space-y-5"
           >
+            {/* Stats grid */}
+            <motion.div
+              initial="hidden" animate="visible"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
+              className="grid grid-cols-2 lg:grid-cols-4 gap-3"
+            >
+              {[
+                { label: "Buchungen",     value: stats?.total_bookings    || 0, icon: <Calendar    size={16} strokeWidth={1.5} /> },
+                { label: "Ausstehend",    value: stats?.pending_bookings  || 0, icon: <Clock       size={16} strokeWidth={1.5} /> },
+                { label: "Bestätigt",     value: stats?.confirmed_bookings|| 0, icon: <CheckCircle size={16} strokeWidth={1.5} /> },
+                { label: "Abgeschlossen", value: completedBookings.length,      icon: <TrendingUp  size={16} strokeWidth={1.5} /> }
+              ].map((stat, i) => (
+                <motion.div key={i}
+                  variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 22 } } }}
+                  whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.08)" }}
+                  className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4 cursor-default"
+                >
+                  <div className="text-zinc-400 mb-2">{stat.icon}</div>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">{stat.value}</p>
+                  <p className="text-xs text-zinc-500 font-inter mt-1">{stat.label}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Revenue */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Tagesumsatz",   value: todayRevenue,  accent: true },
+                { label: "Monatsumsatz",  value: monthRevenue },
+                { label: "Gesamtumsatz",  value: totalRevenue },
+              ].map((r, i) => (
+                <div key={i}
+                  className={`rounded-2xl border p-4 cursor-default ${r.accent ? "bg-zinc-900 border-zinc-800" : "bg-white border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]"}`}
+                  data-testid={`revenue-card-${i}`}
+                >
+                  <p className={`text-xs font-inter font-semibold uppercase tracking-wider mb-1.5 ${r.accent ? "text-white/50" : "text-zinc-400"}`}>{r.label}</p>
+                  <p className={`text-xl font-playfair font-semibold ${r.accent ? "text-white" : "text-zinc-900"}`}>
+                    €&thinsp;{r.value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Stripe Anzahlungen + PDF */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
+                    <CreditCard size={14} className="text-white" strokeWidth={1.5} />
+                  </div>
+                  <p className="text-sm font-inter font-semibold text-zinc-900">Stripe Anzahlungen</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <motion.button whileTap={{ scale: 0.96 }} onClick={generateRevenuePDF}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-full font-inter text-xs text-zinc-600 hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+                    data-testid="pdf-export-btn">
+                    <Download size={12} strokeWidth={1.8} /> Umsatz PDF
+                  </motion.button>
+                  <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-zinc-50 rounded-xl p-3.5">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Anzahl gesamt</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">{stats?.deposit_count ?? 0}</p>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Zahlungen</p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-3.5">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Diesen Monat</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">
+                    €&thinsp;{(stats?.deposit_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Anzahlungen</p>
+                </div>
+                <div className="bg-zinc-900 rounded-xl p-3.5">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Gesamt</p>
+                  <p className="text-2xl font-playfair font-semibold text-white">
+                    €&thinsp;{(stats?.deposit_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-white/40 font-inter mt-0.5">Eingenommen</p>
+                </div>
+              </div>
+            </div>
+
             {/* Heutige Termine – Dark Inverted Card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
@@ -1569,10 +1573,12 @@ export default function StudioDashboard() {
             </motion.button>
           </motion.form>
         )}
+          </div>
+        </div>
       </div>
       {/* FAQ Help Strip */}
       <div className="bg-white border-t border-zinc-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center">
               <HelpCircle size={15} className="text-zinc-500" strokeWidth={1.5} />
