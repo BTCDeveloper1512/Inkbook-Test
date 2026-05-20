@@ -211,6 +211,15 @@ _replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
 _default_origins = "http://localhost:3000,http://localhost:5000"
 if _replit_domain:
     _default_origins += f",https://{_replit_domain}"
+
+def _get_frontend_url() -> str:
+    explicit = os.environ.get("FRONTEND_URL", "")
+    if explicit:
+        return explicit.rstrip("/")
+    domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    if domain:
+        return f"https://{domain}"
+    return "http://localhost:5000"
 _cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", os.environ.get("FRONTEND_URL", _default_origins)).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -592,7 +601,7 @@ async def delete_inquiry(inquiry_id: str, body: dict = None, current_user: dict 
     guest_email = inquiry.get("user_email", "")
     guest_name = inquiry.get("user_name", "Gast")
     studio_name = studio.get("name", "Das Studio")
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    frontend_url = _get_frontend_url()
 
     await db.inquiries.delete_one({"inquiry_id": inquiry_id})
 
@@ -724,7 +733,7 @@ async def forgot_password(data: ForgotPasswordRequest):
         "created_at": datetime.now(timezone.utc),
     })
 
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    frontend_url = _get_frontend_url()
     reset_link = f"{frontend_url}/reset-password?token={token}"
     name = user.get("name", "")
 
@@ -1353,7 +1362,7 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
                     guest_email = recipient_user.get("email", "")
                     guest_name = recipient_user.get("name", "Gast")
                     studio_name = sender_studio.get("name", "Das Studio")
-                    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+                    frontend_url = _get_frontend_url()
                     activate_url = f"{frontend_url}/activate?email={guest_email}&token={ghost_token}"
                     html = f"""
                     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
