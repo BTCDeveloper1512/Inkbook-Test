@@ -617,12 +617,12 @@ export default function StudioDashboard() {
             {/* Mobile tab bar */}
             <div className="flex gap-1 mb-5 md:hidden bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 overflow-x-auto">
               {[
-                { id: "overview",  label: "Übersicht" },
-                { id: "bookings",  label: "Buchungen" },
-                { id: "inquiries", label: "Anfragen" },
-                { id: "slots",     label: "Slots" },
-                { id: "artists",   label: "Artists" },
-                { id: "profile",   label: "Profil" },
+                { id: "overview",  label: "Übersicht",  badge: 0 },
+                { id: "bookings",  label: "Buchungen",  badge: activeBookings.filter(b => b.status === "pending").length },
+                { id: "inquiries", label: "Anfragen",   badge: inquiries.filter(i => i.status === "pending").length },
+                { id: "slots",     label: "Slots",      badge: 0 },
+                { id: "artists",   label: "Artists",    badge: 0 },
+                { id: "profile",   label: "Profil",     badge: 0 },
               ].map(tab => (
                 <button key={tab.id}
                   onClick={() => tab.href ? navigate(tab.href) : setActiveTab(tab.id)}
