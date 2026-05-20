@@ -1515,7 +1515,7 @@ async def book_slot_from_chat(message_id: str, current_user: dict = Depends(get_
         "booking_type": booking_type,
         "notes": "Via Chat gebucht",
         "reference_images": [],
-        "status": "pending",
+        "status": "confirmed",
         "payment_status": "unpaid",
         "deposit_amount": studio.get("deposit_amount", 50.0),
         "created_at": datetime.now(timezone.utc).isoformat()
