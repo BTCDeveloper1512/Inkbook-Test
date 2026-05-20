@@ -755,21 +755,28 @@ export default function SupportChat() {
       {/* Toggle Button */}
       <button
         onClick={() => { setOpen(o => !o); if (!open) setView("home"); }}
-        className="fixed bottom-6 right-20 z-50 w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:scale-105 transition-transform"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-zinc-900 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.28)] hover:bg-zinc-800 hover:shadow-[0_12px_40px_rgba(0,0,0,0.32)] transition-all duration-200 group"
         data-testid="support-chat-toggle"
         aria-label="Support öffnen"
       >
-        {open
-          ? <X size={22} className="text-white" strokeWidth={1.5} />
-          : <MessageCircle size={22} className="text-white" strokeWidth={1.5} />
-        }
+        {open ? (
+          <>
+            <X size={18} className="text-white" strokeWidth={2} />
+            <span className="text-white text-xs font-inter font-semibold">Schließen</span>
+          </>
+        ) : (
+          <>
+            <MessageCircle size={18} className="text-white" strokeWidth={1.5} />
+            <span className="text-white text-xs font-inter font-semibold">Hilfe & Support</span>
+          </>
+        )}
       </button>
 
       {/* Chat Panel */}
       {open && (
         <div
-          className="fixed bottom-24 right-20 z-50 w-80 bg-white rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.18)] border border-zinc-100 overflow-hidden flex flex-col"
-          style={{ height: 460 }}
+          className="fixed bottom-20 right-6 z-50 w-80 bg-white rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.18)] border border-zinc-100 overflow-hidden flex flex-col"
+          style={{ height: 480 }}
           data-testid="support-chat-panel"
         >
           {view === "home" && (
