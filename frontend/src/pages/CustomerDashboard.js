@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight } from "lucide-react";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import PaymentModal from "../components/PaymentModal";
@@ -156,13 +156,34 @@ export default function CustomerDashboard() {
   const [notYetPopup, setNotYetPopup] = useState(false);
   const [videoCallBooking, setVideoCallBooking] = useState(null);
   const [tick, setTick] = useState(0); // forces re-render every minute for live time checks
+  const [conversations, setConversations] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetchStats();
+    fetchMessages();
     const pollInterval = setInterval(fetchStats, 8000);
+    const msgInterval = setInterval(fetchMessages, 15000);
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
-    return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
+    return () => { clearInterval(pollInterval); clearInterval(msgInterval); clearInterval(tickInterval); };
   }, []);
+
+  const fetchMessages = async () => {
+    try {
+      const [msgsRes, unreadRes] = await Promise.all([
+        axios.get(`${API}/messages`, { withCredentials: true }),
+        axios.get(`${API}/messages/unread-count`, { withCredentials: true })
+      ]);
+      const msgs = msgsRes.data || [];
+      const grouped = {};
+      msgs.forEach(m => {
+        const key = m.other_user_id || (m.sender_id === (user?.id || user?.user_id) ? m.recipient_id : m.sender_id);
+        if (!grouped[key] || new Date(m.created_at) > new Date(grouped[key].created_at)) grouped[key] = m;
+      });
+      setConversations(Object.values(grouped).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 3));
+      setUnreadCount(unreadRes.data?.unread_count || 0);
+    } catch {}
+  };
 
   const fetchStats = async () => {
     try {
@@ -389,6 +410,64 @@ export default function CustomerDashboard() {
           })}
         </motion.div>
 
+
+        {/* Nachrichten Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}
+          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] mb-6 overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
+                <MessageSquare size={13} className="text-white" strokeWidth={1.5} />
+              </div>
+              <span className="font-inter font-semibold text-sm text-zinc-900">Nachrichten</span>
+              {unreadCount > 0 && (
+                <span className="text-[10px] font-inter font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">
+                  {unreadCount} neu
+                </span>
+              )}
+            </div>
+            <Link to="/messages" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-900 font-inter transition-colors">
+              Alle <ChevronRight size={12} strokeWidth={2} />
+            </Link>
+          </div>
+
+          {conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center mb-3">
+                <MessageSquare size={18} className="text-zinc-300" strokeWidth={1.5} />
+              </div>
+              <p className="text-sm text-zinc-400 font-inter">Noch keine Nachrichten</p>
+              <p className="text-xs text-zinc-300 font-inter mt-1">Studio-Antworten erscheinen hier</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-50">
+              {conversations.map((msg, i) => {
+                const name = msg.sender_studio_name || msg.sender_name || msg.recipient_name || "Studio";
+                const preview = msg.content ? (msg.content.length > 60 ? msg.content.slice(0, 60) + "…" : msg.content) : "Nachricht";
+                const otherId = msg.other_user_id || msg.sender_id || msg.recipient_id;
+                const isUnread = !msg.is_read && msg.sender_id !== (user?.id || user?.user_id);
+                const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "";
+                return (
+                  <Link key={i} to="/messages" className="flex items-start gap-3 px-5 py-3.5 hover:bg-zinc-50 transition-colors">
+                    <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-inter font-semibold text-zinc-500">{name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <p className={`text-sm font-inter truncate ${isUnread ? "font-semibold text-zinc-900" : "font-medium text-zinc-700"}`}>{name}</p>
+                        <span className="text-[10px] text-zinc-300 font-inter flex-shrink-0">{timeStr}</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 font-inter truncate">{preview}</p>
+                    </div>
+                    {isUnread && <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0 mt-2" />}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
 
         {/* Bookings Tabs */}
         <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto">
