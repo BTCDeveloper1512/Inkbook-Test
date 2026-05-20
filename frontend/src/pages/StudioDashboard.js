@@ -60,15 +60,26 @@ export default function StudioDashboard() {
   const [rejectLoading, setRejectLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [expandedInquiry, setExpandedInquiry] = useState(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  const fetchUnreadMessages = async () => {
+    try {
+      const { data } = await axios.get(`${API}/messages/unread-count`, { withCredentials: true });
+      setUnreadMessages(data?.unread_count || 0);
+    } catch {}
+  };
 
   useEffect(() => {
     fetchStats();
     fetchSubscription();
+    fetchUnreadMessages();
     // Poll every 8s for live updates (new bookings pop up fast)
     const pollInterval = setInterval(fetchStats, 8000);
+    // Poll unread messages every 15s
+    const msgInterval = setInterval(fetchUnreadMessages, 15000);
     // Re-evaluate time checks every 60s
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
-    return () => { clearInterval(pollInterval); clearInterval(tickInterval); };
+    return () => { clearInterval(pollInterval); clearInterval(msgInterval); clearInterval(tickInterval); };
   }, []);
 
   const fetchSubscription = async () => {
@@ -549,14 +560,16 @@ export default function StudioDashboard() {
             {/* Nav */}
             <nav className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-2 space-y-0.5">
               {[
-                { id: "overview",  icon: <LayoutGrid   size={15} strokeWidth={1.5} />, label: "Übersicht",    badge: 0 },
-                { id: "bookings",  icon: <BookOpen     size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => b.status === "pending").length },
-                { id: "inquiries", icon: <Inbox        size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
-                { id: "slots",     icon: <CalendarPlus size={15} strokeWidth={1.5} />, label: "Freie Slots",  badge: 0 },
-                { id: "artists",   icon: <Users        size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
-                { id: "profile",   icon: <Settings2    size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
+                { id: "overview",  icon: <LayoutGrid    size={15} strokeWidth={1.5} />, label: "Übersicht",    badge: 0 },
+                { id: "bookings",  icon: <BookOpen      size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => b.status === "pending").length },
+                { id: "inquiries", icon: <Inbox         size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
+                { id: "slots",     icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Freie Slots",  badge: 0 },
+                { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
+                { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
+                { id: "profile",   icon: <Settings2     size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
               ].map(item => (
-                <button key={item.id} onClick={() => setActiveTab(item.id)}
+                <button key={item.id}
+                  onClick={() => item.href ? navigate(item.href) : setActiveTab(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === item.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
                   data-testid={`studio-tab-${item.id}`}
                 >
@@ -582,13 +595,20 @@ export default function StudioDashboard() {
                 { id: "inquiries", label: "Anfragen" },
                 { id: "slots",     label: "Slots" },
                 { id: "artists",   label: "Artists" },
+                { id: "messages",  label: "Nachrichten", href: "/messages", badge: unreadMessages },
                 { id: "profile",   label: "Profil" },
               ].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-inter font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+                <button key={tab.id}
+                  onClick={() => tab.href ? navigate(tab.href) : setActiveTab(tab.id)}
+                  className={`relative flex-shrink-0 px-3 py-2 rounded-xl text-xs font-inter font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
                   data-testid={`studio-tab-${tab.id}`}
                 >
                   {tab.label}
+                  {tab.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-zinc-900 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
