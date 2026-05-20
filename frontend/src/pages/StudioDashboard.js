@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2 } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -53,6 +53,10 @@ export default function StudioDashboard() {
   const [connectStatus, setConnectStatus] = useState(null);
   const [connectLoading, setConnectLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState(null);
+  const [accountForm, setAccountForm] = useState({ name: "", email: "", currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [accountMsg, setAccountMsg] = useState(null);
+  const [accountLoading, setAccountLoading] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [inquiries, setInquiries] = useState([]);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const inquiriesInitialized = React.useRef(false);
@@ -372,6 +376,41 @@ export default function StudioDashboard() {
       setTimeout(() => setEditSuccess(false), 3000);
       fetchStats();
     } catch (err) { alert(err.response?.data?.detail || "Fehler"); } finally { setEditLoading(false); }
+  };
+
+  const handleChangeName = async () => {
+    if (!accountForm.name.trim()) return;
+    setAccountLoading("name");
+    setAccountMsg(null);
+    try {
+      await axios.put(`${API}/users/me`, { name: accountForm.name.trim() }, { withCredentials: true });
+      setAccountMsg({ type: "success", text: "Name erfolgreich geändert." });
+      setAccountForm(f => ({ ...f, name: "" }));
+    } catch (e) { setAccountMsg({ type: "error", text: e.response?.data?.detail || "Fehler" }); }
+    finally { setAccountLoading(""); }
+  };
+
+  const handleChangePassword = async () => {
+    if (!accountForm.currentPassword || !accountForm.newPassword) return;
+    if (accountForm.newPassword !== accountForm.confirmPassword) {
+      setAccountMsg({ type: "error", text: "Neue Passwörter stimmen nicht überein." });
+      return;
+    }
+    setAccountLoading("password");
+    setAccountMsg(null);
+    try {
+      await axios.put(`${API}/users/me/password`, { current_password: accountForm.currentPassword, new_password: accountForm.newPassword }, { withCredentials: true });
+      setAccountMsg({ type: "success", text: "Passwort erfolgreich geändert." });
+      setAccountForm(f => ({ ...f, currentPassword: "", newPassword: "", confirmPassword: "" }));
+    } catch (e) { setAccountMsg({ type: "error", text: e.response?.data?.detail || "Fehler" }); }
+    finally { setAccountLoading(""); }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await axios.delete(`${API}/users/me`, { withCredentials: true });
+      window.location.href = "/";
+    } catch (e) { setAccountMsg({ type: "error", text: e.response?.data?.detail || "Fehler beim Löschen" }); }
   };
 
   const handleImageUpload = async (e) => {
@@ -1302,7 +1341,7 @@ export default function StudioDashboard() {
 
         {/* Profile Edit Tab */}
         {activeTab === "profile" && editForm && (
-          <motion.form initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} onSubmit={handleSaveProfile} className="space-y-6">
+          <><motion.form initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} onSubmit={handleSaveProfile} className="space-y-6">
             {editSuccess && (
               <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-inter flex items-center gap-2" data-testid="profile-save-success">
                 <CheckCircle size={15} strokeWidth={1.5} /> Profil erfolgreich gespeichert!
@@ -1610,6 +1649,123 @@ export default function StudioDashboard() {
               <Save size={15} strokeWidth={1.5} /> {editLoading ? "Speichern..." : "Profil speichern"}
             </motion.button>
           </motion.form>
+
+          {/* ── Konto-Einstellungen ── */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22, delay: 0.05 }} className="space-y-4">
+
+            {/* Feedback message */}
+            {accountMsg && (
+              <div className={`px-4 py-3 rounded-2xl text-sm font-inter flex items-center gap-2 ${accountMsg.type === "success" ? "bg-emerald-50 border border-emerald-100 text-emerald-700" : "bg-red-50 border border-red-100 text-red-600"}`}>
+                {accountMsg.type === "success" ? <CheckCircle size={15} strokeWidth={1.5} /> : <AlertCircle size={15} strokeWidth={1.5} />}
+                {accountMsg.text}
+              </div>
+            )}
+
+            {/* Name ändern */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-1">Name ändern</h3>
+              <p className="text-xs text-zinc-500 font-inter mb-4">Dein angezeigter Name im System.</p>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder={user?.name || "Neuer Name"}
+                  value={accountForm.name}
+                  onChange={e => setAccountForm(f => ({ ...f, name: e.target.value }))}
+                  className="input-base flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={handleChangeName}
+                  disabled={accountLoading === "name" || !accountForm.name.trim()}
+                  className="px-4 py-2.5 bg-zinc-900 text-white text-sm font-inter font-medium rounded-xl hover:bg-zinc-700 disabled:opacity-40 transition-colors whitespace-nowrap"
+                >
+                  {accountLoading === "name" ? "…" : "Speichern"}
+                </button>
+              </div>
+            </div>
+
+            {/* E-Mail */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-1">E-Mail-Adresse</h3>
+              <p className="text-xs text-zinc-500 font-inter mb-3">Aktuell hinterlegte Adresse für Login und Benachrichtigungen.</p>
+              <div className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl">
+                <span className="text-sm font-inter text-zinc-700">{user?.email || "—"}</span>
+              </div>
+            </div>
+
+            {/* Passwort ändern */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-1">Passwort ändern</h3>
+              <p className="text-xs text-zinc-500 font-inter mb-4">Mindestens 8 Zeichen.</p>
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  placeholder="Aktuelles Passwort"
+                  value={accountForm.currentPassword}
+                  onChange={e => setAccountForm(f => ({ ...f, currentPassword: e.target.value }))}
+                  className="input-base w-full"
+                />
+                <input
+                  type="password"
+                  placeholder="Neues Passwort"
+                  value={accountForm.newPassword}
+                  onChange={e => setAccountForm(f => ({ ...f, newPassword: e.target.value }))}
+                  className="input-base w-full"
+                />
+                <input
+                  type="password"
+                  placeholder="Neues Passwort bestätigen"
+                  value={accountForm.confirmPassword}
+                  onChange={e => setAccountForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                  className="input-base w-full"
+                />
+                <button
+                  type="button"
+                  onClick={handleChangePassword}
+                  disabled={accountLoading === "password" || !accountForm.currentPassword || !accountForm.newPassword}
+                  className="px-4 py-2.5 bg-zinc-900 text-white text-sm font-inter font-medium rounded-xl hover:bg-zinc-700 disabled:opacity-40 transition-colors"
+                >
+                  {accountLoading === "password" ? "Wird geändert…" : "Passwort ändern"}
+                </button>
+              </div>
+            </div>
+
+            {/* Account löschen */}
+            <div className="bg-white rounded-2xl border border-red-100 shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg text-red-700 mb-1">Account löschen</h3>
+              <p className="text-xs text-zinc-500 font-inter mb-4">Dein Account und alle zugehörigen Daten werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</p>
+              {!deleteConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(true)}
+                  className="px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 text-sm font-inter font-medium rounded-xl hover:bg-red-100 transition-colors"
+                >
+                  Account löschen
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-inter text-red-700 font-semibold">Bist du sicher? Diese Aktion ist unwiderruflich.</p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirm(false)}
+                      className="flex-1 px-4 py-2.5 text-sm font-inter font-medium text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteAccount}
+                      className="flex-1 px-4 py-2.5 text-sm font-inter font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+                    >
+                      Ja, Account löschen
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+          </>
         )}
           </div>
         </div>
