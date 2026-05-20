@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { X, CheckCircle, Send, User, Mail, FileText } from "lucide-react";
+import { X, CheckCircle, Send, User, Mail, FileText, ImagePlus, Trash2 } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -36,8 +36,37 @@ export default function GuestBookingModal({ studio, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", email: "", tattoo_description: "", size: "", body_part: "" });
+  const [refImages, setRefImages] = useState([]);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const fileInputRef = useRef(null);
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleImagePick = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    if (refImages.length + files.length > 4) {
+      setError("Maximal 4 Referenzbilder erlaubt."); return;
+    }
+    setUploadingImg(true);
+    setError("");
+    try {
+      const uploads = await Promise.all(files.map(async (file) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        const { data } = await axios.post(`${API}/inquiries/upload-image`, fd);
+        return data.url;
+      }));
+      setRefImages(prev => [...prev, ...uploads]);
+    } catch {
+      setError("Bild-Upload fehlgeschlagen. Bitte versuche es erneut.");
+    } finally {
+      setUploadingImg(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeImage = (idx) => setRefImages(prev => prev.filter((_, i) => i !== idx));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,6 +82,7 @@ export default function GuestBookingModal({ studio, onClose }) {
         tattoo_description: form.tattoo_description.trim(),
         size: form.size || null,
         body_part: form.body_part || null,
+        reference_images: refImages,
       });
       setStep("success");
     } catch (err) {
@@ -149,12 +179,52 @@ export default function GuestBookingModal({ studio, onClose }) {
                   </div>
                 </div>
 
+                {/* Reference image upload */}
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">
+                    Referenzbilder <span className="normal-case font-normal text-zinc-400">(optional, max. 4)</span>
+                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file" accept="image/*" multiple
+                    className="hidden"
+                    onChange={handleImagePick}
+                    data-testid="guest-image-input"
+                  />
+                  {refImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {refImages.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <img src={url} alt="" className="w-16 h-16 object-cover rounded-xl border border-zinc-200" />
+                          <button
+                            type="button" onClick={() => removeImage(i)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={10} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {refImages.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImg}
+                      className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-zinc-300 rounded-xl text-sm font-inter text-zinc-500 hover:border-zinc-500 hover:text-zinc-700 transition-colors disabled:opacity-50 w-full justify-center"
+                    >
+                      <ImagePlus size={14} strokeWidth={1.5} />
+                      {uploadingImg ? "Wird hochgeladen…" : "Bild hinzufügen"}
+                    </button>
+                  )}
+                </div>
+
                 {error && (
                   <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-inter px-3 py-2.5 rounded-xl">{error}</div>
                 )}
 
                 <motion.button
-                  type="submit" disabled={loading}
+                  type="submit" disabled={loading || uploadingImg}
                   whileTap={{ scale: 0.97 }}
                   className="btn-primary w-full justify-center gap-2 disabled:opacity-50"
                   data-testid="guest-submit-btn"

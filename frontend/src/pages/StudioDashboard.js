@@ -54,6 +54,8 @@ export default function StudioDashboard() {
   const [connectLoading, setConnectLoading] = useState(false);
   const [inquiries, setInquiries] = useState([]);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
+  const [showHiddenInquiries, setShowHiddenInquiries] = useState(false);
+  const inquiriesInitialized = React.useRef(false);
 
   useEffect(() => {
     fetchStats();
@@ -213,7 +215,9 @@ export default function StudioDashboard() {
       if (data.has_studio && data.studio) {
         fetchSlots(data.studio.studio_id);
         fetchConnectStatus();
-        fetchInquiries(data.studio.studio_id);
+        const firstLoad = !inquiriesInitialized.current;
+        if (firstLoad) inquiriesInitialized.current = true;
+        fetchInquiries(data.studio.studio_id, firstLoad);
         const studio = data.studio;
         const ibanLookup = studio.bank_iban ? lookupIban(studio.bank_iban) : null;
         setEditForm(prev => prev === null ? { ...studio, bank_institution: ibanLookup ? ibanLookup.name : "" } : prev);
@@ -228,19 +232,26 @@ export default function StudioDashboard() {
     } catch {}
   };
 
-  const fetchInquiries = async (studioId) => {
+  const fetchInquiries = async (studioId, isFirstLoad = false) => {
     if (!studioId) return;
-    setInquiriesLoading(true);
+    if (isFirstLoad) setInquiriesLoading(true);
     try {
       const { data } = await axios.get(`${API}/studios/${studioId}/inquiries`, { withCredentials: true });
       setInquiries(data || []);
-    } catch {} finally { setInquiriesLoading(false); }
+    } catch {} finally { if (isFirstLoad) setInquiriesLoading(false); }
   };
 
   const updateInquiryStatus = async (inquiryId, status) => {
     try {
       await axios.patch(`${API}/inquiries/${inquiryId}/status`, { status }, { withCredentials: true });
       setInquiries(prev => prev.map(i => i.inquiry_id === inquiryId ? { ...i, status } : i));
+    } catch {}
+  };
+
+  const toggleInquiryHidden = async (inquiryId, hidden) => {
+    try {
+      await axios.patch(`${API}/inquiries/${inquiryId}/status`, { hidden }, { withCredentials: true });
+      setInquiries(prev => prev.map(i => i.inquiry_id === inquiryId ? { ...i, hidden } : i));
     } catch {}
   };
 
@@ -1047,100 +1058,132 @@ export default function StudioDashboard() {
         {/* Inquiries Tab */}
         {activeTab === "inquiries" && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
+            {/* Header */}
+            <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-playfair font-semibold text-xl text-zinc-900">Gäste-Anfragen</h3>
                 <p className="text-xs text-zinc-500 font-inter mt-0.5">Anfragen von Kunden ohne Account — direkt vom Studio-Profil</p>
               </div>
-              <button onClick={() => fetchInquiries(stats?.studio?.studio_id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6A4 4 0 1 1 6 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M10 2v4H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Aktualisieren
-              </button>
+              <div className="flex items-center gap-2">
+                {inquiries.some(i => i.hidden) && (
+                  <button
+                    onClick={() => setShowHiddenInquiries(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-inter border rounded-xl transition-colors ${showHiddenInquiries ? "bg-zinc-900 text-white border-zinc-900" : "text-zinc-500 border-zinc-200 hover:bg-zinc-50"}`}
+                  >
+                    {showHiddenInquiries ? "Ausgeblendet verstecken" : `Ausgeblendet anzeigen (${inquiries.filter(i => i.hidden).length})`}
+                  </button>
+                )}
+                <button onClick={() => fetchInquiries(stats?.studio?.studio_id, false)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6A4 4 0 1 1 6 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M10 2v4H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Aktualisieren
+                </button>
+              </div>
             </div>
 
             {inquiriesLoading ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => <div key={i} className="h-28 bg-zinc-100 animate-pulse rounded-2xl" />)}
               </div>
-            ) : inquiries.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-12 text-center">
-                <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare size={20} className="text-zinc-400" strokeWidth={1.5} />
+            ) : (() => {
+              const visible = inquiries.filter(i => showHiddenInquiries ? true : !i.hidden);
+              if (visible.length === 0) return (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-12 text-center">
+                  <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare size={20} className="text-zinc-400" strokeWidth={1.5} />
+                  </div>
+                  <p className="font-inter font-semibold text-zinc-600 text-sm mb-1">Noch keine Anfragen</p>
+                  <p className="text-xs text-zinc-400 font-inter">Wenn Kunden über dein Studio-Profil eine Anfrage senden, erscheinen sie hier.</p>
                 </div>
-                <p className="font-inter font-semibold text-zinc-600 text-sm mb-1">Noch keine Anfragen</p>
-                <p className="text-xs text-zinc-400 font-inter">Wenn Kunden über dein Studio-Profil eine Anfrage senden, erscheinen sie hier.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {inquiries.map(inq => {
-                  const statusMap = {
-                    pending:   { label: "Neu",          bg: "bg-amber-50 text-amber-700 border-amber-200" },
-                    contacted: { label: "Kontaktiert",  bg: "bg-blue-50 text-blue-700 border-blue-200" },
-                    closed:    { label: "Abgeschlossen",bg: "bg-zinc-100 text-zinc-500 border-zinc-200" },
-                  };
-                  const s = statusMap[inq.status] || statusMap.pending;
-                  const dateStr = inq.created_at ? new Date(inq.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-                  return (
-                    <motion.div key={inq.inquiry_id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0 font-playfair font-bold text-zinc-600 text-sm">
-                            {(inq.user_name || "?")[0].toUpperCase()}
+              );
+              return (
+                <div className="space-y-3">
+                  {visible.map(inq => {
+                    const statusMap = {
+                      pending:   { label: "Neu",           bg: "bg-amber-50 text-amber-700 border-amber-200" },
+                      contacted: { label: "Kontaktiert",   bg: "bg-blue-50 text-blue-700 border-blue-200" },
+                      closed:    { label: "Abgeschlossen", bg: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+                    };
+                    const s = statusMap[inq.status] || statusMap.pending;
+                    const dateStr = inq.created_at ? new Date(inq.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+                    const imgs = inq.reference_images || [];
+                    return (
+                      <motion.div key={inq.inquiry_id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                        className={`bg-white rounded-2xl border shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5 transition-opacity ${inq.hidden ? "opacity-50 border-zinc-100" : "border-black/[0.04]"}`}>
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0 font-playfair font-bold text-zinc-600 text-sm">
+                              {(inq.user_name || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-inter font-semibold text-zinc-900 text-sm">{inq.user_name}</p>
+                              <p className="text-xs text-zinc-400 font-inter truncate">{inq.user_email}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-inter font-semibold text-zinc-900 text-sm">{inq.user_name}</p>
-                            <p className="text-xs text-zinc-400 font-inter truncate">{inq.user_email}</p>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className={`text-[11px] font-inter font-semibold px-2.5 py-1 rounded-full border ${s.bg}`}>{s.label}</span>
+                            <span className="text-[11px] text-zinc-400 font-inter whitespace-nowrap hidden sm:block">{dateStr}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={`text-[11px] font-inter font-semibold px-2.5 py-1 rounded-full border ${s.bg}`}>{s.label}</span>
-                          <span className="text-[11px] text-zinc-400 font-inter whitespace-nowrap">{dateStr}</span>
+
+                        <div className="bg-zinc-50 rounded-xl p-3.5 mb-3">
+                          <p className="text-xs font-inter text-zinc-700 leading-relaxed">{inq.tattoo_description}</p>
+                          {(inq.size || inq.body_part) && (
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              {inq.size && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.size}</span>}
+                              {inq.body_part && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.body_part}</span>}
+                            </div>
+                          )}
+                          {imgs.length > 0 && (
+                            <div className="flex gap-2 mt-3 flex-wrap">
+                              {imgs.map((img, idx) => (
+                                <button key={idx} type="button" onClick={() => setNotesLightbox(img)} className="focus:outline-none">
+                                  <img src={img} alt="" className="w-16 h-16 object-cover rounded-xl border border-zinc-200 hover:opacity-80 transition-opacity cursor-zoom-in" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
 
-                      <div className="bg-zinc-50 rounded-xl p-3.5 mb-3">
-                        <p className="text-xs font-inter text-zinc-700 leading-relaxed">{inq.tattoo_description}</p>
-                        {(inq.size || inq.body_part) && (
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            {inq.size && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.size}</span>}
-                            {inq.body_part && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.body_part}</span>}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-zinc-900 text-white text-xs font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors"
-                        >
-                          <MessageSquare size={12} strokeWidth={1.5} /> Nachricht senden
-                        </motion.button>
-                        {inq.status === "pending" && (
-                          <button onClick={() => updateInquiryStatus(inq.inquiry_id, "contacted")}
-                            className="px-3.5 py-2 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors">
-                            Als kontaktiert markieren
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <motion.button
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
+                            className="flex items-center gap-1.5 px-3.5 py-2 bg-zinc-900 text-white text-xs font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors"
+                          >
+                            <MessageSquare size={12} strokeWidth={1.5} /> Nachricht senden
+                          </motion.button>
+                          {inq.status === "pending" && (
+                            <button onClick={() => updateInquiryStatus(inq.inquiry_id, "contacted")}
+                              className="px-3.5 py-2 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors">
+                              Als kontaktiert markieren
+                            </button>
+                          )}
+                          {inq.status === "contacted" && (
+                            <button onClick={() => updateInquiryStatus(inq.inquiry_id, "closed")}
+                              className="px-3.5 py-2 text-xs font-inter text-zinc-500 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors">
+                              Abschließen
+                            </button>
+                          )}
+                          {inq.status !== "pending" && (
+                            <button onClick={() => updateInquiryStatus(inq.inquiry_id, "pending")}
+                              className="px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors">
+                              Zurücksetzen
+                            </button>
+                          )}
+                          <button
+                            onClick={() => toggleInquiryHidden(inq.inquiry_id, !inq.hidden)}
+                            className="ml-auto px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors"
+                            title={inq.hidden ? "Einblenden" : "Ausblenden"}
+                          >
+                            {inq.hidden ? "Einblenden" : "Ausblenden"}
                           </button>
-                        )}
-                        {inq.status === "contacted" && (
-                          <button onClick={() => updateInquiryStatus(inq.inquiry_id, "closed")}
-                            className="px-3.5 py-2 text-xs font-inter text-zinc-500 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors">
-                            Abschließen
-                          </button>
-                        )}
-                        {inq.status !== "pending" && (
-                          <button onClick={() => updateInquiryStatus(inq.inquiry_id, "pending")}
-                            className="px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors">
-                            Zurücksetzen
-                          </button>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </motion.div>
         )}
 

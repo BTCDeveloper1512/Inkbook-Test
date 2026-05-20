@@ -572,9 +572,16 @@ async def update_inquiry_status(inquiry_id: str, body: dict, current_user: dict 
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Nicht berechtigt.")
-    new_status = body.get("status", "pending")
-    await db.inquiries.update_one({"inquiry_id": inquiry_id}, {"$set": {"status": new_status}})
-    return {"inquiry_id": inquiry_id, "status": new_status}
+    updates = {}
+    if "status" in body:
+        updates["status"] = body["status"]
+    if "hidden" in body:
+        updates["hidden"] = bool(body["hidden"])
+    if updates:
+        await db.inquiries.update_one({"inquiry_id": inquiry_id}, {"$set": updates})
+    result = {"inquiry_id": inquiry_id}
+    result.update(updates)
+    return result
 
 # ── User Profile ─────────────────────────────────────────────────────────────
 
@@ -1263,6 +1270,52 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
         body=preview,
         url="/messages"
     ))
+
+    # Auto-mark inquiry as contacted + send activation email when studio first messages a ghost user
+    try:
+        recipient_user = await db.users.find_one({"user_id": data.recipient_id})
+        if recipient_user and recipient_user.get("is_ghost"):
+            sender_studio = await db.studios.find_one({"owner_id": user_id})
+            if sender_studio:
+                await db.inquiries.update_many(
+                    {"user_id": data.recipient_id, "studio_id": sender_studio["studio_id"], "status": "pending"},
+                    {"$set": {"status": "contacted"}}
+                )
+                msg_count = await db.messages.count_documents({"sender_id": user_id, "recipient_id": data.recipient_id})
+                if msg_count == 1:
+                    ghost_token = recipient_user.get("ghost_token", "")
+                    guest_email = recipient_user.get("email", "")
+                    guest_name = recipient_user.get("name", "Gast")
+                    studio_name = sender_studio.get("name", "Das Studio")
+                    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+                    activate_url = f"{frontend_url}/activate?email={guest_email}&token={ghost_token}"
+                    html = f"""
+                    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+                      {_email_header()}
+                      <div style="padding:32px 32px 24px;">
+                        <div style="display:inline-block;background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+                          <span style="font-size:12px;font-weight:700;color:#92400e;letter-spacing:0.05em;text-transform:uppercase;">Antwort erhalten</span>
+                        </div>
+                        <h2 style="font-size:22px;font-weight:700;margin:0 0 10px;color:#111;letter-spacing:-0.4px;">Hallo {guest_name}!</h2>
+                        <p style="font-size:15px;color:#444;margin:0 0 8px;line-height:1.6;">
+                          <strong style="color:#111;">{studio_name}</strong> hat auf deine Tattoo-Anfrage geantwortet.
+                        </p>
+                        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.6;">
+                          Aktiviere jetzt dein kostenloses InkBook-Konto, um die Nachricht zu lesen, direkt mit dem Studio zu chatten und deinen Termin zu bestätigen.
+                        </p>
+                        <a href="{activate_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
+                          Konto aktivieren &amp; Nachricht lesen →
+                        </a>
+                        <p style="font-size:12px;color:#aaa;margin:24px 0 0;line-height:1.6;">
+                          Oder kopiere diesen Link in deinen Browser:<br/>
+                          <a href="{activate_url}" style="color:#666;word-break:break-all;">{activate_url}</a>
+                        </p>
+                      </div>
+                      {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
+                    </div>"""
+                    asyncio.create_task(send_email(guest_email, f"{studio_name} hat auf deine Anfrage geantwortet 💬", html))
+    except Exception as e:
+        logger.warning(f"Ghost user inquiry hook failed (non-critical): {e}")
 
     msg_doc.pop("_id", None)
     return msg_doc
@@ -1969,6 +2022,17 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
     mime = file.content_type or "image/jpeg"
     data_url = f"data:{mime};base64,{b64}"
     return {"url": data_url, "base64": b64, "mime_type": mime}
+
+@api_router.post("/inquiries/upload-image")
+async def upload_inquiry_image(file: UploadFile = File(...)):
+    """Guest-accessible image upload for inquiry reference photos — no auth required."""
+    content = await file.read()
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Datei zu groß (max. 8 MB).")
+    b64 = base64.b64encode(content).decode("utf-8")
+    mime = file.content_type or "image/jpeg"
+    data_url = f"data:{mime};base64,{b64}"
+    return {"url": data_url}
 
 # ─── Studio Dashboard Stats ───────────────────────────────────────────────────
 @api_router.get("/dashboard/stats")
