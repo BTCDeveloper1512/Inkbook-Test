@@ -1360,36 +1360,6 @@ export default function StudioDashboard() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-4">Anzahlung</h3>
-              <div className="flex items-center gap-4 mb-4">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <div
-                    onClick={() => setEditForm(prev => ({ ...prev, deposit_required: !prev.deposit_required }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${editForm?.deposit_required ? "bg-zinc-900" : "bg-zinc-200"}`}
-                    data-testid="deposit-toggle"
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.deposit_required ? "translate-x-5" : "translate-x-0"}`} />
-                  </div>
-                  <span className="text-sm font-inter text-zinc-700">Anzahlung bei Buchung erforderlich</span>
-                </label>
-              </div>
-              {editForm?.deposit_required && (
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
-                  <input
-                    type="number" min="1" max="500" step="1"
-                    value={editForm.deposit_amount || 50}
-                    onChange={e => setEditForm({ ...editForm, deposit_amount: parseFloat(e.target.value) || 0 })}
-                    className="input-base w-40"
-                    placeholder="z.B. 50"
-                    data-testid="deposit-amount-input"
-                  />
-                  <p className="text-xs text-zinc-400 font-inter mt-1.5">Kunden zahlen diesen Betrag vor der Terminbestätigung.</p>
-                </div>
-              )}
-            </div>
-
             {/* VIDEO CONSULTATION TOGGLE HIDDEN – auskommentiert bis Feature wieder aktiviert wird
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-4">Videoberatung</h3>
