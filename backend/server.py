@@ -3399,9 +3399,54 @@ async def admin_user_details(user_id: str, current_user: dict = Depends(require_
             pass
     if not user:
         raise HTTPException(status_code=404, detail="Nicht gefunden")
-    bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(20)
-    studio = await db.studios.find_one({"owner_id": user_id}, {"_id": 0, "name": 1, "studio_id": 1})
-    return {"user": user, "bookings": bookings, "studio": studio}
+    bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    studio = await db.studios.find_one({"owner_id": user_id}, {"_id": 0, "name": 1, "studio_id": 1, "city": 1})
+    reviews = await db.reviews.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(20)
+    for r in reviews:
+        s = await db.studios.find_one({"studio_id": r.get("studio_id")}, {"_id": 0, "name": 1})
+        r["studio_name"] = s.get("name", "—") if s else "—"
+    return {"user": user, "bookings": bookings, "studio": studio, "reviews": reviews}
+
+class AdminUserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+@api_router.patch("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, data: AdminUserUpdate, current_user: dict = Depends(require_admin)):
+    update = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    await db.users.update_one({"user_id": user_id}, {"$set": update})
+    return {"message": "User updated"}
+
+class AdminBookingUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+@api_router.patch("/admin/bookings/{booking_id}")
+async def admin_update_booking(booking_id: str, data: AdminBookingUpdate, current_user: dict = Depends(require_admin)):
+    update = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": update})
+    return {"message": "Booking updated"}
+
+@api_router.get("/admin/studios/{studio_id}/details")
+async def admin_studio_details(studio_id: str, current_user: dict = Depends(require_admin)):
+    studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Nicht gefunden")
+    owner = None
+    if studio.get("owner_id"):
+        owner = await db.users.find_one({"user_id": studio["owner_id"]}, {"_id": 0, "password_hash": 0, "name": 1, "email": 1, "user_id": 1})
+    bookings = await db.bookings.find({"studio_id": studio_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    reviews = await db.reviews.find({"studio_id": studio_id}, {"_id": 0}).sort("created_at", -1).to_list(30)
+    for r in reviews:
+        u = await db.users.find_one({"user_id": r.get("user_id")}, {"_id": 0, "name": 1})
+        r["user_name"] = u.get("name", "Anonym") if u else "Anonym"
+    artists = await db.artists.find({"studio_id": studio_id}, {"_id": 0}).to_list(20)
+    sub = await db.subscriptions.find_one({"studio_id": studio_id}, {"_id": 0})
+    return {"studio": studio, "owner": owner, "bookings": bookings, "reviews": reviews, "artists": artists, "subscription": sub}
 
 @api_router.get("/admin/support-tickets")
 async def admin_support_tickets(current_user: dict = Depends(require_admin)):

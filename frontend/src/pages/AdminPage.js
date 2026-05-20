@@ -5,10 +5,11 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BarChart3, Users, Store, Calendar, DollarSign, TrendingUp, Crown, Shield,
-  Star, Mail, Bell, Flag, LifeBuoy, Megaphone, HelpCircle, Activity,
+  BarChart3, Users, Store, Calendar, DollarSign, TrendingUp, Shield,
+  Star, Mail, Flag, LifeBuoy, Megaphone, HelpCircle, Activity,
   CheckCircle, XCircle, Search, Trash2, ToggleLeft, ToggleRight, Eye,
-  Plus, Edit2, Send, X, ChevronRight, AlertCircle, MessageSquare, Loader2,
+  Plus, Edit2, Send, X, AlertCircle, MessageSquare, Loader2, ChevronRight,
+  Phone, MapPin, Clock, User, CreditCard, Palette, Building2, Save,
 } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -23,31 +24,30 @@ const statusBadge = {
   open: "bg-red-50 text-red-700 border-red-200",
   dismissed: "bg-zinc-100 text-zinc-400 border-zinc-200",
   expired: "bg-zinc-100 text-zinc-400 border-zinc-200",
+  deposit_pending: "bg-orange-50 text-orange-700 border-orange-200",
 };
 
 const SIDEBAR = [
-  { group: "Übersicht",       items: [{ id: "overview",        label: "Dashboard",       icon: BarChart3 }] },
-  { group: "Plattform",       items: [
-    { id: "studios",           label: "Studios",          icon: Store },
-    { id: "users",             label: "Nutzer",           icon: Users },
-    { id: "bookings",          label: "Buchungen",        icon: Calendar },
+  { group: "Übersicht",     items: [{ id: "overview",       label: "Dashboard",      icon: BarChart3 }] },
+  { group: "Plattform",     items: [
+    { id: "studios",         label: "Studios",         icon: Store },
+    { id: "users",           label: "Nutzer",          icon: Users },
+    { id: "bookings",        label: "Buchungen",       icon: Calendar },
   ]},
-  { group: "Finanzen",        items: [
-    { id: "subscriptions",     label: "Abonnements",      icon: Crown },
-    { id: "revenue",           label: "Einnahmen",        icon: DollarSign },
+  { group: "Finanzen",      items: [
+    { id: "revenue",         label: "Einnahmen",       icon: DollarSign },
   ]},
-  { group: "Content",         items: [
-    { id: "reviews",           label: "Bewertungen",      icon: Star },
-    { id: "faq",               label: "FAQ",              icon: HelpCircle },
-    { id: "announcements",     label: "Ankündigungen",    icon: Bell },
+  { group: "Content",       items: [
+    { id: "reviews",         label: "Bewertungen",     icon: Star },
+    { id: "faq",             label: "FAQ",             icon: HelpCircle },
   ]},
-  { group: "Kommunikation",   items: [
-    { id: "newsletter",        label: "Newsletter",       icon: Mail },
-    { id: "broadcast",         label: "Broadcast",        icon: Megaphone },
-    { id: "support-tickets",   label: "Support-Tickets",  icon: LifeBuoy },
+  { group: "Kommunikation", items: [
+    { id: "newsletter",      label: "Newsletter",      icon: Mail },
+    { id: "broadcast",       label: "Broadcast",       icon: Megaphone },
+    { id: "support-tickets", label: "Support-Tickets", icon: LifeBuoy },
   ]},
-  { group: "Moderation",      items: [
-    { id: "reports",           label: "Meldungen",        icon: Flag },
+  { group: "Moderation",    items: [
+    { id: "reports",         label: "Meldungen",       icon: Flag },
   ]},
 ];
 
@@ -72,12 +72,22 @@ const EmptyState = ({ text }) => (
   <div className="py-12 text-center text-zinc-400 font-inter text-sm">{text}</div>
 );
 
-const Modal = ({ open, onClose, title, children }) => {
+const InfoRow = ({ label, value }) => (
+  <div className="bg-zinc-50 rounded-xl p-3">
+    <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-inter mb-1">{label}</p>
+    <p className="font-inter font-medium text-zinc-900 text-sm break-all">{value || "—"}</p>
+  </div>
+);
+
+const Modal = ({ open, onClose, title, wide, children }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+      <div
+        className={`bg-white rounded-2xl shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"} w-full max-h-[90vh] overflow-y-auto`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 sticky top-0 bg-white z-10">
           <h3 className="font-inter font-semibold text-zinc-900">{title}</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors"><X size={15} /></button>
         </div>
@@ -101,6 +111,34 @@ const Textarea = ({ label, ...props }) => (
   </div>
 );
 
+const SubTabs = ({ tabs, active, onChange }) => (
+  <div className="flex gap-1 bg-zinc-100 rounded-xl p-1 w-fit mb-4">
+    {tabs.map(t => (
+      <button key={t.id} onClick={() => onChange(t.id)}
+        className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${active === t.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
+      >{t.label}</button>
+    ))}
+  </div>
+);
+
+const BookingStatusSelect = ({ booking, onUpdate }) => {
+  const [loading, setLoading] = useState(false);
+  const statuses = ["pending", "confirmed", "cancelled", "deposit_pending", "completed"];
+  return (
+    <select
+      value={booking.status}
+      disabled={loading}
+      onChange={async (e) => {
+        setLoading(true);
+        try { await onUpdate(booking.booking_id, e.target.value); } finally { setLoading(false); }
+      }}
+      className="text-xs border border-zinc-200 rounded-lg px-2 py-1 font-inter bg-white focus:outline-none disabled:opacity-50"
+    >
+      {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+    </select>
+  );
+};
+
 export default function AdminPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -114,11 +152,9 @@ export default function AdminPage() {
   const [studios, setStudios] = useState([]);
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
   const [revenue, setRevenue] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [faqs, setFaqs] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
   const [reports, setReports] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -127,21 +163,35 @@ export default function AdminPage() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replyLoading, setReplyLoading] = useState(false);
-  const [supportTab, setSupportTab] = useState("tickets"); // "chats" | "tickets" | "direct"
+  const [supportTab, setSupportTab] = useState("tickets");
+  const [broadcastRatings, setBroadcastRatings] = useState(null);
 
   // UI states
   const [searchStudios, setSearchStudios] = useState("");
   const [searchUsers, setSearchUsers] = useState("");
+
+  // User Detail Modal
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDetails, setUserDetails] = useState(null);
+  const [userDetailTab, setUserDetailTab] = useState("bookings");
+  const [userEditForm, setUserEditForm] = useState({ name: "", email: "" });
+  const [userEditSaving, setUserEditSaving] = useState(false);
+  const [userEditSuccess, setUserEditSuccess] = useState(false);
+
+  // Studio Detail Modal
+  const [selectedStudio, setSelectedStudio] = useState(null);
+  const [studioDetails, setStudioDetails] = useState(null);
+  const [studioDetailTab, setStudioDetailTab] = useState("info");
+
+  // FAQ modal
   const [faqModal, setFaqModal] = useState(null);
   const [faqForm, setFaqForm] = useState({ category: "", question: "", answer: "", order: 0, target_role: "all" });
-  const [annForm, setAnnForm] = useState({ text: "", type: "info", link: "", link_label: "" });
+
+  // Newsletter + Broadcast
   const [nlForm, setNlForm] = useState({ subject: "", content: "", preview_email: "" });
   const [nlResult, setNlResult] = useState(null);
   const [broadcastForm, setBroadcastForm] = useState({ title: "", message: "", target: "all", rating_enabled: true });
   const [broadcastResult, setBroadcastResult] = useState(null);
-  const [broadcastRatings, setBroadcastRatings] = useState(null);
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -171,16 +221,12 @@ export default function AdminPage() {
     try {
       if (section === "bookings" && !bookings.length)
         setBookings((await ax().get(`${API}/admin/bookings/all`)).data);
-      if (section === "subscriptions" && !subscriptions.length)
-        setSubscriptions((await ax().get(`${API}/admin/subscriptions`)).data);
       if (section === "revenue" && !revenue)
         setRevenue((await ax().get(`${API}/admin/revenue`)).data);
       if (section === "reviews" && !reviews.length)
         setReviews((await ax().get(`${API}/admin/reviews`)).data);
       if (section === "faq" && !faqs.length)
         setFaqs((await ax().get(`${API}/faq/public`)).data);
-      if (section === "announcements" && !announcements.length)
-        setAnnouncements((await ax().get(`${API}/admin/announcements`)).data);
       if (section === "newsletter" && !subscribers.length)
         setSubscribers((await ax().get(`${API}/newsletter/subscribers`)).data.subscribers || []);
       if (section === "reports" && !reports.length)
@@ -194,50 +240,99 @@ export default function AdminPage() {
       if (section === "broadcast" && broadcastRatings === null)
         setBroadcastRatings((await ax().get(`${API}/admin/broadcast/ratings`)).data);
     } catch {}
-  }, [bookings.length, subscriptions.length, revenue, reviews.length, faqs.length,
-      announcements.length, subscribers.length, reports.length, tickets.length, broadcastRatings]);
+  }, [bookings.length, revenue, reviews.length, faqs.length,
+      subscribers.length, reports.length, tickets.length, broadcastRatings]);
 
   const switchSection = (id) => { setActiveSection(id); lazyFetch(id); };
 
-  // ── Actions ──────────────────────────────────────────────────────────────
+  // ── Studio Actions ─────────────────────────────────────────────────────────
   const toggleStudioStatus = async (studio) => {
     setActionLoading(studio.studio_id);
     await ax().patch(`${API}/admin/studios/${studio.studio_id}`, { is_active: !studio.is_active });
     setStudios(p => p.map(s => s.studio_id === studio.studio_id ? { ...s, is_active: !s.is_active } : s));
+    if (studioDetails?.studio?.studio_id === studio.studio_id)
+      setStudioDetails(p => ({ ...p, studio: { ...p.studio, is_active: !p.studio.is_active } }));
     setActionLoading("");
   };
   const toggleVerified = async (studio) => {
     setActionLoading(`v_${studio.studio_id}`);
     await ax().patch(`${API}/admin/studios/${studio.studio_id}`, { is_verified: !studio.is_verified });
     setStudios(p => p.map(s => s.studio_id === studio.studio_id ? { ...s, is_verified: !s.is_verified } : s));
+    if (studioDetails?.studio?.studio_id === studio.studio_id)
+      setStudioDetails(p => ({ ...p, studio: { ...p.studio, is_verified: !p.studio.is_verified } }));
     setActionLoading("");
   };
   const deleteStudio = async (studioId) => {
     if (!window.confirm("Studio wirklich löschen?")) return;
     await ax().delete(`${API}/admin/studios/${studioId}`);
     setStudios(p => p.filter(s => s.studio_id !== studioId));
+    if (selectedStudio === studioId) setSelectedStudio(null);
   };
+
+  // ── User Actions ──────────────────────────────────────────────────────────
   const deleteUser = async (userId, name, role) => {
     if (!window.confirm(`"${name}" löschen?${role === "studio_owner" ? "\n\nStudio + Daten werden ebenfalls gelöscht!" : ""}`)) return;
     setActionLoading(`del_user_${userId}`);
     try {
       await ax().delete(`${API}/admin/users/${userId}`);
       setUsers(p => p.filter(u => u.user_id !== userId));
+      setSelectedUser(null);
     } catch (e) { alert(e.response?.data?.detail || "Fehler"); }
     setActionLoading("");
   };
   const openUserDetails = async (userId) => {
-    setSelectedUser(userId); setUserDetails(null);
+    setSelectedUser(userId);
+    setUserDetails(null);
+    setUserDetailTab("bookings");
+    setUserEditSuccess(false);
     try {
       const r = await ax().get(`${API}/admin/users/${userId}/details`);
       setUserDetails(r.data);
+      setUserEditForm({ name: r.data.user?.name || "", email: r.data.user?.email || "" });
     } catch {}
   };
+  const saveUserEdit = async () => {
+    if (!selectedUser) return;
+    setUserEditSaving(true);
+    try {
+      await ax().patch(`${API}/admin/users/${selectedUser}`, userEditForm);
+      setUserDetails(p => ({ ...p, user: { ...p.user, ...userEditForm } }));
+      setUsers(p => p.map(u => u.user_id === selectedUser ? { ...u, ...userEditForm } : u));
+      setUserEditSuccess(true);
+      setTimeout(() => setUserEditSuccess(false), 2500);
+    } catch (e) { alert(e.response?.data?.detail || "Fehler beim Speichern"); }
+    setUserEditSaving(false);
+  };
+  const updateBookingStatus = async (bookingId, newStatus, source) => {
+    await ax().patch(`${API}/admin/bookings/${bookingId}`, { status: newStatus });
+    if (source === "user") {
+      setUserDetails(p => ({ ...p, bookings: p.bookings.map(b => b.booking_id === bookingId ? { ...b, status: newStatus } : b) }));
+    } else if (source === "studio") {
+      setStudioDetails(p => ({ ...p, bookings: p.bookings.map(b => b.booking_id === bookingId ? { ...b, status: newStatus } : b) }));
+    } else {
+      setBookings(p => p.map(b => b.booking_id === bookingId ? { ...b, status: newStatus } : b));
+    }
+  };
+
+  // ── Studio Detail ──────────────────────────────────────────────────────────
+  const openStudioDetails = async (studioId) => {
+    setSelectedStudio(studioId);
+    setStudioDetails(null);
+    setStudioDetailTab("info");
+    try {
+      const r = await ax().get(`${API}/admin/studios/${studioId}/details`);
+      setStudioDetails(r.data);
+    } catch {}
+  };
+
+  // ── Reviews ────────────────────────────────────────────────────────────────
   const deleteReview = async (reviewId) => {
     if (!window.confirm("Bewertung löschen?")) return;
     await ax().delete(`${API}/admin/reviews/${reviewId}`);
     setReviews(p => p.filter(r => r.review_id !== reviewId));
   };
+
+  // ── Reports ────────────────────────────────────────────────────────────────
   const dismissReport = async (reportId) => {
     await ax().patch(`${API}/admin/reports/${reportId}/status`, { status: "dismissed" });
     setReports(p => p.map(r => r.report_id === reportId ? { ...r, status: "dismissed" } : r));
@@ -251,6 +346,8 @@ export default function AdminPage() {
     await ax().delete(`${API}/admin/reports/${reportId}/delete-review`);
     setReports(p => p.filter(r => r.report_id !== reportId));
   };
+
+  // ── FAQ ────────────────────────────────────────────────────────────────────
   const saveFaq = async () => {
     if (faqModal === "new") {
       const r = await ax().post(`${API}/admin/faq`, faqForm);
@@ -259,36 +356,27 @@ export default function AdminPage() {
       await ax().put(`${API}/admin/faq/${faqModal}`, faqForm);
       setFaqs(p => p.map(f => f.faq_id === faqModal ? { ...f, ...faqForm } : f));
     }
-    setFaqModal(null); setFaqForm({ category: "", question: "", answer: "", order: 0 });
+    setFaqModal(null);
   };
   const deleteFaq = async (faqId) => {
     if (!window.confirm("FAQ-Eintrag löschen?")) return;
     await ax().delete(`${API}/admin/faq/${faqId}`);
     setFaqs(p => p.filter(f => f.faq_id !== faqId));
   };
-  const createAnnouncement = async () => {
-    const r = await ax().post(`${API}/admin/announcements`, annForm);
-    setAnnouncements(p => [r.data, ...p.map(a => ({ ...a, active: false }))]);
-    setAnnForm({ text: "", type: "info", link: "", link_label: "" });
-  };
-  const toggleAnn = async (annId) => {
-    const r = await ax().patch(`${API}/admin/announcements/${annId}/toggle`);
-    setAnnouncements(p => p.map(a => ({ ...a, active: a.announcement_id === annId ? r.data.active : false })));
-  };
-  const deleteAnn = async (annId) => {
-    await ax().delete(`${API}/admin/announcements/${annId}`);
-    setAnnouncements(p => p.filter(a => a.announcement_id !== annId));
-  };
+
+  // ── Newsletter ─────────────────────────────────────────────────────────────
   const sendNewsletter = async (preview) => {
     setActionLoading("nl");
     try {
-      const payload = { ...nlForm };
-      if (!preview) delete payload.preview_email;
-      else payload.preview_email = nlForm.preview_email;
-      const r = await ax().post(`${API}/admin/newsletter/send`, preview ? payload : { subject: nlForm.subject, content: nlForm.content });
+      const payload = preview
+        ? { ...nlForm }
+        : { subject: nlForm.subject, content: nlForm.content };
+      const r = await ax().post(`${API}/admin/newsletter/send`, payload);
       setNlResult(r.data);
     } finally { setActionLoading(""); }
   };
+
+  // ── Broadcast ──────────────────────────────────────────────────────────────
   const sendBroadcast = async () => {
     setActionLoading("broadcast");
     try {
@@ -306,9 +394,11 @@ export default function AdminPage() {
   );
 
   const filteredStudios = studios.filter(s =>
-    s.name?.toLowerCase().includes(searchStudios.toLowerCase()) || s.city?.toLowerCase().includes(searchStudios.toLowerCase()));
+    s.name?.toLowerCase().includes(searchStudios.toLowerCase()) ||
+    s.city?.toLowerCase().includes(searchStudios.toLowerCase()));
   const filteredUsers = users.filter(u =>
-    u.name?.toLowerCase().includes(searchUsers.toLowerCase()) || u.email?.toLowerCase().includes(searchUsers.toLowerCase()));
+    u.name?.toLowerCase().includes(searchUsers.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchUsers.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -322,7 +412,7 @@ export default function AdminPage() {
             </p>
             <h1 className="text-2xl font-playfair font-semibold text-zinc-900">InkBook Operator</h1>
           </div>
-          <button onClick={fetchCore} className="btn-secondary flex items-center gap-2 text-sm" data-testid="admin-refresh-btn">
+          <button onClick={fetchCore} className="btn-secondary flex items-center gap-2 text-sm">
             <Activity size={13} /> Aktualisieren
           </button>
         </div>
@@ -336,7 +426,6 @@ export default function AdminPage() {
                   <p className="text-[10px] tracking-widest uppercase text-zinc-400 font-inter px-2 mb-1.5">{group}</p>
                   {items.map(({ id, label, icon: Icon }) => (
                     <button key={id} onClick={() => switchSection(id)}
-                      data-testid={`admin-nav-${id}`}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-inter font-medium transition-all ${
                         activeSection === id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
                       }`}>
@@ -356,22 +445,21 @@ export default function AdminPage() {
                 {/* ══════════════════════════════════════════ OVERVIEW */}
                 {activeSection === "overview" && (
                   <div className="space-y-6">
-                    {/* KPI Cards */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-testid="admin-stats-grid">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {[
-                        { label: "Studios",    value: stats?.total_studios || 0,   sub: `${stats?.active_studios || 0} aktiv`, icon: Store },
-                        { label: "Nutzer",     value: stats?.total_users || 0,     sub: `${enhanced?.new_users_today || 0} heute neu`, icon: Users },
-                        { label: "Buchungen",  value: stats?.total_bookings || 0,  sub: `${enhanced?.new_bookings_week || 0} diese Woche`, icon: Calendar },
-                        { label: "Aktive Abos",value: stats?.active_subscriptions || 0, sub: `€${(stats?.total_revenue || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })}`, icon: Crown },
+                        { label: "Studios",        value: stats?.total_studios || 0,  sub: `${stats?.active_studios || 0} aktiv`,         icon: Store },
+                        { label: "Nutzer",          value: stats?.total_users || 0,    sub: `${enhanced?.new_users_today || 0} heute neu`,  icon: Users },
+                        { label: "Buchungen",       value: stats?.total_bookings || 0, sub: `${enhanced?.new_bookings_week || 0} diese Woche`, icon: Calendar },
+                        { label: "Gesamtumsatz",    value: `€${(stats?.total_revenue || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })}`, sub: `${stats?.active_subscriptions || 0} aktive Abos`, icon: DollarSign },
                       ].map((c, i) => {
                         const Icon = c.icon;
                         return (
-                          <div key={i} className="bg-white rounded-2xl border border-black/[0.04] p-5" data-testid={`stat-card-${i}`}>
+                          <div key={i} className="bg-white rounded-2xl border border-black/[0.04] p-5">
                             <div className="flex items-center justify-between mb-3">
                               <Icon size={16} strokeWidth={1.5} className="text-zinc-400" />
                               <TrendingUp size={11} className="text-emerald-500" />
                             </div>
-                            <p className="text-3xl font-playfair font-semibold text-zinc-900 mb-0.5">{c.value}</p>
+                            <p className="text-2xl font-playfair font-semibold text-zinc-900 mb-0.5">{c.value}</p>
                             <p className="text-xs font-inter text-zinc-500">{c.label}</p>
                             <p className="text-xs font-inter text-zinc-400 mt-0.5">{c.sub}</p>
                           </div>
@@ -379,13 +467,12 @@ export default function AdminPage() {
                       })}
                     </div>
 
-                    {/* Secondary KPIs */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {[
                         { label: "Newsletter-Abos",   value: enhanced?.newsletter_subscribers || 0, color: "text-blue-600" },
-                        { label: "Offene Meldungen",  value: enhanced?.open_reports || 0,            color: "text-red-600" },
-                        { label: "Neue Nutzer/Woche", value: enhanced?.new_users_week || 0,          color: "text-emerald-600" },
-                        { label: "Pending Buchungen", value: stats?.pending_bookings || 0,            color: "text-amber-600" },
+                        { label: "Offene Meldungen",  value: enhanced?.open_reports || 0,           color: "text-red-600" },
+                        { label: "Neue Nutzer/Woche", value: enhanced?.new_users_week || 0,         color: "text-emerald-600" },
+                        { label: "Pending Buchungen", value: stats?.pending_bookings || 0,           color: "text-amber-600" },
                       ].map((c, i) => (
                         <div key={i} className="bg-white rounded-xl border border-zinc-100 p-4">
                           <p className={`text-2xl font-playfair font-semibold ${c.color}`}>{c.value}</p>
@@ -394,12 +481,11 @@ export default function AdminPage() {
                       ))}
                     </div>
 
-                    {/* Top Studios + Recent Bookings */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <SectionCard title="Top Studios">
                         {(enhanced?.top_studios || []).length === 0
                           ? <EmptyState text="Noch keine Buchungshistorie" />
-                          : (enhanced.top_studios.map((s, i) => (
+                          : enhanced.top_studios.map((s, i) => (
                             <div key={i} className="flex items-center justify-between px-5 py-3 border-b border-zinc-50 last:border-0">
                               <div>
                                 <p className="text-sm font-inter font-medium text-zinc-900">{s.name}</p>
@@ -407,7 +493,7 @@ export default function AdminPage() {
                               </div>
                               <span className="text-sm font-inter font-semibold text-zinc-900">{s.booking_count} Buchungen</span>
                             </div>
-                          )))}
+                          ))}
                       </SectionCard>
                       <SectionCard title="Letzte Buchungen">
                         {(stats?.recent_bookings || []).length === 0
@@ -433,20 +519,20 @@ export default function AdminPage() {
                       <div className="relative flex-1 max-w-xs">
                         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input value={searchStudios} onChange={e => setSearchStudios(e.target.value)} placeholder="Studio oder Stadt…"
-                          className="pl-8 pr-4 py-2 w-full bg-white border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400" data-testid="admin-studio-search" />
+                          className="pl-8 pr-4 py-2 w-full bg-white border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400" />
                       </div>
                       <span className="text-sm text-zinc-400 font-inter">{filteredStudios.length} Studios</span>
                     </div>
                     <SectionCard>
-                      <div className="overflow-x-auto" data-testid="admin-studios-table">
+                      <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead><tr className="border-b border-zinc-100">
-                            {["Studio","Stadt","Abo","Buchungen","Status","Aktionen"].map(h => (
+                            {["Studio","Stadt","Buchungen","Status","Aktionen"].map(h => (
                               <th key={h} className="px-4 py-3 text-left text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400">{h}</th>
                             ))}</tr></thead>
                           <tbody className="divide-y divide-zinc-50">
                             {filteredStudios.map(s => (
-                              <tr key={s.studio_id} className="hover:bg-zinc-50 transition-colors" data-testid={`studio-row-${s.studio_id}`}>
+                              <tr key={s.studio_id} className="hover:bg-zinc-50 transition-colors">
                                 <td className="px-4 py-3.5">
                                   <div className="flex items-center gap-2.5">
                                     <div className="w-7 h-7 bg-zinc-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -459,14 +545,10 @@ export default function AdminPage() {
                                   </div>
                                 </td>
                                 <td className="px-4 py-3.5 text-sm text-zinc-500 font-inter">{s.city || "—"}</td>
-                                <td className="px-4 py-3.5">
-                                  {s.subscription ? <Pill type={s.subscription.status}>{s.subscription.plan} · {s.subscription.status}</Pill>
-                                    : <span className="text-xs text-zinc-400 font-inter">Kein Abo</span>}
-                                </td>
                                 <td className="px-4 py-3.5 text-sm font-inter text-zinc-600">{s.booking_count || 0}</td>
                                 <td className="px-4 py-3.5">
                                   <button onClick={() => toggleStudioStatus(s)} disabled={actionLoading === s.studio_id}
-                                    className="flex items-center gap-1.5 text-sm font-inter" data-testid={`toggle-studio-${s.studio_id}`}>
+                                    className="flex items-center gap-1.5 text-sm font-inter">
                                     {s.is_active ? <><ToggleRight size={16} className="text-emerald-500" /><span className="text-emerald-600">Aktiv</span></>
                                       : <><ToggleLeft size={16} className="text-zinc-400" /><span className="text-zinc-500">Inaktiv</span></>}
                                   </button>
@@ -475,12 +557,19 @@ export default function AdminPage() {
                                   <div className="flex items-center gap-1.5">
                                     <button onClick={() => toggleVerified(s)} disabled={actionLoading === `v_${s.studio_id}`}
                                       title={s.is_verified ? "Verifizierung entfernen" : "Studio verifizieren"}
-                                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-inter font-semibold transition-all ${s.is_verified ? "bg-blue-600 text-white" : "border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600"}`}
-                                      data-testid={`verify-studio-${s.studio_id}`}>
+                                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-inter font-semibold transition-all ${s.is_verified ? "bg-blue-600 text-white" : "border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600"}`}>
                                       <CheckCircle size={9} /> {s.is_verified ? "Verifiziert" : "Verifizieren"}
                                     </button>
-                                    <Link to={`/studios/${s.studio_id}`} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors"><Eye size={13} /></Link>
-                                    <button onClick={() => deleteStudio(s.studio_id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors" data-testid={`delete-studio-${s.studio_id}`}><Trash2 size={13} /></button>
+                                    <button onClick={() => openStudioDetails(s.studio_id)}
+                                      title="Details anzeigen"
+                                      className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors">
+                                      <Eye size={13} />
+                                    </button>
+                                    <Link to={`/studios/${s.studio_id}`} target="_blank"
+                                      className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors" title="Öffentliches Profil">
+                                      <ChevronRight size={13} />
+                                    </Link>
+                                    <button onClick={() => deleteStudio(s.studio_id)} className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
                                   </div>
                                 </td>
                               </tr>
@@ -500,12 +589,12 @@ export default function AdminPage() {
                       <div className="relative flex-1 max-w-xs">
                         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input value={searchUsers} onChange={e => setSearchUsers(e.target.value)} placeholder="Name oder E-Mail…"
-                          className="pl-8 pr-4 py-2 w-full bg-white border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400" data-testid="admin-user-search" />
+                          className="pl-8 pr-4 py-2 w-full bg-white border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400" />
                       </div>
                       <span className="text-sm text-zinc-400 font-inter">{filteredUsers.length} Nutzer</span>
                     </div>
                     <SectionCard>
-                      <div className="overflow-x-auto" data-testid="admin-users-table">
+                      <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead><tr className="border-b border-zinc-100">
                             {["Name","E-Mail","Rolle","Registriert","Aktionen"].map(h => (
@@ -513,7 +602,7 @@ export default function AdminPage() {
                             ))}</tr></thead>
                           <tbody className="divide-y divide-zinc-50">
                             {filteredUsers.map((u, i) => (
-                              <tr key={i} className="hover:bg-zinc-50 transition-colors" data-testid={`user-row-${u.user_id || i}`}>
+                              <tr key={i} className="hover:bg-zinc-50 transition-colors">
                                 <td className="px-4 py-3"><div className="flex items-center gap-2">
                                   <div className="w-7 h-7 bg-zinc-900 text-white rounded-full flex items-center justify-center text-xs font-bold">{u.name?.[0]?.toUpperCase() || "?"}</div>
                                   <span className="text-sm font-inter font-medium text-zinc-900">{u.name}</span>
@@ -526,10 +615,10 @@ export default function AdminPage() {
                                 </td>
                                 <td className="px-4 py-3 text-xs text-zinc-400 font-inter">{u.created_at ? new Date(u.created_at).toLocaleDateString("de-DE") : "—"}</td>
                                 <td className="px-4 py-3"><div className="flex items-center gap-1.5">
-                                  <button onClick={() => openUserDetails(u.user_id)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition-colors" data-testid={`view-user-${u.user_id}`}><Eye size={13} /></button>
+                                  <button onClick={() => openUserDetails(u.user_id)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors" title="Details"><Eye size={13} /></button>
                                   {u.role !== "admin" && (
                                     <button onClick={() => deleteUser(u.user_id, u.name, u.role)} disabled={actionLoading === `del_user_${u.user_id}`}
-                                      className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-40" data-testid={`delete-user-${u.user_id}`}>
+                                      className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-40">
                                       {actionLoading === `del_user_${u.user_id}` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                     </button>
                                   )}
@@ -563,9 +652,10 @@ export default function AdminPage() {
                               <div>
                                 <p className="text-sm font-inter font-medium text-zinc-900">{b.studio_name || b.studio_id}</p>
                                 <p className="text-xs text-zinc-400 font-inter">{b.date} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Session"}</p>
+                                {b.user_name && <p className="text-xs text-zinc-400 font-inter">Kunde: {b.user_name}</p>}
                               </div>
                               <div className="flex items-center gap-2">
-                                <Pill type={b.status}>{b.status}</Pill>
+                                <BookingStatusSelect booking={b} onUpdate={(id, status) => updateBookingStatus(id, status, "list")} />
                                 {b.payment_status === "paid" && <span className="text-xs text-emerald-600 font-inter">✓ Bezahlt</span>}
                               </div>
                             </div>
@@ -576,42 +666,12 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* ══════════════════════════════════════════ SUBSCRIPTIONS */}
-                {activeSection === "subscriptions" && (
-                  <SectionCard title={`Abonnements (${subscriptions.length})`}>
-                    {subscriptions.length === 0 ? <EmptyState text="Keine Abonnements" /> : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead><tr className="border-b border-zinc-100">
-                            {["Studio","Plan","Status","Erstellt","Läuft ab"].map(h => (
-                              <th key={h} className="px-5 py-3 text-left text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400">{h}</th>
-                            ))}</tr></thead>
-                          <tbody className="divide-y divide-zinc-50">
-                            {subscriptions.map((s, i) => (
-                              <tr key={i} className="hover:bg-zinc-50">
-                                <td className="px-5 py-3.5">
-                                  <p className="text-sm font-inter font-medium text-zinc-900">{s.studio_name}</p>
-                                  <p className="text-xs text-zinc-400 font-inter">{s.studio_city}</p>
-                                </td>
-                                <td className="px-5 py-3.5 text-sm font-inter text-zinc-700 capitalize">{s.plan || "—"}</td>
-                                <td className="px-5 py-3.5"><Pill type={s.status}>{s.status}</Pill></td>
-                                <td className="px-5 py-3.5 text-xs text-zinc-400 font-inter">{s.created_at ? new Date(s.created_at).toLocaleDateString("de-DE") : "—"}</td>
-                                <td className="px-5 py-3.5 text-xs text-zinc-400 font-inter">{s.expires_at ? new Date(s.expires_at).toLocaleDateString("de-DE") : "—"}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </SectionCard>
-                )}
-
                 {/* ══════════════════════════════════════════ REVENUE */}
                 {activeSection === "revenue" && revenue && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {[
-                        { l: "Monatl. Wiederkehrend (MRR)", v: `€ ${(revenue.mrr || 0).toFixed(2)}`, c: "text-emerald-600" },
+                        { l: "MRR (Abos)", v: `€ ${(revenue.mrr || 0).toFixed(2)}`, c: "text-emerald-600" },
                         { l: "Aktive Abonnements", v: revenue.active_subscriptions || 0, c: "text-zinc-900" },
                         { l: "Zahlungen gesamt", v: `€ ${(revenue.total_from_payments || 0).toFixed(2)}`, c: "text-zinc-900" },
                         { l: "Plattformgebühren (5%)", v: `€ ${(revenue.total_platform_fees || 0).toFixed(2)}`, c: "text-violet-600" },
@@ -625,18 +685,12 @@ export default function AdminPage() {
                     <SectionCard title="Letzte 6 Monate">
                       {revenue.monthly_breakdown?.length === 0 ? <EmptyState text="Keine Zahlungsdaten" /> : (
                         <div className="p-5 space-y-3">
-                          <div className="flex items-center gap-4 mb-1">
-                            <span className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 w-20">Monat</span>
-                            <span className="flex-1 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Umsatz</span>
-                            <span className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 w-24 text-right">Betrag</span>
-                            <span className="text-[10px] font-inter font-semibold uppercase tracking-widest text-violet-400 w-24 text-right">Gebühr (5%)</span>
-                          </div>
                           {(revenue.monthly_breakdown || []).map((m) => (
                             <div key={m.month} className="flex items-center gap-4">
                               <span className="text-sm font-inter text-zinc-500 w-20">{m.month}</span>
-                              <div className="flex-1 h-6 bg-zinc-100 rounded-lg overflow-hidden">
-                                <div className="h-full bg-zinc-900 rounded-lg transition-all"
-                                  style={{ width: `${Math.min(100, (m.amount / Math.max(...(revenue.monthly_breakdown || []).map(x => x.amount))) * 100)}%` }} />
+                              <div className="flex-1 h-5 bg-zinc-100 rounded-lg overflow-hidden">
+                                <div className="h-full bg-zinc-900 rounded-lg"
+                                  style={{ width: `${Math.min(100, (m.amount / Math.max(...(revenue.monthly_breakdown || []).map(x => x.amount), 1)) * 100)}%` }} />
                               </div>
                               <span className="text-sm font-inter font-semibold text-zinc-900 w-24 text-right">€ {m.amount.toFixed(2)}</span>
                               <span className="text-sm font-inter font-semibold text-violet-600 w-24 text-right">€ {(m.platform_fee || 0).toFixed(2)}</span>
@@ -652,14 +706,11 @@ export default function AdminPage() {
                             <thead><tr className="border-b border-zinc-100">
                               {["Datum", "Studio", "Betrag", "Plattformgebühr (5%)"].map(h => (
                                 <th key={h} className="px-5 py-3 text-left text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400">{h}</th>
-                              ))}
-                            </tr></thead>
+                              ))}</tr></thead>
                             <tbody className="divide-y divide-zinc-50">
                               {(revenue.transactions || []).map((t, i) => (
                                 <tr key={t.transaction_id || i} className="hover:bg-zinc-50">
-                                  <td className="px-5 py-3.5 text-xs text-zinc-400 font-inter whitespace-nowrap">
-                                    {t.created_at ? new Date(t.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
-                                  </td>
+                                  <td className="px-5 py-3.5 text-xs text-zinc-400 font-inter">{t.created_at ? new Date(t.created_at).toLocaleDateString("de-DE") : "—"}</td>
                                   <td className="px-5 py-3.5 text-sm font-inter font-medium text-zinc-900">{t.studio_name || "—"}</td>
                                   <td className="px-5 py-3.5 text-sm font-inter font-semibold text-zinc-900">€ {(t.amount || 0).toFixed(2)}</td>
                                   <td className="px-5 py-3.5 text-sm font-inter font-semibold text-violet-600">€ {(t.platform_fee_amount || 0).toFixed(2)}</td>
@@ -688,7 +739,7 @@ export default function AdminPage() {
                               <p className="text-sm font-inter text-zinc-700">{r.comment || "Kein Kommentar"}</p>
                               <p className="text-xs text-zinc-400 font-inter mt-1">{r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : ""}</p>
                             </div>
-                            <button onClick={() => deleteReview(r.review_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-500 transition-colors flex-shrink-0" data-testid={`delete-review-${r.review_id}`}><Trash2 size={13} /></button>
+                            <button onClick={() => deleteReview(r.review_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 size={13} /></button>
                           </div>
                         ))}
                       </div>
@@ -700,8 +751,8 @@ export default function AdminPage() {
                 {activeSection === "faq" && (
                   <div className="space-y-4">
                     <div className="flex justify-end">
-                      <button onClick={() => { setFaqModal("new"); setFaqForm({ category: "", question: "", answer: "", order: 0 }); }}
-        className="btn-primary flex items-center gap-2 text-sm" data-testid="admin-add-faq-btn">
+                      <button onClick={() => { setFaqModal("new"); setFaqForm({ category: "", question: "", answer: "", order: 0, target_role: "all" }); }}
+                        className="btn-primary flex items-center gap-2 text-sm">
                         <Plus size={14} /> FAQ hinzufügen
                       </button>
                     </div>
@@ -713,11 +764,7 @@ export default function AdminPage() {
                               <div className="flex-1 pr-4">
                                 <div className="flex items-center gap-2 mb-1">
                                   <p className="text-[10px] tracking-widest uppercase text-zinc-400 font-inter">{f.category}</p>
-                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${
-                                    f.target_role === "customer" ? "bg-blue-50 text-blue-600" :
-                                    f.target_role === "studio_owner" ? "bg-purple-50 text-purple-600" :
-                                    "bg-zinc-100 text-zinc-500"
-                                  }`}>
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${f.target_role === "customer" ? "bg-blue-50 text-blue-600" : f.target_role === "studio_owner" ? "bg-purple-50 text-purple-600" : "bg-zinc-100 text-zinc-500"}`}>
                                     {f.target_role === "customer" ? "Kunden" : f.target_role === "studio_owner" ? "Studios" : "Alle"}
                                   </span>
                                 </div>
@@ -737,64 +784,12 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* ══════════════════════════════════════════ ANNOUNCEMENTS */}
-                {activeSection === "announcements" && (
-                  <div className="space-y-6">
-                    <SectionCard title="Neue Ankündigung">
-                      <div className="p-5 space-y-4">
-                        <Textarea label="Text" value={annForm.text} onChange={e => setAnnForm(p => ({ ...p, text: e.target.value }))} placeholder="Ankündigungstext…" rows={2} />
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-xs font-inter font-medium text-zinc-600 mb-1.5">Typ</label>
-                            <select value={annForm.type} onChange={e => setAnnForm(p => ({ ...p, type: e.target.value }))}
-                              className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none">
-                              <option value="info">Info (Blau)</option>
-                              <option value="warning">Warnung (Gelb)</option>
-                              <option value="success">Erfolg (Grün)</option>
-                            </select>
-                          </div>
-                          <Input label="Link (optional)" value={annForm.link} onChange={e => setAnnForm(p => ({ ...p, link: e.target.value }))} placeholder="/search" />
-                          <Input label="Link-Label" value={annForm.link_label} onChange={e => setAnnForm(p => ({ ...p, link_label: e.target.value }))} placeholder="Mehr erfahren" />
-                        </div>
-                        <button onClick={createAnnouncement} disabled={!annForm.text} className="btn-primary text-sm flex items-center gap-2 disabled:opacity-40" data-testid="admin-create-announcement-btn">
-                          <Bell size={13} /> Ankündigung aktivieren
-                        </button>
-                      </div>
-                    </SectionCard>
-                    <SectionCard title="Aktive Ankündigungen">
-                      {announcements.length === 0 ? <EmptyState text="Keine Ankündigungen" /> : (
-                        <div className="divide-y divide-zinc-50">
-                          {announcements.map(a => (
-                            <div key={a.announcement_id} className="px-5 py-4 flex items-center justify-between hover:bg-zinc-50">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-inter font-semibold border ${a.type === "warning" ? "bg-amber-50 text-amber-700 border-amber-200" : a.type === "success" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200"}`}>{a.type}</span>
-                                  {a.active && <span className="text-[10px] text-emerald-600 font-inter font-semibold">● Live</span>}
-                                </div>
-                                <p className="text-sm font-inter text-zinc-800">{a.text}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => toggleAnn(a.announcement_id)} className={`text-xs px-3 py-1.5 rounded-full font-inter font-medium border transition-colors ${a.active ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}>
-                                  {a.active ? "Deaktivieren" : "Aktivieren"}
-                                </button>
-                                <button onClick={() => deleteAnn(a.announcement_id)} className="p-1.5 hover:bg-red-50 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </SectionCard>
-                  </div>
-                )}
-
                 {/* ══════════════════════════════════════════ NEWSLETTER */}
                 {activeSection === "newsletter" && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-white rounded-xl border border-zinc-100 p-5">
-                        <p className="text-2xl font-playfair font-semibold text-zinc-900">{subscribers.length}</p>
-                        <p className="text-xs text-zinc-400 font-inter mt-1">Aktive Abonnenten</p>
-                      </div>
+                    <div className="bg-white rounded-xl border border-zinc-100 p-5 w-fit">
+                      <p className="text-2xl font-playfair font-semibold text-zinc-900">{subscribers.length}</p>
+                      <p className="text-xs text-zinc-400 font-inter mt-1">Aktive Abonnenten</p>
                     </div>
                     <SectionCard title="Kampagne versenden">
                       <div className="p-5 space-y-4">
@@ -803,16 +798,16 @@ export default function AdminPage() {
                         <Input label="Vorschau an E-Mail (optional)" value={nlForm.preview_email} onChange={e => setNlForm(p => ({ ...p, preview_email: e.target.value }))} placeholder="deine@email.de" />
                         {nlResult && (
                           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-inter text-emerald-700">
-                            {nlResult.status === "sent" ? `✓ Versendet an ${nlResult.sent} Abonnenten` : `✓ Vorschau an ${nlForm.preview_email} gesendet`}
+                            {nlResult.status === "sent" ? `✓ Versendet an ${nlResult.sent} Abonnenten` : `✓ Vorschau gesendet`}
                           </div>
                         )}
                         <div className="flex gap-3">
                           <button onClick={() => sendNewsletter(true)} disabled={!nlForm.preview_email || actionLoading === "nl"}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-inter font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-40" data-testid="admin-nl-preview-btn">
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-inter font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-40">
                             {actionLoading === "nl" ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Vorschau senden
                           </button>
                           <button onClick={() => sendNewsletter(false)} disabled={!nlForm.subject || !nlForm.content || actionLoading === "nl"}
-                            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-40" data-testid="admin-nl-send-btn">
+                            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-40">
                             {actionLoading === "nl" ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} An alle senden ({subscribers.length})
                           </button>
                         </div>
@@ -836,112 +831,86 @@ export default function AdminPage() {
                 {/* ══════════════════════════════════════════ BROADCAST */}
                 {activeSection === "broadcast" && (
                   <div className="space-y-4">
-                  <SectionCard title="Push-Nachricht an Nutzer">
-                    <div className="p-5 space-y-4">
-                      <p className="text-sm text-zinc-500 font-inter">Sendet eine Push-Benachrichtigung an alle Nutzer mit aktiven Browser-Notifications.</p>
-                      <Input label="Titel" value={broadcastForm.title} onChange={e => setBroadcastForm(p => ({ ...p, title: e.target.value }))} placeholder="Wichtige Neuigkeit" />
-                      <Textarea label="Nachricht" value={broadcastForm.message} onChange={e => setBroadcastForm(p => ({ ...p, message: e.target.value }))} placeholder="Deine Broadcast-Nachricht…" rows={3} />
-                      <div>
-                        <label className="block text-xs font-inter font-medium text-zinc-600 mb-1.5">Empfänger</label>
-                        <select value={broadcastForm.target} onChange={e => setBroadcastForm(p => ({ ...p, target: e.target.value }))}
-                          className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none" data-testid="broadcast-target-select">
-                          <option value="all">Alle Nutzer</option>
-                          <option value="customers">Nur Kunden</option>
-                          <option value="studio_owners">Nur Studios</option>
-                        </select>
-                      </div>
-                      {/* Rating toggle */}
-                      <div className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <SectionCard title="Push-Nachricht an Nutzer">
+                      <div className="p-5 space-y-4">
+                        <Input label="Titel" value={broadcastForm.title} onChange={e => setBroadcastForm(p => ({ ...p, title: e.target.value }))} placeholder="Wichtige Neuigkeit" />
+                        <Textarea label="Nachricht" value={broadcastForm.message} onChange={e => setBroadcastForm(p => ({ ...p, message: e.target.value }))} placeholder="Deine Broadcast-Nachricht…" rows={3} />
                         <div>
-                          <p className="text-sm font-inter font-medium text-zinc-800">Nutzer-Feedback aktivieren</p>
-                          <p className="text-xs font-inter text-zinc-400 mt-0.5">Nutzer können diese Nachricht mit ⭐ oder ✕ bewerten</p>
+                          <label className="block text-xs font-inter font-medium text-zinc-600 mb-1.5">Empfänger</label>
+                          <select value={broadcastForm.target} onChange={e => setBroadcastForm(p => ({ ...p, target: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none">
+                            <option value="all">Alle Nutzer</option>
+                            <option value="customers">Nur Kunden</option>
+                            <option value="studio_owners">Nur Studios</option>
+                          </select>
                         </div>
-                        <div
-                          onClick={() => setBroadcastForm(p => ({ ...p, rating_enabled: !p.rating_enabled }))}
-                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer flex-shrink-0 ${broadcastForm.rating_enabled ? "bg-zinc-900" : "bg-zinc-200"}`}
-                          data-testid="broadcast-rating-toggle"
-                        >
-                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${broadcastForm.rating_enabled ? "translate-x-5" : "translate-x-0"}`} />
+                        <div className="flex items-center justify-between p-3.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                          <div>
+                            <p className="text-sm font-inter font-medium text-zinc-800">Nutzer-Feedback aktivieren</p>
+                            <p className="text-xs font-inter text-zinc-400 mt-0.5">Nutzer können diese Nachricht mit ⭐ oder ✕ bewerten</p>
+                          </div>
+                          <div onClick={() => setBroadcastForm(p => ({ ...p, rating_enabled: !p.rating_enabled }))}
+                            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${broadcastForm.rating_enabled ? "bg-zinc-900" : "bg-zinc-200"}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${broadcastForm.rating_enabled ? "translate-x-5" : "translate-x-0"}`} />
+                          </div>
                         </div>
+                        {broadcastResult && (
+                          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-inter text-emerald-700">
+                            ✓ Gesendet an {broadcastResult.sent} Nutzer
+                          </div>
+                        )}
+                        <button onClick={sendBroadcast} disabled={!broadcastForm.title || !broadcastForm.message || actionLoading === "broadcast"}
+                          className="btn-primary flex items-center gap-2 text-sm disabled:opacity-40">
+                          {actionLoading === "broadcast" ? <Loader2 size={13} className="animate-spin" /> : <Megaphone size={13} />} Broadcast senden
+                        </button>
                       </div>
-                      {broadcastResult && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-inter text-emerald-700">
-                          ✓ Gesendet an {broadcastResult.sent} Nutzer
-                        </div>
-                      )}
-                      <button onClick={sendBroadcast} disabled={!broadcastForm.title || !broadcastForm.message || actionLoading === "broadcast"}
-                        className="btn-primary flex items-center gap-2 text-sm disabled:opacity-40" data-testid="admin-broadcast-send-btn">
-                        {actionLoading === "broadcast" ? <Loader2 size={13} className="animate-spin" /> : <Megaphone size={13} />} Broadcast senden
-                      </button>
-                    </div>
-                  </SectionCard>
-
-                  {/* Feedback-Übersicht */}
-                  <SectionCard title="Nutzer-Feedback zu Broadcasts">
-                    <div className="p-5">
-                      {broadcastRatings === null ? (
-                        <div className="flex items-center gap-2 text-sm text-zinc-400 font-inter py-4">
-                          <Loader2 size={14} className="animate-spin" /> Lade Feedback…
-                        </div>
-                      ) : broadcastRatings.length === 0 ? (
-                        <p className="text-sm text-zinc-400 font-inter py-4 text-center">Noch keine Broadcasts gesendet.</p>
-                      ) : (
-                        <div className="space-y-3" data-testid="broadcast-ratings-list">
-                          {broadcastRatings.map((bc) => {
-                            const pct = bc.total > 0 ? Math.round((bc.stars / bc.total) * 100) : null;
-                            return (
-                              <div key={bc.broadcast_id} className="flex items-start gap-4 p-4 bg-zinc-50 rounded-xl border border-zinc-100" data-testid={`bc-rating-${bc.broadcast_id}`}>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-inter font-semibold text-zinc-900 truncate">{bc.title}</p>
-                                  <p className="text-xs text-zinc-400 font-inter mt-0.5">
-                                    {new Date(bc.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                                    {" · "}
-                                    {bc.target === "all" ? "Alle" : bc.target === "customers" ? "Kunden" : "Studios"}
-                                  </p>
+                    </SectionCard>
+                    <SectionCard title="Nutzer-Feedback zu Broadcasts">
+                      <div className="p-5">
+                        {broadcastRatings === null ? (
+                          <div className="flex items-center gap-2 text-sm text-zinc-400 font-inter py-4"><Loader2 size={14} className="animate-spin" /> Lade Feedback…</div>
+                        ) : broadcastRatings.length === 0 ? (
+                          <p className="text-sm text-zinc-400 font-inter py-4 text-center">Noch keine Broadcasts gesendet.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {broadcastRatings.map((bc) => {
+                              const pct = bc.total > 0 ? Math.round((bc.stars / bc.total) * 100) : null;
+                              return (
+                                <div key={bc.broadcast_id} className="flex items-start gap-4 p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-inter font-semibold text-zinc-900 truncate">{bc.title}</p>
+                                    <p className="text-xs text-zinc-400 font-inter mt-0.5">
+                                      {new Date(bc.created_at).toLocaleDateString("de-DE")} · {bc.target === "all" ? "Alle" : bc.target === "customers" ? "Kunden" : "Studios"}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-3 flex-shrink-0">
+                                    <span className="flex items-center gap-1 text-sm font-inter font-semibold text-amber-600">⭐ {bc.stars}</span>
+                                    <span className="flex items-center gap-1 text-sm font-inter font-semibold text-zinc-400">✕ {bc.xs}</span>
+                                    {pct !== null && <span className={`text-xs font-inter font-semibold px-2 py-0.5 rounded-full ${pct >= 60 ? "bg-emerald-50 text-emerald-700" : pct >= 40 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}>{pct}% positiv</span>}
+                                    {bc.total === 0 && <span className="text-xs font-inter text-zinc-300 italic">kein Feedback</span>}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                  <span className="flex items-center gap-1 text-sm font-inter font-semibold text-amber-600" data-testid={`bc-stars-${bc.broadcast_id}`}>
-                                    ⭐ {bc.stars}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-sm font-inter font-semibold text-zinc-400" data-testid={`bc-xs-${bc.broadcast_id}`}>
-                                    ✕ {bc.xs}
-                                  </span>
-                                  {pct !== null && (
-                                    <span className={`text-xs font-inter font-semibold px-2 py-0.5 rounded-full ${pct >= 60 ? "bg-emerald-50 text-emerald-700" : pct >= 40 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}
-                                      data-testid={`bc-pct-${bc.broadcast_id}`}>
-                                      {pct}% positiv
-                                    </span>
-                                  )}
-                                  {bc.total === 0 && (
-                                    <span className="text-xs font-inter text-zinc-300 italic">kein Feedback</span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => { setBroadcastRatings(null); lazyFetch("broadcast"); }}
-                        className="mt-3 text-xs font-inter text-zinc-400 hover:text-zinc-700 transition-colors flex items-center gap-1"
-                        data-testid="refresh-broadcast-ratings-btn"
-                      >
-                        <Activity size={11} /> Aktualisieren
-                      </button>
-                    </div>
-                  </SectionCard>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <button onClick={() => { setBroadcastRatings(null); lazyFetch("broadcast"); }}
+                          className="mt-3 text-xs font-inter text-zinc-400 hover:text-zinc-700 transition-colors flex items-center gap-1">
+                          <Activity size={11} /> Aktualisieren
+                        </button>
+                      </div>
+                    </SectionCard>
                   </div>
                 )}
 
                 {/* ══════════════════════════════════════════ SUPPORT TICKETS */}
                 {activeSection === "support-tickets" && (
                   <div className="space-y-4">
-                    {/* Sub-tabs */}
                     <div className="flex gap-1 bg-white rounded-xl border border-zinc-100 p-1 w-fit">
                       {[
                         { id: "tickets", label: `Tickets (${newTickets.length})` },
-                        { id: "direct", label: `Direkt-Chats (${directChats.length})` },
-                        { id: "chats", label: `KI-Chats (${tickets.length})` },
+                        { id: "direct",  label: `Direkt-Chats (${directChats.length})` },
+                        { id: "chats",   label: `KI-Chats (${tickets.length})` },
                       ].map(t => (
                         <button key={t.id} onClick={() => setSupportTab(t.id)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${supportTab === t.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-800"}`}
@@ -949,17 +918,16 @@ export default function AdminPage() {
                       ))}
                     </div>
 
-                    {/* Support Tickets */}
                     {supportTab === "tickets" && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <SectionCard title="Support-Tickets" className="overflow-auto">
+                        <SectionCard title="Support-Tickets">
                           {newTickets.length === 0 ? <EmptyState text="Keine Tickets" /> : (
                             <div className="divide-y divide-zinc-50">
                               {newTickets.map(t => (
                                 <button key={t.ticket_id} onClick={() => setSelectedTicket(t)}
                                   className={`w-full text-left px-5 py-3.5 hover:bg-zinc-50 transition-colors ${selectedTicket?.ticket_id === t.ticket_id ? "bg-zinc-50" : ""}`}>
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[10px] font-mono text-zinc-400 font-inter">{t.ticket_number}</span>
+                                    <span className="text-[10px] font-mono text-zinc-400">{t.ticket_number}</span>
                                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-inter font-medium ${t.status === "open" ? "bg-amber-50 text-amber-600" : t.status === "answered" ? "bg-green-50 text-green-600" : "bg-zinc-100 text-zinc-500"}`}>
                                       {t.status === "open" ? "Offen" : t.status === "answered" ? "Beantwortet" : t.status}
                                     </span>
@@ -971,7 +939,7 @@ export default function AdminPage() {
                             </div>
                           )}
                         </SectionCard>
-                        {selectedTicket && (
+                        {selectedTicket && !selectedTicket._type && (
                           <SectionCard title={`${selectedTicket.ticket_number} – ${selectedTicket.subject}`}>
                             <div className="p-4 space-y-4">
                               <div className="bg-zinc-50 rounded-xl p-3">
@@ -980,7 +948,7 @@ export default function AdminPage() {
                               </div>
                               {selectedTicket.replies?.map((r, i) => (
                                 <div key={i} className={`rounded-xl p-3 ${r.from === "admin" ? "bg-zinc-900 text-white" : "bg-blue-50 border border-blue-100"}`}>
-                                  <p className={`text-[10px] mb-1 opacity-60 font-inter font-semibold ${r.from === "admin" ? "" : "text-blue-500 opacity-100"}`}>
+                                  <p className={`text-[10px] mb-1 font-inter font-semibold ${r.from === "admin" ? "opacity-60" : "text-blue-500"}`}>
                                     {r.from === "admin" ? "INKBOOK SUPPORT" : "NUTZER-ANTWORT"}
                                   </p>
                                   <p className={`text-sm font-inter leading-relaxed ${r.from !== "admin" ? "text-blue-900" : ""}`}>{r.message}</p>
@@ -1003,9 +971,7 @@ export default function AdminPage() {
                                     }}
                                     disabled={!replyText.trim() || replyLoading}
                                     className="flex-1 btn-primary text-sm disabled:opacity-40"
-                                  >
-                                    {replyLoading ? "Senden…" : "Antworten & E-Mail"}
-                                  </button>
+                                  >{replyLoading ? "Senden…" : "Antworten & E-Mail"}</button>
                                   {selectedTicket.status !== "closed" && (
                                     <button
                                       onClick={async () => {
@@ -1015,9 +981,7 @@ export default function AdminPage() {
                                         setNewTickets(p => p.map(t => t.ticket_id === updated.ticket_id ? updated : t));
                                       }}
                                       className="px-3 py-2 rounded-xl border border-zinc-200 text-xs font-inter text-zinc-600 hover:bg-zinc-50 transition-colors flex-shrink-0"
-                                    >
-                                      Schließen
-                                    </button>
+                                    >Schließen</button>
                                   )}
                                 </div>
                               </div>
@@ -1027,7 +991,6 @@ export default function AdminPage() {
                       </div>
                     )}
 
-                    {/* Direct Chats */}
                     {supportTab === "direct" && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <SectionCard title="Direkt-Chats (Pro)">
@@ -1066,8 +1029,7 @@ export default function AdminPage() {
                                   setReplyLoading(true);
                                   try {
                                     const r = await ax().post(`${API}/admin/direct-chats/${selectedTicket.chat_id}/reply`, { message: replyText });
-                                    const newMsg = r.data.msg;
-                                    const updated = { ...selectedTicket, messages: [...(selectedTicket.messages || []), newMsg] };
+                                    const updated = { ...selectedTicket, messages: [...(selectedTicket.messages || []), r.data.msg] };
                                     setSelectedTicket(updated);
                                     setDirectChats(p => p.map(c => c.chat_id === updated.chat_id ? updated : c));
                                     setReplyText("");
@@ -1075,16 +1037,13 @@ export default function AdminPage() {
                                 }}
                                 disabled={!replyText.trim() || replyLoading}
                                 className="btn-primary text-sm w-full mt-3 disabled:opacity-40"
-                              >
-                                {replyLoading ? "Senden…" : "Nachricht senden"}
-                              </button>
+                              >{replyLoading ? "Senden…" : "Nachricht senden"}</button>
                             </div>
                           </SectionCard>
                         )}
                       </div>
                     )}
 
-                    {/* Legacy AI Chats */}
                     {supportTab === "chats" && (
                       <SectionCard title={`KI-Support-Chats (${tickets.length})`}>
                         {tickets.length === 0 ? <EmptyState text="Keine Support-Chats" /> : (
@@ -1122,15 +1081,12 @@ export default function AdminPage() {
                                 <span className="text-xs text-zinc-400 font-inter">{r.target_type} · {r.reporter_name || "Anonym"}</span>
                               </div>
                               <p className="text-sm font-inter text-zinc-800">{r.reason}</p>
-                              {/* Show review preview if target_type is review */}
                               {r.target_type === "review" && r.target_preview && (
                                 <div className="mt-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
                                   <div className="flex items-center gap-1.5 mb-1">
                                     <span className="text-xs font-inter font-semibold text-zinc-700">{r.target_preview.user_name || "Unbekannt"}</span>
                                     <div className="flex gap-0.5">
-                                      {[1,2,3,4,5].map(n => (
-                                        <span key={n} style={{ fontSize: 10, color: n <= r.target_preview.rating ? "#f59e0b" : "#e4e4e7" }}>★</span>
-                                      ))}
+                                      {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize: 10, color: n <= r.target_preview.rating ? "#f59e0b" : "#e4e4e7" }}>★</span>)}
                                     </div>
                                   </div>
                                   <p className="text-xs font-inter text-zinc-600 italic">"{r.target_preview.comment}"</p>
@@ -1140,16 +1096,11 @@ export default function AdminPage() {
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
                               {r.status === "open" && (
-                                <button onClick={() => dismissReport(r.report_id)} className="text-xs px-2.5 py-1 rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-50 font-inter transition-colors" data-testid={`dismiss-report-${r.report_id}`}>
-                                  Schließen
-                                </button>
+                                <button onClick={() => dismissReport(r.report_id)} className="text-xs px-2.5 py-1 rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-50 font-inter transition-colors">Schließen</button>
                               )}
                               {r.target_type === "review" && r.status !== "dismissed" && (
-                                <button
-                                  onClick={() => deleteReviewFromReport(r.report_id)}
-                                  className="text-xs px-2.5 py-1 rounded-full bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 font-inter transition-colors"
-                                  data-testid={`delete-review-from-report-${r.report_id}`}
-                                >
+                                <button onClick={() => deleteReviewFromReport(r.report_id)}
+                                  className="text-xs px-2.5 py-1 rounded-full bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 font-inter transition-colors">
                                   Bewertung löschen
                                 </button>
                               )}
@@ -1168,6 +1119,273 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* ══════════════════════════════════════ USER DETAIL MODAL */}
+      <Modal open={!!selectedUser} onClose={() => { setSelectedUser(null); setUserDetails(null); }} title="Nutzer-Details" wide>
+        {!userDetails ? (
+          <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-zinc-400" /></div>
+        ) : (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-zinc-900 text-white rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0">
+                {userDetails.user?.name?.[0]?.toUpperCase() || "?"}
+              </div>
+              <div className="flex-1">
+                <p className="font-playfair font-semibold text-zinc-900 text-lg">{userDetails.user?.name}</p>
+                <p className="text-sm text-zinc-500 font-inter">{userDetails.user?.email}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Pill type={userDetails.user?.role === "admin" ? "neutral" : userDetails.user?.role === "studio_owner" ? "pending" : "confirmed"}>
+                    {userDetails.user?.role === "admin" ? "Admin" : userDetails.user?.role === "studio_owner" ? "Studio-Inhaber" : "Kunde"}
+                  </Pill>
+                  <span className="text-xs text-zinc-400 font-inter">ID: {userDetails.user?.user_id?.slice(0, 12)}…</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Editable fields */}
+            <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-inter font-semibold">Daten bearbeiten (Support)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Name" value={userEditForm.name} onChange={e => setUserEditForm(p => ({ ...p, name: e.target.value }))} />
+                <Input label="E-Mail" value={userEditForm.email} onChange={e => setUserEditForm(p => ({ ...p, email: e.target.value }))} />
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={saveUserEdit} disabled={userEditSaving}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-inter font-medium disabled:opacity-50">
+                  {userEditSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                  Speichern
+                </button>
+                {userEditSuccess && <span className="text-xs text-emerald-600 font-inter">✓ Gespeichert</span>}
+              </div>
+            </div>
+
+            {/* Info grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <InfoRow label="Rolle" value={userDetails.user?.role} />
+              <InfoRow label="Registriert" value={userDetails.user?.created_at ? new Date(userDetails.user.created_at).toLocaleDateString("de-DE") : "—"} />
+              <InfoRow label="Auth" value={userDetails.user?.auth_provider || "email"} />
+              <InfoRow label="Studio" value={userDetails.studio ? `${userDetails.studio.name} (${userDetails.studio.city || "—"})` : "—"} />
+            </div>
+
+            {userDetails.studio && (
+              <button onClick={() => { setSelectedUser(null); setUserDetails(null); openStudioDetails(userDetails.studio.studio_id); }}
+                className="text-xs text-blue-600 font-inter hover:underline flex items-center gap-1">
+                <Building2 size={11} /> Studio-Details anzeigen →
+              </button>
+            )}
+
+            {/* Sub-tabs */}
+            <SubTabs
+              tabs={[
+                { id: "bookings", label: `Buchungen (${userDetails.bookings?.length || 0})` },
+                { id: "reviews",  label: `Bewertungen (${userDetails.reviews?.length || 0})` },
+              ]}
+              active={userDetailTab}
+              onChange={setUserDetailTab}
+            />
+
+            {userDetailTab === "bookings" && (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {userDetails.bookings?.length === 0 && <p className="text-sm text-zinc-400 font-inter text-center py-4">Keine Buchungen</p>}
+                {userDetails.bookings?.map((b, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-inter font-medium text-zinc-900 truncate">{b.studio_name || b.studio_id}</p>
+                      <p className="text-xs text-zinc-400 font-inter">{b.date} · {b.start_time} – {b.end_time}</p>
+                      {b.booking_type && <p className="text-xs text-zinc-400 font-inter">{b.booking_type === "consultation" ? "Beratung" : "Session"}{b.price ? ` · €${b.price}` : ""}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <BookingStatusSelect booking={b} onUpdate={(id, status) => updateBookingStatus(id, status, "user")} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {userDetailTab === "reviews" && (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {userDetails.reviews?.length === 0 && <p className="text-sm text-zinc-400 font-inter text-center py-4">Keine Bewertungen</p>}
+                {userDetails.reviews?.map((r, i) => (
+                  <div key={i} className="px-3 py-2.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-yellow-500 text-xs">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                      <span className="text-xs text-zinc-500 font-inter">{r.studio_name}</span>
+                      <span className="text-xs text-zinc-400 font-inter ml-auto">{r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : ""}</span>
+                    </div>
+                    <p className="text-sm font-inter text-zinc-700">{r.comment || <span className="italic text-zinc-400">Kein Kommentar</span>}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Danger zone */}
+            {userDetails.user?.role !== "admin" && (
+              <div className="pt-2 border-t border-zinc-100">
+                <button onClick={() => deleteUser(userDetails.user.user_id, userDetails.user.name, userDetails.user.role)}
+                  disabled={actionLoading === `del_user_${userDetails.user.user_id}`}
+                  className="flex items-center gap-2 text-sm font-inter text-red-500 hover:text-red-600 transition-colors disabled:opacity-40">
+                  <Trash2 size={13} /> Nutzer löschen
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ══════════════════════════════════════ STUDIO DETAIL MODAL */}
+      <Modal open={!!selectedStudio} onClose={() => { setSelectedStudio(null); setStudioDetails(null); }} title="Studio-Details" wide>
+        {!studioDetails ? (
+          <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-zinc-400" /></div>
+        ) : (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 bg-zinc-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center">
+                {studioDetails.studio?.images?.[0]
+                  ? <img src={studioDetails.studio.images[0]} alt="" className="w-full h-full object-cover" />
+                  : <Store size={22} className="text-zinc-400" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-playfair font-semibold text-zinc-900 text-lg">{studioDetails.studio?.name}</p>
+                <p className="text-sm text-zinc-500 font-inter flex items-center gap-1.5">
+                  <MapPin size={11} /> {studioDetails.studio?.city || "—"}
+                  {studioDetails.studio?.address && ` · ${studioDetails.studio.address}`}
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <button onClick={() => toggleStudioStatus(studioDetails.studio)} disabled={actionLoading === studioDetails.studio.studio_id}
+                    className="flex items-center gap-1 text-xs font-inter">
+                    {studioDetails.studio?.is_active ? <><ToggleRight size={14} className="text-emerald-500" /><span className="text-emerald-600">Aktiv</span></> : <><ToggleLeft size={14} className="text-zinc-400" /><span className="text-zinc-400">Inaktiv</span></>}
+                  </button>
+                  <button onClick={() => toggleVerified(studioDetails.studio)} disabled={actionLoading === `v_${studioDetails.studio.studio_id}`}
+                    className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-inter font-semibold transition-all ${studioDetails.studio?.is_verified ? "bg-blue-600 text-white" : "border border-zinc-200 text-zinc-500 hover:border-blue-300 hover:text-blue-600"}`}>
+                    <CheckCircle size={9} /> {studioDetails.studio?.is_verified ? "Verifiziert" : "Verifizieren"}
+                  </button>
+                  <span className="text-xs text-zinc-400 font-inter">ID: {studioDetails.studio?.studio_id?.slice(0, 12)}…</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Info grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <InfoRow label="Telefon" value={studioDetails.studio?.phone} />
+              <InfoRow label="E-Mail" value={studioDetails.studio?.email} />
+              <InfoRow label="Bewertung ⌀" value={studioDetails.studio?.avg_rating ? `★ ${studioDetails.studio.avg_rating}` : "—"} />
+              <InfoRow label="Anzahlung" value={studioDetails.studio?.deposit_required ? `€${studioDetails.studio.deposit_amount || 0} (${studioDetails.studio.deposit_deadline_hours || 24}h Frist)` : "Nein"} />
+              <InfoRow label="Min. Buchung (h)" value={studioDetails.studio?.min_booking_hours} />
+              <InfoRow label="Stile" value={(studioDetails.studio?.styles || []).join(", ") || "—"} />
+            </div>
+
+            {studioDetails.studio?.description && (
+              <div className="bg-zinc-50 rounded-xl px-4 py-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-inter mb-1">Beschreibung</p>
+                <p className="text-sm font-inter text-zinc-700 leading-relaxed">{studioDetails.studio.description}</p>
+              </div>
+            )}
+
+            {/* Owner */}
+            {studioDetails.owner && (
+              <div className="flex items-center justify-between bg-zinc-50 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 bg-zinc-900 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    {studioDetails.owner.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-inter font-medium text-zinc-900">{studioDetails.owner.name}</p>
+                    <p className="text-xs text-zinc-500 font-inter">{studioDetails.owner.email}</p>
+                  </div>
+                </div>
+                <button onClick={() => { setSelectedStudio(null); setStudioDetails(null); openUserDetails(studioDetails.owner.user_id); }}
+                  className="text-xs text-blue-600 font-inter hover:underline flex items-center gap-1">
+                  <User size={11} /> Nutzer-Details →
+                </button>
+              </div>
+            )}
+
+            {/* Subscription */}
+            {studioDetails.subscription && (
+              <div className="flex items-center gap-3 bg-zinc-50 rounded-xl px-4 py-3">
+                <CreditCard size={14} className="text-zinc-400 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-zinc-400 font-inter uppercase tracking-widest mb-0.5">Abonnement</p>
+                  <p className="text-sm font-inter font-medium text-zinc-900 capitalize">{studioDetails.subscription.plan} · <span className="capitalize">{studioDetails.subscription.status}</span></p>
+                  {studioDetails.subscription.expires_at && <p className="text-xs text-zinc-400 font-inter">Läuft ab: {new Date(studioDetails.subscription.expires_at).toLocaleDateString("de-DE")}</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-tabs */}
+            <SubTabs
+              tabs={[
+                { id: "bookings", label: `Buchungen (${studioDetails.bookings?.length || 0})` },
+                { id: "reviews",  label: `Bewertungen (${studioDetails.reviews?.length || 0})` },
+                { id: "artists",  label: `Künstler (${studioDetails.artists?.length || 0})` },
+              ]}
+              active={studioDetailTab}
+              onChange={setStudioDetailTab}
+            />
+
+            {studioDetailTab === "bookings" && (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {studioDetails.bookings?.length === 0 && <p className="text-sm text-zinc-400 font-inter text-center py-4">Keine Buchungen</p>}
+                {studioDetails.bookings?.map((b, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-inter font-medium text-zinc-900">{b.user_name || "Kunde"}</p>
+                      <p className="text-xs text-zinc-400 font-inter">{b.date} · {b.start_time} – {b.end_time} · {b.booking_type === "consultation" ? "Beratung" : "Session"}</p>
+                      {b.price && <p className="text-xs text-zinc-400 font-inter">€{b.price}{b.payment_status === "paid" ? " · ✓ Bezahlt" : ""}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <BookingStatusSelect booking={b} onUpdate={(id, status) => updateBookingStatus(id, status, "studio")} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {studioDetailTab === "reviews" && (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {studioDetails.reviews?.length === 0 && <p className="text-sm text-zinc-400 font-inter text-center py-4">Keine Bewertungen</p>}
+                {studioDetails.reviews?.map((r, i) => (
+                  <div key={i} className="px-3 py-2.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-yellow-500 text-xs">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                      <span className="text-xs text-zinc-500 font-inter">{r.user_name || "Anonym"}</span>
+                      <span className="text-xs text-zinc-400 font-inter ml-auto">{r.created_at ? new Date(r.created_at).toLocaleDateString("de-DE") : ""}</span>
+                    </div>
+                    <p className="text-sm font-inter text-zinc-700">{r.comment || <span className="italic text-zinc-400">Kein Kommentar</span>}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {studioDetailTab === "artists" && (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {studioDetails.artists?.length === 0 && <p className="text-sm text-zinc-400 font-inter text-center py-4">Keine Künstler</p>}
+                {studioDetails.artists?.map((a, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="w-8 h-8 bg-zinc-200 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {a.image ? <img src={a.image} alt="" className="w-full h-full object-cover" /> : <Palette size={13} className="text-zinc-400" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-inter font-medium text-zinc-900">{a.name}</p>
+                      {a.specialties?.length > 0 && <p className="text-xs text-zinc-400 font-inter truncate">{a.specialties.join(", ")}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Danger zone */}
+            <div className="pt-2 border-t border-zinc-100">
+              <button onClick={() => { deleteStudio(studioDetails.studio.studio_id); }}
+                className="flex items-center gap-2 text-sm font-inter text-red-500 hover:text-red-600 transition-colors">
+                <Trash2 size={13} /> Studio löschen
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* ── FAQ Modal ── */}
       <Modal open={!!faqModal} onClose={() => setFaqModal(null)} title={faqModal === "new" ? "FAQ hinzufügen" : "FAQ bearbeiten"}>
         <div className="space-y-4">
@@ -1175,7 +1393,7 @@ export default function AdminPage() {
           <div>
             <label className="block text-xs font-inter font-medium text-zinc-600 mb-1.5">Zielgruppe</label>
             <select value={faqForm.target_role} onChange={e => setFaqForm(p => ({ ...p, target_role: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-inter text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white">
+              className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-inter focus:outline-none bg-white">
               <option value="all">Für alle sichtbar</option>
               <option value="customer">Nur für Kunden</option>
               <option value="studio_owner">Nur für Studios</option>
@@ -1186,50 +1404,9 @@ export default function AdminPage() {
           <Input label="Reihenfolge" type="number" value={faqForm.order} onChange={e => setFaqForm(p => ({ ...p, order: parseInt(e.target.value) || 0 }))} />
           <div className="flex gap-3 pt-2">
             <button onClick={() => setFaqModal(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 text-sm font-inter text-zinc-600 hover:bg-zinc-50 transition-colors">Abbrechen</button>
-            <button onClick={saveFaq} disabled={!faqForm.question || !faqForm.answer} className="flex-1 btn-primary text-sm disabled:opacity-40" data-testid="faq-save-btn">Speichern</button>
+            <button onClick={saveFaq} disabled={!faqForm.question || !faqForm.answer} className="flex-1 btn-primary text-sm disabled:opacity-40">Speichern</button>
           </div>
         </div>
-      </Modal>
-
-      {/* ── User Detail Modal ── */}
-      <Modal open={!!selectedUser} onClose={() => { setSelectedUser(null); setUserDetails(null); }} title="Nutzer-Details">
-        {!userDetails ? (
-          <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-zinc-400" /></div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-zinc-900 text-white rounded-full flex items-center justify-center text-lg font-bold">{userDetails.user?.name?.[0]?.toUpperCase() || "?"}</div>
-              <div>
-                <p className="font-inter font-semibold text-zinc-900">{userDetails.user?.name}</p>
-                <p className="text-sm text-zinc-500 font-inter">{userDetails.user?.email}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {[["Rolle", userDetails.user?.role], ["Registriert", userDetails.user?.created_at ? new Date(userDetails.user.created_at).toLocaleDateString("de-DE") : "—"], ["Auth", userDetails.user?.auth_provider || "email"], ["Studio", userDetails.studio?.name || "—"]].map(([k, v]) => (
-                <div key={k} className="bg-zinc-50 rounded-xl p-3">
-                  <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-inter mb-1">{k}</p>
-                  <p className="font-inter font-medium text-zinc-900">{v}</p>
-                </div>
-              ))}
-            </div>
-            {userDetails.bookings?.length > 0 && (
-              <div>
-                <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-2">Letzte Buchungen</p>
-                <div className="space-y-2">
-                  {userDetails.bookings.slice(0, 5).map((b, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-zinc-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-inter text-zinc-800">{b.studio_name || b.studio_id}</p>
-                        <p className="text-xs text-zinc-400 font-inter">{b.date}</p>
-                      </div>
-                      <Pill type={b.status}>{b.status}</Pill>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </Modal>
     </div>
   );
