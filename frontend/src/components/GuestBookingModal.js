@@ -254,7 +254,7 @@ export default function GuestBookingModal({ studio, onClose }) {
                 {[
                   { done: true,  n: 1, label: "Anfrage gesendet ✅",      sub: "Das Studio wurde benachrichtigt" },
                   { done: false, n: 2, label: "Preis erhalten 💬",         sub: "Das Studio sendet dir ein Angebot" },
-                  { done: false, n: 3, label: "Bestätigen & zahlen 💳",    sub: "Termin buchen & Anzahlung leisten" },
+                  ...(studio.deposit_required ? [{ done: false, n: 3, label: "Bestätigen & zahlen 💳", sub: "Termin buchen & Anzahlung leisten" }] : [{ done: false, n: 3, label: "Termin bestätigen ✓", sub: "Studio bestätigt deinen Wunschtermin" }]),
                 ].map(s => (
                   <div key={s.n} className="flex items-start gap-3">
                     <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 ${s.done ? "bg-emerald-500" : "bg-zinc-200"}`}>
