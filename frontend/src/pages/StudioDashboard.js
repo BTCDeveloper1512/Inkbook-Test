@@ -61,6 +61,7 @@ export default function StudioDashboard() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [expandedInquiry, setExpandedInquiry] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [showDepositPopup, setShowDepositPopup] = useState(false);
 
   const fetchUnreadMessages = async () => {
     try {
@@ -244,7 +245,16 @@ export default function StudioDashboard() {
     try {
       const { data } = await axios.get(`${API}/stripe/connect/status`, { withCredentials: true });
       setConnectStatus(data);
+      const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
+      if (!dismissed && data?.status !== "complete") {
+        setTimeout(() => setShowDepositPopup(true), 800);
+      }
     } catch {}
+  };
+
+  const dismissDepositPopup = (permanent = false) => {
+    if (permanent) localStorage.setItem("inkbook_deposit_popup_dismissed", "1");
+    setShowDepositPopup(false);
   };
 
   const fetchInquiries = async (studioId, isFirstLoad = false) => {
@@ -1381,7 +1391,7 @@ export default function StudioDashboard() {
             */}
 
             {/* ── Stripe Connect ── */}
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+            <div id="stripe-connect-section" className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <div className="flex items-start justify-between mb-1">
                 <h3 className="font-playfair font-semibold text-lg text-zinc-900">Stripe Konto verbinden</h3>
                 {connectStatus?.status === "complete" ? (
@@ -1753,6 +1763,92 @@ export default function StudioDashboard() {
             >
               <X size={16} strokeWidth={2} />
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Anzahlungs-Onboarding Popup ── */}
+      <AnimatePresence>
+        {showDepositPopup && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => dismissDepositPopup(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 24 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header strip */}
+              <div className="bg-zinc-900 px-6 pt-6 pb-5 relative">
+                <button
+                  onClick={() => dismissDepositPopup(true)}
+                  className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <X size={13} strokeWidth={2.5} className="text-white" />
+                </button>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
+                    <CreditCard size={20} className="text-white" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-0.5">Empfehlung</p>
+                    <h2 className="font-playfair font-semibold text-white text-lg leading-tight">Weniger No-Shows</h2>
+                  </div>
+                </div>
+                <p className="text-sm text-white/70 font-inter leading-relaxed">
+                  Studios mit Anzahlung haben <strong className="text-white">bis zu 80 % weniger Ausfälle</strong> — Kunden, die bereits bezahlt haben, erscheinen verlässlich zum Termin.
+                </p>
+              </div>
+
+              <div className="px-6 py-5">
+                {/* Benefits list */}
+                <div className="space-y-3 mb-5">
+                  {[
+                    { icon: "🛡️", text: "Kein Umsatzverlust durch kurzfristige Absagen" },
+                    { icon: "💸", text: "Anzahlung wird automatisch auf dein Konto überwiesen" },
+                    { icon: "⚡", text: "In wenigen Minuten eingerichtet via Stripe" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <span className="text-base leading-none mt-0.5">{item.icon}</span>
+                      <p className="text-sm font-inter text-zinc-700 leading-snug">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA buttons */}
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    dismissDepositPopup(true);
+                    setActiveTab("profile");
+                    setTimeout(() => {
+                      const el = document.getElementById("stripe-connect-section");
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 300);
+                  }}
+                  className="btn-primary w-full justify-center mb-2.5"
+                >
+                  Jetzt Stripe verbinden & einrichten
+                </motion.button>
+
+                <button
+                  onClick={() => dismissDepositPopup(true)}
+                  className="w-full py-2.5 text-sm font-inter text-zinc-400 hover:text-zinc-700 transition-colors"
+                >
+                  Später in den Einstellungen erledigen
+                </button>
+
+                {/* Fee note */}
+                <p className="text-center text-[10px] text-zinc-300 font-inter mt-3 leading-relaxed">
+                  Bei aktivierten Anzahlungen werden 5 % Gebühren automatisch von jeder Anzahlung abgezogen — kein manueller Aufwand, kaum spürbar.
+                </p>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
