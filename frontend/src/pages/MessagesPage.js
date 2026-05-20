@@ -480,11 +480,6 @@ export default function MessagesPage() {
                     <MessageSquare size={22} className="text-zinc-400" strokeWidth={1.5} />
                   </div>
                   <p className="text-sm font-inter font-medium text-zinc-600 mb-1">Keine Gespräche</p>
-                  <p className="text-xs text-zinc-400 font-inter">
-                    {user?.role === "studio_owner"
-                      ? "Kunden schreiben dir, sobald sie einen Termin buchen"
-                      : "Buche einen Termin und schreibe dem Studio"}
-                  </p>
                 </div>
               ) : conversations.map(conv => {
                 const isActive = activeConv?.other_id === conv.other_user_id;
