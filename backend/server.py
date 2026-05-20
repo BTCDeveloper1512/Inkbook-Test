@@ -35,29 +35,34 @@ except ImportError:
     CheckoutSessionRequest = None
 
 
-# ─── SendGrid Email ───────────────────────────────────────────────────────────
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "noreply@inkbook.app")
+# ─── Gmail SMTP Email ─────────────────────────────────────────────────────────
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 async def send_email(to: str, subject: str, html: str):
-    api_key = os.environ.get("SENDGRID_API_KEY", "")
-    if not api_key:
-        logger.info("Email skipped — SENDGRID_API_KEY not set")
+    gmail_user = os.environ.get("GMAIL_USER", "")
+    gmail_pass = os.environ.get("GMAIL_APP_PASSWORD", "")
+    if not gmail_user or not gmail_pass:
+        logger.info("Email skipped — GMAIL_USER / GMAIL_APP_PASSWORD not set")
         return
-    sender = os.environ.get("SENDER_EMAIL", SENDER_EMAIL)
+
+    def _send():
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"InkBook <{gmail_user}>"
+        msg["To"] = to
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, to, msg.as_string())
+
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                "https://api.sendgrid.com/v3/mail/send",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "from": {"email": sender, "name": "InkBook"},
-                    "personalizations": [{"to": [{"email": to}]}],
-                    "subject": subject,
-                    "content": [{"type": "text/html", "value": html}],
-                },
-            )
-            resp.raise_for_status()
-            logger.info(f"Email sent via SendGrid to {to}: {subject}")
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _send)
+        logger.info(f"Email sent via Gmail to {to}: {subject}")
     except Exception as e:
         logger.warning(f"Email send failed (non-critical): {e}")
 
