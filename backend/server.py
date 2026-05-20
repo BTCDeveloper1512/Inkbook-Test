@@ -552,6 +552,30 @@ async def create_guest_inquiry(data: GuestInquiryCreate):
     await db.inquiries.insert_one(inquiry)
     return {"inquiry_id": inquiry_id, "status": "sent"}
 
+@api_router.get("/studios/{studio_id}/inquiries")
+async def get_studio_inquiries(studio_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden.")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if studio.get("owner_id") != owner_id and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+    items = await db.inquiries.find({"studio_id": studio_id}).sort("created_at", -1).to_list(200)
+    return items
+
+@api_router.patch("/inquiries/{inquiry_id}/status")
+async def update_inquiry_status(inquiry_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    inquiry = await db.inquiries.find_one({"inquiry_id": inquiry_id})
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Anfrage nicht gefunden.")
+    studio = await db.studios.find_one({"studio_id": inquiry.get("studio_id")})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+    new_status = body.get("status", "pending")
+    await db.inquiries.update_one({"inquiry_id": inquiry_id}, {"$set": {"status": new_status}})
+    return {"inquiry_id": inquiry_id, "status": new_status}
+
 # ── User Profile ─────────────────────────────────────────────────────────────
 
 class UpdateProfileRequest(BaseModel):
