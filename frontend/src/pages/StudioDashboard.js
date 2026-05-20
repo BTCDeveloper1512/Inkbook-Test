@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -58,6 +58,7 @@ export default function StudioDashboard() {
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectLoading, setRejectLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [expandedInquiry, setExpandedInquiry] = useState(null);
 
   useEffect(() => {
@@ -1256,6 +1257,44 @@ export default function StudioDashboard() {
                 <CheckCircle size={15} strokeWidth={1.5} /> Profil erfolgreich gespeichert!
               </div>
             )}
+
+            {/* ── Buchungslink ── */}
+            {stats?.studio?.studio_id && (() => {
+              const bookingUrl = `${window.location.origin}/studios/${stats.studio.studio_id}?book=true`;
+              return (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Link2 size={15} className="text-zinc-900" strokeWidth={1.5} />
+                    <h3 className="font-playfair font-semibold text-lg text-zinc-900">Dein Buchungslink</h3>
+                  </div>
+                  <p className="text-xs text-zinc-500 font-inter mb-4">Teile diesen Link auf Instagram, WhatsApp oder deiner Website — Kunden landen direkt auf deiner Buchungsseite.</p>
+                  <div className="flex items-center gap-2 p-3 bg-zinc-50 border border-zinc-200 rounded-xl mb-3">
+                    <span className="flex-1 text-xs font-mono text-zinc-600 truncate">{bookingUrl}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(bookingUrl);
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2500);
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-inter font-semibold transition-all ${linkCopied ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-900 text-white hover:bg-zinc-700"}`}
+                    >
+                      {linkCopied ? <><CheckCircle size={13} strokeWidth={2} /> Kopiert!</> : <><Copy size={13} strokeWidth={1.5} /> Link kopieren</>}
+                    </button>
+                    <a
+                      href={bookingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-inter font-medium text-zinc-600 border border-zinc-200 hover:bg-zinc-50 transition-colors"
+                    >
+                      <ExternalLink size={13} strokeWidth={1.5} /> Vorschau
+                    </a>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg mb-5 text-zinc-900">Grunddaten</h3>

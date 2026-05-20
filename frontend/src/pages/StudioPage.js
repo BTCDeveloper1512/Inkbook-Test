@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -379,6 +379,8 @@ export default function StudioPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const bookingRef = useRef(null);
   const [studio, setStudio] = useState(null);
   const [slots, setSlots] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -406,6 +408,15 @@ export default function StudioPage() {
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedIds, setReportedIds] = useState(new Set());
+
+  // Auto-scroll to booking sidebar when ?book=true
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("book") === "true" && bookingRef.current) {
+      setTimeout(() => {
+        bookingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 600);
+    }
+  }, [location.search, studio]);
 
   // Load lottie animation once (local file to avoid CORS)
   useEffect(() => {
@@ -782,7 +793,7 @@ export default function StudioPage() {
           </div>
 
           {/* ── Booking Sidebar ── */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1" ref={bookingRef}>
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_24px_rgb(0,0,0,0.06)] p-6 md:sticky md:top-20">
               <h3 className="font-playfair font-semibold text-xl text-zinc-900 mb-5">{t("booking.title")}</h3>
 
