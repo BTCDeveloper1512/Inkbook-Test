@@ -838,8 +838,14 @@ export default function StudioDashboard() {
                             data-testid={`notes-btn-today-${b.booking_id}`}>
                             <FileText size={11} strokeWidth={1.5} /> Bemerkungen
                           </motion.button>
-                          <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
-                          {b.status === "pending" && (
+                          {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
+                            ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
+                            : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
+                          }
+                          {b.status === "confirmed" && b.payment_status === "paid" && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
+                          )}
+                          {b.status === "pending" && !(b.deposit_required && b.payment_status !== "paid") && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-white text-zinc-900 rounded-full font-inter font-semibold hover:bg-zinc-100 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
                           {/* VIDEO CONSULTATION HIDDEN
@@ -902,8 +908,14 @@ export default function StudioDashboard() {
                           data-testid={`contact-customer-btn-${b.booking_id}`}>
                           <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
                         </motion.button>
-                        <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
-                        {b.status === "pending" && (
+                        {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
+                          ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
+                          : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
+                        }
+                        {b.status === "confirmed" && b.payment_status === "paid" && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
+                        )}
+                        {b.status === "pending" && !(b.deposit_required && b.payment_status !== "paid") && (
                           <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
                         )}
                         {["pending", "confirmed"].includes(b.status) && (
@@ -1100,9 +1112,17 @@ export default function StudioDashboard() {
                               <CheckCircle size={10} strokeWidth={2} /> Abgeschlossen
                             </span>
                           ) : (
-                            <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
-                              {b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}
-                            </span>
+                            <>
+                              {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
+                                ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
+                                : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
+                                    {b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}
+                                  </span>
+                              }
+                              {b.status === "confirmed" && b.payment_status === "paid" && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
+                              )}
+                            </>
                           )}
 
                           {/* Revenue display for completed bookings */}
@@ -1139,7 +1159,7 @@ export default function StudioDashboard() {
                             </div>
                           )}
 
-                          {b.status === "pending" && !isPast && (
+                          {b.status === "pending" && !isPast && !(b.deposit_required && b.payment_status !== "paid") && (
                             <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</motion.button>
                           )}
                           {/* VIDEO CONSULTATION HIDDEN
