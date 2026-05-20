@@ -1713,8 +1713,15 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
         },
         description=f"Anzahlung – {studio_name}",
     )
+    platform_fee_percent = 5.0
+    platform_fee_amount_cents = int(round(amount_cents * platform_fee_percent / 100))
+
     if connect_account_id and connect_status == "complete":
         pi_kwargs["transfer_data"] = {"destination": connect_account_id}
+        pi_kwargs["application_fee_amount"] = platform_fee_amount_cents
+    else:
+        pi_kwargs["metadata"]["platform_fee_amount_cents"] = platform_fee_amount_cents
+        pi_kwargs["metadata"]["platform_fee_percent"] = platform_fee_percent
 
     # Create real Stripe PaymentIntent
     intent = await asyncio.to_thread(
@@ -1732,6 +1739,8 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
         "currency": "eur",
         "payment_status": "pending",
         "studio_name": studio_name,
+        "platform_fee_amount": platform_fee_amount_cents,
+        "platform_fee_percent": platform_fee_percent,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
 
