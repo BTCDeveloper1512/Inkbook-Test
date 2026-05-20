@@ -622,6 +622,7 @@ export default function StudioDashboard() {
                 { id: "inquiries", label: "Anfragen",   badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "slots",     label: "Slots",      badge: 0 },
                 { id: "artists",   label: "Artists",    badge: 0 },
+                { id: "messages",  label: "Nachrichten", badge: unreadMessages, href: "/messages" },
                 { id: "profile",   label: "Profil",     badge: 0 },
               ].map(tab => (
                 <button key={tab.id}
