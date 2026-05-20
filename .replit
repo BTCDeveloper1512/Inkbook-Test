@@ -69,3 +69,7 @@ build = ["sh", "-c", "cd frontend && yarn install && yarn build"]
 
 [userenv.shared]
 SENDER_EMAIL = "onboarding@resend.dev"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
