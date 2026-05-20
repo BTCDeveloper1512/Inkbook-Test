@@ -1347,8 +1347,8 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
                     {"user_id": data.recipient_id, "studio_id": sender_studio["studio_id"], "status": "pending"},
                     {"$set": {"status": "contacted"}}
                 )
-                msg_count = await db.messages.count_documents({"sender_id": user_id, "recipient_id": data.recipient_id})
-                if msg_count == 1:
+                # Send activation email once — tracked via flag, not message count
+                if not recipient_user.get("activation_email_sent"):
                     ghost_token = recipient_user.get("ghost_token", "")
                     guest_email = recipient_user.get("email", "")
                     guest_name = recipient_user.get("name", "Gast")
@@ -1379,6 +1379,10 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
                       </div>
                       {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
                     </div>"""
+                    await db.users.update_one(
+                        {"_id": recipient_user["_id"]},
+                        {"$set": {"activation_email_sent": True}}
+                    )
                     asyncio.create_task(send_email(guest_email, f"{studio_name} hat auf deine Anfrage geantwortet 💬", html))
     except Exception as e:
         logger.warning(f"Ghost user inquiry hook failed (non-critical): {e}")
