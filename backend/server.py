@@ -216,6 +216,54 @@ def booking_status_html(booking: dict, status: str) -> str:
       {_email_footer("Fragen? Nutze unseren Support-Chat auf inkbook.de")}
     </div>"""
 
+def payment_confirmed_html(booking: dict) -> str:
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#16a34a;letter-spacing:0.05em;text-transform:uppercase;">Anzahlung erhalten</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#111;letter-spacing:-0.4px;">Dein Termin ist final gesichert!</h2>
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.5;">
+          Deine Anzahlung ist bei uns eingegangen — dein Termin ist damit vollständig abgewickelt und fix reserviert. Wir freuen uns auf dich!
+        </p>
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;">
+          {_detail_row("Studio", booking.get('studio_name', ''), highlight=True)}
+          {_detail_row("Datum", booking.get('date', ''))}
+          {_detail_row("Zeit", f"{booking.get('start_time', '')} – {booking.get('end_time', '')}")}
+          {_detail_row("Anzahlung", f"€ {float(booking.get('deposit_amount', 0)):.2f} ✓")}
+          {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
+        </table>
+      </div>
+      {_email_footer("Fragen? Nutze unseren Support-Chat auf inkbook.de")}
+    </div>"""
+
+def deposit_deadline_cancelled_html(booking: dict) -> str:
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#dc2626;letter-spacing:0.05em;text-transform:uppercase;">Termin storniert</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#111;letter-spacing:-0.4px;">Dein Termin wurde automatisch storniert</h2>
+        <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.5;">
+          Leider wurde dein Termin storniert, da die Anzahlungsfrist abgelaufen ist. Buche gerne einen neuen Termin.
+        </p>
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;">
+          {_detail_row("Studio", booking.get('studio_name', ''), highlight=True)}
+          {_detail_row("Datum", booking.get('date', ''))}
+          {_detail_row("Zeit", f"{booking.get('start_time', '')} – {booking.get('end_time', '')}")}
+          {_detail_row("Grund", "Anzahlungsfrist nicht eingehalten")}
+        </table>
+        <div style="margin-top:28px;text-align:center;">
+          <a href="#" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:13px;font-weight:700;">Neuen Termin buchen</a>
+        </div>
+      </div>
+      {_email_footer("Fragen? Nutze unseren Support-Chat auf inkbook.de")}
+    </div>"""
+
 # ─── Database ────────────────────────────────────────────────────────────────
 from memdb import db
 
@@ -353,6 +401,7 @@ class StudioUpdate(BaseModel):
     images: Optional[List[str]] = None
     deposit_required: Optional[bool] = None
     deposit_amount: Optional[float] = None
+    deposit_deadline_hours: Optional[int] = None
     banner_image: Optional[str] = None
     logo_image: Optional[str] = None
     video_consultation_enabled: Optional[bool] = None
@@ -1169,9 +1218,13 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     
     update_fields = {"status": status}
     if status == "cancelled":
-        # Determine who cancelled: studio owner or customer
         is_studio_cancel = studio and studio.get("owner_id") == user_id
         update_fields["cancelled_by"] = "studio" if is_studio_cancel else "customer"
+    if status == "confirmed" and booking.get("deposit_required") and studio:
+        deadline_hours = studio.get("deposit_deadline_hours") or 0
+        if deadline_hours > 0:
+            deadline_at = (datetime.now(timezone.utc) + timedelta(hours=deadline_hours)).isoformat()
+            update_fields["deposit_deadline_at"] = deadline_at
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_fields})
     if status == "cancelled":
         await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
@@ -1839,8 +1892,17 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
     if txn.get("booking_id"):
         await db.bookings.update_one(
             {"booking_id": txn["booking_id"]},
-            {"$set": {"payment_status": "paid", "status": "confirmed"}}
+            {"$set": {"payment_status": "paid", "status": "confirmed", "deposit_deadline_at": None}}
         )
+        booking = await db.bookings.find_one({"booking_id": txn["booking_id"]})
+        if booking:
+            user_email = booking.get("user_email", "")
+            if user_email:
+                asyncio.create_task(send_email(
+                    to=user_email,
+                    subject=f"Dein Termin ist final gesichert – {booking.get('studio_name', '')}",
+                    html=payment_confirmed_html(booking)
+                ))
 
     return {"payment_status": "paid"}
 
@@ -3606,9 +3668,49 @@ async def _init_db():
     await seed_demo_data()
     logger.info("InkBook API started")
 
+async def _check_deposit_deadlines():
+    await asyncio.sleep(30)  # Let DB init first
+    while True:
+        try:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            expired = await db.bookings.find({
+                "status": "confirmed",
+                "deposit_required": True,
+                "deposit_deadline_at": {"$ne": None, "$lt": now_iso},
+                "payment_status": {"$nin": ["paid"]}
+            }, {"_id": 0}).to_list(None)
+            for booking in expired:
+                await db.bookings.update_one(
+                    {"booking_id": booking["booking_id"]},
+                    {"$set": {
+                        "status": "cancelled",
+                        "cancelled_by": "system",
+                        "cancellation_reason": "Anzahlungsfrist nicht eingehalten",
+                        "cancelled_at": now_iso,
+                        "deposit_deadline_at": None,
+                    }}
+                )
+                if booking.get("slot_id"):
+                    await db.slots.update_one(
+                        {"slot_id": booking["slot_id"]},
+                        {"$set": {"is_booked": False, "booking_id": None}}
+                    )
+                user_email = booking.get("user_email", "")
+                if user_email:
+                    asyncio.create_task(send_email(
+                        to=user_email,
+                        subject=f"Termin automatisch storniert – {booking.get('studio_name', '')}",
+                        html=deposit_deadline_cancelled_html(booking)
+                    ))
+                logger.info(f"[DEPOSIT DEADLINE] Auto-cancelled booking {booking['booking_id']}")
+        except Exception as e:
+            logger.error(f"[DEPOSIT DEADLINE] Error: {e}")
+        await asyncio.sleep(60)
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(_init_db())
+    asyncio.create_task(_check_deposit_deadlines())
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

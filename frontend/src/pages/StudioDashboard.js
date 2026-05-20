@@ -21,6 +21,29 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const STYLES_LIST = ["Fine Line", "Blackwork", "Traditional", "Neo-Traditional", "Japanese", "Realism", "Portrait", "Geometric", "Watercolor", "Tribal", "Minimalist", "Color", "Abstract", "Surrealism", "Illustrative", "Black & Grey"];
 const statusColors = { pending: "bg-amber-50 text-amber-700 border-amber-200", confirmed: "bg-green-50 text-green-700 border-green-200", cancelled: "bg-red-50 text-red-700 border-red-200", completed: "bg-zinc-100 text-zinc-500 border-zinc-200" };
 
+function DepositCountdown({ deadlineAt }) {
+  const [remaining, setRemaining] = React.useState("");
+  const [urgent, setUrgent] = React.useState(false);
+  React.useEffect(() => {
+    const calc = () => {
+      const diff = new Date(deadlineAt) - Date.now();
+      if (diff <= 0) { setRemaining("Abgelaufen"); setUrgent(true); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setUrgent(diff < 3600000 * 6);
+      setRemaining(h > 0 ? `${h} Std. ${m} Min.` : `${m} Min.`);
+    };
+    calc();
+    const t = setInterval(calc, 30000);
+    return () => clearInterval(t);
+  }, [deadlineAt]);
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full border ${urgent ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+      ⏱ Frist: {remaining}
+    </span>
+  );
+}
+
 export default function StudioDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -1061,6 +1084,14 @@ export default function StudioDashboard() {
                               ))}
                             </div>
                           )}
+                          {b.deposit_deadline_at && b.payment_status !== "paid" && b.status !== "cancelled" && (
+                            <div className="mt-2">
+                              <DepositCountdown deadlineAt={b.deposit_deadline_at} />
+                            </div>
+                          )}
+                          {b.cancellation_reason && (
+                            <p className="text-xs text-red-500 font-inter mt-1">Grund: {b.cancellation_reason}</p>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-2 min-w-[120px]">
                           {/* Status badge */}
@@ -1555,27 +1586,57 @@ export default function StudioDashboard() {
                 </div>
               </label>
 
-              {/* Amount — only when toggle is ON */}
+              {/* Amount + Deadline — only when toggle is ON */}
               {editForm?.deposit_required && (
-                <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-400 font-inter text-sm">€</span>
-                    <input
-                      type="number"
-                      min="0.50"
-                      step="0.50"
-                      value={editForm.deposit_amount ?? ""}
-                      onChange={e => setEditForm(prev => ({ ...prev, deposit_amount: parseFloat(e.target.value) || 0 }))}
-                      placeholder="z.B. 50"
-                      className="input-base w-36 text-right font-playfair text-lg"
-                      data-testid="deposit-amount-input"
-                    />
-                    <span className="text-xs text-zinc-400 font-inter">Mindestbetrag: €0,50</span>
+                <div className="space-y-3">
+                  <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+                    <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Anzahlungsbetrag (€)</label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-400 font-inter text-sm">€</span>
+                      <input
+                        type="number"
+                        min="0.50"
+                        step="0.50"
+                        value={editForm.deposit_amount ?? ""}
+                        onChange={e => setEditForm(prev => ({ ...prev, deposit_amount: parseFloat(e.target.value) || 0 }))}
+                        placeholder="z.B. 50"
+                        className="input-base w-36 text-right font-playfair text-lg"
+                        data-testid="deposit-amount-input"
+                      />
+                      <span className="text-xs text-zinc-400 font-inter">Mindestbetrag: €0,50</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-inter mt-2">
+                      Dieser Betrag wird bei der Buchung per Stripe eingezogen und auf dein Konto überwiesen.
+                    </p>
                   </div>
-                  <p className="text-xs text-zinc-400 font-inter mt-2">
-                    Dieser Betrag wird bei der Buchung per Stripe eingezogen und auf dein Konto überwiesen.
-                  </p>
+
+                  <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+                    <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Zahlungsfrist</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Keine Frist", value: 0 },
+                        { label: "12 Std.", value: 12 },
+                        { label: "24 Std.", value: 24 },
+                        { label: "48 Std.", value: 48 },
+                        { label: "72 Std.", value: 72 },
+                        { label: "1 Woche", value: 168 },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, deposit_deadline_hours: opt.value }))}
+                          className={`px-3 py-1.5 text-xs font-inter rounded-full border transition-all ${(editForm.deposit_deadline_hours ?? 0) === opt.value ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-400 font-inter mt-2">
+                      {(editForm.deposit_deadline_hours ?? 0) === 0
+                        ? "Keine automatische Stornierung — Kunden können jederzeit zahlen."
+                        : `Wird der Termin nach ${editForm.deposit_deadline_hours} Stunden nicht bezahlt, wird er automatisch storniert.`}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
