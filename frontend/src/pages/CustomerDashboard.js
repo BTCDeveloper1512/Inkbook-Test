@@ -134,6 +134,55 @@ function ReviewModal({ booking, onClose, onSubmitted }) {
   );
 }
 
+function ReviewReminderPopup({ booking, onReview, onDismiss }) {
+  return (
+    <motion.div
+      initial={{ y: 120, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 120, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 340, damping: 32 }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm z-40 px-4"
+      data-testid="review-reminder-popup"
+    >
+      <div className="bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] border border-black/[0.06] overflow-hidden">
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Star size={18} strokeWidth={1.5} className="fill-amber-400 text-amber-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-inter font-semibold text-sm text-zinc-900 leading-snug">Wie war dein Termin?</p>
+              <p className="text-xs text-zinc-400 font-inter mt-0.5 truncate">
+                {booking.studio_name} · {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "short" }) : ""}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-zinc-500 font-inter leading-relaxed">
+            Teile deine Erfahrung und hilf anderen bei der Wahl des richtigen Studios.
+          </p>
+        </div>
+        <div className="flex border-t border-zinc-100">
+          <button
+            onClick={onDismiss}
+            className="flex-1 py-3 text-xs font-inter text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600 transition-colors"
+            data-testid="review-reminder-dismiss"
+          >
+            Vielleicht später
+          </button>
+          <div className="w-px bg-zinc-100" />
+          <button
+            onClick={onReview}
+            className="flex-1 py-3 text-xs font-inter font-semibold text-zinc-900 hover:bg-zinc-50 transition-colors flex items-center justify-center gap-1.5"
+            data-testid="review-reminder-submit"
+          >
+            <Star size={11} strokeWidth={2} className="fill-amber-400 text-amber-400" /> Jetzt bewerten
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function CustomerDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -153,6 +202,7 @@ export default function CustomerDashboard() {
     catch { return []; }
   });
   const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
+  const [reviewReminderBooking, setReviewReminderBooking] = useState(null);
   const [notYetPopup, setNotYetPopup] = useState(false);
   const [videoCallBooking, setVideoCallBooking] = useState(null);
   const [tick, setTick] = useState(0); // forces re-render every minute for live time checks
@@ -164,6 +214,33 @@ export default function CustomerDashboard() {
       const { data } = await axios.get(`${API}/reviews/my-reviewed-bookings`, { withCredentials: true });
       setReviewedBookingIds(new Set(data));
     } catch {}
+  };
+
+  useEffect(() => {
+    if (!stats) return;
+    const now = new Date();
+    const reminded = (() => { try { return JSON.parse(localStorage.getItem("inkbook_reminded_bookings") || "[]"); } catch { return []; } })();
+    const allBookings = stats?.all_bookings || [];
+    const candidate = allBookings
+      .filter(b =>
+        b.status === "confirmed" &&
+        b.date && b.end_time &&
+        now > new Date(`${b.date}T${b.end_time}:00`) &&
+        !reviewedBookingIds.has(b.booking_id) &&
+        !reminded.includes(b.booking_id)
+      )
+      .sort((a, b) => new Date(`${b.date}T${b.end_time}:00`) - new Date(`${a.date}T${a.end_time}:00`))[0];
+    if (!candidate) return;
+    const timer = setTimeout(() => setReviewReminderBooking(candidate), 900);
+    return () => clearTimeout(timer);
+  }, [stats, reviewedBookingIds]);
+
+  const dismissReminder = (bookingId) => {
+    const reminded = (() => { try { return JSON.parse(localStorage.getItem("inkbook_reminded_bookings") || "[]"); } catch { return []; } })();
+    if (!reminded.includes(bookingId)) {
+      localStorage.setItem("inkbook_reminded_bookings", JSON.stringify([...reminded, bookingId]));
+    }
+    setReviewReminderBooking(null);
   };
 
   useEffect(() => {
@@ -688,6 +765,21 @@ export default function CustomerDashboard() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Review Reminder Popup */}
+      <AnimatePresence>
+        {reviewReminderBooking && !reviewBooking && (
+          <ReviewReminderPopup
+            booking={reviewReminderBooking}
+            onDismiss={() => dismissReminder(reviewReminderBooking.booking_id)}
+            onReview={() => {
+              const b = reviewReminderBooking;
+              dismissReminder(b.booking_id);
+              setReviewBooking(b);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Review Modal */}
       <AnimatePresence>
