@@ -838,6 +838,12 @@ export default function StudioDashboard() {
                             data-testid={`notes-btn-today-${b.booking_id}`}>
                             <FileText size={11} strokeWidth={1.5} /> Bemerkungen
                           </motion.button>
+                          <motion.button whileTap={{ scale: 0.95 }}
+                            onClick={() => handleContactCustomer(b)}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-white/20 text-white/70 rounded-full font-inter hover:bg-white/10 hover:text-white transition-all"
+                            data-testid={`contact-customer-btn-today-${b.booking_id}`}>
+                            <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
+                          </motion.button>
                           {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
                             ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
                             : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
