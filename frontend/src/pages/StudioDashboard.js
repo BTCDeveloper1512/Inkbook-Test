@@ -1472,20 +1472,12 @@ export default function StudioDashboard() {
                     <div className="mt-4 rounded-xl border overflow-hidden">
                       {stripeConnectError === "not_enabled" ? (
                         <div className="bg-amber-50 border-amber-200 px-4 py-4">
-                          <p className="text-sm font-inter font-semibold text-amber-900 mb-1">Stripe Connect noch nicht aktiviert</p>
-                          <p className="text-xs text-amber-700 font-inter leading-relaxed mb-3">
-                            Dein Stripe-Konto unterstützt noch kein Connect. Aktiviere es einmalig kostenlos direkt bei Stripe — dauert nur 2 Minuten.
+                          <p className="text-sm font-inter font-semibold text-amber-900 mb-1">Anzahlungen werden eingerichtet</p>
+                          <p className="text-xs text-amber-700 font-inter leading-relaxed mb-2">
+                            Die Zahlungsfunktion wird gerade für InkBook konfiguriert und steht in Kürze zur Verfügung. Du wirst benachrichtigt sobald du dein Konto verknüpfen kannst.
                           </p>
-                          <a
-                            href="https://dashboard.stripe.com/connect"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-700 text-white text-xs font-inter font-semibold rounded-lg hover:bg-amber-800 transition-colors"
-                          >
-                            Zu Stripe Connect → Aktivieren
-                          </a>
-                          <p className="text-[10px] text-amber-600 font-inter mt-2.5">
-                            Nach der Aktivierung bei Stripe hier erneut auf „Bei Stripe registrieren" klicken.
+                          <p className="text-[10px] text-amber-600 font-inter">
+                            Bei Fragen wende dich an den InkBook Support.
                           </p>
                         </div>
                       ) : (
