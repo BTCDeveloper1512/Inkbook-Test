@@ -35,25 +35,29 @@ except ImportError:
     CheckoutSessionRequest = None
 
 
-# ─── Resend Email (via httpx — Replit Connectors integration) ─────────────────
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
+# ─── SendGrid Email ───────────────────────────────────────────────────────────
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "noreply@inkbook.app")
 
 async def send_email(to: str, subject: str, html: str):
-    api_key = os.environ.get("RESEND_API_KEY", RESEND_API_KEY)
+    api_key = os.environ.get("SENDGRID_API_KEY", "")
     if not api_key:
-        logger.info("Email skipped — RESEND_API_KEY not set")
+        logger.info("Email skipped — SENDGRID_API_KEY not set")
         return
     sender = os.environ.get("SENDER_EMAIL", SENDER_EMAIL)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
-                "https://api.resend.com/emails",
+                "https://api.sendgrid.com/v3/mail/send",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"from": f"InkBook <{sender}>", "to": [to], "subject": subject, "html": html},
+                json={
+                    "from": {"email": sender, "name": "InkBook"},
+                    "personalizations": [{"to": [{"email": to}]}],
+                    "subject": subject,
+                    "content": [{"type": "text/html", "value": html}],
+                },
             )
             resp.raise_for_status()
-            logger.info(f"Email sent to {to}: {subject} (id={resp.json().get('id')})")
+            logger.info(f"Email sent via SendGrid to {to}: {subject}")
     except Exception as e:
         logger.warning(f"Email send failed (non-critical): {e}")
 
