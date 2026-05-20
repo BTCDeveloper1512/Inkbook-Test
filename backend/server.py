@@ -35,21 +35,25 @@ except ImportError:
     CheckoutSessionRequest = None
 
 
-# ─── Resend Email ─────────────────────────────────────────────────────────────
+# ─── Resend Email (via httpx — Replit Connectors integration) ─────────────────
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 
 async def send_email(to: str, subject: str, html: str):
-    if not RESEND_API_KEY:
-        logger.info("Email skipped (resend not available)")
+    api_key = os.environ.get("RESEND_API_KEY", RESEND_API_KEY)
+    if not api_key:
+        logger.info("Email skipped — RESEND_API_KEY not set")
         return
+    sender = os.environ.get("SENDER_EMAIL", SENDER_EMAIL)
     try:
-        resend.api_key = RESEND_API_KEY
-        # Use account owner email as sender until custom domain is verified
-        sender = SENDER_EMAIL if SENDER_EMAIL != "onboarding@resend.dev" else "onboarding@resend.dev"
-        params = {"from": sender, "to": [to], "subject": subject, "html": html}
-        await asyncio.to_thread(resend.Emails.send, params)
-        logger.info(f"Email sent to {to}: {subject}")
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"from": f"InkBook <{sender}>", "to": [to], "subject": subject, "html": html},
+            )
+            resp.raise_for_status()
+            logger.info(f"Email sent to {to}: {subject} (id={resp.json().get('id')})")
     except Exception as e:
         logger.warning(f"Email send failed (non-critical): {e}")
 
