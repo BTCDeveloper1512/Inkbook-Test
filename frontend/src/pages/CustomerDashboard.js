@@ -255,17 +255,14 @@ export default function CustomerDashboard() {
 
   const fetchMessages = async () => {
     try {
-      const [msgsRes, unreadRes] = await Promise.all([
+      const [convsRes, unreadRes] = await Promise.all([
         axios.get(`${API}/messages`, { withCredentials: true }),
         axios.get(`${API}/messages/unread-count`, { withCredentials: true })
       ]);
-      const msgs = msgsRes.data || [];
-      const grouped = {};
-      msgs.forEach(m => {
-        const key = m.other_user_id || (m.sender_id === (user?.id || user?.user_id) ? m.recipient_id : m.sender_id);
-        if (!grouped[key] || new Date(m.created_at) > new Date(grouped[key].created_at)) grouped[key] = m;
-      });
-      setConversations(Object.values(grouped).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 3));
+      const convs = (convsRes.data || [])
+        .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0))
+        .slice(0, 4);
+      setConversations(convs);
       setUnreadCount(unreadRes.data?.unread_count || 0);
     } catch {}
   };
@@ -528,25 +525,42 @@ export default function CustomerDashboard() {
             </div>
           ) : (
             <div className="divide-y divide-zinc-50">
-              {conversations.map((msg, i) => {
-                const name = msg.sender_studio_name || msg.sender_name || msg.recipient_name || "Studio";
-                const preview = msg.content ? (msg.content.length > 60 ? msg.content.slice(0, 60) + "…" : msg.content) : "Nachricht";
-                const otherId = msg.other_user_id || msg.sender_id || msg.recipient_id;
-                const isUnread = !msg.is_read && msg.sender_id !== (user?.id || user?.user_id);
-                const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "";
+              {conversations.map((conv, i) => {
+                const name = conv.other_name || "Studio";
+                const isSystem = conv.is_broadcast_conv || conv.other_user_id === "inkbook_system";
+                const preview = conv.last_message
+                  ? (conv.last_message.length > 55 ? conv.last_message.slice(0, 55) + "…" : conv.last_message)
+                  : "Nachricht";
+                const isUnread = (conv.unread_count || 0) > 0;
+                const timeStr = conv.last_message_at
+                  ? new Date(conv.last_message_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })
+                  : "";
+                const initial = name.charAt(0).toUpperCase();
+                const avatarBg = isSystem
+                  ? "bg-zinc-900"
+                  : ["bg-violet-100", "bg-rose-100", "bg-sky-100", "bg-amber-100", "bg-emerald-100"][i % 5];
+                const avatarText = isSystem
+                  ? "text-white"
+                  : ["text-violet-600", "text-rose-600", "text-sky-600", "text-amber-600", "text-emerald-600"][i % 5];
                 return (
-                  <Link key={i} to="/messages" className="flex items-start gap-3 px-5 py-3.5 hover:bg-zinc-50 transition-colors">
-                    <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-inter font-semibold text-zinc-500">{name.charAt(0).toUpperCase()}</span>
+                  <Link key={conv.conv_id || i} to={`/messages?with=${conv.other_user_id}`}
+                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-50 transition-colors group">
+                    <div className={`w-9 h-9 ${avatarBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      <span className={`text-sm font-inter font-bold ${avatarText}`}>{initial}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <p className={`text-sm font-inter truncate ${isUnread ? "font-semibold text-zinc-900" : "font-medium text-zinc-700"}`}>{name}</p>
+                        <p className={`text-sm font-inter truncate ${isUnread ? "font-semibold text-zinc-900" : "font-medium text-zinc-600"}`}>
+                          {name}
+                        </p>
                         <span className="text-[10px] text-zinc-300 font-inter flex-shrink-0">{timeStr}</span>
                       </div>
-                      <p className="text-xs text-zinc-400 font-inter truncate">{preview}</p>
+                      <p className={`text-xs font-inter truncate ${isUnread ? "text-zinc-500" : "text-zinc-400"}`}>{preview}</p>
                     </div>
-                    {isUnread && <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0 mt-2" />}
+                    {isUnread
+                      ? <div className="w-2.5 h-2.5 bg-zinc-900 rounded-full flex-shrink-0" />
+                      : <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
+                    }
                   </Link>
                 );
               })}
