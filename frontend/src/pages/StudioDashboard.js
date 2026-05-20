@@ -59,6 +59,7 @@ export default function StudioDashboard() {
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectLoading, setRejectLoading] = useState(false);
+  const [expandedInquiry, setExpandedInquiry] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -1100,8 +1101,15 @@ export default function StudioDashboard() {
             </div>
 
             {inquiriesLoading ? (
-              <div className="space-y-3">
-                {[1,2,3].map(i => <div key={i} className="h-28 bg-zinc-100 animate-pulse rounded-2xl" />)}
+              <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex items-center gap-4 px-5 py-3.5 border-b border-zinc-50 last:border-0">
+                    <div className="w-20 h-5 bg-zinc-100 animate-pulse rounded-full" />
+                    <div className="w-32 h-4 bg-zinc-100 animate-pulse rounded" />
+                    <div className="flex-1 h-4 bg-zinc-100 animate-pulse rounded" />
+                    <div className="w-16 h-4 bg-zinc-100 animate-pulse rounded" />
+                  </div>
+                ))}
               </div>
             ) : (() => {
               const visible = inquiries.filter(i => showHiddenInquiries ? true : !i.hidden);
@@ -1114,96 +1122,142 @@ export default function StudioDashboard() {
                   <p className="text-xs text-zinc-400 font-inter">Wenn Kunden über dein Studio-Profil eine Anfrage senden, erscheinen sie hier.</p>
                 </div>
               );
+
+              const statusMap = {
+                pending:   { label: "Neu",           bg: "bg-amber-50 text-amber-700 border-amber-200" },
+                contacted: { label: "Kontaktiert",   bg: "bg-blue-50 text-blue-700 border-blue-200" },
+                closed:    { label: "Abgeschlossen", bg: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+              };
+
               return (
-                <div className="space-y-3">
-                  {visible.map(inq => {
-                    const statusMap = {
-                      pending:   { label: "Neu",           bg: "bg-amber-50 text-amber-700 border-amber-200" },
-                      contacted: { label: "Kontaktiert",   bg: "bg-blue-50 text-blue-700 border-blue-200" },
-                      closed:    { label: "Abgeschlossen", bg: "bg-zinc-100 text-zinc-500 border-zinc-200" },
-                    };
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[90px_180px_1fr_90px_100px] gap-3 px-5 py-2.5 bg-zinc-50 border-b border-zinc-100">
+                    <span className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">Status</span>
+                    <span className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">Kunde</span>
+                    <span className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">Anfrage</span>
+                    <span className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">Datum</span>
+                    <span className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400 text-right">Aktionen</span>
+                  </div>
+
+                  {visible.map((inq, idx) => {
                     const s = statusMap[inq.status] || statusMap.pending;
-                    const dateStr = inq.created_at ? new Date(inq.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+                    const dateStr = inq.created_at ? new Date(inq.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short" }) : "";
                     const imgs = inq.reference_images || [];
+                    const isExpanded = expandedInquiry === inq.inquiry_id;
+
                     return (
-                      <motion.div key={inq.inquiry_id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                        className={`bg-white rounded-2xl border shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5 transition-opacity ${inq.hidden ? "opacity-50 border-zinc-100" : "border-black/[0.04]"}`}>
-                        <div className="flex items-start justify-between gap-4 mb-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0 font-playfair font-bold text-zinc-600 text-sm">
-                              {(inq.user_name || "?")[0].toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-inter font-semibold text-zinc-900 text-sm">{inq.user_name}</p>
-                              <p className="text-xs text-zinc-400 font-inter truncate">{inq.user_email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className={`text-[11px] font-inter font-semibold px-2.5 py-1 rounded-full border ${s.bg}`}>{s.label}</span>
-                            <span className="text-[11px] text-zinc-400 font-inter whitespace-nowrap hidden sm:block">{dateStr}</span>
-                          </div>
-                        </div>
+                      <motion.div key={inq.inquiry_id} layout className={`border-b border-zinc-50 last:border-0 ${inq.hidden ? "opacity-40" : ""}`}>
+                        {/* Compact row */}
+                        <div
+                          className="grid grid-cols-[90px_180px_1fr_90px_100px] gap-3 px-5 py-3 items-center cursor-pointer hover:bg-zinc-50/60 transition-colors"
+                          onClick={() => setExpandedInquiry(isExpanded ? null : inq.inquiry_id)}
+                        >
+                          <span className={`text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full border w-fit ${s.bg}`}>{s.label}</span>
 
-                        <div className="bg-zinc-50 rounded-xl p-3.5 mb-3">
-                          <p className="text-xs font-inter text-zinc-700 leading-relaxed">{inq.tattoo_description}</p>
-                          {(inq.size || inq.body_part) && (
-                            <div className="flex gap-2 mt-2 flex-wrap">
-                              {inq.size && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.size}</span>}
-                              {inq.body_part && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.body_part}</span>}
-                            </div>
-                          )}
-                          {imgs.length > 0 && (
-                            <div className="flex gap-2 mt-3 flex-wrap">
-                              {imgs.map((img, idx) => (
-                                <button key={idx} type="button" onClick={() => setNotesLightbox(img)} className="focus:outline-none">
-                                  <img src={img} alt="" className="w-16 h-16 object-cover rounded-xl border border-zinc-200 hover:opacity-80 transition-opacity cursor-zoom-in" />
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                          <div className="min-w-0">
+                            <p className="font-inter font-medium text-zinc-900 text-xs truncate">{inq.user_name}</p>
+                            <p className="text-[10px] text-zinc-400 font-inter truncate">{inq.user_email}</p>
+                          </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <motion.button
-                            whileTap={{ scale: 0.97 }}
-                            onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-zinc-900 text-white text-xs font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors"
-                          >
-                            <MessageSquare size={12} strokeWidth={1.5} /> Nachricht senden
-                          </motion.button>
-                          {inq.status === "pending" && (
-                            <button onClick={() => updateInquiryStatus(inq.inquiry_id, "contacted")}
-                              className="px-3.5 py-2 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors">
-                              Als kontaktiert markieren
+                          <div className="min-w-0 flex items-center gap-2">
+                            <p className="text-xs font-inter text-zinc-600 truncate flex-1">{inq.tattoo_description}</p>
+                            {(inq.size || inq.body_part) && (
+                              <div className="hidden lg:flex gap-1 flex-shrink-0">
+                                {inq.size && <span className="text-[10px] font-inter bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full whitespace-nowrap">{inq.size}</span>}
+                                {inq.body_part && <span className="text-[10px] font-inter bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full whitespace-nowrap">{inq.body_part}</span>}
+                              </div>
+                            )}
+                            {imgs.length > 0 && <span className="text-[10px] text-zinc-400 flex-shrink-0">📷 {imgs.length}</span>}
+                          </div>
+
+                          <span className="text-[11px] font-inter text-zinc-400 whitespace-nowrap">{dateStr}</span>
+
+                          <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-900 text-white hover:bg-zinc-700 transition-colors"
+                              title="Nachricht senden"
+                            >
+                              <MessageSquare size={11} strokeWidth={1.5} />
                             </button>
-                          )}
-                          {inq.status === "contacted" && (
-                            <button onClick={() => updateInquiryStatus(inq.inquiry_id, "closed")}
-                              className="px-3.5 py-2 text-xs font-inter text-zinc-500 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors">
-                              Abschließen
-                            </button>
-                          )}
-                          {inq.status !== "pending" && (
-                            <button onClick={() => updateInquiryStatus(inq.inquiry_id, "pending")}
-                              className="px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors">
-                              Zurücksetzen
-                            </button>
-                          )}
-                          <div className="ml-auto flex items-center gap-1">
                             <button
                               onClick={() => toggleInquiryHidden(inq.inquiry_id, !inq.hidden)}
-                              className="px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors"
+                              title={inq.hidden ? "Einblenden" : "Ausblenden"}
                             >
-                              {inq.hidden ? "Einblenden" : "Ausblenden"}
+                              {inq.hidden
+                                ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                              }
                             </button>
                             <button
                               onClick={() => { setRejectModal(inq); setRejectReason(""); }}
-                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-inter text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                              title="Ablehnen & löschen"
                             >
-                              <Trash2 size={11} strokeWidth={2} /> Ablehnen
+                              <Trash2 size={11} strokeWidth={2} />
                             </button>
                           </div>
                         </div>
+
+                        {/* Expanded detail */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.18 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-5 pb-4 pt-1 bg-zinc-50/50 border-t border-zinc-100">
+                                <p className="text-xs font-inter text-zinc-700 leading-relaxed mb-3">{inq.tattoo_description}</p>
+                                {(inq.size || inq.body_part) && (
+                                  <div className="flex gap-2 mb-3 flex-wrap">
+                                    {inq.size && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.size}</span>}
+                                    {inq.body_part && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.body_part}</span>}
+                                  </div>
+                                )}
+                                {imgs.length > 0 && (
+                                  <div className="flex gap-2 mb-3 flex-wrap">
+                                    {imgs.map((img, i) => (
+                                      <button key={i} type="button" onClick={() => setNotesLightbox(img)} className="focus:outline-none">
+                                        <img src={img} alt="" className="w-14 h-14 object-cover rounded-xl border border-zinc-200 hover:opacity-80 transition-opacity cursor-zoom-in" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <button
+                                    onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors"
+                                  >
+                                    <MessageSquare size={11} strokeWidth={1.5} /> Nachricht senden
+                                  </button>
+                                  {inq.status === "pending" && (
+                                    <button onClick={() => updateInquiryStatus(inq.inquiry_id, "contacted")}
+                                      className="px-3 py-1.5 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-white transition-colors">
+                                      Als kontaktiert markieren
+                                    </button>
+                                  )}
+                                  {inq.status === "contacted" && (
+                                    <button onClick={() => updateInquiryStatus(inq.inquiry_id, "closed")}
+                                      className="px-3 py-1.5 text-xs font-inter text-zinc-500 border border-zinc-200 rounded-xl hover:bg-white transition-colors">
+                                      Abschließen
+                                    </button>
+                                  )}
+                                  {inq.status !== "pending" && (
+                                    <button onClick={() => updateInquiryStatus(inq.inquiry_id, "pending")}
+                                      className="px-3 py-1.5 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors">
+                                      Zurücksetzen
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     );
                   })}
