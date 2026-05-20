@@ -567,6 +567,57 @@ async def get_studio_inquiries(studio_id: str, current_user: dict = Depends(get_
     items = await db.inquiries.find({"studio_id": studio_id}).sort("created_at", -1).to_list(200)
     return items
 
+@api_router.delete("/inquiries/{inquiry_id}")
+async def delete_inquiry(inquiry_id: str, body: dict = None, current_user: dict = Depends(get_current_user)):
+    if body is None:
+        body = {}
+    inquiry = await db.inquiries.find_one({"inquiry_id": inquiry_id})
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Anfrage nicht gefunden.")
+    studio = await db.studios.find_one({"studio_id": inquiry.get("studio_id")})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+
+    reason = body.get("reason", "").strip()
+    guest_email = inquiry.get("user_email", "")
+    guest_name = inquiry.get("user_name", "Gast")
+    studio_name = studio.get("name", "Das Studio")
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+    await db.inquiries.delete_one({"inquiry_id": inquiry_id})
+
+    if guest_email:
+        reason_block = f"""
+          <div style="background:#fafafa;border-left:3px solid #d1d5db;padding:14px 18px;border-radius:6px;margin:20px 0;">
+            <p style="font-size:12px;color:#888;margin:0 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.06em;">Grund</p>
+            <p style="font-size:14px;color:#444;margin:0;font-family:'Helvetica Neue',Arial,sans-serif;line-height:1.6;">"{reason}"</p>
+          </div>""" if reason else ""
+        html = f"""
+        <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+          {_email_header()}
+          <div style="padding:32px 32px 24px;">
+            <div style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+              <span style="font-size:12px;font-weight:700;color:#991b1b;letter-spacing:0.05em;text-transform:uppercase;">Anfrage abgelehnt</span>
+            </div>
+            <h2 style="font-size:22px;font-weight:700;margin:0 0 10px;color:#111;letter-spacing:-0.4px;">Hallo {guest_name},</h2>
+            <p style="font-size:15px;color:#444;margin:0 0 8px;line-height:1.6;">
+              leider kann <strong style="color:#111;">{studio_name}</strong> deine Tattoo-Anfrage derzeit nicht annehmen.
+            </p>
+            {reason_block}
+            <p style="font-size:14px;color:#666;margin:16px 0 28px;line-height:1.6;">
+              Schau dir gerne andere Studios auf InkBook an — vielleicht ist das Richtige dabei.
+            </p>
+            <a href="{frontend_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
+              Andere Studios entdecken →
+            </a>
+          </div>
+          {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
+        </div>"""
+        asyncio.create_task(send_email(guest_email, f"Deine Anfrage bei {studio_name}", html))
+
+    return {"deleted": True, "inquiry_id": inquiry_id}
+
 @api_router.patch("/inquiries/{inquiry_id}/status")
 async def update_inquiry_status(inquiry_id: str, body: dict, current_user: dict = Depends(get_current_user)):
     inquiry = await db.inquiries.find_one({"inquiry_id": inquiry_id})
@@ -1277,7 +1328,9 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
 
     # Auto-mark inquiry as contacted + send activation email when studio first messages a ghost user
     try:
-        recipient_user = await db.users.find_one({"user_id": data.recipient_id})
+        recipient_user = await db.users.find_one(
+            {"$or": [{"user_id": data.recipient_id}, {"_id": data.recipient_id}]}
+        )
         if recipient_user and recipient_user.get("is_ghost"):
             sender_studio = await db.studios.find_one({"owner_id": user_id})
             if sender_studio:

@@ -56,6 +56,9 @@ export default function StudioDashboard() {
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [showHiddenInquiries, setShowHiddenInquiries] = useState(false);
   const inquiriesInitialized = React.useRef(false);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -253,6 +256,22 @@ export default function StudioDashboard() {
       await axios.patch(`${API}/inquiries/${inquiryId}/status`, { hidden }, { withCredentials: true });
       setInquiries(prev => prev.map(i => i.inquiry_id === inquiryId ? { ...i, hidden } : i));
     } catch {}
+  };
+
+  const handleDeleteInquiry = async () => {
+    if (!rejectModal) return;
+    setRejectLoading(true);
+    try {
+      await axios.delete(`${API}/inquiries/${rejectModal.inquiry_id}`, {
+        data: { reason: rejectReason.trim() },
+        withCredentials: true,
+      });
+      setInquiries(prev => prev.filter(i => i.inquiry_id !== rejectModal.inquiry_id));
+      setRejectModal(null);
+      setRejectReason("");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Fehler beim Löschen.");
+    } finally { setRejectLoading(false); }
   };
 
   const handleConnectStripe = async () => {
@@ -1170,13 +1189,20 @@ export default function StudioDashboard() {
                               Zurücksetzen
                             </button>
                           )}
-                          <button
-                            onClick={() => toggleInquiryHidden(inq.inquiry_id, !inq.hidden)}
-                            className="ml-auto px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors"
-                            title={inq.hidden ? "Einblenden" : "Ausblenden"}
-                          >
-                            {inq.hidden ? "Einblenden" : "Ausblenden"}
-                          </button>
+                          <div className="ml-auto flex items-center gap-1">
+                            <button
+                              onClick={() => toggleInquiryHidden(inq.inquiry_id, !inq.hidden)}
+                              className="px-3 py-2 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors"
+                            >
+                              {inq.hidden ? "Einblenden" : "Ausblenden"}
+                            </button>
+                            <button
+                              onClick={() => { setRejectModal(inq); setRejectReason(""); }}
+                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-inter text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
+                            >
+                              <Trash2 size={11} strokeWidth={2} /> Ablehnen
+                            </button>
+                          </div>
                         </div>
                       </motion.div>
                     );
@@ -1567,6 +1593,75 @@ export default function StudioDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Rejection Modal */}
+      <AnimatePresence>
+        {rejectModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+            onClick={() => setRejectModal(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="font-playfair font-semibold text-lg text-zinc-900">Anfrage ablehnen</h3>
+                  <p className="text-xs text-zinc-500 font-inter mt-0.5">
+                    {rejectModal.user_name} · {rejectModal.user_email}
+                  </p>
+                </div>
+                <button onClick={() => setRejectModal(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-400 transition-colors">
+                  <X size={15} strokeWidth={2} />
+                </button>
+              </div>
+
+              <div className="bg-red-50 border border-red-100 rounded-xl p-3.5 mb-4">
+                <p className="text-xs font-inter text-red-700 leading-relaxed">
+                  Der Gast erhält eine E-Mail, dass seine Anfrage abgelehnt wurde. Die Anfrage wird dauerhaft gelöscht.
+                </p>
+              </div>
+
+              <div className="mb-5">
+                <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">
+                  Ablehnungsgrund <span className="normal-case font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="z.B. Leider sind wir für diesen Zeitraum ausgebucht..."
+                  rows={3}
+                  className="input-base w-full resize-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRejectModal(null)}
+                  className="flex-1 px-4 py-2.5 text-sm font-inter font-medium text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleDeleteInquiry}
+                  disabled={rejectLoading}
+                  className="flex-1 px-4 py-2.5 text-sm font-inter font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {rejectLoading ? "Wird gesendet…" : "Ablehnen & E-Mail senden"}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Bemerkungen Lightbox */}
       <AnimatePresence>
         {notesLightbox && (
