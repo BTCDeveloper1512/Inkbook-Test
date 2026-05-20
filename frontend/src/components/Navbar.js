@@ -107,30 +107,6 @@ export default function Navbar() {
               </Link>
             ))}
 
-            {user && (
-              <Link
-                to="/messages"
-                className="relative px-4 py-2 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full font-inter transition-all duration-200 flex items-center gap-1.5"
-                data-testid="nav-messages-link"
-              >
-                {t("nav.messages")}
-                <AnimatePresence>
-                  {countToShow > 0 && (
-                    <motion.span
-                      key="badge"
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                      className="text-[10px] text-emerald-600 font-inter font-semibold"
-                      data-testid="unread-badge"
-                    >
-                      {countToShow === 1 ? "Neue Nachricht" : "Neue Nachrichten"}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </Link>
-            )}
           </div>
 
           {/* Right */}
@@ -141,13 +117,6 @@ export default function Navbar() {
 
             {user ? (
               <>
-                <Link to="/messages" className="md:hidden relative p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all" data-testid="mobile-messages-btn">
-                  <MessageSquare size={18} strokeWidth={1.5} />
-                  {countToShow > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white animate-pulse" data-testid="mobile-unread-badge" />
-                  )}
-                </Link>
-
                 <button onClick={handlePushToggle} className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all relative" title="Push-Benachrichtigungen" data-testid="push-toggle-btn" style={{display:'none'}}>
                   <Bell size={16} strokeWidth={1.5} />
                   {pushStatus === "active" && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />}
@@ -168,14 +137,6 @@ export default function Navbar() {
                       <motion.div initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.96 }} transition={{ duration: 0.15 }}
                         className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-black/[0.06] shadow-card overflow-hidden z-50 py-1">
                         <Link to={dashboardPath} className="flex items-center px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-dashboard-link">{t("nav.dashboard")}</Link>
-                        <Link to="/messages" className="flex items-center justify-between px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-messages-dropdown-link">
-                          <span>{t("nav.messages")}</span>
-                          {countToShow > 0 && (
-                            <span className="text-[10px] text-emerald-600 font-inter font-semibold" data-testid="dropdown-unread-badge">
-                              {countToShow === 1 ? "Neue Nachricht" : "Neue Nachrichten"}
-                            </span>
-                          )}
-                        </Link>
                         {user.role === "admin" && (
                           <Link to="/admin" className="flex items-center px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 font-inter" onClick={() => setUserMenuOpen(false)} data-testid="nav-admin-link">Admin Panel</Link>
                         )}
