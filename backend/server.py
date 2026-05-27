@@ -1829,18 +1829,39 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     platform_fee_percent = 5.0
     platform_fee_amount_cents = int(round(amount_cents * platform_fee_percent / 100))
 
-    if connect_account_id and connect_status == "complete":
+    use_connect = connect_account_id and connect_status == "complete"
+    if use_connect:
         pi_kwargs["transfer_data"] = {"destination": connect_account_id}
         pi_kwargs["application_fee_amount"] = platform_fee_amount_cents
     else:
         pi_kwargs["metadata"]["platform_fee_amount_cents"] = platform_fee_amount_cents
         pi_kwargs["metadata"]["platform_fee_percent"] = platform_fee_percent
 
-    # Create real Stripe PaymentIntent
-    intent = await asyncio.to_thread(
-        stripe.PaymentIntent.create,
-        **pi_kwargs,
-    )
+    # Create real Stripe PaymentIntent — with Connect fallback if destination is invalid
+    try:
+        intent = await asyncio.to_thread(
+            stripe.PaymentIntent.create,
+            **pi_kwargs,
+        )
+    except Exception as pi_err:
+        err_str = str(pi_err)
+        # If the Connect destination account is invalid, retry without it
+        if use_connect and ("No such destination" in err_str or "no such destination" in err_str.lower() or "No such account" in err_str):
+            # Mark studio connect as pending so it doesn't keep failing
+            await db.studios.update_one(
+                {"studio_id": booking.get("studio_id")},
+                {"$set": {"stripe_connect_status": "pending"}}
+            )
+            pi_kwargs.pop("transfer_data", None)
+            pi_kwargs.pop("application_fee_amount", None)
+            pi_kwargs["metadata"]["platform_fee_amount_cents"] = platform_fee_amount_cents
+            pi_kwargs["metadata"]["platform_fee_percent"] = platform_fee_percent
+            intent = await asyncio.to_thread(
+                stripe.PaymentIntent.create,
+                **pi_kwargs,
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {err_str}")
 
     await db.payment_transactions.insert_one({
         "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",

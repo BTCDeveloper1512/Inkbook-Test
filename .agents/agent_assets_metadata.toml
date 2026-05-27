@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "k4NOGDJfva4q9gZHM5jQI"
+uri = "file://inkbook_project.zip"
+type = "unspecified"
+title = "inkbook_project.zip"

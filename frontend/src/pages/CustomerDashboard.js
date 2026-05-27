@@ -719,7 +719,7 @@ export default function CustomerDashboard() {
                         )}
                         */}
 
-                        {booking.deposit_required && booking.status === "pending" && booking.payment_status !== "paid" && (
+                        {booking.deposit_required && ["pending", "confirmed"].includes(booking.status) && booking.payment_status !== "paid" && (
                           <button onClick={() => handlePayDeposit(booking)}
                             className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
                             data-testid={`pay-deposit-btn-${booking.booking_id}`}
