@@ -551,67 +551,105 @@ export default function StudioPage() {
     { id: "reviews", label: `${t("studio.reviews")} (${reviews.length})` },
   ];
 
+  const allImages = [
+    ...(studio.banner_image ? [studio.banner_image] : []),
+    ...(studio.images || []),
+  ].filter(Boolean);
+
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      {/* Hero */}
-      <div className="relative h-64 md:h-80 overflow-hidden bg-zinc-900">
-        {(studio.banner_image || studio.images?.[0]) ? (
-          <img src={studio.banner_image || studio.images[0]} alt={studio.name} className="w-full h-full object-cover opacity-75" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-zinc-700 text-9xl font-playfair">{studio.name[0]}</span>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-        {/* Studio info overlay */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
-          <div className="flex items-end gap-4">
-            {/* Logo / Profile image */}
-            {studio.logo_image ? (
-              <img src={studio.logo_image} alt="Logo"
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20 shadow-xl flex-shrink-0 mb-1" />
-            ) : (
-              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-playfair font-bold text-white text-2xl flex-shrink-0 mb-1 backdrop-blur-sm">
-                {studio.name?.[0]}
+      <div className="max-w-7xl mx-auto px-6 pb-8">
+        {/* ── Title section ── */}
+        <div className="pt-8 pb-5">
+          <h1 className="text-3xl font-playfair font-bold text-zinc-900 mb-3">{studio.name}</h1>
+          <div className="flex items-center flex-wrap gap-x-3 gap-y-1.5 text-sm">
+            {studio.avg_rating > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Star size={13} className="fill-zinc-900 text-zinc-900" />
+                <span className="font-semibold text-zinc-900">{studio.avg_rating?.toFixed(2)}</span>
+                <span className="text-zinc-400">·</span>
+                <span className="text-zinc-700 font-semibold underline underline-offset-2 cursor-pointer" onClick={() => setActiveTab("reviews")}>
+                  {studio.review_count} Bewertungen
+                </span>
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                {studio.is_verified && (
-                  <span className="flex items-center gap-1.5 text-[11px] px-3 py-1 rounded-full font-inter font-bold text-white"
-                    style={{ background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)", boxShadow: "0 4px 14px rgba(29,110,247,0.4)" }}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-                      <circle cx="6" cy="6" r="5.5" fill="rgba(255,255,255,0.18)" />
-                      <path d="M3 6L5.5 8.5L9.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Verifiziertes Studio
-                  </span>
-                )}
-                <span className="bg-black/50 text-white text-xs px-2.5 py-1 rounded-full font-inter backdrop-blur-sm">{priceLabels[studio.price_range]}</span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-playfair font-semibold text-white leading-tight">{studio.name}</h1>
-              <div className="flex items-center gap-4 mt-1.5 flex-wrap">
-                <span className="flex items-center gap-1 text-white/80 text-sm font-inter"><MapPin size={13} strokeWidth={1.5} />{studio.city}</span>
-                {studio.avg_rating > 0 && (
-                  <span className="flex items-center gap-1 text-white/80 text-sm font-inter">
-                    <Star size={13} className="fill-amber-400 text-amber-400" strokeWidth={1.5} />
-                    {studio.avg_rating?.toFixed(1)} <span className="text-white/50">({studio.review_count})</span>
-                  </span>
-                )}
-              </div>
-            </div>
+            {studio.is_verified && (
+              <>
+                <span className="text-zinc-200">|</span>
+                <span className="flex items-center gap-1 text-zinc-600 font-semibold">
+                  <CheckCircle size={13} className="text-zinc-700" /> Verifiziertes Studio
+                </span>
+              </>
+            )}
+            <span className="text-zinc-200">|</span>
+            <span className="flex items-center gap-1 text-zinc-500">
+              <MapPin size={13} /> {studio.city}
+            </span>
+            {studio.price_range && (
+              <>
+                <span className="text-zinc-200">|</span>
+                <span className="text-zinc-500 font-medium">{priceLabels[studio.price_range]}</span>
+              </>
+            )}
           </div>
+          {studio.styles?.length > 0 && (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {studio.styles.map(s => (
+                <span key={s} className="border border-zinc-200 text-zinc-600 text-xs font-medium px-3 py-1.5 rounded-full">
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ── Photo gallery grid ── */}
+        <div className="relative rounded-3xl overflow-hidden mb-10"
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: 460, gap: 8 }}>
+          {/* Main image */}
+          <div
+            className="overflow-hidden bg-zinc-100 cursor-pointer"
+            onClick={() => allImages.length > 0 && setLightbox({ imgs: allImages, idx: 0 })}
+          >
+            {allImages[0] ? (
+              <img src={allImages[0]} alt={studio.name} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+                <span className="text-zinc-300 text-8xl font-playfair">{studio.name?.[0]}</span>
+              </div>
+            )}
+          </div>
+          {/* Two stacked smaller images */}
+          <div className="grid grid-rows-2 gap-2">
+            {[allImages[1], allImages[2]].map((img, i) => (
+              <div
+                key={i}
+                className="overflow-hidden bg-zinc-100 cursor-pointer"
+                onClick={() => allImages.length > 0 && setLightbox({ imgs: allImages, idx: i + 1 })}
+              >
+                {img ? (
+                  <img src={img} alt={`${studio.name} ${i + 2}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
+                ) : (
+                  <div className="w-full h-full bg-zinc-100" />
+                )}
+              </div>
+            ))}
+          </div>
+          {/* "All photos" button */}
+          {allImages.length > 0 && (
+            <button
+              onClick={() => setLightbox({ imgs: allImages, idx: 0 })}
+              className="absolute bottom-4 right-4 bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:shadow-md transition-shadow"
+            >
+              Alle Fotos · {allImages.length}
+            </button>
+          )}
+        </div>
 
-          {/* ── Main Content ── */}
-          <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-14">
+        <div>
             {/* Tabs */}
             <div className="flex gap-1 mb-6 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto">
               {TABS.map(tab => (
@@ -793,8 +831,8 @@ export default function StudioPage() {
           </div>
 
           {/* ── Booking Sidebar ── */}
-          <div className="lg:col-span-1" ref={bookingRef}>
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_8px_24px_rgb(0,0,0,0.06)] p-6 md:sticky md:top-20">
+          <div ref={bookingRef}>
+            <div className="bg-white rounded-3xl border border-zinc-200 shadow-[0_8px_40px_rgba(0,0,0,0.10)] p-7 md:sticky md:top-20">
               <h3 className="font-playfair font-semibold text-xl text-zinc-900 mb-5">{t("booking.title")}</h3>
 
               {/* ── Not logged in: guest inquiry prompt ── */}

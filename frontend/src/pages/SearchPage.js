@@ -1,30 +1,101 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import StudioCard from "../components/StudioCard";
-import { Search, SlidersHorizontal, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  Search, SlidersHorizontal, X, MapPin, Calendar, Palette,
+  Star, ChevronDown
+} from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const STYLES = ["Fine Line", "Blackwork", "Traditional", "Neo-Traditional", "Japanese", "Realism", "Portrait", "Geometric", "Watercolor", "Tribal", "Minimalist", "Color", "Abstract", "Surrealism", "Illustrative", "Black & Grey"];
-const PRICES = ["budget", "medium", "premium", "luxury"];
+const STYLES = [
+  { label: "Fine Line", count: 67 },
+  { label: "Minimalist", count: 73 },
+  { label: "Blackwork", count: 55 },
+  { label: "Traditional", count: 48 },
+  { label: "Neo-Traditional", count: 34 },
+  { label: "Realism", count: 61 },
+  { label: "Japanese", count: 38 },
+  { label: "Geometric", count: 41 },
+  { label: "Watercolor", count: 29 },
+  { label: "Tribal", count: 18 },
+  { label: "Illustrative", count: 45 },
+  { label: "Portrait", count: 22 },
+];
+
+const CITIES = ["Berlin", "Hamburg", "München", "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Leipzig"];
+
+const PRICE_OPTIONS = [
+  { value: "budget", label: "Bis €100", sub: "Einstiegspreise" },
+  { value: "medium", label: "€100 – €200", sub: "Mittleres Segment" },
+  { value: "premium", label: "€200 – €400", sub: "Gehobene Studios" },
+  { value: "luxury", label: "Ab €400", sub: "Premium" },
+];
+
+const RATING_OPTIONS = [
+  { value: "4.9", label: "4.9+" },
+  { value: "4.8", label: "4.8+" },
+  { value: "4.5", label: "4.5+" },
+  { value: "4", label: "4.0+" },
+];
+
+const AVAIL_OPTIONS = ["Diese Woche", "Nächste Woche", "Diesen Monat", "Flexible Termine"];
+
+function DropPanel({ label, icon, open, onToggle, children }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (open && ref.current && !ref.current.contains(e.target)) onToggle();
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open, onToggle]);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        onClick={onToggle}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all whitespace-nowrap ${
+          open
+            ? "border-zinc-900 bg-zinc-900 text-white"
+            : "border-zinc-200 text-zinc-700 hover:border-zinc-400 bg-white"
+        }`}
+      >
+        {icon}
+        {label}
+        <ChevronDown
+          size={13}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-2 left-0 z-50 bg-white border border-zinc-200 rounded-2xl shadow-xl min-w-56 p-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const [studios, setStudios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [city, setCity] = useState("");
-  const [style, setStyle] = useState("");
+  const [activeStyles, setActiveStyles] = useState([]);
   const [priceRange, setPriceRange] = useState("");
   const [minRating, setMinRating] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [openPanel, setOpenPanel] = useState(null);
+  const [sortBy, setSortBy] = useState("recommended");
 
   const fetchStudios = async (overrides = {}) => {
     setLoading(true);
@@ -32,7 +103,7 @@ export default function SearchPage() {
       const params = {};
       const s = overrides.search !== undefined ? overrides.search : search;
       const c = overrides.city !== undefined ? overrides.city : city;
-      const st = overrides.style !== undefined ? overrides.style : style;
+      const st = overrides.style !== undefined ? overrides.style : activeStyles[0] || "";
       const pr = overrides.priceRange !== undefined ? overrides.priceRange : priceRange;
       const mr = overrides.minRating !== undefined ? overrides.minRating : minRating;
       if (s) params.search = s;
@@ -49,182 +120,345 @@ export default function SearchPage() {
     }
   };
 
-  useEffect(() => { fetchStudios(); }, [style, priceRange, minRating, city]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchStudios(); }, [city, priceRange, minRating]);
 
-  const handleSearch = (e) => { e.preventDefault(); fetchStudios(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchStudios(); }, []);
 
-  const clearFilters = () => {
-    setStyle(""); setPriceRange(""); setMinRating(""); setCity("");
-    fetchStudios({ style: "", priceRange: "", minRating: "", city: "" });
+  const toggleStyle = (s) => {
+    const next = activeStyles.includes(s)
+      ? activeStyles.filter((x) => x !== s)
+      : [...activeStyles, s];
+    setActiveStyles(next);
+    fetchStudios({ style: next[0] || "" });
   };
 
-  const activeFilters = [style, priceRange, minRating, city].filter(Boolean).length;
+  const toggle = (name) => setOpenPanel((p) => (p === name ? null : name));
+
+  const clearAll = () => {
+    setCity(""); setActiveStyles([]); setPriceRange(""); setMinRating("");
+    fetchStudios({ city: "", style: "", priceRange: "", minRating: "" });
+  };
+
+  const activeCount = [city, priceRange, minRating].filter(Boolean).length + activeStyles.length;
+
+  const sortedStudios = [...studios].sort((a, b) => {
+    if (sortBy === "rating") return (b.avg_rating || 0) - (a.avg_rating || 0);
+    if (sortBy === "price_asc") return (a.starting_price || 0) - (b.starting_price || 0);
+    if (sortBy === "price_desc") return (b.starting_price || 0) - (a.starting_price || 0);
+    return 0;
+  });
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      {/* Search Header */}
-      <div className="bg-white border-b border-zinc-100 py-8 sm:py-12 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-2">Tattoo Studios entdecken</p>
-            <h1 className="text-4xl md:text-5xl font-playfair font-semibold text-zinc-900 mb-2">Dein perfektes Studio.</h1>
-            <p className="text-zinc-400 font-inter text-sm mb-7">Suche, vergleiche und buche Tattoo-Studios in deiner Nähe.</p>
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
-              <div className="flex-1 relative">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" strokeWidth={1.5} />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder={t("hero.searchPlaceholder")}
-                  className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl font-inter text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white focus:ring-4 focus:ring-zinc-100 transition-all"
-                  data-testid="search-input"
-                />
-              </div>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="submit"
-                className="btn-primary px-6"
-                data-testid="search-submit-btn"
-              >
-                {t("hero.searchBtn")}
-              </motion.button>
-            </form>
-          </motion.div>
+      {/* ── Search hero ── */}
+      <div className="bg-white border-b border-zinc-100 py-10 px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter mb-2">
+            Tattoo Studios entdecken
+          </p>
+          <h1 className="text-4xl md:text-5xl font-playfair font-semibold text-zinc-900 mb-6">
+            Dein perfektes Studio.
+          </h1>
+
+          {/* Search pill */}
+          <div className="inline-flex items-center rounded-full border border-zinc-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden bg-white">
+            <span className="flex items-center gap-1.5 px-5 py-3.5 text-sm font-semibold text-zinc-700 border-r border-zinc-100">
+              <MapPin size={14} className="text-zinc-400" />
+              {city || "Stadt"}
+            </span>
+            <span className="flex items-center gap-1.5 px-5 py-3.5 text-sm font-semibold text-zinc-700 border-r border-zinc-100">
+              <Calendar size={14} className="text-zinc-400" />
+              Datum
+            </span>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && fetchStudios()}
+              placeholder="Stil oder Studio..."
+              className="px-5 py-3.5 text-sm text-zinc-500 placeholder-zinc-400 outline-none bg-transparent min-w-36"
+            />
+            <button
+              onClick={() => fetchStudios()}
+              className="m-1.5 w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center hover:bg-zinc-700 transition-colors shrink-0"
+            >
+              <Search size={15} className="text-white" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Filters Bar */}
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-inter transition-all duration-200 ${
-              showFilters ? "bg-zinc-900 text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-600 hover:border-zinc-400"
-            }`}
-            data-testid="filter-toggle-btn"
+      {/* ── Filter bar ── */}
+      <div className="sticky top-[65px] z-30 bg-white border-b border-zinc-100">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-2 overflow-x-auto">
+          {/* City */}
+          <DropPanel
+            label={city || "Stadt"}
+            icon={<MapPin size={13} />}
+            open={openPanel === "city"}
+            onToggle={() => toggle("city")}
           >
-            <SlidersHorizontal size={14} strokeWidth={1.5} />
-            {t("search.filters")}
-            {activeFilters > 0 && (
-              <span className="bg-white text-zinc-900 text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold ml-0.5">{activeFilters}</span>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Stadt</p>
+            <button
+              onClick={() => { setCity(""); setOpenPanel(null); fetchStudios({ city: "" }); }}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors mb-1 ${
+                !city ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
+              }`}
+            >
+              Alle Städte
+            </button>
+            {CITIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => { setCity(c); setOpenPanel(null); fetchStudios({ city: c }); }}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${
+                  city === c ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </DropPanel>
+
+          {/* Style */}
+          <DropPanel
+            label={activeStyles.length > 0 ? `Stil (${activeStyles.length})` : "Stil"}
+            icon={<Palette size={13} />}
+            open={openPanel === "style"}
+            onToggle={() => toggle("style")}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tätowierstil</p>
+              {activeStyles.length > 0 && (
+                <button
+                  onClick={() => { setActiveStyles([]); fetchStudios({ style: "" }); }}
+                  className="text-xs font-semibold text-zinc-900 underline"
+                >
+                  Löschen
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 w-72">
+              {STYLES.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => toggleStyle(s.label)}
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all ${
+                    activeStyles.includes(s.label)
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 text-zinc-700 hover:border-zinc-400"
+                  }`}
+                >
+                  <span className="font-medium">{s.label}</span>
+                  <span className="text-[10px] opacity-50">{s.count}</span>
+                </button>
+              ))}
+            </div>
+          </DropPanel>
+
+          {/* Price */}
+          <DropPanel
+            label={priceRange ? PRICE_OPTIONS.find((p) => p.value === priceRange)?.label : "Preis"}
+            icon={<span className="text-xs font-bold">€</span>}
+            open={openPanel === "price"}
+            onToggle={() => toggle("price")}
+          >
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Startpreis</p>
+            <button
+              onClick={() => { setPriceRange(""); setOpenPanel(null); }}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-1 transition-colors ${
+                !priceRange ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
+              }`}
+            >
+              Alle Preise
+            </button>
+            {PRICE_OPTIONS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => { setPriceRange(p.value); setOpenPanel(null); }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl hover:bg-zinc-50 transition-colors ${
+                  priceRange === p.value ? "bg-zinc-900 text-white" : ""
+                }`}
+              >
+                <p className="text-sm font-semibold text-inherit">{p.label}</p>
+                <p className="text-xs text-zinc-400">{p.sub}</p>
+              </button>
+            ))}
+          </DropPanel>
+
+          {/* Rating */}
+          <DropPanel
+            label={minRating ? `${minRating}+ ★` : "Bewertung"}
+            icon={<Star size={13} />}
+            open={openPanel === "rating"}
+            onToggle={() => toggle("rating")}
+          >
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+              Mindestbewertung
+            </p>
+            <button
+              onClick={() => { setMinRating(""); setOpenPanel(null); }}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-1 transition-colors ${
+                !minRating ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
+              }`}
+            >
+              Alle
+            </button>
+            {RATING_OPTIONS.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => { setMinRating(r.value); setOpenPanel(null); }}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors ${
+                  minRating === r.value ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-700"
+                }`}
+              >
+                <Star size={11} className={minRating === r.value ? "fill-white text-white" : "fill-zinc-800 text-zinc-800"} />
+                {r.label}
+              </button>
+            ))}
+          </DropPanel>
+
+          {/* Availability (UI only for now) */}
+          <DropPanel
+            label="Verfügbarkeit"
+            icon={<Calendar size={13} />}
+            open={openPanel === "avail"}
+            onToggle={() => toggle("avail")}
+          >
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Termin</p>
+            {AVAIL_OPTIONS.map((a) => (
+              <button
+                key={a}
+                onClick={() => setOpenPanel(null)}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-50 text-sm text-zinc-700 transition-colors"
+              >
+                {a}
+              </button>
+            ))}
+          </DropPanel>
+
+          {/* All filters / clear */}
+          <button
+            onClick={() => toggle("all")}
+            className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-500 transition-colors"
+          >
+            <SlidersHorizontal size={13} />
+            Alle Filter
+            {activeCount > 0 && (
+              <span className="bg-zinc-900 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                {activeCount}
+              </span>
             )}
           </button>
+        </div>
+      </div>
 
-          {activeFilters > 0 && (
-            <button onClick={clearFilters} className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 font-inter transition-colors" data-testid="clear-filters-btn">
-              <X size={13} /> Filter zurücksetzen
-            </button>
+      {/* Active filter chips */}
+      {(activeStyles.length > 0 || city || priceRange || minRating) && (
+        <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-zinc-400">Filter:</span>
+          {city && (
+            <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
+              {city}
+              <button onClick={() => { setCity(""); fetchStudios({ city: "" }); }}>
+                <X size={10} />
+              </button>
+            </span>
           )}
+          {activeStyles.map((s) => (
+            <span key={s} className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
+              {s}
+              <button onClick={() => toggleStyle(s)}><X size={10} /></button>
+            </span>
+          ))}
+          {priceRange && (
+            <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
+              {PRICE_OPTIONS.find((p) => p.value === priceRange)?.label}
+              <button onClick={() => { setPriceRange(""); fetchStudios({ priceRange: "" }); }}>
+                <X size={10} />
+              </button>
+            </span>
+          )}
+          {minRating && (
+            <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
+              {minRating}+ ★
+              <button onClick={() => { setMinRating(""); fetchStudios({ minRating: "" }); }}>
+                <X size={10} />
+              </button>
+            </span>
+          )}
+          <button onClick={clearAll} className="text-xs text-zinc-400 hover:text-zinc-700 underline">
+            Alle löschen
+          </button>
+        </div>
+      )}
 
-          <span className="ml-auto text-sm text-zinc-400 font-inter">
-            {loading ? "Suche..." : `${studios.length} Studios gefunden`}
-          </span>
+      {/* ── Results ── */}
+      <main className="max-w-7xl mx-auto px-6 py-8 pb-20">
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-sm text-zinc-500">
+            {loading ? (
+              <span>Suche läuft…</span>
+            ) : (
+              <>
+                <span className="font-semibold text-zinc-900">{sortedStudios.length} Studios</span> gefunden
+                {city && <span className="text-zinc-400"> in {city}</span>}
+              </>
+            )}
+          </p>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-xs border border-zinc-200 rounded-xl px-3 py-2 text-zinc-600 outline-none focus:border-zinc-400 font-inter"
+          >
+            <option value="recommended">Empfohlen</option>
+            <option value="rating">Beste Bewertung</option>
+            <option value="price_asc">Niedrigster Preis</option>
+            <option value="price_desc">Höchster Preis</option>
+          </select>
         </div>
 
-        {/* Filters Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25 }}
-              className="overflow-hidden"
-            >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-5 bg-white rounded-2xl border border-zinc-100 shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">{t("search.city")}</label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={e => setCity(e.target.value)}
-                    onBlur={() => fetchStudios()}
-                    placeholder="Berlin, Hamburg..."
-                    className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 transition-all"
-                    data-testid="city-filter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">{t("search.style")}</label>
-                  <select
-                    value={style}
-                    onChange={e => setStyle(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400 transition-all appearance-none"
-                    data-testid="style-filter"
-                  >
-                    <option value="">{t("search.allStyles")}</option>
-                    {STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">{t("search.price")}</label>
-                  <select
-                    value={priceRange}
-                    onChange={e => setPriceRange(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400 transition-all appearance-none"
-                    data-testid="price-filter"
-                  >
-                    <option value="">{t("search.allPrices")}</option>
-                    {PRICES.map(p => <option key={p} value={p}>{t(`price.${p}`)}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">{t("search.minRating")}</label>
-                  <select
-                    value={minRating}
-                    onChange={e => setMinRating(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter focus:outline-none focus:border-zinc-400 transition-all appearance-none"
-                    data-testid="rating-filter"
-                  >
-                    <option value="">Alle</option>
-                    <option value="3">3+</option>
-                    <option value="4">4+</option>
-                    <option value="4.5">4.5+</option>
-                  </select>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Results */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-72 bg-zinc-100 rounded-2xl animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="space-y-3">
+                <div className="aspect-[4/3] bg-zinc-100 rounded-2xl animate-pulse" />
+                <div className="h-4 bg-zinc-100 rounded animate-pulse w-3/4" />
+                <div className="h-3 bg-zinc-100 rounded animate-pulse w-1/2" />
+              </div>
             ))}
           </div>
-        ) : studios.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24">
+        ) : sortedStudios.length === 0 ? (
+          <div className="text-center py-24">
             <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search size={24} className="text-zinc-400" strokeWidth={1.5} />
             </div>
-            <h3 className="text-xl font-playfair font-semibold text-zinc-900 mb-2">{t("search.noResults")}</h3>
-            <p className="text-zinc-500 font-inter text-sm">Versuche andere Filter oder Suchbegriffe</p>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            data-testid="studios-grid"
-          >
-            {studios.map((studio, i) => (
-              <motion.div
-                key={studio.studio_id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.4 }}
+            <h3 className="text-xl font-playfair font-semibold text-zinc-900 mb-2">
+              {t("search.noResults")}
+            </h3>
+            <p className="text-zinc-500 font-inter text-sm">
+              Versuche andere Filter oder Suchbegriffe
+            </p>
+            {activeCount > 0 && (
+              <button
+                onClick={clearAll}
+                className="mt-4 px-6 py-2.5 border border-zinc-300 rounded-xl text-sm font-semibold text-zinc-700 hover:border-zinc-500 transition-colors"
               >
-                <StudioCard studio={studio} />
-              </motion.div>
+                Filter zurücksetzen
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+            {sortedStudios.map((studio, i) => (
+              <StudioCard key={studio.studio_id} studio={studio} index={i} />
             ))}
-          </motion.div>
+          </div>
         )}
-      </div>
+      </main>
 
       <Footer />
     </div>

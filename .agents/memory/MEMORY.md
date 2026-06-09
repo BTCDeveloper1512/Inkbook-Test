@@ -1,0 +1,1 @@
+- [Airbnb design graduation](airbnb-design.md) — SearchPage + StudioCard + StudioPage graduated from v3 mockups; Tailwind already in frontend, no new deps needed.

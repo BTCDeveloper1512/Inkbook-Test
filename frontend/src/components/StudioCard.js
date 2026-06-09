@@ -1,89 +1,117 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { Star, MapPin, CheckCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { Star, Heart } from "lucide-react";
 
-const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
-const styleColors = ["bg-zinc-100 text-zinc-600", "bg-zinc-100 text-zinc-600", "bg-zinc-100 text-zinc-600"];
+const priceStarting = { budget: 80, medium: 150, premium: 280, luxury: 450 };
 
 export default function StudioCard({ studio, index = 0 }) {
-  const { t } = useTranslation();
   const navigate = useNavigate();
+  const [saved, setSaved] = useState(false);
+
+  const startingPrice = studio.starting_price || priceStarting[studio.price_range] || null;
+  const imageSrc = studio.banner_image || studio.images?.[0] || null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-      className="group bg-white rounded-2xl border border-black/[0.04] shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+    <div
+      className="group cursor-pointer"
       onClick={() => navigate(`/studios/${studio.studio_id}`)}
       data-testid={`studio-card-${studio.studio_id}`}
     >
-      {/* Banner / Image */}
-      <div className="relative h-48 overflow-hidden bg-zinc-100">
-        {(studio.banner_image || studio.images?.[0]) ? (
+      {/* Photo */}
+      <div
+        className="relative rounded-2xl overflow-hidden bg-zinc-100 mb-3"
+        style={{ aspectRatio: "4/3" }}
+      >
+        {imageSrc ? (
           <img
-            src={studio.banner_image || studio.images[0]}
+            src={imageSrc}
             alt={studio.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-apple"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
-            <span className="text-zinc-300 text-4xl font-playfair">{studio.name[0]}</span>
+          <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+            <span className="text-zinc-300 text-5xl font-playfair">{studio.name?.[0]}</span>
           </div>
         )}
-        {studio.is_verified && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full shadow-lg"
-            style={{ background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)", boxShadow: "0 4px 14px rgba(29,110,247,0.45)" }}>
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }}>
-              <circle cx="5.5" cy="5.5" r="5" fill="rgba(255,255,255,0.2)" />
-              <path d="M2.5 5.5L4.5 7.5L8.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-[10px] font-inter font-bold text-white tracking-wide">Verifiziert</span>
-          </div>
-        )}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-soft">
-          <span className="text-xs font-inter font-bold text-zinc-600">{priceLabels[studio.price_range] || "€€"}</span>
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-1">
-          <h3 className="font-playfair font-semibold text-zinc-900 text-[17px] leading-snug">{studio.name}</h3>
-        </div>
-
-        <div className="flex items-center gap-3 mb-3">
-          <span className="flex items-center gap-1 text-xs text-zinc-400 font-inter">
-            <MapPin size={11} strokeWidth={1.5} /> {studio.city}
-          </span>
-          <span className="flex items-center gap-1 text-xs font-inter font-medium text-zinc-700">
-            <Star size={11} className="fill-amber-400 text-amber-400" />
-            {studio.avg_rating?.toFixed(1)}
-            <span className="text-zinc-400 font-normal">({studio.review_count})</span>
-          </span>
-        </div>
-
-        <p className="text-[13px] text-zinc-500 font-inter line-clamp-2 mb-4 leading-relaxed">{studio.description}</p>
-
-        {/* Styles */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {studio.styles?.slice(0, 3).map((s, i) => (
-            <span key={s} className="text-xs px-2.5 py-1 bg-zinc-50 text-zinc-600 rounded-full font-inter border border-zinc-100">{s}</span>
-          ))}
-          {studio.styles?.length > 3 && <span className="text-xs px-2.5 py-1 text-zinc-400 font-inter">+{studio.styles.length - 3}</span>}
-        </div>
-
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          className="w-full py-2.5 bg-zinc-900 text-white text-sm font-inter font-medium rounded-xl hover:bg-zinc-800 hover:shadow-btn transition-all duration-300"
-          data-testid={`book-studio-btn-${studio.studio_id}`}
-          onClick={(e) => { e.stopPropagation(); navigate(`/studios/${studio.studio_id}`); }}
+        {/* Save button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
+          className="absolute top-3 right-3 p-1.5 rounded-full"
+          aria-label={saved ? "Gespeichert" : "Speichern"}
         >
-          {t("studio.book")}
-        </motion.button>
+          <Heart
+            size={20}
+            className={
+              saved
+                ? "fill-zinc-900 text-zinc-900"
+                : "fill-white/40 text-white drop-shadow-sm"
+            }
+            strokeWidth={1.8}
+          />
+        </button>
+
+        {/* Style badges */}
+        {studio.styles?.length > 0 && (
+          <div className="absolute bottom-3 left-3 flex gap-1.5 flex-wrap">
+            {studio.styles.slice(0, 2).map((s) => (
+              <span
+                key={s}
+                className="bg-white/90 text-zinc-800 text-xs font-medium px-2.5 py-1 rounded-full"
+              >
+                {s}
+              </span>
+            ))}
+            {studio.styles.length > 2 && (
+              <span className="bg-white/90 text-zinc-600 text-xs font-medium px-2.5 py-1 rounded-full">
+                +{studio.styles.length - 2}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Verified badge */}
+        {studio.is_verified && (
+          <div
+            className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full"
+            style={{
+              background: "linear-gradient(135deg, #1d6ef7 0%, #0047d9 100%)",
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 11 11" fill="none">
+              <circle cx="5.5" cy="5.5" r="5" fill="rgba(255,255,255,0.2)" />
+              <path
+                d="M2.5 5.5L4.5 7.5L8.5 3.5"
+                stroke="white"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="text-[9px] font-bold text-white tracking-wide">Verifiziert</span>
+          </div>
+        )}
       </div>
-    </motion.div>
+
+      {/* Info row */}
+      <div className="space-y-0.5">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-sm text-zinc-900 truncate pr-2">{studio.name}</p>
+          {studio.avg_rating > 0 && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Star size={12} className="fill-zinc-900 text-zinc-900" />
+              <span className="text-xs font-medium text-zinc-900">
+                {studio.avg_rating?.toFixed(2)}
+              </span>
+              <span className="text-xs text-zinc-400">({studio.review_count})</span>
+            </div>
+          )}
+        </div>
+        <p className="text-zinc-400 text-xs">{studio.city}</p>
+        {startingPrice && (
+          <p className="text-sm text-zinc-900 pt-0.5 font-semibold">ab €{startingPrice}</p>
+        )}
+      </div>
+    </div>
   );
 }
