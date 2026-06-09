@@ -46,20 +46,40 @@ const RATING_OPTIONS = [
 const AVAIL_OPTIONS = ["Diese Woche", "Nächste Woche", "Diesen Monat", "Flexible Termine"];
 
 function DropPanel({ label, icon, open, onToggle, children }) {
-  const ref = useRef(null);
+  const btnRef = useRef(null);
+  const panelRef = useRef(null);
+  const [rect, setRect] = useState(null);
+
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      setRect(btnRef.current.getBoundingClientRect());
+    }
+    onToggle();
+  };
 
   useEffect(() => {
+    if (!open) return;
     const handleOutside = (e) => {
-      if (open && ref.current && !ref.current.contains(e.target)) onToggle();
+      const clickedBtn = btnRef.current?.contains(e.target);
+      const clickedPanel = panelRef.current?.contains(e.target);
+      if (!clickedBtn && !clickedPanel) onToggle();
+    };
+    const handleScroll = () => {
+      if (btnRef.current) setRect(btnRef.current.getBoundingClientRect());
     };
     document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, [open, onToggle]);
 
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <div className="relative shrink-0">
       <button
-        onClick={onToggle}
+        ref={btnRef}
+        onClick={handleToggle}
         className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all whitespace-nowrap ${
           open
             ? "border-zinc-900 bg-zinc-900 text-white"
@@ -73,8 +93,17 @@ function DropPanel({ label, icon, open, onToggle, children }) {
           className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {open && (
-        <div className="absolute top-full mt-2 left-0 z-50 bg-white border border-zinc-200 rounded-2xl shadow-xl min-w-56 p-4">
+      {open && rect && (
+        <div
+          ref={panelRef}
+          style={{
+            position: "fixed",
+            top: rect.bottom + 8,
+            left: rect.left,
+            zIndex: 9999,
+          }}
+          className="bg-white border border-zinc-200 rounded-2xl shadow-xl min-w-56 p-4"
+        >
           {children}
         </div>
       )}
