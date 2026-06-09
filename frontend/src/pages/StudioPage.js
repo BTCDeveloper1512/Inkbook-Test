@@ -17,6 +17,16 @@ import StudioMap from "../components/StudioMap";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
 
+const SIZE_COST = { mini: 1, small: 2, medium: 3, large: 5, xl: 8 };
+const DAY_CAPACITY = 8;
+const SIZES = [
+  { id: "mini",   label: "Mini",       desc: "Schriftzug, Symbol, Fineline",   cost: 1 },
+  { id: "small",  label: "Klein",      desc: "bis ca. 5 cm",                   cost: 2 },
+  { id: "medium", label: "Mittel",     desc: "bis ca. 10 cm",                  cost: 3 },
+  { id: "large",  label: "Groß",       desc: "Unterarm, Schulter",             cost: 5 },
+  { id: "xl",     label: "Ganzer Tag", desc: "Rücken, Sleeve, großes Projekt", cost: 8 },
+];
+
 const formatDate = (d) => {
   if (!d) return "";
   const [y, m, day] = d.split("-");
@@ -423,6 +433,9 @@ export default function StudioPage() {
     fetch("/lottie-instagram.json")
       .then(r => r.json()).then(setLottieData).catch(() => {});
   }, []);
+  const [sizeCategory, setSizeCategory] = useState(null);
+  const [capacityData, setCapacityData] = useState({});
+
   const today = new Date();
   const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [availableDates, setAvailableDates] = useState(new Set());
@@ -453,13 +466,23 @@ export default function StudioPage() {
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
-  // Fetch available dates whenever month, studio OR bookingType changes
+  // Fetch available dates (for consultation/slot flow)
   useEffect(() => {
-    if (!studioId) return;
+    if (!studioId || bookingType === "tattoo") return;
     axios.get(`${API}/studios/${studioId}/available-dates`, {
       params: { year: calMonth.year, month: calMonth.month + 1, slot_type: bookingType }
     }).then(({ data }) => {
       setAvailableDates(new Set(data.available_dates));
+    }).catch(() => {});
+  }, [studioId, calMonth, bookingType]);
+
+  // Fetch capacity calendar (for tattoo flow)
+  useEffect(() => {
+    if (!studioId || bookingType !== "tattoo") return;
+    axios.get(`${API}/studios/${studioId}/capacity-calendar`, {
+      params: { year: calMonth.year, month: calMonth.month + 1 }
+    }).then(({ data }) => {
+      setCapacityData(data.dates || {});
     }).catch(() => {});
   }, [studioId, calMonth, bookingType]);
 
@@ -501,6 +524,25 @@ export default function StudioPage() {
       }, { withCredentials: true });
       setBookingSuccess(data);
     } catch (e) { alert(e.response?.data?.detail || "Buchung fehlgeschlagen"); } finally { setBookingLoading(false); }
+  };
+
+  const handleCapacityBook = async () => {
+    if (!user) { setShowGuestModal(true); return; }
+    if (!selectedDate || !sizeCategory) return;
+    setBookingLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/bookings/capacity`, {
+        studio_id: studioId,
+        date: selectedDate,
+        size_category: sizeCategory,
+        booking_type: bookingType,
+        notes: bookingNotes,
+        reference_images: refImages,
+      }, { withCredentials: true });
+      setBookingSuccess(data);
+    } catch (e) {
+      alert(e.response?.data?.detail || "Anfrage fehlgeschlagen");
+    } finally { setBookingLoading(false); }
   };
 
   const handleRefImageUpload = async (e) => {
@@ -877,209 +919,289 @@ export default function StudioPage() {
                 </motion.div>
               ) : (
               <>
+              {/* ── Booking type ── */}
               <div className="mb-5">
                 <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.selectType")}</p>
-                <div className="flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { val: "consultation", icon: <MessageSquare size={13} strokeWidth={1.5} />, label: "Beratung" },
-                      { val: "tattoo", icon: <Scissors size={13} strokeWidth={1.5} />, label: "Tattoo" }
-                    ].map(opt => (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { val: "consultation", icon: <MessageSquare size={13} strokeWidth={1.5} />, label: "Beratung" },
+                    { val: "tattoo", icon: <Scissors size={13} strokeWidth={1.5} />, label: "Tattoo" }
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      onClick={() => { setBookingType(opt.val); setSelectedSlot(null); setSelectedDate(null); setSizeCategory(null); setBookingSuccess(null); }}
+                      className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === opt.val ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
+                      data-testid={`booking-type-${opt.val}`}
+                    >
+                      {opt.icon} {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {bookingType === "tattoo" ? (<>
+                {/* ── CAPACITY FLOW ── */}
+
+                {/* Step 1: Size */}
+                <div className="mb-5">
+                  <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Tattoo-Größe</p>
+                  <div className="flex flex-col gap-1.5">
+                    {SIZES.map(s => (
                       <button
-                        key={opt.val}
-                        onClick={() => { setBookingType(opt.val); setSelectedSlot(null); setSelectedDate(null); }}
-                        className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === opt.val ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
-                        data-testid={`booking-type-${opt.val}`}
+                        key={s.id}
+                        onClick={() => { setSizeCategory(s.id); setSelectedDate(null); setBookingSuccess(null); }}
+                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-left transition-all ${sizeCategory === s.id ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
                       >
-                        {opt.icon} {opt.label}
+                        <div className="flex flex-col">
+                          <span className={`text-xs font-inter font-semibold ${sizeCategory === s.id ? "text-white" : "text-zinc-800"}`}>{s.label}</span>
+                          <span className={`text-[10px] font-inter ${sizeCategory === s.id ? "text-zinc-300" : "text-zinc-400"}`}>{s.desc}</span>
+                        </div>
+                        <span className={`text-[10px] font-inter whitespace-nowrap ml-3 ${sizeCategory === s.id ? "text-zinc-300" : "text-zinc-400"}`}>{s.cost === 1 ? "1 Punkt" : `${s.cost} Punkte`}</span>
                       </button>
                     ))}
                   </div>
-                  {/* VIDEO CONSULTATION HIDDEN – auskommentiert bis Feature wieder aktiviert wird
-                  <button
-                      onClick={() => { setBookingType("video_consultation"); setSelectedSlot(null); setSelectedDate(null); }}
-                      className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${bookingType === "video_consultation" ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"}`}
-                      data-testid="booking-type-video_consultation"
-                    >
-                      <Video size={13} strokeWidth={1.5} /> Videoberatungsgespräch
-                    </button>
-                  */}
-                </div>
-              </div>
-
-              {/* Date Selection – Calendar */}
-              <div className="mb-5">
-                <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> {t("booking.selectDate")}</p>
-
-                {/* Month Navigation */}
-                <div className="flex items-center justify-between mb-3">
-                  <button
-                    onClick={prevMonth}
-                    disabled={calMonth.year === today.getFullYear() && calMonth.month === today.getMonth()}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    data-testid="cal-prev-month"
-                  >
-                    <ChevronLeft size={16} strokeWidth={2} />
-                  </button>
-                  <span className="font-inter font-semibold text-sm text-zinc-800 capitalize">{monthLabel}</span>
-                  <button
-                    onClick={nextMonth}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition-colors"
-                    data-testid="cal-next-month"
-                  >
-                    <ChevronRight size={16} strokeWidth={2} />
-                  </button>
                 </div>
 
-                {/* Weekday Headers */}
-                <div className="grid grid-cols-7 mb-1">
-                  {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
-                    <div key={d} className="text-center text-xs font-inter font-semibold text-zinc-400 py-1">{d}</div>
-                  ))}
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1">
-                  {calDays.map((day, idx) => {
-                    if (!day) return <div key={`e-${idx}`} />;
-                    const iso = toISO(day);
-                    const isPast = iso < todayISO;
-                    const isToday = iso === todayISO;
-                    const isSelected = iso === selectedDate;
-                    const hasSlots = availableDates.has(iso);
-                    return (
-                      <button
-                        key={iso}
-                        disabled={isPast}
-                        onClick={() => { setSelectedDate(iso); setSelectedSlot(null); setBookingSuccess(null); }}
-                        className={`
-                          relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all
-                          ${isPast ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"}
-                          ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""}
-                          ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""}
-                          ${!isSelected && !isPast && !isToday ? "text-zinc-700" : ""}
-                        `}
-                        data-testid={`date-btn-${iso}`}
-                      >
-                        <span>{day.getDate()}</span>
-                        {!isPast && (
-                          <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${
-                            isSelected ? "bg-white/60" :
-                            hasSlots ? "bg-emerald-400" : "bg-zinc-200"
-                          }`} />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Slots */}
-              {selectedDate && (
-                <div className="mb-5">
-                  <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5 flex items-center gap-1.5"><Clock size={11} strokeWidth={1.5} /> {t("booking.selectSlot")}</p>
-                  {slotsLoading ? (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {[1,2].map(i => <div key={i} className="h-10 bg-zinc-100 rounded-xl animate-pulse" />)}
-                    </div>
-                  ) : slots.length === 0 ? (
-                    <p className="text-sm text-zinc-400 font-inter py-2">Keine freien Termine für diesen Tag</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {slots.map(slot => (
-                        <button
-                          key={slot.slot_id}
-                          onClick={() => { setSelectedSlot(slot); setBookingSuccess(null); }}
-                          className={`py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${selectedSlot?.slot_id === slot.slot_id ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
-                          data-testid={`slot-btn-${slot.slot_id}`}
-                        >
-                          {slot.start_time} – {slot.end_time}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Notes */}
-              <AnimatePresence>
-                {selectedSlot && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-5 overflow-hidden">
-                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.notes")}</p>
-                    <textarea
-                      value={bookingNotes}
-                      onChange={e => setBookingNotes(e.target.value)}
-                      rows={3}
-                      className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-100 resize-none transition-all"
-                      placeholder="Beschreibe dein Tattoo-Motiv..."
-                      data-testid="booking-notes"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Reference Images */}
-              <AnimatePresence>
-                {selectedSlot && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-5 overflow-hidden">
-                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.refImages")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {refImages.map((img, i) => (
-                        <div key={i} className="relative group">
-                          <img src={img} alt="" className="w-14 h-14 object-cover rounded-xl border border-zinc-200" />
-                          <button type="button" onClick={() => setRefImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-900 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <X size={8} />
-                          </button>
+                {/* Step 2: Calendar (shown after size selected) */}
+                {sizeCategory && (
+                  <div className="mb-5">
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum</p>
+                    <div className="flex items-center gap-2.5 mb-3 flex-wrap">
+                      {[{color:"bg-emerald-400",label:"Verfügbar"},{color:"bg-amber-400",label:"Begrenzt"},{color:"bg-blue-400",label:"Nur klein"},{color:"bg-zinc-200",label:"Ausgebucht"}].map(l => (
+                        <div key={l.label} className="flex items-center gap-1">
+                          <span className={`w-2 h-2 rounded-full ${l.color}`} />
+                          <span className="text-[10px] text-zinc-400 font-inter">{l.label}</span>
                         </div>
                       ))}
-                      {refImages.length < 5 && (
-                        <label className={`w-14 h-14 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${uploadingRef ? "opacity-50" : ""}`}>
-                          <ImagePlus size={14} className="text-zinc-400" strokeWidth={1.5} />
-                          <span className="text-xs text-zinc-400 font-inter mt-0.5">{uploadingRef ? "..." : "+"}</span>
-                          <input ref={fileRef} type="file" accept="image/*" onChange={handleRefImageUpload} disabled={uploadingRef} className="hidden" data-testid="ref-image-input" />
-                        </label>
-                      )}
                     </div>
-                  </motion.div>
+                    <div className="flex items-center justify-between mb-3">
+                      <button onClick={prevMonth} disabled={calMonth.year === today.getFullYear() && calMonth.month === today.getMonth()} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" data-testid="cal-prev-month"><ChevronLeft size={16} strokeWidth={2} /></button>
+                      <span className="font-inter font-semibold text-sm text-zinc-800 capitalize">{monthLabel}</span>
+                      <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition-colors" data-testid="cal-next-month"><ChevronRight size={16} strokeWidth={2} /></button>
+                    </div>
+                    <div className="grid grid-cols-7 mb-1">
+                      {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => <div key={d} className="text-center text-xs font-inter font-semibold text-zinc-400 py-1">{d}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {calDays.map((day, idx) => {
+                        if (!day) return <div key={`e-${idx}`} />;
+                        const iso = toISO(day);
+                        const isPast = iso < todayISO;
+                        const isToday = iso === todayISO;
+                        const isSelected = iso === selectedDate;
+                        const capDay = capacityData[iso];
+                        const cost = SIZE_COST[sizeCategory] || 1;
+                        const remaining = capDay ? capDay.remaining : (isPast ? 0 : DAY_CAPACITY);
+                        const canFit = !isPast && remaining >= cost;
+                        const dotColor = isSelected ? "bg-white/60" : !canFit ? "bg-zinc-200" : remaining >= 5 ? "bg-emerald-400" : remaining >= 3 ? "bg-amber-400" : "bg-blue-400";
+                        return (
+                          <button key={iso} disabled={isPast || !canFit}
+                            onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
+                            className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
+                            data-testid={`date-btn-${iso}`}
+                          >
+                            <span>{day.getDate()}</span>
+                            {!isPast && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
-              </AnimatePresence>
 
-              {studio?.deposit_required && (
-                <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
-                  <span>Anzahlung erforderlich:</span>
-                  <span className="font-semibold text-zinc-900">€{studio.deposit_amount || 50}</span>
+                {/* Step 3: Day info */}
+                <AnimatePresence>
+                  {selectedDate && sizeCategory && (() => {
+                    const capDay = capacityData[selectedDate];
+                    const remaining = capDay ? capDay.remaining : DAY_CAPACITY;
+                    let bg = "bg-emerald-50 border-emerald-100 text-emerald-800";
+                    let msg = "Dieser Tag ist gut verfügbar – auch große Tattoos möglich.";
+                    let hint = "";
+                    if (remaining >= 5) { msg = "Dieser Tag ist gut verfügbar – auch große Tattoos möglich."; }
+                    else if (remaining >= 3) { bg = "bg-amber-50 border-amber-100 text-amber-800"; msg = "An diesem Tag ist noch begrenzte Kapazität frei."; hint = "Für sehr große Projekte nicht mehr geeignet."; }
+                    else { bg = "bg-blue-50 border-blue-100 text-blue-800"; msg = "Nur noch wenig Kapazität – ideal für kleine Tattoos."; hint = "Größere Tattoos sind an diesem Tag nicht mehr möglich."; }
+                    return (
+                      <motion.div key={selectedDate} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className={`mb-4 p-3.5 rounded-xl border text-xs font-inter leading-relaxed overflow-hidden ${bg}`}>
+                        <p className="font-semibold mb-0.5">{msg}</p>
+                        {hint && <p className="opacity-70 mb-0.5">{hint}</p>}
+                        <p className="opacity-60 text-[10px] mt-1">Die genaue Uhrzeit wird nach Prüfung durch das Studio bestätigt.</p>
+                      </motion.div>
+                    );
+                  })()}
+                </AnimatePresence>
+
+                {/* Step 4: Notes + ref images */}
+                <AnimatePresence>
+                  {selectedDate && sizeCategory && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                      <div className="mb-4">
+                        <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">{t("booking.notes")}</p>
+                        <textarea value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} rows={3}
+                          className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-100 resize-none transition-all"
+                          placeholder="Beschreibe dein Tattoo-Motiv, Stil, Körperstelle..." data-testid="booking-notes" />
+                      </div>
+                      <div className="mb-5">
+                        <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">{t("booking.refImages")}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {refImages.map((img, i) => (
+                            <div key={i} className="relative group">
+                              <img src={img} alt="" className="w-14 h-14 object-cover rounded-xl border border-zinc-200" />
+                              <button type="button" onClick={() => setRefImages(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-900 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X size={8} /></button>
+                            </div>
+                          ))}
+                          {refImages.length < 5 && (
+                            <label className={`w-14 h-14 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${uploadingRef ? "opacity-50" : ""}`}>
+                              <ImagePlus size={14} className="text-zinc-400" strokeWidth={1.5} />
+                              <span className="text-xs text-zinc-400 font-inter mt-0.5">{uploadingRef ? "..." : "+"}</span>
+                              <input ref={fileRef} type="file" accept="image/*" onChange={handleRefImageUpload} disabled={uploadingRef} className="hidden" data-testid="ref-image-input" />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {studio?.deposit_required && selectedDate && (
+                  <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
+                    <span>Anzahlung erforderlich:</span>
+                    <span className="font-semibold text-zinc-900">€{studio.deposit_amount || 50}</span>
+                  </div>
+                )}
+
+                {bookingSuccess ? (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
+                    <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
+                    <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">Anfrage gesendet!</p>
+                    <p className="text-xs text-emerald-600 font-inter mb-1">Das Studio meldet sich zur Bestätigung der Uhrzeit.</p>
+                    <p className="text-xs text-zinc-400 font-inter">ID: {bookingSuccess.booking_id}</p>
+                    <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">Zum Dashboard</button>
+                  </motion.div>
+                ) : (
+                  <motion.button whileTap={{ scale: 0.97 }} onClick={handleCapacityBook}
+                    disabled={!selectedDate || !sizeCategory || bookingLoading}
+                    className="btn-primary w-full justify-center disabled:opacity-40" data-testid="confirm-booking-btn">
+                    {bookingLoading ? t("common.loading") : "Termin anfragen"}
+                  </motion.button>
+                )}
+              </>) : (<>
+                {/* ── CONSULTATION SLOT FLOW ── */}
+                <div className="mb-5">
+                  <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> {t("booking.selectDate")}</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <button onClick={prevMonth} disabled={calMonth.year === today.getFullYear() && calMonth.month === today.getMonth()} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" data-testid="cal-prev-month"><ChevronLeft size={16} strokeWidth={2} /></button>
+                    <span className="font-inter font-semibold text-sm text-zinc-800 capitalize">{monthLabel}</span>
+                    <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition-colors" data-testid="cal-next-month"><ChevronRight size={16} strokeWidth={2} /></button>
+                  </div>
+                  <div className="grid grid-cols-7 mb-1">
+                    {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => <div key={d} className="text-center text-xs font-inter font-semibold text-zinc-400 py-1">{d}</div>)}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {calDays.map((day, idx) => {
+                      if (!day) return <div key={`e-${idx}`} />;
+                      const iso = toISO(day);
+                      const isPast = iso < todayISO;
+                      const isToday = iso === todayISO;
+                      const isSelected = iso === selectedDate;
+                      const hasSlots = availableDates.has(iso);
+                      return (
+                        <button key={iso} disabled={isPast}
+                          onClick={() => { setSelectedDate(iso); setSelectedSlot(null); setBookingSuccess(null); }}
+                          className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && !isToday ? "text-zinc-700" : ""}`}
+                          data-testid={`date-btn-${iso}`}
+                        >
+                          <span>{day.getDate()}</span>
+                          {!isPast && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${isSelected ? "bg-white/60" : hasSlots ? "bg-emerald-400" : "bg-zinc-200"}`} />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
 
-              {bookingSuccess ? (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
-                  <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
-                  <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">{t("booking.success")}</p>
-                  <p className="text-xs text-emerald-600 font-inter">ID: {bookingSuccess.booking_id}</p>
-                  <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">
-                    Zum Dashboard
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleBook}
-                  disabled={!selectedSlot || bookingLoading}
-                  className="btn-primary w-full justify-center disabled:opacity-40"
-                  data-testid="confirm-booking-btn"
-                >
-                  {bookingLoading ? t("common.loading") : t("booking.confirm")}
-                </motion.button>
-              )}
+                {selectedDate && (
+                  <div className="mb-5">
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5 flex items-center gap-1.5"><Clock size={11} strokeWidth={1.5} /> {t("booking.selectSlot")}</p>
+                    {slotsLoading ? (
+                      <div className="grid grid-cols-2 gap-1.5">{[1,2].map(i => <div key={i} className="h-10 bg-zinc-100 rounded-xl animate-pulse" />)}</div>
+                    ) : slots.length === 0 ? (
+                      <p className="text-sm text-zinc-400 font-inter py-2">Keine freien Termine für diesen Tag</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {slots.map(slot => (
+                          <button key={slot.slot_id} onClick={() => { setSelectedSlot(slot); setBookingSuccess(null); }}
+                            className={`py-2.5 text-xs font-inter font-medium rounded-xl border transition-all ${selectedSlot?.slot_id === slot.slot_id ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
+                            data-testid={`slot-btn-${slot.slot_id}`}>
+                            {slot.start_time} – {slot.end_time}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {user && (
-                <div className="w-full mt-3 py-3 px-4 bg-zinc-50 border border-zinc-100 rounded-xl flex items-start gap-2.5" data-testid="contact-studio-info">
-                  <MessageSquare size={14} strokeWidth={1.5} className="text-zinc-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-zinc-500 font-inter leading-relaxed">
-                    Nach deiner Buchung meldet sich das Studio direkt per Nachricht bei dir. Du findest das Gespräch dann unter <strong className="text-zinc-700">Nachrichten</strong>.
-                  </p>
-                </div>
-              )}
+                <AnimatePresence>
+                  {selectedSlot && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-5 overflow-hidden">
+                      <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.notes")}</p>
+                      <textarea value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} rows={3}
+                        className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-100 resize-none transition-all"
+                        placeholder="Beschreibe dein Tattoo-Motiv..." data-testid="booking-notes" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {selectedSlot && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-5 overflow-hidden">
+                      <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">{t("booking.refImages")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {refImages.map((img, i) => (
+                          <div key={i} className="relative group">
+                            <img src={img} alt="" className="w-14 h-14 object-cover rounded-xl border border-zinc-200" />
+                            <button type="button" onClick={() => setRefImages(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-900 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X size={8} /></button>
+                          </div>
+                        ))}
+                        {refImages.length < 5 && (
+                          <label className={`w-14 h-14 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${uploadingRef ? "opacity-50" : ""}`}>
+                            <ImagePlus size={14} className="text-zinc-400" strokeWidth={1.5} />
+                            <span className="text-xs text-zinc-400 font-inter mt-0.5">{uploadingRef ? "..." : "+"}</span>
+                            <input ref={fileRef} type="file" accept="image/*" onChange={handleRefImageUpload} disabled={uploadingRef} className="hidden" data-testid="ref-image-input" />
+                          </label>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {studio?.deposit_required && (
+                  <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
+                    <span>Anzahlung erforderlich:</span>
+                    <span className="font-semibold text-zinc-900">€{studio.deposit_amount || 50}</span>
+                  </div>
+                )}
+                {bookingSuccess ? (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
+                    <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
+                    <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">{t("booking.success")}</p>
+                    <p className="text-xs text-emerald-600 font-inter">ID: {bookingSuccess.booking_id}</p>
+                    <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">Zum Dashboard</button>
+                  </motion.div>
+                ) : (
+                  <motion.button whileTap={{ scale: 0.97 }} onClick={handleBook}
+                    disabled={!selectedSlot || bookingLoading}
+                    className="btn-primary w-full justify-center disabled:opacity-40" data-testid="confirm-booking-btn">
+                    {bookingLoading ? t("common.loading") : t("booking.confirm")}
+                  </motion.button>
+                )}
+                {user && (
+                  <div className="w-full mt-3 py-3 px-4 bg-zinc-50 border border-zinc-100 rounded-xl flex items-start gap-2.5" data-testid="contact-studio-info">
+                    <MessageSquare size={14} strokeWidth={1.5} className="text-zinc-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-zinc-500 font-inter leading-relaxed">
+                      Nach deiner Buchung meldet sich das Studio direkt per Nachricht bei dir. Du findest das Gespräch dann unter <strong className="text-zinc-700">Nachrichten</strong>.
+                    </p>
+                  </div>
+                )}
+              </>)}
+
               </>
               )}
             </div>

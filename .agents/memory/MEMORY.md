@@ -1,1 +1,3 @@
 - [Airbnb design graduation](airbnb-design.md) — SearchPage + StudioCard + StudioPage graduated from v3 mockups; Tailwind already in frontend, no new deps needed.
+- [Capacity booking flow](capacity-booking.md) — tattoo bookings use capacity points (not time slots); POST /bookings/capacity is separate from POST /bookings.
+- [memdb filter fixes](memdb-filters.md) — memdb.py needed $options pass-through, $elemMatch, and numeric comparison fixes for all filters to work.

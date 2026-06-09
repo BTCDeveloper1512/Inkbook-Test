@@ -484,6 +484,14 @@ class ArtistUpdate(BaseModel):
 class BookingReschedule(BaseModel):
     new_slot_id: str
 
+class BookingCapacityCreate(BaseModel):
+    studio_id: str
+    date: str                        # ISO date e.g. "2026-06-15"
+    size_category: str               # mini | small | medium | large | xl
+    booking_type: str = "tattoo"
+    notes: str = ""
+    reference_images: List[str] = []
+
 class PushSubscription(BaseModel):
     endpoint: str
     keys: Dict[str, str]
@@ -1100,6 +1108,55 @@ async def get_available_dates(studio_id: str, year: int, month: int, slot_type: 
     result = await db.slots.aggregate(pipeline).to_list(100)
     return {"available_dates": [r["_id"] for r in result]}
 
+# ─── Capacity Calendar ────────────────────────────────────────────────────────
+_SIZE_CAPACITY: Dict[str, int] = {"mini": 1, "small": 2, "medium": 3, "large": 5, "xl": 8}
+_DAY_CAPACITY = 8
+
+@api_router.get("/studios/{studio_id}/capacity-calendar")
+async def get_capacity_calendar(studio_id: str, year: int, month: int):
+    """Returns per-day capacity status for a studio in a given month."""
+    import calendar as cal_mod
+    first_day = f"{year}-{month:02d}-01"
+    last_day_num = cal_mod.monthrange(year, month)[1]
+    last_day = f"{year}-{month:02d}-{last_day_num:02d}"
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    from_date = max(first_day, today_iso)
+
+    bookings = await db.bookings.find({
+        "studio_id": studio_id,
+        "date": {"$gte": from_date, "$lte": last_day},
+        "status": {"$in": ["pending", "confirmed"]},
+        "capacity_cost": {"$exists": True}
+    }).to_list(500)
+
+    used_by_date: Dict[str, int] = {}
+    for b in bookings:
+        d = b.get("date", "")
+        used_by_date[d] = used_by_date.get(d, 0) + int(b.get("capacity_cost", 0))
+
+    from datetime import date as date_type
+    from_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+    last_obj = datetime.strptime(last_day, "%Y-%m-%d").date()
+
+    result: Dict[str, Any] = {}
+    current = from_obj
+    while current <= last_obj:
+        iso = current.isoformat()
+        used = used_by_date.get(iso, 0)
+        remaining = _DAY_CAPACITY - used
+        if remaining <= 0:
+            status = "full"
+        elif remaining <= 2:
+            status = "small_only"
+        elif remaining <= 4:
+            status = "limited"
+        else:
+            status = "available"
+        result[iso] = {"used": used, "remaining": remaining, "status": status}
+        current += timedelta(days=1)
+
+    return {"dates": result, "day_capacity": _DAY_CAPACITY}
+
 @api_router.post("/studios/{studio_id}/slots")
 async def create_slot(studio_id: str, data: SlotCreate, current_user: dict = Depends(get_current_user)):
     studio = await db.studios.find_one({"studio_id": studio_id})
@@ -1127,6 +1184,73 @@ async def delete_slot(studio_id: str, slot_id: str, current_user: dict = Depends
     return {"message": "Slot deleted"}
 
 # ─── Bookings ─────────────────────────────────────────────────────────────────
+@api_router.post("/bookings/capacity")
+async def create_capacity_booking(data: BookingCapacityCreate, current_user: dict = Depends(get_current_user)):
+    """Creates a booking without a specific slot — studio confirms the time later."""
+    if data.size_category not in _SIZE_CAPACITY:
+        raise HTTPException(status_code=400, detail="Ungültige Tattoo-Größe")
+    studio = await db.studios.find_one({"studio_id": data.studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+
+    capacity_cost = _SIZE_CAPACITY[data.size_category]
+
+    # Check capacity for the requested day
+    existing = await db.bookings.find({
+        "studio_id": data.studio_id,
+        "date": data.date,
+        "status": {"$in": ["pending", "confirmed"]},
+        "capacity_cost": {"$exists": True}
+    }).to_list(100)
+    used = sum(int(b.get("capacity_cost", 0)) for b in existing)
+    remaining = _DAY_CAPACITY - used
+    if capacity_cost > remaining:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Nicht genug Kapazität. Noch {remaining} von {_DAY_CAPACITY} Punkten frei, dein Tattoo benötigt {capacity_cost}."
+        )
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    booking_doc = {
+        "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "user_name": current_user.get("name", ""),
+        "user_email": current_user.get("email", ""),
+        "studio_id": data.studio_id,
+        "studio_name": studio.get("name", ""),
+        "slot_id": None,
+        "date": data.date,
+        "start_time": None,
+        "end_time": None,
+        "booking_type": data.booking_type,
+        "size_category": data.size_category,
+        "capacity_cost": capacity_cost,
+        "notes": data.notes,
+        "reference_images": data.reference_images,
+        "status": "pending",
+        "payment_status": "unpaid",
+        "deposit_required": studio.get("deposit_required", False),
+        "deposit_amount": studio.get("deposit_amount", 50.0),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.bookings.insert_one(booking_doc)
+
+    studio_owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
+    if studio_owner and studio_owner.get("email"):
+        asyncio.create_task(send_email(
+            to=studio_owner["email"],
+            subject=f"Neue Buchungsanfrage – {current_user.get('name','Kunde')} · {data.date}",
+            html=booking_confirmation_studio_html(booking_doc)
+        ))
+    asyncio.create_task(send_push_notification(
+        user_id=studio.get("owner_id", ""),
+        title="Neue Buchungsanfrage",
+        body=f"{current_user.get('name','Kunde')} hat eine Anfrage für den {data.date} gestellt",
+        url="/studio-dashboard"
+    ))
+    booking_doc.pop("_id", None)
+    return booking_doc
+
 @api_router.post("/bookings")
 async def create_booking(data: BookingCreate, current_user: dict = Depends(get_current_user)):
     slot = await db.slots.find_one({"slot_id": data.slot_id, "studio_id": data.studio_id})
