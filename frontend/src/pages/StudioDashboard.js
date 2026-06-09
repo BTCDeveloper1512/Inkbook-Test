@@ -1729,6 +1729,33 @@ export default function StudioDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* Studio Räume */}
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Studio Räume</label>
+                  <p className="text-xs text-zinc-400 font-inter mb-3">Zeige Kunden dein Studio von innen – Räumlichkeiten, Ausstattung, Atmosphäre.</p>
+                  {(editForm.images || []).length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {(editForm.images || []).map((img, i) => (
+                        <div key={i} className="relative group aspect-video rounded-xl overflow-hidden">
+                          <img src={img} alt={`Raum ${i + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setEditForm(prev => ({ ...prev, images: prev.images.filter((_, j) => j !== i) }))}
+                            className="absolute top-1 right-1 w-5 h-5 bg-zinc-900/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={9} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className={`h-10 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex items-center justify-center cursor-pointer transition-colors gap-2 ${uploadingImg ? "opacity-50" : ""}`}>
+                    <Upload size={14} className="text-zinc-400" strokeWidth={1.5} />
+                    <span className="text-xs text-zinc-400 font-inter">{uploadingImg ? "Wird hochgeladen..." : "Raum-Foto hinzufügen"}</span>
+                    <input type="file" accept="image/*" onChange={handleImgUpload} className="hidden" disabled={uploadingImg} data-testid="room-image-upload-input" />
+                  </label>
+                </div>
               </div>
             </div>
 
