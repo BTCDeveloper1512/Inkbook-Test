@@ -185,21 +185,13 @@ export default function SearchPage() {
           </h1>
 
           {/* Search pill */}
-          <div className="inline-flex items-center rounded-full border border-zinc-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden bg-white">
-            <span className="flex items-center gap-1.5 px-5 py-3.5 text-sm font-semibold text-zinc-700 border-r border-zinc-100">
-              <MapPin size={14} className="text-zinc-400" />
-              {city || "Stadt"}
-            </span>
-            <span className="flex items-center gap-1.5 px-5 py-3.5 text-sm font-semibold text-zinc-700 border-r border-zinc-100">
-              <Calendar size={14} className="text-zinc-400" />
-              Datum
-            </span>
+          <div className="inline-flex items-center rounded-full border border-zinc-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden bg-white max-w-lg w-full">
             <input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && setSearch(inputValue)}
-              placeholder="Stil oder Studio..."
-              className="px-5 py-3.5 text-sm text-zinc-500 placeholder-zinc-400 outline-none bg-transparent min-w-36"
+              placeholder="Studioname, Stil oder Stadt..."
+              className="flex-1 px-6 py-3.5 text-sm text-zinc-700 placeholder-zinc-400 outline-none bg-transparent"
             />
             <button
               onClick={() => setSearch(inputValue)}

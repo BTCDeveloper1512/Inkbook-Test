@@ -69,18 +69,6 @@ def _match_value(doc_val, condition):
         elif op == "$ne":
             if _to_str(doc_val) == _to_str(val):
                 return False
-        elif op == "$gt":
-            if doc_val is None or str(doc_val) <= str(val):
-                return False
-        elif op == "$gte":
-            if doc_val is None or str(doc_val) < str(val):
-                return False
-        elif op == "$lt":
-            if doc_val is None or str(doc_val) >= str(val):
-                return False
-        elif op == "$lte":
-            if doc_val is None or str(doc_val) > str(val):
-                return False
         elif op == "$in":
             if _to_str(doc_val) not in [_to_str(v) for v in val]:
                 return False
@@ -98,8 +86,46 @@ def _match_value(doc_val, condition):
             flags = 0
             if condition.get("$options", "") and "i" in condition.get("$options", ""):
                 flags = re.IGNORECASE
-            if doc_val is None or not re.search(str(val), str(doc_val), flags):
+            if isinstance(doc_val, list):
+                if not any(re.search(str(val), str(item), flags) for item in doc_val):
+                    return False
+            elif doc_val is None or not re.search(str(val), str(doc_val), flags):
                 return False
+        elif op == "$options":
+            pass  # modifier for $regex, already consumed above
+        elif op == "$elemMatch":
+            if not isinstance(doc_val, list):
+                return False
+            if not any(_match_value(item, val) for item in doc_val):
+                return False
+        elif op == "$gt":
+            try:
+                if doc_val is None or float(doc_val) <= float(val):
+                    return False
+            except (TypeError, ValueError):
+                if doc_val is None or str(doc_val) <= str(val):
+                    return False
+        elif op == "$gte":
+            try:
+                if doc_val is None or float(doc_val) < float(val):
+                    return False
+            except (TypeError, ValueError):
+                if doc_val is None or str(doc_val) < str(val):
+                    return False
+        elif op == "$lt":
+            try:
+                if doc_val is None or float(doc_val) >= float(val):
+                    return False
+            except (TypeError, ValueError):
+                if doc_val is None or str(doc_val) >= str(val):
+                    return False
+        elif op == "$lte":
+            try:
+                if doc_val is None or float(doc_val) > float(val):
+                    return False
+            except (TypeError, ValueError):
+                if doc_val is None or str(doc_val) > str(val):
+                    return False
         else:
             return False
     return True
