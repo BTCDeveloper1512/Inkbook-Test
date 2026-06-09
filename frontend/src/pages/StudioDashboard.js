@@ -1753,7 +1753,7 @@ export default function StudioDashboard() {
                   <label className={`h-10 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-xl flex items-center justify-center cursor-pointer transition-colors gap-2 ${uploadingImg ? "opacity-50" : ""}`}>
                     <Upload size={14} className="text-zinc-400" strokeWidth={1.5} />
                     <span className="text-xs text-zinc-400 font-inter">{uploadingImg ? "Wird hochgeladen..." : "Raum-Foto hinzufügen"}</span>
-                    <input type="file" accept="image/*" onChange={handleImgUpload} className="hidden" disabled={uploadingImg} data-testid="room-image-upload-input" />
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImg} data-testid="room-image-upload-input" />
                   </label>
                 </div>
               </div>
