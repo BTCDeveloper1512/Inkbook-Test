@@ -9,7 +9,7 @@ export default function StudioCard({ studio, index = 0 }) {
   const [saved, setSaved] = useState(false);
 
   const startingPrice = studio.starting_price || priceStarting[studio.price_range] || null;
-  const imageSrc = studio.banner_image || studio.images?.[0] || null;
+  const imageSrc = studio.banner_image || null;
 
   return (
     <div

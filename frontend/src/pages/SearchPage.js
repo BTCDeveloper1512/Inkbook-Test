@@ -188,7 +188,10 @@ export default function SearchPage() {
           <div className="inline-flex items-center rounded-full border border-zinc-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden bg-white max-w-lg w-full">
             <input
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                if (e.target.value === "") setSearch("");
+              }}
               onKeyDown={(e) => e.key === "Enter" && setSearch(inputValue)}
               placeholder="Studioname, Stil oder Stadt..."
               className="flex-1 px-6 py-3.5 text-sm text-zinc-700 placeholder-zinc-400 outline-none bg-transparent"
