@@ -19,7 +19,34 @@ import BorderGlow from "../components/BorderGlow/BorderGlow";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const STYLES_LIST = ["Fine Line", "Blackwork", "Traditional", "Neo-Traditional", "Japanese", "Realism", "Portrait", "Geometric", "Watercolor", "Tribal", "Minimalist", "Color", "Abstract", "Surrealism", "Illustrative", "Black & Grey"];
-const statusColors = { pending: "bg-amber-50 text-amber-700 border-amber-200", confirmed: "bg-green-50 text-green-700 border-green-200", cancelled: "bg-red-50 text-red-700 border-red-200", completed: "bg-zinc-100 text-zinc-500 border-zinc-200" };
+const statusColors = {
+  pending:               "bg-amber-50 text-amber-700 border-amber-200",
+  pending_studio_review: "bg-amber-50 text-amber-700 border-amber-200",
+  under_review:          "bg-blue-50 text-blue-700 border-blue-200",
+  offer_sent:            "bg-violet-50 text-violet-700 border-violet-200",
+  waiting_for_deposit:   "bg-orange-50 text-orange-700 border-orange-200",
+  deposit_pending:       "bg-orange-50 text-orange-600 border-orange-200",
+  confirmed:             "bg-green-50 text-green-700 border-green-200",
+  completed:             "bg-zinc-100 text-zinc-500 border-zinc-200",
+  cancelled:             "bg-red-50 text-red-700 border-red-200",
+  customer_cancelled:    "bg-red-50 text-red-700 border-red-200",
+  studio_cancelled:      "bg-red-50 text-red-700 border-red-200",
+  no_show:               "bg-zinc-100 text-zinc-500 border-zinc-200",
+};
+const statusLabels = {
+  pending:               "Ausstehend",
+  pending_studio_review: "Neue Anfrage",
+  under_review:          "In Prüfung",
+  offer_sent:            "Angebot gesendet",
+  waiting_for_deposit:   "Wartet auf Anzahlung",
+  deposit_pending:       "Zahlung läuft",
+  confirmed:             "Bestätigt",
+  completed:             "Abgeschlossen",
+  cancelled:             "Storniert",
+  customer_cancelled:    "Vom Kunden storniert",
+  studio_cancelled:      "Vom Studio storniert",
+  no_show:               "Nicht erschienen",
+};
 
 function DepositCountdown({ deadlineAt }) {
   const [remaining, setRemaining] = React.useState("");
@@ -90,6 +117,9 @@ export default function StudioDashboard() {
   const [expandedInquiry, setExpandedInquiry] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showDepositPopup, setShowDepositPopup] = useState(false);
+  const [offerModal, setOfferModal] = useState(null);
+  const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
+  const [offerLoading, setOfferLoading] = useState(false);
 
   const fetchUnreadMessages = async () => {
     try {
@@ -230,6 +260,30 @@ export default function StudioDashboard() {
     } catch (e) {
       alert("Fehler beim Abschließen des Termins.");
     }
+  };
+
+  const handleCreateOffer = async () => {
+    if (!offerModal) return;
+    if (!offerForm.offer_date || !offerForm.offer_time || !offerForm.offer_total_price || !offerForm.offer_deposit_amount) {
+      alert("Bitte alle Pflichtfelder ausfüllen (Datum, Uhrzeit, Gesamtpreis, Anzahlung).");
+      return;
+    }
+    setOfferLoading(true);
+    try {
+      await axios.post(`${API}/bookings/${offerModal.booking_id}/offer`, {
+        offer_date: offerForm.offer_date,
+        offer_time: offerForm.offer_time,
+        offer_duration_min: parseInt(offerForm.offer_duration_min) || 120,
+        offer_total_price: parseFloat(offerForm.offer_total_price) || 0,
+        offer_deposit_amount: parseFloat(offerForm.offer_deposit_amount) || 0,
+        offer_notes: offerForm.offer_notes,
+      }, { withCredentials: true });
+      setOfferModal(null);
+      setOfferForm({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
+      fetchStats();
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler beim Erstellen des Angebots");
+    } finally { setOfferLoading(false); }
   };
 
   const handleContactCustomer = async (booking) => {
@@ -587,20 +641,23 @@ export default function StudioDashboard() {
   const isBookingToday = (b) => b.date === todayStr;
 
   // Use allStudioBookings (not limited upcoming_bookings) for the overview
-  const allActiveBookings = allStudioBookings.filter(b => ["pending", "confirmed"].includes(b.status));
+  const STUDIO_ACTIVE = ["pending","pending_studio_review","under_review","offer_sent","waiting_for_deposit","deposit_pending","confirmed"];
+  const STUDIO_CLOSED = ["cancelled","customer_cancelled","studio_cancelled","completed","no_show"];
+  const allActiveBookings = allStudioBookings.filter(b => STUDIO_ACTIVE.includes(b.status));
   const todayUpcoming = allActiveBookings
-    .filter(b => isBookingToday(b) && !isBookingPast(b))
+    .filter(b => isBookingToday(b) && !isBookingPast(b) && b.status === "confirmed")
     .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
   const futureUpcoming = allActiveBookings
-    .filter(b => b.date > todayStr)
+    .filter(b => (b.date || "") > todayStr && ["confirmed","waiting_for_deposit","deposit_pending"].includes(b.status))
     .sort((a, b) => a.date === b.date ? (a.start_time || "").localeCompare(b.start_time || "") : a.date.localeCompare(b.date));
+  const newRequests = allStudioBookings.filter(b => ["pending_studio_review","under_review","pending"].includes(b.status));
 
   // For bookings tab
   const activeBookings = allStudioBookings.filter(b =>
-    ["pending", "confirmed"].includes(b.status) && !isBookingPast(b)
+    STUDIO_ACTIVE.includes(b.status) && !isBookingPast(b)
   );
   const pastStudioBookings = allStudioBookings.filter(b =>
-    isBookingPast(b) || ["cancelled", "completed"].includes(b.status)
+    isBookingPast(b) || STUDIO_CLOSED.includes(b.status)
   );
 
   // Revenue calculations (only completed bookings)
@@ -1113,22 +1170,11 @@ export default function StudioDashboard() {
                         </div>
                         <div className="flex flex-col items-end gap-2 min-w-[120px]">
                           {/* Status badge */}
-                          {b.status === "completed" ? (
-                            <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 font-inter flex items-center gap-1">
-                              <CheckCircle size={10} strokeWidth={2} /> Abgeschlossen
-                            </span>
-                          ) : (
-                            <>
-                              {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
-                                ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
-                                : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
-                                    {b.status === "pending" ? "Ausstehend" : b.status === "confirmed" ? "Bestätigt" : "Abgesagt"}
-                                  </span>
-                              }
-                              {b.status === "confirmed" && b.payment_status === "paid" && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
-                              )}
-                            </>
+                          <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
+                            {statusLabels[b.status] || b.status}
+                          </span>
+                          {b.status === "confirmed" && b.payment_status === "paid" && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
                           )}
 
                           {/* Revenue display for completed bookings */}
@@ -1143,20 +1189,14 @@ export default function StudioDashboard() {
                             <div className="flex flex-col items-end gap-1.5 mt-0.5">
                               <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-inter">€</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0,00"
+                                <input type="number" min="0" step="0.01" placeholder="0,00"
                                   value={revenueInputs[b.booking_id] || ""}
                                   onChange={e => setRevenueInputs(prev => ({ ...prev, [b.booking_id]: e.target.value }))}
                                   className="pl-7 pr-3 py-1.5 w-28 text-xs border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 text-zinc-900 bg-white transition-colors"
                                   data-testid={`revenue-input-${b.booking_id}`}
                                 />
                               </div>
-                              <motion.button
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => handleCompleteBooking(b.booking_id)}
+                              <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleCompleteBooking(b.booking_id)}
                                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors w-28 justify-center"
                                 data-testid={`complete-booking-btn-${b.booking_id}`}
                               >
@@ -1165,24 +1205,37 @@ export default function StudioDashboard() {
                             </div>
                           )}
 
-                          {b.status === "pending" && !isPast && !(b.deposit_required && b.payment_status !== "paid") && (
-                            <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-booking-studio-${b.booking_id}`}>Bestätigen</motion.button>
+                          {/* Offer button for new requests */}
+                          {["pending_studio_review","under_review","pending"].includes(b.status) && !isPast && (
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => { setOfferModal(b); setOfferForm(f => ({ ...f, offer_date: b.date || "", offer_notes: "" })); }}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 text-white rounded-full font-inter hover:bg-violet-700 transition-colors"
+                              data-testid={`create-offer-btn-${b.booking_id}`}
+                            >
+                              📋 Angebot erstellen
+                            </motion.button>
                           )}
-                          {/* VIDEO CONSULTATION HIDDEN
-                          {b.booking_type === "video_consultation" && b.status === "confirmed" && !isPast && (
-                            <div className="flex flex-col items-end gap-1">
-                              <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors" data-testid={`video-join-btn-${b.booking_id}`}>
-                                <Video size={12} strokeWidth={2} /> Beitreten
-                              </motion.button>
-                              <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
-                            </div>
+
+                          {/* No-show for past confirmed */}
+                          {b.status === "confirmed" && isPast && (
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={async () => {
+                                if (!window.confirm("Kunden als nicht erschienen markieren? Die Anzahlung wird einbehalten.")) return;
+                                try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { alert(e.response?.data?.detail || "Fehler"); }
+                              }}
+                              className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                              data-testid={`no-show-btn-${b.booking_id}`}
+                            >
+                              ⚠️ No-Show
+                            </motion.button>
                           )}
-                          */}
-                          {["pending", "confirmed"].includes(b.status) && !isPast && (
+
+                          {/* Cancel button for all active non-past bookings */}
+                          {STUDIO_ACTIVE.includes(b.status) && !isPast && (
                             <motion.button whileTap={{ scale: 0.95 }}
                               onClick={async () => {
                                 if (!window.confirm("Buchung wirklich stornieren?")) return;
-                                try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {}
+                                try { await axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }); fetchStats(); } catch {}
                               }}
                               className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
                               data-testid={`cancel-booking-studio-${b.booking_id}`}
@@ -2156,6 +2209,79 @@ export default function StudioDashboard() {
                 <p className="text-center text-[10px] text-zinc-300 font-inter mt-3 leading-relaxed">
                   Bei aktivierten Anzahlungen werden 5 % Gebühren automatisch von jeder Anzahlung abgezogen — kein manueller Aufwand, kaum spürbar.
                 </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Offer creation modal */}
+      <AnimatePresence>
+        {offerModal && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={e => { if (e.target === e.currentTarget) setOfferModal(null); }}
+          >
+            <motion.div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md"
+              initial={{ scale: 0.92, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-playfair font-semibold text-xl text-zinc-900">Angebot erstellen</h3>
+                <button onClick={() => setOfferModal(null)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors"><X size={18} strokeWidth={2} /></button>
+              </div>
+              <p className="text-xs text-zinc-500 font-inter mb-4">
+                Für <span className="font-semibold text-zinc-800">{offerModal.user_name}</span>
+                {offerModal.notes && <> · <span className="italic">"{offerModal.notes}"</span></>}
+              </p>
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Datum *</label>
+                    <input type="date" value={offerForm.offer_date} onChange={e => setOfferForm(f => ({ ...f, offer_date: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Uhrzeit *</label>
+                    <input type="time" value={offerForm.offer_time} onChange={e => setOfferForm(f => ({ ...f, offer_time: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Minuten)</label>
+                  <input type="number" min="30" step="30" value={offerForm.offer_duration_min} onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Gesamtpreis (€) *</label>
+                    <input type="number" min="0" step="5" placeholder="150" value={offerForm.offer_total_price} onChange={e => setOfferForm(f => ({ ...f, offer_total_price: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Anzahlung (€) *</label>
+                    <input type="number" min="0.50" step="5" placeholder="50" value={offerForm.offer_deposit_amount} onChange={e => setOfferForm(f => ({ ...f, offer_deposit_amount: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Notiz (optional)</label>
+                  <textarea rows={2} value={offerForm.offer_notes} onChange={e => setOfferForm(f => ({ ...f, offer_notes: e.target.value }))}
+                    placeholder="Weitere Informationen für den Kunden..."
+                    className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors resize-none" />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setOfferModal(null)}
+                  className="flex-1 px-4 py-2.5 border border-zinc-200 text-sm font-inter text-zinc-600 rounded-xl hover:bg-zinc-50 transition-colors">
+                  Abbrechen
+                </button>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={handleCreateOffer} disabled={offerLoading}
+                  className="flex-1 px-4 py-2.5 bg-zinc-900 text-white text-sm font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {offerLoading ? "Wird gesendet…" : "Angebot senden"}
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

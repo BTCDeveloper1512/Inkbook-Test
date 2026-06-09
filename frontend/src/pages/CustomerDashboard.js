@@ -16,11 +16,21 @@ import { motion, AnimatePresence } from "framer-motion";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const statusConfig = {
-  pending:   { label: "Ausstehend",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  confirmed: { label: "Bestätigt",     cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  cancelled: { label: "Storniert",     cls: "bg-red-50 text-red-700 border-red-200" },
-  completed: { label: "Abgeschlossen", cls: "bg-zinc-100 text-zinc-500 border-zinc-200" }
+  pending:               { label: "Ausstehend",           cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  pending_studio_review: { label: "In Bearbeitung",       cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  under_review:          { label: "Wird geprüft",         cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  offer_sent:            { label: "Angebot wartet",       cls: "bg-violet-50 text-violet-700 border-violet-200" },
+  waiting_for_deposit:   { label: "Anzahlung fällig",     cls: "bg-orange-50 text-orange-700 border-orange-200" },
+  deposit_pending:       { label: "Zahlung läuft",        cls: "bg-orange-50 text-orange-600 border-orange-200" },
+  confirmed:             { label: "Bestätigt",            cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  cancelled:             { label: "Storniert",            cls: "bg-red-50 text-red-700 border-red-200" },
+  customer_cancelled:    { label: "Von dir storniert",    cls: "bg-red-50 text-red-700 border-red-200" },
+  studio_cancelled:      { label: "Vom Studio storniert", cls: "bg-red-50 text-red-700 border-red-200" },
+  completed:             { label: "Abgeschlossen",        cls: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+  no_show:               { label: "Nicht erschienen",     cls: "bg-zinc-100 text-zinc-500 border-zinc-200" },
 };
+const ACTIVE_STATUSES = ["pending","pending_studio_review","under_review","offer_sent","waiting_for_deposit","deposit_pending","confirmed"];
+const CLOSED_STATUSES = ["cancelled","customer_cancelled","studio_cancelled","completed","no_show"];
 
 function ReviewModal({ booking, onClose, onSubmitted }) {
   const [rating, setRating] = useState(0);
@@ -208,6 +218,7 @@ export default function CustomerDashboard() {
   const [tick, setTick] = useState(0); // forces re-render every minute for live time checks
   const [conversations, setConversations] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [acceptingOffer, setAcceptingOffer] = useState("");
 
   const fetchReviewedIds = async () => {
     try {
@@ -288,10 +299,21 @@ export default function CustomerDashboard() {
     setCancelLoading(bookingId);
     try {
       await axios.put(`${API}/bookings/${bookingId}/status`, null, {
-        params: { status: "cancelled" }, withCredentials: true
+        params: { status: "customer_cancelled" }, withCredentials: true
       });
       fetchStats();
     } catch {} finally { setCancelLoading(""); }
+  };
+
+  const handleAcceptOffer = async (booking) => {
+    setAcceptingOffer(booking.booking_id);
+    try {
+      await axios.post(`${API}/bookings/${booking.booking_id}/accept-offer`, {}, { withCredentials: true });
+      fetchStats();
+      handlePayDeposit(booking);
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler beim Annehmen des Angebots");
+    } finally { setAcceptingOffer(""); }
   };
 
   const handleOpenReschedule = async (booking) => {
@@ -340,19 +362,22 @@ export default function CustomerDashboard() {
 
   const allBookings = stats?.all_bookings || [];
 
-  // Today = pending/confirmed, today's date, end_time not yet passed – sorted by start_time
+  // Today = confirmed bookings today, end_time not yet passed
   const todayBookings = allBookings
-    .filter(b => ["pending", "confirmed"].includes(b.status) && isBookingToday(b) && !isBookingPast(b))
+    .filter(b => ["confirmed"].includes(b.status) && isBookingToday(b) && !isBookingPast(b))
     .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
-  // Upcoming = pending/confirmed, strictly future date – sorted by date then time
+  // Upcoming = all active statuses (requests, offers, confirmed) that are not yet past
   const upcoming = allBookings
-    .filter(b => ["pending", "confirmed"].includes(b.status) && b.date > today)
-    .sort((a, b) => a.date === b.date ? (a.start_time || "").localeCompare(b.start_time || "") : a.date.localeCompare(b.date));
-  // Past = cancelled/completed OR (pending/confirmed with end time passed)
+    .filter(b => ACTIVE_STATUSES.includes(b.status) && !isBookingPast(b))
+    .sort((a, b) => {
+      const da = a.offer_date || a.date || "";
+      const db2 = b.offer_date || b.date || "";
+      return da === db2 ? (a.start_time || "").localeCompare(b.start_time || "") : da.localeCompare(db2);
+    });
+  // Past = closed statuses OR active status with past date/time
   const past = allBookings.filter(b =>
-    ["cancelled", "completed"].includes(b.status) ||
-    (["pending", "confirmed"].includes(b.status) && isBookingPast(b)) ||
-    (["pending", "confirmed"].includes(b.status) && b.date < today)
+    CLOSED_STATUSES.includes(b.status) ||
+    (ACTIVE_STATUSES.includes(b.status) && isBookingPast(b))
   );
   const justCancelled = allBookings.filter(b => b.status === "cancelled" && b.cancelled_by === "studio" && !dismissedCancellations.includes(b.booking_id));
 
@@ -627,7 +652,10 @@ export default function CustomerDashboard() {
                 {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).map((booking, i) => {
                   const isPast = isBookingPast(booking);
                   const sc = statusConfig[isPast && booking.status === "confirmed" ? "completed" : booking.status] || statusConfig.pending;
-                  const isCancelledByStudio = booking.status === "cancelled" && booking.cancelled_by === "studio";
+                  const isCancelledByStudio = booking.status === "studio_cancelled" || (booking.status === "cancelled" && booking.cancelled_by === "studio");
+                  const isClosed = CLOSED_STATUSES.includes(booking.status);
+                  const isOffer = booking.status === "offer_sent";
+                  const needsDeposit = booking.status === "waiting_for_deposit" || (["pending","confirmed"].includes(booking.status) && booking.deposit_required && booking.payment_status !== "paid");
                   return (
                     <motion.div key={booking.booking_id}
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -639,20 +667,22 @@ export default function CustomerDashboard() {
                       <span className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center ${isCancelledByStudio ? "bg-red-400" : "bg-zinc-900"}`} />
                       {/* Date block */}
                       <div className={`flex-shrink-0 w-12 text-center rounded-xl py-2 px-1 border ${
-                        booking.status === "cancelled" ? "bg-zinc-50 border-zinc-200" :
-                        isPast ? "bg-zinc-200 border-zinc-200" : "bg-zinc-900 border-zinc-900"
+                        isClosed ? "bg-zinc-50 border-zinc-200" :
+                        isPast ? "bg-zinc-200 border-zinc-200" :
+                        isOffer ? "bg-violet-600 border-violet-600" :
+                        "bg-zinc-900 border-zinc-900"
                       }`}>
-                        <p className={`text-lg font-playfair font-bold leading-none ${booking.status === "cancelled" || isPast ? "text-zinc-400" : "text-white"}`}>
-                          {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit" }) : "—"}
+                        <p className={`text-lg font-playfair font-bold leading-none ${isClosed || isPast ? "text-zinc-400" : "text-white"}`}>
+                          {(booking.offer_date || booking.date) ? new Date((booking.offer_date || booking.date) + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit" }) : "—"}
                         </p>
-                        <p className={`text-xs font-inter leading-none mt-0.5 ${booking.status === "cancelled" || isPast ? "text-zinc-400" : "text-zinc-300"}`}>
-                          {booking.date ? new Date(booking.date + "T12:00:00").toLocaleDateString("de-DE", { month: "short" }) : ""}
+                        <p className={`text-xs font-inter leading-none mt-0.5 ${isClosed || isPast ? "text-zinc-400" : "text-zinc-300"}`}>
+                          {(booking.offer_date || booking.date) ? new Date((booking.offer_date || booking.date) + "T12:00:00").toLocaleDateString("de-DE", { month: "short" }) : ""}
                         </p>
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-1">
-                          <h4 className={`font-playfair font-semibold text-base break-words leading-snug ${booking.status === "cancelled" ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
+                          <h4 className={`font-playfair font-semibold text-base break-words leading-snug ${isClosed ? "text-zinc-400 line-through" : "text-zinc-900"}`}>
                             {booking.studio_name}
                           </h4>
                           <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border font-inter ${sc.cls}`}
@@ -669,20 +699,16 @@ export default function CustomerDashboard() {
                         )}
 
                         <p className="text-sm text-zinc-500 font-inter">
-                          {booking.start_time} – {booking.end_time}
+                          {booking.offer_time
+                            ? `${booking.offer_time} Uhr · ${booking.offer_duration_min || 120} min`
+                            : booking.start_time
+                            ? `${booking.start_time} – ${booking.end_time}`
+                            : "Anfrage wird geprüft"}
                         </p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-xs text-zinc-400 font-inter flex items-center gap-1">
-                            {booking.booking_type === "video_consultation"
-                              ? <Video size={11} strokeWidth={1.5} />
-                              : booking.booking_type === "consultation"
-                              ? <MessageSquare size={11} strokeWidth={1.5} />
-                              : <Scissors size={11} strokeWidth={1.5} />}
-                            {booking.booking_type === "video_consultation"
-                              ? "Videoberatung"
-                              : booking.booking_type === "consultation"
-                              ? "Beratung"
-                              : "Tattoo-Session"}
+                            <Scissors size={11} strokeWidth={1.5} />
+                            {booking.booking_type === "video_consultation" ? "Videoberatung" : booking.booking_type === "consultation" ? "Beratung" : "Tattoo-Session"}
                           </span>
                           {booking.payment_status === "paid" && (
                             <span className="text-xs text-emerald-600 font-inter font-semibold flex items-center gap-1">
@@ -691,35 +717,36 @@ export default function CustomerDashboard() {
                           )}
                         </div>
 
-                        {/* Actions – unterhalb, flex-wrap für Mobile */}
-                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                        {/* VIDEO CONSULTATION HIDDEN – auskommentiert bis Feature wieder aktiviert wird
-                        {booking.booking_type === "video_consultation" && !isPast && (
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {booking.status === "confirmed" ? (
-                              <>
-                                <button
-                                  onClick={() => setVideoCallBooking(booking)}
-                                  className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
-                                  data-testid={`video-join-btn-${booking.booking_id}`}
-                                >
-                                  <Video size={11} strokeWidth={1.5} /> Video beitreten
-                                </button>
-                                <VideoCountdownTimer
-                                  booking={booking}
-                                  onAutoCancel={fetchStats}
-                                />
-                              </>
-                            ) : (
-                              <span className="px-2.5 py-1 bg-zinc-100 text-zinc-500 text-xs font-inter rounded-full flex items-center gap-1 whitespace-nowrap">
-                                <Video size={10} strokeWidth={1.5} /> Videoberatung
-                              </span>
-                            )}
+                        {/* Offer details card */}
+                        {isOffer && (
+                          <div className="mt-2.5 bg-violet-50 border border-violet-200 rounded-xl p-3">
+                            <p className="text-xs font-inter font-semibold text-violet-800 mb-1.5">🎨 Studio-Angebot erhalten</p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-inter text-violet-700">
+                              <span>Datum</span><span className="font-semibold">{booking.offer_date ? new Date(booking.offer_date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" }) : "–"}</span>
+                              <span>Uhrzeit</span><span className="font-semibold">{booking.offer_time ? `${booking.offer_time} Uhr` : "–"}</span>
+                              <span>Gesamtpreis</span><span className="font-semibold">{booking.offer_total_price ? `€ ${parseFloat(booking.offer_total_price).toLocaleString("de-DE", { minimumFractionDigits: 2 })}` : "–"}</span>
+                              <span>Anzahlung</span><span className="font-semibold">{booking.offer_deposit_amount ? `€ ${parseFloat(booking.offer_deposit_amount).toLocaleString("de-DE", { minimumFractionDigits: 2 })}` : "–"}</span>
+                            </div>
+                            {booking.offer_notes && <p className="text-xs font-inter text-violet-600 mt-1.5 italic">"{booking.offer_notes}"</p>}
                           </div>
                         )}
-                        */}
 
-                        {booking.deposit_required && ["pending", "confirmed"].includes(booking.status) && booking.payment_status !== "paid" && (
+                        {/* Actions */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+
+                        {/* Accept offer + pay deposit */}
+                        {isOffer && !isPast && (
+                          <button onClick={() => handleAcceptOffer(booking)}
+                            disabled={acceptingOffer === booking.booking_id}
+                            className="px-3 py-1.5 bg-violet-600 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-violet-700 transition-colors whitespace-nowrap disabled:opacity-50"
+                            data-testid={`accept-offer-btn-${booking.booking_id}`}
+                          >
+                            <CheckCircle size={11} strokeWidth={1.5} /> {acceptingOffer === booking.booking_id ? "..." : "Angebot annehmen & bezahlen"}
+                          </button>
+                        )}
+
+                        {/* Regular deposit payment */}
+                        {needsDeposit && !isOffer && booking.payment_status !== "paid" && (
                           <button onClick={() => handlePayDeposit(booking)}
                             className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
                             data-testid={`pay-deposit-btn-${booking.booking_id}`}
@@ -728,8 +755,8 @@ export default function CustomerDashboard() {
                           </button>
                         )}
 
-                        {/* Umbuchen + Absagen: nur wenn Termin NOCH nicht abgelaufen */}
-                        {["pending", "confirmed"].includes(booking.status) && !isPast && (
+                        {/* Reschedule: only for confirmed slot bookings */}
+                        {booking.status === "confirmed" && !isPast && (
                           <button onClick={() => handleOpenReschedule(booking)}
                             className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-600 rounded-full flex items-center gap-1.5 hover:border-zinc-900 hover:text-zinc-900 transition-all whitespace-nowrap"
                             data-testid={`reschedule-btn-${booking.booking_id}`}
@@ -737,7 +764,7 @@ export default function CustomerDashboard() {
                             <RefreshCw size={11} strokeWidth={1.5} /> Umbuchen
                           </button>
                         )}
-                        {["pending", "confirmed"].includes(booking.status) && !isPast && (
+                        {ACTIVE_STATUSES.includes(booking.status) && !isPast && (
                           <button onClick={() => handleCancelBooking(booking.booking_id)}
                             disabled={cancelLoading === booking.booking_id}
                             className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-500 rounded-full hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"

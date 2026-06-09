@@ -488,9 +488,25 @@ class BookingCapacityCreate(BaseModel):
     studio_id: str
     date: str                        # ISO date e.g. "2026-06-15"
     size_category: str               # mini | small | medium | large | xl
+    body_part: str = ""              # Körperstelle
     booking_type: str = "tattoo"
     notes: str = ""
     reference_images: List[str] = []
+
+class BookingOffer(BaseModel):
+    offer_date: str                  # ISO date "2026-06-18"
+    offer_time: str                  # "13:00"
+    offer_duration_min: int = 120
+    offer_total_price: float
+    offer_deposit_amount: float
+    offer_notes: str = ""
+
+# Active statuses (used for filtering)
+_ACTIVE_STATUSES = [
+    "pending_studio_review", "under_review", "offer_sent",
+    "waiting_for_deposit", "deposit_pending", "confirmed",
+    "pending",  # backward compat
+]
 
 class PushSubscription(BaseModel):
     endpoint: str
@@ -1108,6 +1124,39 @@ async def get_available_dates(studio_id: str, year: int, month: int, slot_type: 
     result = await db.slots.aggregate(pipeline).to_list(100)
     return {"available_dates": [r["_id"] for r in result]}
 
+# ─── Booking system-message helper ───────────────────────────────────────────
+async def _post_system_message(customer_id: str, studio_owner_id: str, text: str):
+    """Inserts an automated InkBook system message in the customer↔studio conversation."""
+    if not customer_id or not studio_owner_id:
+        return
+    participants = sorted([customer_id, studio_owner_id])
+    conv_id = f"conv_{'_'.join(participants)}"
+    msg_doc = {
+        "message_id": f"msg_{uuid.uuid4().hex[:12]}",
+        "sender_id": "inkbook_system",
+        "sender_name": "InkBook",
+        "recipient_id": customer_id,
+        "content": text,
+        "image_url": None,
+        "slot_offer": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False,
+        "is_system": True,
+        "conv_id": conv_id,
+    }
+    await db.messages.insert_one(msg_doc)
+    await db.conversations.update_one(
+        {"conv_id": conv_id},
+        {"$set": {
+            "conv_id": conv_id,
+            "participants": participants,
+            "last_message": text,
+            "last_message_at": datetime.now(timezone.utc).isoformat(),
+            "last_sender_id": "inkbook_system",
+        }},
+        upsert=True
+    )
+
 # ─── Capacity Calendar ────────────────────────────────────────────────────────
 _SIZE_CAPACITY: Dict[str, int] = {"mini": 1, "small": 2, "medium": 3, "large": 5, "xl": 8}
 _DAY_CAPACITY = 8
@@ -1199,7 +1248,7 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     existing = await db.bookings.find({
         "studio_id": data.studio_id,
         "date": data.date,
-        "status": {"$in": ["pending", "confirmed"]},
+        "status": {"$in": _ACTIVE_STATUSES},
         "capacity_cost": {"$exists": True}
     }).to_list(100)
     used = sum(int(b.get("capacity_cost", 0)) for b in existing)
@@ -1224,10 +1273,11 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         "end_time": None,
         "booking_type": data.booking_type,
         "size_category": data.size_category,
+        "body_part": data.body_part,
         "capacity_cost": capacity_cost,
         "notes": data.notes,
         "reference_images": data.reference_images,
-        "status": "pending",
+        "status": "pending_studio_review",
         "payment_status": "unpaid",
         "deposit_required": studio.get("deposit_required", False),
         "deposit_amount": studio.get("deposit_amount", 50.0),
@@ -1235,7 +1285,15 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     }
     await db.bookings.insert_one(booking_doc)
 
-    studio_owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
+    owner_id = studio.get("owner_id", "")
+    # Auto-create conversation thread with system message
+    asyncio.create_task(_post_system_message(
+        customer_id=user_id,
+        studio_owner_id=owner_id,
+        text=f"📩 Neue Anfrage eingegangen: {data.size_category.capitalize()}-Tattoo am {data.date}. Das Studio meldet sich bald mit einem Angebot."
+    ))
+
+    studio_owner = await db.users.find_one({"user_id": owner_id})
     if studio_owner and studio_owner.get("email"):
         asyncio.create_task(send_email(
             to=studio_owner["email"],
@@ -1243,7 +1301,7 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
             html=booking_confirmation_studio_html(booking_doc)
         ))
     asyncio.create_task(send_push_notification(
-        user_id=studio.get("owner_id", ""),
+        user_id=owner_id,
         title="Neue Buchungsanfrage",
         body=f"{current_user.get('name','Kunde')} hat eine Anfrage für den {data.date} gestellt",
         url="/studio-dashboard"
@@ -1341,49 +1399,60 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
         raise HTTPException(status_code=404, detail="Booking not found")
     user_id = current_user.get("id") or current_user.get("user_id")
     studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
-    if booking.get("user_id") != user_id and (not studio or studio.get("owner_id") != user_id):
+    is_studio_owner = bool(studio and studio.get("owner_id") == user_id)
+    is_customer = booking.get("user_id") == user_id
+    if not is_studio_owner and not is_customer:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
-    update_fields = {"status": status}
+
+    # Resolve directional cancellation aliases
+    effective_status = status
     if status == "cancelled":
-        is_studio_cancel = studio and studio.get("owner_id") == user_id
-        update_fields["cancelled_by"] = "studio" if is_studio_cancel else "customer"
-    if status == "confirmed" and booking.get("deposit_required") and studio:
+        effective_status = "studio_cancelled" if is_studio_owner else "customer_cancelled"
+
+    update_fields = {"status": effective_status}
+    is_cancellation = effective_status in ["cancelled", "customer_cancelled", "studio_cancelled"]
+    if is_cancellation:
+        update_fields["cancelled_by"] = "studio" if is_studio_owner else "customer"
+        update_fields["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+        await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
+    if effective_status == "confirmed" and booking.get("deposit_required") and studio:
         deadline_hours = studio.get("deposit_deadline_hours") or 0
         if deadline_hours > 0:
             deadline_at = (datetime.now(timezone.utc) + timedelta(hours=deadline_hours)).isoformat()
             update_fields["deposit_deadline_at"] = deadline_at
+
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_fields})
-    if status == "cancelled":
-        await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
 
-    # Send status update email + push notification to customer
-    user_email = booking.get("user_email", "")
     customer_id = booking.get("user_id", "")
+    user_email = booking.get("user_email", "")
     studio_name = booking.get("studio_name", "")
+    owner_id = studio.get("owner_id", "") if studio else ""
 
-    if user_email and status in ["confirmed", "cancelled"]:
+    if user_email and (effective_status == "confirmed" or is_cancellation):
         asyncio.create_task(send_email(
             to=user_email,
-            subject=f"Termin {'bestätigt' if status == 'confirmed' else 'abgesagt'} – {studio_name}",
-            html=booking_status_html(booking, status)
+            subject=f"Termin {'bestätigt' if effective_status == 'confirmed' else 'abgesagt'} – {studio_name}",
+            html=booking_status_html(booking, "confirmed" if effective_status == "confirmed" else "cancelled")
         ))
 
-    if customer_id and status in ["confirmed", "cancelled"]:
-        push_title = f"Termin {'bestätigt' if status == 'confirmed' else 'storniert'} – {studio_name}"
-        push_body = f"{booking.get('date', '')} um {booking.get('start_time', '')} {'wurde bestätigt ✓' if status == 'confirmed' else 'wurde leider storniert'}"
-        asyncio.create_task(send_push_notification(
-            user_id=customer_id, title=push_title, body=push_body, url="/dashboard"
-        ))
+    if customer_id and (effective_status == "confirmed" or is_cancellation):
+        push_title = f"Termin {'bestätigt' if effective_status == 'confirmed' else 'storniert'} – {studio_name}"
+        push_body = f"{booking.get('date', '')} {'bestätigt ✓' if effective_status == 'confirmed' else 'wurde leider storniert'}"
+        asyncio.create_task(send_push_notification(user_id=customer_id, title=push_title, body=push_body, url="/dashboard"))
 
-    # Also push to studio owner if customer cancels
-    if studio and status == "cancelled" and booking.get("user_id") == user_id:
+    # Push studio owner when customer cancels
+    if owner_id and effective_status == "customer_cancelled":
         asyncio.create_task(send_push_notification(
-            user_id=studio.get("owner_id", ""),
-            title=f"Buchung storniert",
+            user_id=owner_id,
+            title="Buchung storniert",
             body=f"{booking.get('user_name','Kunde')} hat den Termin am {booking.get('date','')} storniert",
             url="/studio-dashboard"
         ))
+
+    # System chat message for cancellations
+    if customer_id and owner_id and is_cancellation:
+        msg = "❌ Termin vom Studio abgesagt." if effective_status == "studio_cancelled" else "❌ Termin vom Kunden abgesagt."
+        asyncio.create_task(_post_system_message(customer_id=customer_id, studio_owner_id=owner_id, text=msg))
 
     return {"message": "Booking updated"}
 
@@ -1404,6 +1473,137 @@ async def complete_booking(booking_id: str, request: Request, current_user: dict
         {"$set": {"status": "completed", "revenue": revenue, "completed_at": datetime.now(timezone.utc).isoformat()}}
     )
     return {"success": True}
+
+# ─── Booking Offer / Accept / No-Show ────────────────────────────────────────
+
+@api_router.post("/bookings/{booking_id}/offer")
+async def create_booking_offer(booking_id: str, offer: BookingOffer, current_user: dict = Depends(get_current_user)):
+    """Studio creates a date/price offer for a customer booking request."""
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if booking.get("status") not in ["pending_studio_review", "under_review", "pending"]:
+        raise HTTPException(status_code=400, detail="Angebot kann nur für neue Anfragen erstellt werden")
+
+    platform_fee_pct = 5.0
+    platform_fee_amount = round(offer.offer_deposit_amount * platform_fee_pct / 100, 2)
+
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {
+            "status": "offer_sent",
+            "offer_date": offer.offer_date,
+            "offer_time": offer.offer_time,
+            "offer_duration_min": offer.offer_duration_min,
+            "offer_total_price": offer.offer_total_price,
+            "offer_deposit_amount": offer.offer_deposit_amount,
+            "offer_notes": offer.offer_notes,
+            "platform_fee_pct": platform_fee_pct,
+            "platform_fee_amount": platform_fee_amount,
+            "offer_created_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+
+    customer_id = booking.get("user_id", "")
+    owner_id = studio.get("owner_id", "")
+    try:
+        date_fmt = datetime.strptime(offer.offer_date, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except Exception:
+        date_fmt = offer.offer_date
+
+    asyncio.create_task(_post_system_message(
+        customer_id=customer_id,
+        studio_owner_id=owner_id,
+        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · €{offer.offer_deposit_amount:.0f} Anzahlung"
+    ))
+    asyncio.create_task(send_push_notification(
+        user_id=customer_id,
+        title=f"Angebot erhalten – {studio.get('name', '')}",
+        body=f"{date_fmt} um {offer.offer_time} Uhr · €{offer.offer_total_price:.0f} gesamt",
+        url="/dashboard"
+    ))
+
+    return {"message": "Angebot erstellt", "status": "offer_sent"}
+
+
+@api_router.post("/bookings/{booking_id}/accept-offer")
+async def accept_booking_offer(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Customer accepts the studio's offer → waiting_for_deposit."""
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if booking.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if booking.get("status") != "offer_sent":
+        raise HTTPException(status_code=400, detail="Kein offenes Angebot vorhanden")
+
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {
+            "status": "waiting_for_deposit",
+            "offer_accepted_at": datetime.now(timezone.utc).isoformat(),
+            "deposit_required": True,
+            "deposit_amount": booking.get("offer_deposit_amount", booking.get("deposit_amount", 50.0)),
+            "date": booking.get("offer_date", booking.get("date", "")),
+            "start_time": booking.get("offer_time", booking.get("start_time", "")),
+        }}
+    )
+
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    owner_id = studio.get("owner_id", "") if studio else ""
+    asyncio.create_task(_post_system_message(
+        customer_id=user_id,
+        studio_owner_id=owner_id,
+        text="✅ Angebot angenommen. Bitte die Anzahlung bezahlen, um den Termin zu sichern."
+    ))
+    asyncio.create_task(send_push_notification(
+        user_id=owner_id,
+        title="Angebot angenommen",
+        body=f"{booking.get('user_name','Kunde')} hat dein Angebot angenommen",
+        url="/studio-dashboard"
+    ))
+
+    return {"message": "Angebot angenommen", "status": "waiting_for_deposit"}
+
+
+@api_router.post("/bookings/{booking_id}/no-show")
+async def mark_no_show(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Studio marks a confirmed booking as no-show. Deposit is forfeited."""
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if booking.get("status") != "confirmed":
+        raise HTTPException(status_code=400, detail="Nur bestätigte Buchungen können als No-Show markiert werden")
+
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {"status": "no_show", "no_show_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    customer_id = booking.get("user_id", "")
+    owner_id = studio.get("owner_id", "")
+    asyncio.create_task(_post_system_message(
+        customer_id=customer_id,
+        studio_owner_id=owner_id,
+        text="⚠️ Nicht erschienen: Kunde ist nicht zum Termin gekommen. Die Anzahlung wurde einbehalten."
+    ))
+
+    return {"message": "No-Show markiert", "status": "no_show"}
 
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
 @api_router.post("/messages/unread-count")
@@ -1923,8 +2123,14 @@ async def create_payment_session(data: PaymentCreateRequest, request: Request, c
     bank_iban = studio.get("bank_iban", "") if studio else ""
     bank_bic = studio.get("bank_bic", "") if studio else ""
 
-    # Use studio-configured deposit amount (min €0.50 for Stripe)
-    raw_amount = studio.get("deposit_amount", 0.50) if studio else 0.50
+    # Prefer offer_deposit_amount (set after customer accepts offer), fall back to studio setting
+    offer_deposit = booking.get("offer_deposit_amount")
+    if offer_deposit and float(offer_deposit) > 0:
+        raw_amount = float(offer_deposit)
+    elif studio:
+        raw_amount = studio.get("deposit_amount", 0.50)
+    else:
+        raw_amount = 0.50
     amount = max(float(raw_amount), 0.50)
     amount_cents = int(round(amount * 100))
 
@@ -2051,6 +2257,28 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
                     to=user_email,
                     subject=f"Dein Termin ist final gesichert – {booking.get('studio_name', '')}",
                     html=payment_confirmed_html(booking)
+                ))
+            # System message confirming deposit
+            studio_obj = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+            owner_id = studio_obj.get("owner_id", "") if studio_obj else ""
+            customer_id = booking.get("user_id", "")
+            if customer_id and owner_id:
+                bdate = booking.get("offer_date") or booking.get("date", "")
+                btime = booking.get("offer_time") or booking.get("start_time", "")
+                try:
+                    date_fmt = datetime.strptime(bdate, "%Y-%m-%d").strftime("%d.%m.%Y")
+                except Exception:
+                    date_fmt = bdate
+                asyncio.create_task(_post_system_message(
+                    customer_id=customer_id, studio_owner_id=owner_id,
+                    text=f"💳 Anzahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist jetzt bestätigt ✓"
+                ))
+            if studio_obj and owner_id:
+                asyncio.create_task(send_push_notification(
+                    user_id=owner_id,
+                    title="Anzahlung erhalten",
+                    body=f"{booking.get('user_name','Kunde')} hat die Anzahlung bezahlt",
+                    url="/studio-dashboard"
                 ))
 
     return {"payment_status": "paid"}

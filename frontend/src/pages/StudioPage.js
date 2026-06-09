@@ -434,6 +434,7 @@ export default function StudioPage() {
       .then(r => r.json()).then(setLottieData).catch(() => {});
   }, []);
   const [sizeCategory, setSizeCategory] = useState(null);
+  const [bodyPart, setBodyPart] = useState("");
   const [capacityData, setCapacityData] = useState({});
 
   const today = new Date();
@@ -535,6 +536,7 @@ export default function StudioPage() {
         studio_id: studioId,
         date: selectedDate,
         size_category: sizeCategory,
+        body_part: bodyPart,
         booking_type: bookingType,
         notes: bookingNotes,
         reference_images: refImages,
@@ -962,7 +964,21 @@ export default function StudioPage() {
                   </div>
                 </div>
 
-                {/* Step 2: Calendar (shown after size selected) */}
+                {/* Step 2: Körperstelle */}
+                {sizeCategory && (
+                  <div className="mb-5">
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Körperstelle <span className="text-zinc-300 font-normal normal-case tracking-normal">(optional)</span></p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {["Arm","Unterarm","Oberschenkel","Wade","Rücken","Brust","Nacken","Rippen","Hand","Knöchel","Schulter","Hüfte"].map(part => (
+                        <button key={part} onClick={() => setBodyPart(p => p === part ? "" : part)}
+                          className={`px-2 py-2 rounded-xl border text-xs font-inter font-medium transition-all ${bodyPart === part ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white text-zinc-700"}`}
+                        >{part}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Calendar (shown after size selected) */}
                 {sizeCategory && (
                   <div className="mb-5">
                     <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum</p>
