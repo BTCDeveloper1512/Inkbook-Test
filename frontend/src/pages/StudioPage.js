@@ -48,7 +48,7 @@ function Lightbox({ imgs, idx, onClose, onPrev, onNext, onJump }) {
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
-        style={{ background: "rgba(0,0,0,0.96)" }}
+        style={{ background: "#000" }}
         onClick={onClose}
       >
         {/* Close */}
@@ -622,11 +622,11 @@ export default function StudioPage() {
             )}
           </div>
           {/* Two stacked smaller images */}
-          <div className="grid grid-rows-2 gap-2">
+          <div className="grid grid-rows-2 gap-2 h-full overflow-hidden">
             {[allImages[1], allImages[2]].map((img, i) => (
               <div
                 key={i}
-                className="overflow-hidden bg-zinc-100 cursor-pointer"
+                className="overflow-hidden bg-zinc-100 cursor-pointer min-h-0"
                 onClick={() => allImages.length > 0 && setLightbox({ imgs: allImages, idx: i + 1 })}
               >
                 {img ? (

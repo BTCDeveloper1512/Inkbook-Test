@@ -12,22 +12,6 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const STYLES = [
-  { label: "Fine Line", count: 67 },
-  { label: "Minimalist", count: 73 },
-  { label: "Blackwork", count: 55 },
-  { label: "Traditional", count: 48 },
-  { label: "Neo-Traditional", count: 34 },
-  { label: "Realism", count: 61 },
-  { label: "Japanese", count: 38 },
-  { label: "Geometric", count: 41 },
-  { label: "Watercolor", count: 29 },
-  { label: "Tribal", count: 18 },
-  { label: "Illustrative", count: 45 },
-  { label: "Portrait", count: 22 },
-];
-
-const CITIES = ["Berlin", "Hamburg", "München", "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Leipzig"];
 
 const PRICE_OPTIONS = [
   { value: "budget", label: "Bis €100", sub: "Einstiegspreise" },
@@ -125,6 +109,23 @@ export default function SearchPage() {
   const [minRating, setMinRating] = useState("");
   const [openPanel, setOpenPanel] = useState(null);
   const [sortBy, setSortBy] = useState("recommended");
+  const [filterData, setFilterData] = useState({ cities: [], styles: [] });
+
+  useEffect(() => {
+    axios.get(`${API}/studios`).then(({ data }) => {
+      const cities = [...new Set(data.map((s) => s.city).filter(Boolean))].sort();
+      const styleCounts = {};
+      data.forEach((s) =>
+        (s.styles || []).forEach((st) => {
+          styleCounts[st] = (styleCounts[st] || 0) + 1;
+        })
+      );
+      const styles = Object.entries(styleCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, count]) => ({ label, count }));
+      setFilterData({ cities, styles });
+    }).catch(() => {});
+  }, []);
 
   const fetchStudios = async (overrides = {}) => {
     setLoading(true);
@@ -239,7 +240,7 @@ export default function SearchPage() {
             >
               Alle Städte
             </button>
-            {CITIES.map((c) => (
+            {filterData.cities.map((c) => (
               <button
                 key={c}
                 onClick={() => { setCity(c); setOpenPanel(null); fetchStudios({ city: c }); }}
@@ -271,7 +272,7 @@ export default function SearchPage() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-1.5 w-72">
-              {STYLES.map((s) => (
+              {filterData.styles.map((s) => (
                 <button
                   key={s.label}
                   onClick={() => toggleStyle(s.label)}
