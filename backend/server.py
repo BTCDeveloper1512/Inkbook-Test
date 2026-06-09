@@ -1145,8 +1145,16 @@ async def _post_system_message(customer_id: str, studio_owner_id: str, text: str
         "conv_id": conv_id,
     }
     await db.messages.insert_one(msg_doc)
+
+    # Find existing conversation by participants (handles old docs where conv_id may be None)
+    all_user_convs = await db.conversations.find({"participants": participants[0]}).to_list(200)
+    existing_conv = next(
+        (c for c in all_user_convs if set(c.get("participants", [])) == set(participants)),
+        None
+    )
+    filter_dict = {"_id": existing_conv["_id"]} if existing_conv else {"conv_id": conv_id}
     await db.conversations.update_one(
-        {"conv_id": conv_id},
+        filter_dict,
         {"$set": {
             "conv_id": conv_id,
             "participants": participants,
@@ -1174,7 +1182,7 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
     bookings = await db.bookings.find({
         "studio_id": studio_id,
         "date": {"$gte": from_date, "$lte": last_day},
-        "status": {"$in": ["pending", "confirmed"]},
+        "status": {"$in": _ACTIVE_STATUSES},
         "capacity_cost": {"$exists": True}
     }).to_list(500)
 
