@@ -24,7 +24,9 @@ const RATING_OPTIONS = [
   { value: "4.9", label: "4.9+" },
   { value: "4.8", label: "4.8+" },
   { value: "4.5", label: "4.5+" },
-  { value: "4", label: "4.0+" },
+  { value: "4.0", label: "4.0+" },
+  { value: "3.5", label: "3.5+" },
+  { value: "3.0", label: "3.0+" },
 ];
 
 const AVAIL_OPTIONS = ["Diese Woche", "Nächste Woche", "Diesen Monat", "Flexible Termine"];
@@ -102,6 +104,7 @@ export default function SearchPage() {
 
   const [studios, setStudios] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [inputValue, setInputValue] = useState(searchParams.get("search") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [city, setCity] = useState("");
   const [activeStyles, setActiveStyles] = useState([]);
@@ -111,6 +114,7 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState("recommended");
   const [filterData, setFilterData] = useState({ cities: [], styles: [] });
 
+  // Populate filter options from all studios on mount
   useEffect(() => {
     axios.get(`${API}/studios`).then(({ data }) => {
       const cities = [...new Set(data.map((s) => s.city).filter(Boolean))].sort();
@@ -127,48 +131,34 @@ export default function SearchPage() {
     }).catch(() => {});
   }, []);
 
-  const fetchStudios = async (overrides = {}) => {
+  // Single effect — re-runs whenever any filter changes
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    try {
-      const params = {};
-      const s = overrides.search !== undefined ? overrides.search : search;
-      const c = overrides.city !== undefined ? overrides.city : city;
-      const st = overrides.style !== undefined ? overrides.style : activeStyles[0] || "";
-      const pr = overrides.priceRange !== undefined ? overrides.priceRange : priceRange;
-      const mr = overrides.minRating !== undefined ? overrides.minRating : minRating;
-      if (s) params.search = s;
-      if (c) params.city = c;
-      if (st) params.style = st;
-      if (pr) params.price_range = pr;
-      if (mr) params.min_rating = mr;
-      const { data } = await axios.get(`${API}/studios`, { params });
-      setStudios(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchStudios(); }, [city, priceRange, minRating]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchStudios(); }, []);
+    const params = {};
+    if (search) params.search = search;
+    if (city) params.city = city;
+    if (activeStyles.length > 0) params.style = activeStyles[0];
+    if (priceRange) params.price_range = priceRange;
+    if (minRating) params.min_rating = minRating;
+    axios.get(`${API}/studios`, { params })
+      .then(({ data }) => { if (!cancelled) setStudios(data); })
+      .catch(console.error)
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [search, city, activeStyles, priceRange, minRating]);
 
   const toggleStyle = (s) => {
-    const next = activeStyles.includes(s)
-      ? activeStyles.filter((x) => x !== s)
-      : [...activeStyles, s];
-    setActiveStyles(next);
-    fetchStudios({ style: next[0] || "" });
+    setActiveStyles((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
   };
 
   const toggle = (name) => setOpenPanel((p) => (p === name ? null : name));
 
   const clearAll = () => {
     setCity(""); setActiveStyles([]); setPriceRange(""); setMinRating("");
-    fetchStudios({ city: "", style: "", priceRange: "", minRating: "" });
+    setSearch(""); setInputValue("");
   };
 
   const activeCount = [city, priceRange, minRating].filter(Boolean).length + activeStyles.length;
@@ -205,14 +195,14 @@ export default function SearchPage() {
               Datum
             </span>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && fetchStudios()}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && setSearch(inputValue)}
               placeholder="Stil oder Studio..."
               className="px-5 py-3.5 text-sm text-zinc-500 placeholder-zinc-400 outline-none bg-transparent min-w-36"
             />
             <button
-              onClick={() => fetchStudios()}
+              onClick={() => setSearch(inputValue)}
               className="m-1.5 w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center hover:bg-zinc-700 transition-colors shrink-0"
             >
               <Search size={15} className="text-white" strokeWidth={2.5} />
@@ -233,7 +223,7 @@ export default function SearchPage() {
           >
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Stadt</p>
             <button
-              onClick={() => { setCity(""); setOpenPanel(null); fetchStudios({ city: "" }); }}
+              onClick={() => { setCity(""); setOpenPanel(null); }}
               className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors mb-1 ${
                 !city ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
               }`}
@@ -243,7 +233,7 @@ export default function SearchPage() {
             {filterData.cities.map((c) => (
               <button
                 key={c}
-                onClick={() => { setCity(c); setOpenPanel(null); fetchStudios({ city: c }); }}
+                onClick={() => { setCity(c); setOpenPanel(null); }}
                 className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${
                   city === c ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
                 }`}
@@ -264,7 +254,7 @@ export default function SearchPage() {
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tätowierstil</p>
               {activeStyles.length > 0 && (
                 <button
-                  onClick={() => { setActiveStyles([]); fetchStudios({ style: "" }); }}
+                  onClick={() => setActiveStyles([])}
                   className="text-xs font-semibold text-zinc-900 underline"
                 >
                   Löschen
@@ -393,7 +383,7 @@ export default function SearchPage() {
           {city && (
             <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
               {city}
-              <button onClick={() => { setCity(""); fetchStudios({ city: "" }); }}>
+              <button onClick={() => setCity("")}>
                 <X size={10} />
               </button>
             </span>
@@ -407,7 +397,7 @@ export default function SearchPage() {
           {priceRange && (
             <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
               {PRICE_OPTIONS.find((p) => p.value === priceRange)?.label}
-              <button onClick={() => { setPriceRange(""); fetchStudios({ priceRange: "" }); }}>
+              <button onClick={() => setPriceRange("")}>
                 <X size={10} />
               </button>
             </span>
@@ -415,7 +405,7 @@ export default function SearchPage() {
           {minRating && (
             <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
               {minRating}+ ★
-              <button onClick={() => { setMinRating(""); fetchStudios({ minRating: "" }); }}>
+              <button onClick={() => setMinRating("")}>
                 <X size={10} />
               </button>
             </span>

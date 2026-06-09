@@ -945,27 +945,25 @@ async def list_studios(
     min_rating: Optional[float] = None,
     search: Optional[str] = None,
     skip: int = 0,
-    limit: int = 20
+    limit: int = 200
 ):
-    query: Dict[str, Any] = {}
+    query: Dict[str, Any] = {"is_active": {"$ne": False}}
     if city:
         query["city"] = {"$regex": city, "$options": "i"}
     if style:
-        query["styles"] = {"$in": [style]}
+        query["styles"] = {"$elemMatch": {"$regex": f"^{style}$", "$options": "i"}}
     if price_range:
         query["price_range"] = price_range
+    if min_rating:
+        query["avg_rating"] = {"$gte": min_rating}
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
             {"description": {"$regex": search, "$options": "i"}},
             {"city": {"$regex": search, "$options": "i"}}
         ]
-    
+
     studios = await db.studios.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
-    
-    if min_rating:
-        studios = [s for s in studios if s.get("avg_rating", 0) >= min_rating]
-    
     return studios
 
 @api_router.get("/studios/{studio_id}")
