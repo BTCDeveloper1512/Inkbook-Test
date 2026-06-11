@@ -1446,10 +1446,13 @@ async def delete_slot(studio_id: str, slot_id: str, current_user: dict = Depends
 
 # ─── Calendar Blocks (manual studio blocking) ─────────────────────────────────
 _BLOCK_TYPE_LABELS = {
-    "busy":     "Belegt",
-    "vacation": "Urlaub",
-    "limited":  "Begrenzt",
-    "private":  "Privat",
+    "busy":       "Belegt",
+    "vacation":   "Urlaub",
+    "limited":    "Begrenzt",
+    "private":    "Privat",
+    "full":       "Ausgebucht",
+    "small_only": "Nur klein",
+    "available":  "Verfügbar",
 }
 
 @api_router.get("/studios/{studio_id}/calendar-blocks")
