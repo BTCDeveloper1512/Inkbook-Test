@@ -1393,11 +1393,15 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
         remaining = _DAY_CAPACITY - used
         if iso in manual_blocks:
             btype = manual_blocks[iso]
-            if btype in ("busy", "private"):
+            if btype in ("busy", "private", "full"):
                 status = "full"
             elif btype == "vacation":
                 status = "vacation"
-            else:
+            elif btype == "small_only":
+                status = "small_only"
+            elif btype == "available":
+                status = "available"
+            else:  # "limited"
                 status = "limited"
             result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype}
         else:

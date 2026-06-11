@@ -79,12 +79,13 @@ export default function StudioDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   // Calendar blocks (manual studio blocking)
   const [calBlocks, setCalBlocks] = useState([]);
+  const [calCapData, setCalCapData] = useState({});
   const now0 = new Date();
   const [calBlockMonth, setCalBlockMonth] = useState(now0.getMonth() + 1);
   const [calBlockYear, setCalBlockYear] = useState(now0.getFullYear());
   const [calBlockPickDate, setCalBlockPickDate] = useState(null);
   const [calBlockPickModal, setCalBlockPickModal] = useState(false);
-  const [calBlockPickType, setCalBlockPickType] = useState("busy");
+  const [calBlockPickType, setCalBlockPickType] = useState("full");
   const [calBlockPickNote, setCalBlockPickNote] = useState("");
   const [calBlockSaving, setCalBlockSaving] = useState(false);
   // Bookings calendar
@@ -150,6 +151,11 @@ export default function StudioDashboard() {
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
     return () => { clearInterval(pollInterval); clearInterval(msgInterval); clearInterval(tickInterval); };
   }, []);
+
+  useEffect(() => {
+    const studioId = stats?.studio?.studio_id;
+    if (studioId) fetchCalCapacity(studioId, calBlockYear, calBlockMonth);
+  }, [calBlockMonth, calBlockYear, stats?.studio?.studio_id]); // eslint-disable-line
 
   const fetchSubscription = async () => {
     try {
@@ -327,6 +333,7 @@ export default function StudioDashboard() {
       setStats(data);
       if (data.has_studio && data.studio) {
         fetchCalBlocks(data.studio.studio_id);
+        fetchCalCapacity(data.studio.studio_id, calBlockYear, calBlockMonth);
         fetchConnectStatus();
         const firstLoad = !inquiriesInitialized.current;
         if (firstLoad) inquiriesInitialized.current = true;
@@ -422,6 +429,13 @@ export default function StudioDashboard() {
     } catch {}
   };
 
+  const fetchCalCapacity = async (studioId, year, month) => {
+    try {
+      const { data } = await axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params: { year, month } });
+      setCalCapData(data.dates || {});
+    } catch {}
+  };
+
   const handleSaveCalBlock = async () => {
     if (!calBlockPickDate) return;
     const studioId = stats?.studio?.studio_id;
@@ -432,7 +446,7 @@ export default function StudioDashboard() {
         block_type: calBlockPickType,
         note: calBlockPickNote,
       }, { withCredentials: true });
-      await fetchCalBlocks(studioId);
+      await Promise.all([fetchCalBlocks(studioId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth)]);
       setCalBlockPickModal(false);
       setCalBlockPickDate(null);
       setCalBlockPickNote("");
@@ -445,7 +459,8 @@ export default function StudioDashboard() {
     const studioId = stats?.studio?.studio_id;
     try {
       await axios.delete(`${API}/studios/${studioId}/calendar-blocks/${blockId}`, { withCredentials: true });
-      await fetchCalBlocks(studioId);
+      const sId = studioId;
+      await Promise.all([fetchCalBlocks(sId), fetchCalCapacity(sId, calBlockYear, calBlockMonth)]);
     } catch {}
   };
 
@@ -1020,15 +1035,25 @@ export default function StudioDashboard() {
         {/* Kalender Tab — manual calendar blocking */}
         {activeTab === "kalender" && (() => {
           const BLOCK_TYPES = [
-            { id: "busy",     label: "Belegt",    desc: "Bereits vergeben",       dot: "bg-zinc-900" },
-            { id: "vacation", label: "Urlaub",    desc: "Urlaub / geschlossen",   dot: "bg-amber-500" },
-            { id: "limited",  label: "Begrenzt",  desc: "Nur noch wenig Kapazität", dot: "bg-orange-500" },
-            { id: "private",  label: "Privat",    desc: "Privater Termin",        dot: "bg-indigo-500" },
+            { id: "available", label: "Verfügbar",   desc: "Kapazität freigeben / erzwingen", dot: "bg-emerald-400" },
+            { id: "limited",   label: "Begrenzt",    desc: "Begrenzte Kapazität",             dot: "bg-amber-400"   },
+            { id: "small_only",label: "Nur klein",   desc: "Nur kleine Tattoos möglich",      dot: "bg-blue-400"    },
+            { id: "full",      label: "Ausgebucht",  desc: "Tag vollständig blockieren",      dot: "bg-zinc-400"    },
+            { id: "vacation",  label: "Urlaub",      desc: "Urlaub / geschlossen",            dot: "bg-orange-300"  },
           ];
-          const dotCls = { busy: "bg-zinc-900", vacation: "bg-amber-500", limited: "bg-orange-500", private: "bg-indigo-500" };
-          const bgCls  = { busy: "bg-zinc-900/5 border-zinc-300",   vacation: "bg-amber-50 border-amber-300",
-                           limited: "bg-orange-50 border-orange-300", private: "bg-indigo-50 border-indigo-300" };
-          const textCls = { busy: "text-zinc-800", vacation: "text-amber-800", limited: "text-orange-800", private: "text-indigo-800" };
+          const dotCls  = { available: "bg-emerald-400", limited: "bg-amber-400", small_only: "bg-blue-400", full: "bg-zinc-400", vacation: "bg-orange-300", busy: "bg-zinc-400", private: "bg-zinc-400" };
+          const bgCls   = { available: "bg-emerald-50 border-emerald-200", limited: "bg-amber-50 border-amber-200", small_only: "bg-blue-50 border-blue-200", full: "bg-zinc-100 border-zinc-300", vacation: "bg-orange-50 border-orange-200", busy: "bg-zinc-100 border-zinc-300", private: "bg-zinc-100 border-zinc-300" };
+          const textCls = { available: "text-emerald-800", limited: "text-amber-800", small_only: "text-blue-800", full: "text-zinc-600", vacation: "text-orange-800", busy: "text-zinc-600", private: "text-zinc-600" };
+
+          // Capacity dot color from API status (for non-blocked days)
+          const capDotCls = (status) => {
+            if (status === "available")  return "bg-emerald-400";
+            if (status === "limited")    return "bg-amber-400";
+            if (status === "small_only") return "bg-blue-400";
+            if (status === "full")       return "bg-zinc-300";
+            if (status === "vacation")   return "bg-orange-300";
+            return "bg-emerald-400";
+          };
 
           const blocksByDate = {};
           calBlocks.forEach(b => { blocksByDate[b.date] = b; });
@@ -1076,7 +1101,7 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
-              {/* Legend */}
+              {/* Legend — same as customer view */}
               <div className="flex flex-wrap gap-2">
                 {BLOCK_TYPES.map(bt => (
                   <div key={bt.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-zinc-100 shadow-sm">
@@ -1084,9 +1109,8 @@ export default function StudioDashboard() {
                     <span className="text-[11px] font-inter text-zinc-600">{bt.label}</span>
                   </div>
                 ))}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-zinc-100 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="text-[11px] font-inter text-zinc-600">Buchung (System)</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-zinc-100 shadow-sm opacity-60">
+                  <span className="text-[11px] font-inter text-zinc-400 italic">= wie Kunden sehen</span>
                 </div>
               </div>
 
@@ -1104,21 +1128,30 @@ export default function StudioDashboard() {
                     if (!day) return <div key={`empty-${i}`} />;
                     const iso = `${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
                     const block = blocksByDate[iso];
+                    const capDay = calCapData[iso];
                     const isToday = iso === todayIso;
                     const isPast = iso < todayIso;
+                    // Determine dot: manual block wins, else use capacity status
+                    const dotColor = block
+                      ? dotCls[block.block_type] || "bg-zinc-400"
+                      : capDay
+                        ? capDotCls(capDay.status)
+                        : isPast ? "bg-zinc-200" : "bg-emerald-400";
+                    const blockType = block?.block_type;
+                    const hasBg = !!block;
                     return (
                       <button
                         key={iso}
                         onClick={() => openDay(iso)}
                         className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-sm font-inter
                           ${isPast ? "opacity-40 cursor-default" : "hover:scale-105 cursor-pointer"}
-                          ${block ? `${bgCls[block.block_type]} border` : isToday ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 border border-transparent"}
+                          ${hasBg ? `${bgCls[blockType]} border` : isToday ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 border border-transparent"}
                         `}
                         disabled={isPast}
-                        title={block ? `${block.block_type}${block.note ? ` – ${block.note}` : ""}` : "Tag bearbeiten"}
+                        title={block ? `${BLOCK_TYPES.find(t=>t.id===blockType)?.label || blockType}${block.note ? ` – ${block.note}` : ""}` : capDay ? `Kapazität: ${capDay.status}` : "Tag bearbeiten"}
                       >
-                        <span className={`text-xs font-semibold ${block ? textCls[block.block_type] : isToday ? "text-white" : "text-zinc-700"}`}>{day}</span>
-                        {block && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotCls[block.block_type]}`} />}
+                        <span className={`text-xs font-semibold ${hasBg ? textCls[blockType] : isToday ? "text-white" : "text-zinc-700"}`}>{day}</span>
+                        {!isPast && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isToday && !hasBg ? "bg-white/60" : dotColor}`} />}
                       </button>
                     );
                   })}
