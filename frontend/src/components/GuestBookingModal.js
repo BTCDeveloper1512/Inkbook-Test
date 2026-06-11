@@ -188,10 +188,10 @@ export default function GuestBookingModal({ studio, onClose }) {
                 </div>
 
                 {/* Wished date range */}
-                <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
+                <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <Calendar size={13} className="text-zinc-400" strokeWidth={1.5} />
-                    <label className="text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400">Wunschzeitraum <span className="normal-case font-normal">(optional)</span></label>
+                    <Calendar size={13} className="text-blue-500" strokeWidth={1.5} />
+                    <label className="text-xs font-inter font-semibold tracking-widest uppercase text-blue-600">Wunschzeitraum</label>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>

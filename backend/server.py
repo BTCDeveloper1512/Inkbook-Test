@@ -1401,13 +1401,13 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
                 remaining = 0
             elif btype == "small_only":
                 status = "small_only"
-                remaining = min(remaining, 2)
+                remaining = max(0, 2 - used)
             elif btype == "available":
                 status = "available"
                 # remaining unchanged — force open
             else:  # "limited"
                 status = "limited"
-                remaining = min(remaining, 4)
+                remaining = max(0, 4 - used)
             result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype}
         else:
             if remaining <= 0:
@@ -1529,9 +1529,9 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         elif btype == "vacation":
             raise HTTPException(status_code=400, detail="Das Studio ist an diesem Tag im Urlaub.")
         elif btype == "small_only":
-            remaining = min(remaining, 2)
+            remaining = max(0, 2 - used)
         elif btype == "limited":
-            remaining = min(remaining, 4)
+            remaining = max(0, 4 - used)
         # "available" → no cap
 
     if capacity_cost > remaining:
@@ -1993,10 +1993,12 @@ async def get_messages(other_user_id: str, current_user: dict = Depends(get_curr
             {"_id": 0}
         ).sort("created_at", 1).to_list(500)
         return messages
+    conv_id = f"conv_{'_'.join(sorted([user_id, other_user_id]))}"
     messages = await db.messages.find(
         {"$or": [
             {"sender_id": user_id, "recipient_id": other_user_id},
-            {"sender_id": other_user_id, "recipient_id": user_id}
+            {"sender_id": other_user_id, "recipient_id": user_id},
+            {"is_system": True, "conv_id": conv_id}
         ]},
         {"_id": 0}
     ).sort("created_at", 1).to_list(500)

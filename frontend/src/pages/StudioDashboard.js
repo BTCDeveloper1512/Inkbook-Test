@@ -1159,37 +1159,55 @@ export default function StudioDashboard() {
               </div>
 
               {/* Block list */}
-              {calBlocks.filter(b => b.date.startsWith(`${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}`)).length > 0 && (
-                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-                  <div className="px-5 py-3 border-b border-zinc-50">
-                    <p className="text-xs font-inter font-semibold text-zinc-500 uppercase tracking-widest">Manuell blockierte Tage</p>
-                  </div>
-                  <div className="divide-y divide-zinc-50">
-                    {calBlocks
-                      .filter(b => b.date.startsWith(`${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}`))
-                      .map(b => {
-                        const bt = BLOCK_TYPES.find(t => t.id === b.block_type) || BLOCK_TYPES[0];
+              {(() => {
+                const monthPrefix = `${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}`;
+                const monthBlocks = calBlocks.filter(b => b.date.startsWith(monthPrefix));
+                if (!monthBlocks.length) return null;
+                return (
+                  <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                    <div className="px-5 py-3 border-b border-zinc-50 flex items-center justify-between">
+                      <p className="text-xs font-inter font-semibold text-zinc-500 uppercase tracking-widest">Manuelle Einträge</p>
+                      <span className="text-[11px] font-inter text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">{monthBlocks.length}</span>
+                    </div>
+                    <div className="divide-y divide-zinc-50/70">
+                      {monthBlocks.map(b => {
+                        const bt = BLOCK_TYPES.find(t => t.id === b.block_type) || { label: b.block_type, dot: "bg-zinc-400" };
                         const dateObj = new Date(b.date + "T12:00:00");
+                        const dayName = dateObj.toLocaleDateString("de-DE", { weekday: "short" });
+                        const dayNum  = dateObj.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
                         return (
-                          <div key={b.block_id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50/60 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotCls[b.block_type]}`} />
-                              <div>
-                                <p className="text-sm font-inter font-medium text-zinc-900">
-                                  {dateObj.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}
-                                </p>
-                                <p className="text-xs text-zinc-400 font-inter">{bt.label}{b.note ? ` · ${b.note}` : ""}</p>
-                              </div>
+                          <div key={b.block_id} className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50/70 transition-colors group">
+                            {/* Date badge */}
+                            <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex flex-col items-center justify-center flex-shrink-0">
+                              <span className="text-[9px] font-inter font-semibold text-zinc-400 uppercase leading-none">{dayName}</span>
+                              <span className="text-xs font-inter font-bold text-zinc-900 leading-tight">{dateObj.getDate()}</span>
                             </div>
-                            <button onClick={() => handleDeleteCalBlock(b.block_id)} className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-                              <Trash2 size={13} strokeWidth={1.5} />
-                            </button>
+                            {/* Color bar */}
+                            <div className={`w-1 h-8 rounded-full flex-shrink-0 ${dotCls[b.block_type] || "bg-zinc-400"}`} />
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-inter font-semibold text-zinc-900">{bt.label}</span>
+                                <span className="text-[10px] font-inter text-zinc-400">{dayNum}</span>
+                              </div>
+                              {b.note && <p className="text-[11px] text-zinc-400 font-inter truncate mt-0.5">{b.note}</p>}
+                            </div>
+                            {/* Actions */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openDay(b.date)} className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-all" title="Bearbeiten">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button onClick={() => handleDeleteCalBlock(b.block_id)} className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Entfernen">
+                                <Trash2 size={12} strokeWidth={1.5} />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Block pick modal */}
               <AnimatePresence>
@@ -1296,70 +1314,114 @@ export default function StudioDashboard() {
               for (let i = 0; i < offset; i++) cells.push(null);
               for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
+              const totalMonth = allBookings.filter(b => b.date?.startsWith(`${bookCalYear}-${String(bookCalMonth).padStart(2,"0")}`)).length;
+              const confirmedMonth = allBookings.filter(b => b.date?.startsWith(`${bookCalYear}-${String(bookCalMonth).padStart(2,"0")}`) && b.status === "confirmed").length;
+
               return (
-                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="font-playfair font-semibold text-base text-zinc-900 capitalize">{monthLabel}</p>
-                    <div className="flex items-center gap-1">
-                      <button onClick={prevMo} className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-sm transition-colors">‹</button>
-                      <button onClick={() => { setBookCalMonth(new Date().getMonth()+1); setBookCalYear(new Date().getFullYear()); setBookCalSelected(null); }} className="px-2 py-1 text-[10px] font-inter text-zinc-500 hover:text-zinc-900 transition-colors">Heute</button>
-                      <button onClick={nextMo} className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-sm transition-colors">›</button>
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                  {/* Calendar header */}
+                  <div className="px-5 pt-4 pb-3 border-b border-zinc-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-playfair font-semibold text-base text-zinc-900 capitalize">{monthLabel}</p>
+                        {totalMonth > 0 && (
+                          <p className="text-[11px] font-inter text-zinc-400 mt-0.5">
+                            <span className="text-emerald-600 font-semibold">{confirmedMonth}</span> bestätigt · <span className="text-amber-600 font-semibold">{totalMonth - confirmedMonth}</span> ausstehend
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={prevMo} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">‹</button>
+                        <button onClick={() => { setBookCalMonth(new Date().getMonth()+1); setBookCalYear(new Date().getFullYear()); setBookCalSelected(null); }} className="px-2.5 py-1 text-[10px] font-inter font-semibold text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors">Heute</button>
+                        <button onClick={nextMo} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">›</button>
+                      </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-7 mb-1">
-                    {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
-                      <div key={d} className="text-center text-[10px] font-inter font-semibold text-zinc-400 pb-1">{d}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-0.5">
-                    {cells.map((day, i) => {
-                      if (!day) return <div key={`e-${i}`} />;
-                      const iso = `${bookCalYear}-${String(bookCalMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-                      const bks = bookingsByDate[iso] || [];
-                      const isToday = iso === todayIso;
-                      const isSelected = bookCalSelected === iso;
-                      const confirmedCount = bks.filter(b => b.status === "confirmed").length;
-                      const pendingCount  = bks.filter(b => b.status === "pending").length;
-                      return (
-                        <button
-                          key={iso}
-                          onClick={() => setBookCalSelected(isSelected ? null : iso)}
-                          className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all
-                            ${isSelected ? "bg-zinc-900 text-white" : isToday ? "ring-2 ring-zinc-900 ring-offset-1" : bks.length > 0 ? "bg-zinc-50 hover:bg-zinc-100" : "hover:bg-zinc-50"}
-                          `}
-                        >
-                          <span className={`text-xs font-inter font-medium ${isSelected ? "text-white" : "text-zinc-700"}`}>{day}</span>
-                          {bks.length > 0 && !isSelected && (
-                            <div className="flex gap-0.5 mt-0.5">
-                              {confirmedCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                              {pendingCount > 0  && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-                            </div>
-                          )}
-                          {bks.length > 0 && isSelected && (
-                            <span className="text-[9px] text-white/70 font-inter">{bks.length}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {bookCalSelected && bookingsByDate[bookCalSelected]?.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-zinc-100 space-y-1.5">
-                      <p className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 mb-2">
-                        {new Date(bookCalSelected + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" })}
-                      </p>
-                      {bookingsByDate[bookCalSelected].map(b => (
-                        <div key={b.booking_id} className="flex items-center justify-between px-3 py-2 bg-zinc-50 rounded-xl">
-                          <div>
-                            <p className="text-xs font-inter font-semibold text-zinc-900">{b.user_name}</p>
-                            <p className="text-[10px] text-zinc-400 font-inter">{b.start_time || "–"} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
-                          </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-inter ${
-                            b.status === "confirmed" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                            b.status === "pending"   ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-zinc-100 text-zinc-500 border-zinc-200"
-                          }`}>{b.status === "confirmed" ? "Bestätigt" : b.status === "pending" ? "Ausstehend" : b.status}</span>
-                        </div>
+
+                  <div className="px-4 pt-3 pb-2">
+                    {/* Day headers */}
+                    <div className="grid grid-cols-7 mb-1">
+                      {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                        <div key={d} className="text-center text-[10px] font-inter font-semibold text-zinc-400 pb-1.5">{d}</div>
                       ))}
+                    </div>
+                    {/* Day cells */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={`e-${i}`} />;
+                        const iso = `${bookCalYear}-${String(bookCalMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                        const bks = bookingsByDate[iso] || [];
+                        const isToday = iso === todayIso;
+                        const isSelected = bookCalSelected === iso;
+                        const confirmedCount = bks.filter(b => b.status === "confirmed").length;
+                        const pendingCount  = bks.filter(b => b.status === "pending").length;
+                        const hasBookings = bks.length > 0;
+                        return (
+                          <button
+                            key={iso}
+                            onClick={() => setBookCalSelected(isSelected ? null : iso)}
+                            className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-xs font-inter
+                              ${isSelected ? "bg-zinc-900 shadow-md scale-105" : isToday ? "ring-2 ring-zinc-900 ring-offset-1 font-bold" : hasBookings ? "bg-zinc-50 hover:bg-zinc-100" : "hover:bg-zinc-50"}
+                            `}
+                          >
+                            <span className={`font-medium leading-none ${isSelected ? "text-white" : isToday ? "text-zinc-900" : "text-zinc-700"}`}>{day}</span>
+                            {hasBookings && (
+                              <div className="flex gap-0.5 mt-1">
+                                {Array.from({length: Math.min(confirmedCount, 3)}).map((_,k) => (
+                                  <span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSelected ? "bg-emerald-300" : "bg-emerald-500"}`} />
+                                ))}
+                                {Array.from({length: Math.min(pendingCount, 3)}).map((_,k) => (
+                                  <span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSelected ? "bg-amber-300" : "bg-amber-500"}`} />
+                                ))}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="px-5 pb-3 flex items-center gap-3">
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[10px] font-inter text-zinc-400">Bestätigt</span></div>
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[10px] font-inter text-zinc-400">Ausstehend</span></div>
+                  </div>
+
+                  {/* Selected day details */}
+                  {bookCalSelected && bookingsByDate[bookCalSelected]?.length > 0 && (
+                    <div className="border-t border-zinc-100">
+                      <div className="px-5 py-2.5 bg-zinc-50/80 flex items-center justify-between">
+                        <p className="text-[11px] font-inter font-semibold text-zinc-600 capitalize">
+                          {new Date(bookCalSelected + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" })}
+                        </p>
+                        <span className="text-[10px] font-inter text-zinc-400">{bookingsByDate[bookCalSelected].length} Buchung{bookingsByDate[bookCalSelected].length !== 1 ? "en" : ""}</span>
+                      </div>
+                      <div className="divide-y divide-zinc-50">
+                        {bookingsByDate[bookCalSelected].map(b => {
+                          const isConf = b.status === "confirmed";
+                          const isPend = b.status === "pending";
+                          return (
+                            <div key={b.booking_id} className="flex items-center gap-3 px-5 py-3">
+                              <div className={`w-1 h-8 rounded-full flex-shrink-0 ${isConf ? "bg-emerald-400" : isPend ? "bg-amber-400" : "bg-zinc-200"}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-inter font-semibold text-zinc-900 truncate">{b.user_name}</p>
+                                <p className="text-[10px] text-zinc-400 font-inter">{b.start_time || "Zeit ausstehend"} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}{b.size_category ? ` · ${b.size_category}` : ""}</p>
+                              </div>
+                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${
+                                isConf ? "bg-emerald-100 text-emerald-700" :
+                                isPend ? "bg-amber-100 text-amber-700" :
+                                "bg-zinc-100 text-zinc-500"
+                              }`}>{isConf ? "Bestätigt" : isPend ? "Ausstehend" : b.status}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {bookCalSelected && !bookingsByDate[bookCalSelected]?.length && (
+                    <div className="border-t border-zinc-100 px-5 py-4 text-center">
+                      <p className="text-xs font-inter text-zinc-400">Keine Buchungen an diesem Tag</p>
                     </div>
                   )}
                 </div>
