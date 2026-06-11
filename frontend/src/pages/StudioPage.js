@@ -983,7 +983,7 @@ export default function StudioPage() {
                   <div className="mb-5">
                     <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum</p>
                     <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-                      {[{color:"bg-emerald-400",label:"Verfügbar"},{color:"bg-amber-400",label:"Begrenzt"},{color:"bg-blue-400",label:"Nur klein"},{color:"bg-zinc-200",label:"Ausgebucht"}].map(l => (
+                      {[{color:"bg-emerald-400",label:"Verfügbar"},{color:"bg-amber-400",label:"Begrenzt"},{color:"bg-blue-400",label:"Nur klein"},{color:"bg-zinc-200",label:"Ausgebucht"},{color:"bg-orange-300",label:"Urlaub"}].map(l => (
                         <div key={l.label} className="flex items-center gap-1">
                           <span className={`w-2 h-2 rounded-full ${l.color}`} />
                           <span className="text-[10px] text-zinc-400 font-inter">{l.label}</span>
@@ -1008,12 +1008,24 @@ export default function StudioPage() {
                         const capDay = capacityData[iso];
                         const cost = SIZE_COST[sizeCategory] || 1;
                         const remaining = capDay ? capDay.remaining : (isPast ? 0 : DAY_CAPACITY);
-                        const canFit = !isPast && remaining >= cost;
-                        const dotColor = isSelected ? "bg-white/60" : !canFit ? "bg-zinc-200" : remaining >= 5 ? "bg-emerald-400" : remaining >= 3 ? "bg-amber-400" : "bg-blue-400";
+                        const isVacation = !isPast && capDay && capDay.status === "vacation";
+                        const canFit = !isPast && !isVacation && remaining >= cost;
+                        const dotColor = isSelected
+                          ? "bg-white/60"
+                          : isVacation
+                            ? "bg-orange-300"
+                            : !canFit
+                              ? "bg-zinc-200"
+                              : remaining >= 5
+                                ? "bg-emerald-400"
+                                : remaining >= 3
+                                  ? "bg-amber-400"
+                                  : "bg-blue-400";
                         return (
-                          <button key={iso} disabled={isPast || !canFit}
+                          <button key={iso} disabled={isPast || !canFit || isVacation}
+                            title={isVacation ? "Studio geschlossen (Urlaub)" : undefined}
                             onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
-                            className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
+                            className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-orange-50" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
                             data-testid={`date-btn-${iso}`}
                           >
                             <span>{day.getDate()}</span>
@@ -1030,17 +1042,30 @@ export default function StudioPage() {
                   {selectedDate && sizeCategory && (() => {
                     const capDay = capacityData[selectedDate];
                     const remaining = capDay ? capDay.remaining : DAY_CAPACITY;
+                    const isVacDay = capDay && capDay.status === "vacation";
                     let bg = "bg-emerald-50 border-emerald-100 text-emerald-800";
                     let msg = "Dieser Tag ist gut verfügbar – auch große Tattoos möglich.";
                     let hint = "";
-                    if (remaining >= 5) { msg = "Dieser Tag ist gut verfügbar – auch große Tattoos möglich."; }
-                    else if (remaining >= 3) { bg = "bg-amber-50 border-amber-100 text-amber-800"; msg = "An diesem Tag ist noch begrenzte Kapazität frei."; hint = "Für sehr große Projekte nicht mehr geeignet."; }
-                    else { bg = "bg-blue-50 border-blue-100 text-blue-800"; msg = "Nur noch wenig Kapazität – ideal für kleine Tattoos."; hint = "Größere Tattoos sind an diesem Tag nicht mehr möglich."; }
+                    if (isVacDay) {
+                      bg = "bg-orange-50 border-orange-100 text-orange-800";
+                      msg = "Das Studio ist an diesem Tag geschlossen (Urlaub).";
+                      hint = "Bitte wähle einen anderen Termin.";
+                    } else if (remaining >= 5) {
+                      msg = "Dieser Tag ist gut verfügbar – auch große Tattoos möglich.";
+                    } else if (remaining >= 3) {
+                      bg = "bg-amber-50 border-amber-100 text-amber-800";
+                      msg = "An diesem Tag ist noch begrenzte Kapazität frei.";
+                      hint = "Für sehr große Projekte nicht mehr geeignet.";
+                    } else {
+                      bg = "bg-blue-50 border-blue-100 text-blue-800";
+                      msg = "Nur noch wenig Kapazität – ideal für kleine Tattoos.";
+                      hint = "Größere Tattoos sind an diesem Tag nicht mehr möglich.";
+                    }
                     return (
                       <motion.div key={selectedDate} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className={`mb-4 p-3.5 rounded-xl border text-xs font-inter leading-relaxed overflow-hidden ${bg}`}>
                         <p className="font-semibold mb-0.5">{msg}</p>
                         {hint && <p className="opacity-70 mb-0.5">{hint}</p>}
-                        <p className="opacity-60 text-[10px] mt-1">Die genaue Uhrzeit wird nach Prüfung durch das Studio bestätigt.</p>
+                        {!isVacDay && <p className="opacity-60 text-[10px] mt-1">Die genaue Uhrzeit wird nach Prüfung durch das Studio bestätigt.</p>}
                       </motion.div>
                     );
                   })()}
