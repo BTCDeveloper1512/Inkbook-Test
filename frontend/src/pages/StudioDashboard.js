@@ -77,10 +77,20 @@ export default function StudioDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const [slots, setSlots] = useState([]);
-  const [showAddSlot, setShowAddSlot] = useState(false);
-  const [slotForm, setSlotForm] = useState({ date: "", start_time: "", end_time: "", slot_type: "tattoo", duration_minutes: 120, notes: "" });
-  const [slotLoading, setSlotLoading] = useState(false);
+  // Calendar blocks (manual studio blocking)
+  const [calBlocks, setCalBlocks] = useState([]);
+  const now0 = new Date();
+  const [calBlockMonth, setCalBlockMonth] = useState(now0.getMonth() + 1);
+  const [calBlockYear, setCalBlockYear] = useState(now0.getFullYear());
+  const [calBlockPickDate, setCalBlockPickDate] = useState(null);
+  const [calBlockPickModal, setCalBlockPickModal] = useState(false);
+  const [calBlockPickType, setCalBlockPickType] = useState("busy");
+  const [calBlockPickNote, setCalBlockPickNote] = useState("");
+  const [calBlockSaving, setCalBlockSaving] = useState(false);
+  // Bookings calendar
+  const [bookCalMonth, setBookCalMonth] = useState(now0.getMonth() + 1);
+  const [bookCalYear, setBookCalYear] = useState(now0.getFullYear());
+  const [bookCalSelected, setBookCalSelected] = useState(null);
   const [showCreateStudio, setShowCreateStudio] = useState(false);
   const [studioForm, setStudioForm] = useState({ name: "", description: "", address: "", city: "", phone: "", email: "", website: "", styles: [], price_range: "medium", images: [] });
   // Edit profile
@@ -316,7 +326,7 @@ export default function StudioDashboard() {
       const { data } = await axios.get(`${API}/dashboard/stats`, { withCredentials: true });
       setStats(data);
       if (data.has_studio && data.studio) {
-        fetchSlots(data.studio.studio_id);
+        fetchCalBlocks(data.studio.studio_id);
         fetchConnectStatus();
         const firstLoad = !inquiriesInitialized.current;
         if (firstLoad) inquiriesInitialized.current = true;
@@ -405,10 +415,37 @@ export default function StudioDashboard() {
     } finally { setConnectLoading(false); }
   };
 
-  const fetchSlots = async (studioId) => {
+  const fetchCalBlocks = async (studioId) => {
     try {
-      const { data } = await axios.get(`${API}/studios/${studioId}/slots`);
-      setSlots(data);
+      const { data } = await axios.get(`${API}/studios/${studioId}/calendar-blocks`);
+      setCalBlocks(data);
+    } catch {}
+  };
+
+  const handleSaveCalBlock = async () => {
+    if (!calBlockPickDate) return;
+    const studioId = stats?.studio?.studio_id;
+    setCalBlockSaving(true);
+    try {
+      await axios.post(`${API}/studios/${studioId}/calendar-blocks`, {
+        date: calBlockPickDate,
+        block_type: calBlockPickType,
+        note: calBlockPickNote,
+      }, { withCredentials: true });
+      await fetchCalBlocks(studioId);
+      setCalBlockPickModal(false);
+      setCalBlockPickDate(null);
+      setCalBlockPickNote("");
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler beim Speichern");
+    } finally { setCalBlockSaving(false); }
+  };
+
+  const handleDeleteCalBlock = async (blockId) => {
+    const studioId = stats?.studio?.studio_id;
+    try {
+      await axios.delete(`${API}/studios/${studioId}/calendar-blocks/${blockId}`, { withCredentials: true });
+      await fetchCalBlocks(studioId);
     } catch {}
   };
 
@@ -419,26 +456,6 @@ export default function StudioDashboard() {
       setShowCreateStudio(false);
       fetchStats();
     } catch (err) { alert(err.response?.data?.detail || "Fehler beim Erstellen"); }
-  };
-
-  const handleAddSlot = async (e) => {
-    e.preventDefault();
-    setSlotLoading(true);
-    try {
-      await axios.post(`${API}/studios/${stats.studio.studio_id}/slots`, slotForm, { withCredentials: true });
-      setShowAddSlot(false);
-      setSlotForm({ date: "", start_time: "", end_time: "", slot_type: "tattoo", duration_minutes: 120, notes: "" });
-      fetchSlots(stats.studio.studio_id);
-    } catch (err) {
-      alert(err.response?.data?.detail || "Fehler beim Erstellen des Slots");
-    } finally { setSlotLoading(false); }
-  };
-
-  const handleDeleteSlot = async (slotId) => {
-    try {
-      await axios.delete(`${API}/studios/${stats.studio.studio_id}/slots/${slotId}`, { withCredentials: true });
-      fetchSlots(stats.studio.studio_id);
-    } catch {}
   };
 
   const handleConfirmBooking = async (bookingId) => {
@@ -714,7 +731,7 @@ export default function StudioDashboard() {
                 { id: "overview",  icon: <LayoutGrid    size={15} strokeWidth={1.5} />, label: "Übersicht",    badge: 0 },
                 { id: "bookings",  icon: <BookOpen      size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => b.status === "pending").length },
                 { id: "inquiries", icon: <Inbox         size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
-                { id: "slots",     icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Freie Slots",  badge: 0 },
+                { id: "kalender",  icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Kalender",     badge: 0 },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
                 { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
                 { id: "profile",   icon: <Settings2     size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
@@ -744,7 +761,7 @@ export default function StudioDashboard() {
                 { id: "overview",  label: "Übersicht",  badge: 0 },
                 { id: "bookings",  label: "Buchungen",  badge: activeBookings.filter(b => b.status === "pending").length },
                 { id: "inquiries", label: "Anfragen",   badge: inquiries.filter(i => i.status === "pending").length },
-                { id: "slots",     label: "Slots",      badge: 0 },
+                { id: "kalender",  label: "Kalender",   badge: 0 },
                 { id: "artists",   label: "Artists",    badge: 0 },
                 { id: "messages",  label: "Nachrichten", badge: unreadMessages, href: "/messages" },
                 { id: "profile",   label: "Profil",     badge: 0 },
@@ -1000,81 +1017,321 @@ export default function StudioDashboard() {
           </motion.div>
         )}
 
-        {/* Slots Tab */}
-        {activeTab === "slots" && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
-            <div className="flex justify-end mb-4">
-              <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }} onClick={() => setShowAddSlot(!showAddSlot)} className="btn-primary flex items-center gap-2 text-sm" data-testid="add-slot-btn">
-                <Plus size={15} strokeWidth={1.5} /> Slot hinzufügen
-              </motion.button>
-            </div>
-            {showAddSlot && (
-              <form onSubmit={handleAddSlot} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6 mb-6 space-y-4">
-                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Neuen Slot erstellen</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Datum</label>
-                    <input type="date" value={slotForm.date} onChange={e => setSlotForm({...slotForm, date: e.target.value})} required className="input-base w-full" data-testid="slot-date-input" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Von</label>
-                    <input type="time" value={slotForm.start_time} onChange={e => setSlotForm({...slotForm, start_time: e.target.value})} required className="input-base w-full" data-testid="slot-start-input" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Bis</label>
-                    <input type="time" value={slotForm.end_time} onChange={e => setSlotForm({...slotForm, end_time: e.target.value})} required className="input-base w-full" data-testid="slot-end-input" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Art</label>
-                    <select value={slotForm.slot_type} onChange={e => setSlotForm({...slotForm, slot_type: e.target.value})} className="input-base w-full" data-testid="slot-type-select">
-                      <option value="consultation">Beratung</option><option value="tattoo">Tattoo</option>{/* <option value="video_consultation">Videoberatung</option> VIDEO HIDDEN */}<option value="full_day">Ganzer Tag</option>
-                    </select>
-                  </div>
+        {/* Kalender Tab — manual calendar blocking */}
+        {activeTab === "kalender" && (() => {
+          const BLOCK_TYPES = [
+            { id: "busy",     label: "Belegt",    desc: "Bereits vergeben",       dot: "bg-zinc-900" },
+            { id: "vacation", label: "Urlaub",    desc: "Urlaub / geschlossen",   dot: "bg-amber-500" },
+            { id: "limited",  label: "Begrenzt",  desc: "Nur noch wenig Kapazität", dot: "bg-orange-500" },
+            { id: "private",  label: "Privat",    desc: "Privater Termin",        dot: "bg-indigo-500" },
+          ];
+          const dotCls = { busy: "bg-zinc-900", vacation: "bg-amber-500", limited: "bg-orange-500", private: "bg-indigo-500" };
+          const bgCls  = { busy: "bg-zinc-900/5 border-zinc-300",   vacation: "bg-amber-50 border-amber-300",
+                           limited: "bg-orange-50 border-orange-300", private: "bg-indigo-50 border-indigo-300" };
+          const textCls = { busy: "text-zinc-800", vacation: "text-amber-800", limited: "text-orange-800", private: "text-indigo-800" };
+
+          const blocksByDate = {};
+          calBlocks.forEach(b => { blocksByDate[b.date] = b; });
+
+          const daysInMonth = new Date(calBlockYear, calBlockMonth, 0).getDate();
+          const firstWeekday = new Date(calBlockYear, calBlockMonth - 1, 1).getDay();
+          const offset = (firstWeekday + 6) % 7; // Mon=0
+          const todayIso = new Date().toISOString().split("T")[0];
+          const monthLabel = new Date(calBlockYear, calBlockMonth - 1, 1)
+            .toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+
+          const prevMonth = () => {
+            if (calBlockMonth === 1) { setCalBlockMonth(12); setCalBlockYear(y => y - 1); }
+            else setCalBlockMonth(m => m - 1);
+          };
+          const nextMonth = () => {
+            if (calBlockMonth === 12) { setCalBlockMonth(1); setCalBlockYear(y => y + 1); }
+            else setCalBlockMonth(m => m + 1);
+          };
+
+          const openDay = (iso) => {
+            setCalBlockPickDate(iso);
+            const existing = blocksByDate[iso];
+            setCalBlockPickType(existing ? existing.block_type : "busy");
+            setCalBlockPickNote(existing ? (existing.note || "") : "");
+            setCalBlockPickModal(true);
+          };
+
+          const cells = [];
+          for (let i = 0; i < offset; i++) cells.push(null);
+          for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-playfair font-semibold text-xl text-zinc-900">Kalender-Verwaltung</h3>
+                  <p className="text-xs text-zinc-500 font-inter mt-0.5">Markiere Tage manuell — auch für externe Termine</p>
                 </div>
-                <div className="flex gap-3">
-                  <button type="submit" disabled={slotLoading} className="btn-primary disabled:opacity-50" data-testid="submit-slot-btn">{slotLoading ? "..." : "Slot erstellen"}</button>
-                  <button type="button" onClick={() => setShowAddSlot(false)} className="btn-secondary">Abbrechen</button>
+                <div className="flex items-center gap-2">
+                  <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">‹</button>
+                  <span className="font-inter font-semibold text-sm text-zinc-900 min-w-[130px] text-center capitalize">{monthLabel}</span>
+                  <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">›</button>
                 </div>
-              </form>
-            )}
-            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-              {slots.length === 0 ? (
-                <div className="py-20 flex flex-col items-center text-center">
-                  <Calendar size={28} className="text-zinc-200 mb-4" strokeWidth={1.5} />
-                  <h3 className="font-playfair text-lg text-zinc-900 mb-1">Keine Slots</h3>
-                  <p className="text-xs text-zinc-400 font-inter">Füge deinen ersten verfügbaren Termin hinzu</p>
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-2">
+                {BLOCK_TYPES.map(bt => (
+                  <div key={bt.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-zinc-100 shadow-sm">
+                    <span className={`w-2 h-2 rounded-full ${bt.dot}`} />
+                    <span className="text-[11px] font-inter text-zinc-600">{bt.label}</span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-zinc-100 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-[11px] font-inter text-zinc-600">Buchung (System)</span>
                 </div>
-              ) : (
-                <div className="divide-y divide-zinc-50">
-                  {slots.slice(0, 30).map((slot, idx) => (
-                    <motion.div key={slot.slot_id}
-                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.04, type: "spring", stiffness: 300, damping: 22 }}
-                      whileHover={{ y: -1, boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}
-                      className="group relative flex items-center justify-between px-4 py-3.5 rounded-xl mx-1 my-0.5 transition-colors hover:bg-zinc-50 cursor-default" data-testid={`slot-item-${slot.slot_id}`}
-                    >
-                      {/* Left accent bar */}
-                      <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-zinc-900 rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-200 origin-center" />
-                      <div className="pl-1.5">
-                        <p className="font-inter font-medium text-sm text-zinc-900">{slot.date ? new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</p>
-                        <p className="text-xs text-zinc-400 font-inter mt-0.5 group-hover:text-zinc-600 transition-colors">{slot.start_time} – {slot.end_time} · {slot.slot_type === "video_consultation" ? "Videoberatung" : slot.slot_type === "consultation" ? "Beratung" : slot.slot_type === "full_day" ? "Ganzer Tag" : "Tattoo"}</p>
-                      </div>
-                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleDeleteSlot(slot.slot_id)}
-                        className="p-2 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                        data-testid={`delete-slot-btn-${slot.slot_id}`}>
-                        <Trash2 size={14} strokeWidth={1.5} />
-                      </motion.button>
-                    </motion.div>
+              </div>
+
+              {/* Calendar grid */}
+              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
+                {/* Day headers */}
+                <div className="grid grid-cols-7 mb-2">
+                  {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                    <div key={d} className="text-center text-[11px] font-inter font-semibold text-zinc-400 py-1">{d}</div>
                   ))}
                 </div>
+                {/* Cells */}
+                <div className="grid grid-cols-7 gap-1">
+                  {cells.map((day, i) => {
+                    if (!day) return <div key={`empty-${i}`} />;
+                    const iso = `${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                    const block = blocksByDate[iso];
+                    const isToday = iso === todayIso;
+                    const isPast = iso < todayIso;
+                    return (
+                      <button
+                        key={iso}
+                        onClick={() => openDay(iso)}
+                        className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-sm font-inter
+                          ${isPast ? "opacity-40 cursor-default" : "hover:scale-105 cursor-pointer"}
+                          ${block ? `${bgCls[block.block_type]} border` : isToday ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 border border-transparent"}
+                        `}
+                        disabled={isPast}
+                        title={block ? `${block.block_type}${block.note ? ` – ${block.note}` : ""}` : "Tag bearbeiten"}
+                      >
+                        <span className={`text-xs font-semibold ${block ? textCls[block.block_type] : isToday ? "text-white" : "text-zinc-700"}`}>{day}</span>
+                        {block && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotCls[block.block_type]}`} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Block list */}
+              {calBlocks.filter(b => b.date.startsWith(`${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}`)).length > 0 && (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                  <div className="px-5 py-3 border-b border-zinc-50">
+                    <p className="text-xs font-inter font-semibold text-zinc-500 uppercase tracking-widest">Manuell blockierte Tage</p>
+                  </div>
+                  <div className="divide-y divide-zinc-50">
+                    {calBlocks
+                      .filter(b => b.date.startsWith(`${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}`))
+                      .map(b => {
+                        const bt = BLOCK_TYPES.find(t => t.id === b.block_type) || BLOCK_TYPES[0];
+                        const dateObj = new Date(b.date + "T12:00:00");
+                        return (
+                          <div key={b.block_id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50/60 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotCls[b.block_type]}`} />
+                              <div>
+                                <p className="text-sm font-inter font-medium text-zinc-900">
+                                  {dateObj.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}
+                                </p>
+                                <p className="text-xs text-zinc-400 font-inter">{bt.label}{b.note ? ` · ${b.note}` : ""}</p>
+                              </div>
+                            </div>
+                            <button onClick={() => handleDeleteCalBlock(b.block_id)} className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                              <Trash2 size={13} strokeWidth={1.5} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
               )}
-            </div>
-          </motion.div>
-        )}
+
+              {/* Block pick modal */}
+              <AnimatePresence>
+                {calBlockPickModal && calBlockPickDate && (
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 flex items-center justify-center p-6"
+                    style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)", zIndex: 9999 }}
+                    onClick={() => setCalBlockPickModal(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.93, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.93, y: 16, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+                      className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-playfair font-semibold text-lg text-zinc-900">
+                          Tag bearbeiten
+                        </h3>
+                        <button onClick={() => setCalBlockPickModal(false)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={16} strokeWidth={2} /></button>
+                      </div>
+                      <p className="text-xs font-inter text-zinc-500 mb-4">
+                        {new Date(calBlockPickDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                      </p>
+
+                      <div className="space-y-2 mb-4">
+                        {BLOCK_TYPES.map(bt => (
+                          <button
+                            key={bt.id}
+                            onClick={() => setCalBlockPickType(bt.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${calBlockPickType === bt.id ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 hover:border-zinc-200"}`}
+                          >
+                            <span className={`w-3 h-3 rounded-full flex-shrink-0 ${dotCls[bt.id]}`} />
+                            <div className="text-left flex-1">
+                              <p className="text-sm font-inter font-semibold text-zinc-900">{bt.label}</p>
+                              <p className="text-xs text-zinc-400 font-inter">{bt.desc}</p>
+                            </div>
+                            {calBlockPickType === bt.id && <CheckCircle size={14} className="text-zinc-900" strokeWidth={2} />}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mb-5">
+                        <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Notiz <span className="font-normal">(optional)</span></label>
+                        <input
+                          type="text" value={calBlockPickNote} onChange={e => setCalBlockPickNote(e.target.value)}
+                          placeholder="z. B. Workshop, Messe, privat..."
+                          className="input-base w-full"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        {blocksByDate[calBlockPickDate] && (
+                          <button
+                            onClick={async () => { await handleDeleteCalBlock(blocksByDate[calBlockPickDate].block_id); setCalBlockPickModal(false); }}
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-inter hover:bg-red-50 transition-colors"
+                          >
+                            Entfernen
+                          </button>
+                        )}
+                        <button
+                          onClick={handleSaveCalBlock}
+                          disabled={calBlockSaving}
+                          className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-inter font-semibold hover:bg-zinc-700 transition-colors disabled:opacity-60"
+                        >
+                          {calBlockSaving ? "Speichern…" : "Speichern"}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })()}
 
         {/* Bookings Tab */}
         {activeTab === "bookings" && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-5">
+
+            {/* Mini bookings calendar */}
+            {(() => {
+              const daysInMonth = new Date(bookCalYear, bookCalMonth, 0).getDate();
+              const firstWeekday = new Date(bookCalYear, bookCalMonth - 1, 1).getDay();
+              const offset = (firstWeekday + 6) % 7;
+              const todayIso = new Date().toISOString().split("T")[0];
+              const monthLabel = new Date(bookCalYear, bookCalMonth - 1, 1)
+                .toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+
+              const allBookings = [...activeBookings, ...pastStudioBookings];
+              const bookingsByDate = {};
+              allBookings.forEach(b => {
+                if (b.date) {
+                  if (!bookingsByDate[b.date]) bookingsByDate[b.date] = [];
+                  bookingsByDate[b.date].push(b);
+                }
+              });
+
+              const prevMo = () => { if (bookCalMonth === 1) { setBookCalMonth(12); setBookCalYear(y => y - 1); } else setBookCalMonth(m => m - 1); };
+              const nextMo = () => { if (bookCalMonth === 12) { setBookCalMonth(1); setBookCalYear(y => y + 1); } else setBookCalMonth(m => m + 1); };
+
+              const cells = [];
+              for (let i = 0; i < offset; i++) cells.push(null);
+              for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+              return (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-playfair font-semibold text-base text-zinc-900 capitalize">{monthLabel}</p>
+                    <div className="flex items-center gap-1">
+                      <button onClick={prevMo} className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-sm transition-colors">‹</button>
+                      <button onClick={() => { setBookCalMonth(new Date().getMonth()+1); setBookCalYear(new Date().getFullYear()); setBookCalSelected(null); }} className="px-2 py-1 text-[10px] font-inter text-zinc-500 hover:text-zinc-900 transition-colors">Heute</button>
+                      <button onClick={nextMo} className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-sm transition-colors">›</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 mb-1">
+                    {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                      <div key={d} className="text-center text-[10px] font-inter font-semibold text-zinc-400 pb-1">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {cells.map((day, i) => {
+                      if (!day) return <div key={`e-${i}`} />;
+                      const iso = `${bookCalYear}-${String(bookCalMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                      const bks = bookingsByDate[iso] || [];
+                      const isToday = iso === todayIso;
+                      const isSelected = bookCalSelected === iso;
+                      const confirmedCount = bks.filter(b => b.status === "confirmed").length;
+                      const pendingCount  = bks.filter(b => b.status === "pending").length;
+                      return (
+                        <button
+                          key={iso}
+                          onClick={() => setBookCalSelected(isSelected ? null : iso)}
+                          className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all
+                            ${isSelected ? "bg-zinc-900 text-white" : isToday ? "ring-2 ring-zinc-900 ring-offset-1" : bks.length > 0 ? "bg-zinc-50 hover:bg-zinc-100" : "hover:bg-zinc-50"}
+                          `}
+                        >
+                          <span className={`text-xs font-inter font-medium ${isSelected ? "text-white" : "text-zinc-700"}`}>{day}</span>
+                          {bks.length > 0 && !isSelected && (
+                            <div className="flex gap-0.5 mt-0.5">
+                              {confirmedCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                              {pendingCount > 0  && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                            </div>
+                          )}
+                          {bks.length > 0 && isSelected && (
+                            <span className="text-[9px] text-white/70 font-inter">{bks.length}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {bookCalSelected && bookingsByDate[bookCalSelected]?.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-zinc-100 space-y-1.5">
+                      <p className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 mb-2">
+                        {new Date(bookCalSelected + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" })}
+                      </p>
+                      {bookingsByDate[bookCalSelected].map(b => (
+                        <div key={b.booking_id} className="flex items-center justify-between px-3 py-2 bg-zinc-50 rounded-xl">
+                          <div>
+                            <p className="text-xs font-inter font-semibold text-zinc-900">{b.user_name}</p>
+                            <p className="text-[10px] text-zinc-400 font-inter">{b.start_time || "–"} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-inter ${
+                            b.status === "confirmed" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                            b.status === "pending"   ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-zinc-100 text-zinc-500 border-zinc-200"
+                          }`}>{b.status === "confirmed" ? "Bestätigt" : b.status === "pending" ? "Ausstehend" : b.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Search bar */}
             <div className="relative">
@@ -1410,6 +1667,15 @@ export default function StudioDashboard() {
                                   <div className="flex gap-2 mb-3 flex-wrap">
                                     {inq.size && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.size}</span>}
                                     {inq.body_part && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.body_part}</span>}
+                                  </div>
+                                )}
+                                {(inq.wished_date_from || inq.wished_date_to || inq.wished_time) && (
+                                  <div className="flex items-center gap-1.5 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl flex-wrap">
+                                    <Calendar size={11} className="text-blue-500 shrink-0" strokeWidth={1.5} />
+                                    <span className="text-[11px] font-inter font-semibold text-blue-700">Wunschzeitraum:</span>
+                                    {inq.wished_date_from && <span className="text-[11px] font-inter text-blue-700">{new Date(inq.wished_date_from + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>}
+                                    {inq.wished_date_to && inq.wished_date_to !== inq.wished_date_from && <><span className="text-[11px] text-blue-400">–</span><span className="text-[11px] font-inter text-blue-700">{new Date(inq.wished_date_to + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span></>}
+                                    {inq.wished_time && <span className="text-[11px] font-inter text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">{inq.wished_time}</span>}
                                   </div>
                                 )}
                                 {imgs.length > 0 && (

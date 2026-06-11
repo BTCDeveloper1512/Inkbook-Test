@@ -471,6 +471,14 @@ class GuestInquiryCreate(BaseModel):
     size: Optional[str] = None
     body_part: Optional[str] = None
     reference_images: Optional[List[str]] = []
+    wished_date_from: Optional[str] = None   # ISO date "2026-07-01"
+    wished_date_to: Optional[str] = None     # ISO date "2026-07-15"
+    wished_time: Optional[str] = None        # e.g. "Vormittags" or "10:00"
+
+class CalendarBlockCreate(BaseModel):
+    date: str           # ISO date "2026-06-18"
+    block_type: str = "busy"   # busy | vacation | limited | private
+    note: str = ""
 
 class ActivateAccountRequest(BaseModel):
     email: EmailStr
@@ -750,6 +758,9 @@ async def create_guest_inquiry(data: GuestInquiryCreate):
         "size": data.size,
         "body_part": data.body_part,
         "reference_images": data.reference_images or [],
+        "wished_date_from": data.wished_date_from,
+        "wished_date_to": data.wished_date_to,
+        "wished_time": data.wished_time,
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1343,7 +1354,7 @@ _DAY_CAPACITY = 8
 
 @api_router.get("/studios/{studio_id}/capacity-calendar")
 async def get_capacity_calendar(studio_id: str, year: int, month: int):
-    """Returns per-day capacity status for a studio in a given month."""
+    """Returns per-day capacity status for a studio in a given month, merging manual blocks."""
     import calendar as cal_mod
     first_day = f"{year}-{month:02d}-01"
     last_day_num = cal_mod.monthrange(year, month)[1]
@@ -1363,6 +1374,13 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
         d = b.get("date", "")
         used_by_date[d] = used_by_date.get(d, 0) + int(b.get("capacity_cost", 0))
 
+    # Load manual calendar blocks for this month
+    manual_blocks_list = await db.calendar_blocks.find({
+        "studio_id": studio_id,
+        "date": {"$gte": first_day, "$lte": last_day}
+    }).to_list(100)
+    manual_blocks: Dict[str, str] = {b["date"]: b["block_type"] for b in manual_blocks_list}
+
     from datetime import date as date_type
     from_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
     last_obj = datetime.strptime(last_day, "%Y-%m-%d").date()
@@ -1373,15 +1391,25 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
         iso = current.isoformat()
         used = used_by_date.get(iso, 0)
         remaining = _DAY_CAPACITY - used
-        if remaining <= 0:
-            status = "full"
-        elif remaining <= 2:
-            status = "small_only"
-        elif remaining <= 4:
-            status = "limited"
+        if iso in manual_blocks:
+            btype = manual_blocks[iso]
+            if btype in ("busy", "private"):
+                status = "full"
+            elif btype == "vacation":
+                status = "vacation"
+            else:
+                status = "limited"
+            result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype}
         else:
-            status = "available"
-        result[iso] = {"used": used, "remaining": remaining, "status": status}
+            if remaining <= 0:
+                status = "full"
+            elif remaining <= 2:
+                status = "small_only"
+            elif remaining <= 4:
+                status = "limited"
+            else:
+                status = "available"
+            result[iso] = {"used": used, "remaining": remaining, "status": status}
         current += timedelta(days=1)
 
     return {"dates": result, "day_capacity": _DAY_CAPACITY}
@@ -1411,6 +1439,52 @@ async def delete_slot(studio_id: str, slot_id: str, current_user: dict = Depends
         raise HTTPException(status_code=403, detail="Not authorized")
     await db.slots.delete_one({"slot_id": slot_id, "studio_id": studio_id})
     return {"message": "Slot deleted"}
+
+# ─── Calendar Blocks (manual studio blocking) ─────────────────────────────────
+_BLOCK_TYPE_LABELS = {
+    "busy":     "Belegt",
+    "vacation": "Urlaub",
+    "limited":  "Begrenzt",
+    "private":  "Privat",
+}
+
+@api_router.get("/studios/{studio_id}/calendar-blocks")
+async def get_calendar_blocks(studio_id: str):
+    blocks = await db.calendar_blocks.find({"studio_id": studio_id}).sort("date", 1).to_list(500)
+    for b in blocks:
+        b.pop("_id", None)
+    return blocks
+
+@api_router.post("/studios/{studio_id}/calendar-blocks")
+async def create_calendar_block(studio_id: str, data: CalendarBlockCreate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if data.block_type not in _BLOCK_TYPE_LABELS:
+        raise HTTPException(status_code=400, detail="Ungültiger Blocktyp")
+    # Remove any existing block for this date (one block per day)
+    await db.calendar_blocks.delete_many({"studio_id": studio_id, "date": data.date})
+    block_doc = {
+        "block_id": f"blk_{uuid.uuid4().hex[:12]}",
+        "studio_id": studio_id,
+        "date": data.date,
+        "block_type": data.block_type,
+        "note": data.note,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.calendar_blocks.insert_one(block_doc)
+    block_doc.pop("_id", None)
+    return block_doc
+
+@api_router.delete("/studios/{studio_id}/calendar-blocks/{block_id}")
+async def delete_calendar_block(studio_id: str, block_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    await db.calendar_blocks.delete_one({"block_id": block_id, "studio_id": studio_id})
+    return {"message": "Block gelöscht"}
 
 # ─── Bookings ─────────────────────────────────────────────────────────────────
 @api_router.post("/bookings/capacity")

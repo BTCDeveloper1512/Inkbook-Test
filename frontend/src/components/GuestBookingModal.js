@@ -1,12 +1,13 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { X, CheckCircle, Send, User, Mail, FileText, ImagePlus, Trash2 } from "lucide-react";
+import { X, CheckCircle, Send, User, Mail, ImagePlus, Trash2, Calendar, Clock } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SIZES = ["Klein (bis 5 cm)", "Mittel (5–15 cm)", "Groß (15–25 cm)", "XL (25 cm+)", "Ganzkörper"];
 const BODY_PARTS = ["Arm", "Unterarm", "Oberarm", "Rücken", "Brust", "Bein", "Oberschenkel", "Wade", "Schulter", "Hals", "Hand", "Fuß", "Rippen", "Bauch", "Anderes"];
+const TIME_PREFS = ["Keine Präferenz", "Früh (08:00–10:00)", "Vormittags (10:00–12:00)", "Mittags (12:00–14:00)", "Nachmittags (14:00–17:00)", "Abends (17:00–20:00)"];
 
 function ProgressSteps({ active }) {
   const steps = [
@@ -35,7 +36,10 @@ export default function GuestBookingModal({ studio, onClose }) {
   const [step, setStep] = useState("form");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", email: "", tattoo_description: "", size: "", body_part: "" });
+  const [form, setForm] = useState({
+    name: "", email: "", tattoo_description: "", size: "", body_part: "",
+    wished_date_from: "", wished_date_to: "", wished_time: "",
+  });
   const [refImages, setRefImages] = useState([]);
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
@@ -83,6 +87,9 @@ export default function GuestBookingModal({ studio, onClose }) {
         size: form.size || null,
         body_part: form.body_part || null,
         reference_images: refImages,
+        wished_date_from: form.wished_date_from || null,
+        wished_date_to: form.wished_date_to || null,
+        wished_time: form.wished_time && form.wished_time !== "Keine Präferenz" ? form.wished_time : null,
       });
       setStep("success");
     } catch (err) {
@@ -124,6 +131,7 @@ export default function GuestBookingModal({ studio, onClose }) {
               <ProgressSteps active={1} />
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Name */}
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Dein Name *</label>
                   <div className="relative">
@@ -136,6 +144,7 @@ export default function GuestBookingModal({ studio, onClose }) {
                   </div>
                 </div>
 
+                {/* Email */}
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">E-Mail *</label>
                   <div className="relative">
@@ -149,19 +158,18 @@ export default function GuestBookingModal({ studio, onClose }) {
                   <p className="text-[11px] text-zinc-400 font-inter mt-1">Wir senden dir Updates per E-Mail — kein Spam.</p>
                 </div>
 
+                {/* Description */}
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Tattoo-Beschreibung *</label>
-                  <div className="relative">
-                    <FileText size={14} className="absolute left-3.5 top-3.5 text-zinc-400 pointer-events-none" strokeWidth={1.5} />
-                    <textarea
-                      value={form.tattoo_description} onChange={e => update("tattoo_description", e.target.value)}
-                      placeholder="Beschreibe dein Wunsch-Tattoo: Motiv, Stil, Farben, besondere Details..."
-                      rows={4} required className="input-base w-full pl-9 resize-none"
-                      data-testid="guest-description-input"
-                    />
-                  </div>
+                  <textarea
+                    value={form.tattoo_description} onChange={e => update("tattoo_description", e.target.value)}
+                    placeholder="Beschreibe dein Wunsch-Tattoo: Motiv, Stil, Farben, besondere Details..."
+                    rows={4} required className="input-base w-full resize-none"
+                    data-testid="guest-description-input"
+                  />
                 </div>
 
+                {/* Size + Body part */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Größe</label>
@@ -179,7 +187,44 @@ export default function GuestBookingModal({ studio, onClose }) {
                   </div>
                 </div>
 
-                {/* Reference image upload */}
+                {/* Wished date range */}
+                <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar size={13} className="text-zinc-400" strokeWidth={1.5} />
+                    <label className="text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400">Wunschzeitraum <span className="normal-case font-normal">(optional)</span></label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-inter text-zinc-500 mb-1">Von</label>
+                      <input
+                        type="date" value={form.wished_date_from}
+                        onChange={e => update("wished_date_from", e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="input-base w-full text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-inter text-zinc-500 mb-1">Bis</label>
+                      <input
+                        type="date" value={form.wished_date_to}
+                        onChange={e => update("wished_date_to", e.target.value)}
+                        min={form.wished_date_from || new Date().toISOString().split("T")[0]}
+                        className="input-base w-full text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Clock size={11} className="text-zinc-400" strokeWidth={1.5} />
+                      <label className="text-[11px] font-inter text-zinc-500">Uhrzeit-Präferenz</label>
+                    </div>
+                    <select value={form.wished_time} onChange={e => update("wished_time", e.target.value)} className="input-base w-full text-sm">
+                      {TIME_PREFS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Reference images */}
                 <div>
                   <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">
                     Referenzbilder <span className="normal-case font-normal text-zinc-400">(optional, max. 4)</span>
