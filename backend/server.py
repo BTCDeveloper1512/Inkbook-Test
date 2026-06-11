@@ -1395,14 +1395,19 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
             btype = manual_blocks[iso]
             if btype in ("busy", "private", "full"):
                 status = "full"
+                remaining = 0
             elif btype == "vacation":
                 status = "vacation"
+                remaining = 0
             elif btype == "small_only":
                 status = "small_only"
+                remaining = min(remaining, 2)
             elif btype == "available":
                 status = "available"
+                # remaining unchanged — force open
             else:  # "limited"
                 status = "limited"
+                remaining = min(remaining, 4)
             result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype}
         else:
             if remaining <= 0:
@@ -1514,6 +1519,21 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     }).to_list(100)
     used = sum(int(b.get("capacity_cost", 0)) for b in existing)
     remaining = _DAY_CAPACITY - used
+
+    # Apply manual calendar block cap
+    manual_block = await db.calendar_blocks.find_one({"studio_id": data.studio_id, "date": data.date})
+    if manual_block:
+        btype = manual_block.get("block_type", "")
+        if btype in ("busy", "private", "full"):
+            raise HTTPException(status_code=400, detail="Dieser Tag ist vollständig blockiert.")
+        elif btype == "vacation":
+            raise HTTPException(status_code=400, detail="Das Studio ist an diesem Tag im Urlaub.")
+        elif btype == "small_only":
+            remaining = min(remaining, 2)
+        elif btype == "limited":
+            remaining = min(remaining, 4)
+        # "available" → no cap
+
     if capacity_cost > remaining:
         raise HTTPException(
             status_code=400,
