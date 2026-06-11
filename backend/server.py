@@ -239,6 +239,54 @@ def payment_confirmed_html(booking: dict) -> str:
       {_email_footer("Fragen? Nutze unseren Support-Chat auf inkbook.de")}
     </div>"""
 
+def guest_offer_email_html(
+    guest_name: str, studio_name: str, date_fmt: str, offer_time: str,
+    offer_duration_min: int, offer_total_price: float, offer_deposit_amount: float,
+    offer_notes: str, tattoo_desc: str, activate_url: str
+) -> str:
+    notes_block = f"""
+      <div style="background:#fafafa;border-left:3px solid #d1d5db;padding:14px 18px;border-radius:6px;margin-top:16px;">
+        <p style="font-size:12px;color:#888;margin:0 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.06em;">Notiz vom Studio</p>
+        <p style="font-size:14px;color:#444;margin:0;font-family:'Helvetica Neue',Arial,sans-serif;line-height:1.6;">"{offer_notes}"</p>
+      </div>""" if offer_notes else ""
+    desc_block = f"""
+      <div style="background:#fafafa;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+        <p style="font-size:11px;color:#999;margin:0 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.08em;">Deine Anfrage</p>
+        <p style="font-size:14px;color:#555;margin:0;font-family:'Helvetica Neue',Arial,sans-serif;line-height:1.5;">{tattoo_desc}</p>
+      </div>""" if tattoo_desc else ""
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#6d28d9;letter-spacing:0.05em;text-transform:uppercase;">Neues Angebot</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#111;letter-spacing:-0.4px;">Hallo {guest_name}!</h2>
+        <p style="font-size:15px;color:#444;margin:0 0 24px;line-height:1.6;">
+          <strong style="color:#111;">{studio_name}</strong> hat deine Tattoo-Anfrage geprüft und dir ein Angebot erstellt.
+        </p>
+        {desc_block}
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;margin-bottom:8px;">
+          {_detail_row("Studio", studio_name, highlight=True)}
+          {_detail_row("Termin", f"{date_fmt} um {offer_time} Uhr")}
+          {_detail_row("Dauer", f"{offer_duration_min} Minuten")}
+          {_detail_row("Gesamtpreis", f"€ {offer_total_price:.0f}")}
+          {_detail_row("Anzahlung", f"€ {offer_deposit_amount:.0f} (zur Buchungssicherung)")}
+        </table>
+        {notes_block}
+        <p style="font-size:14px;color:#666;margin:24px 0 8px;line-height:1.6;">
+          Um das Angebot anzunehmen und die Anzahlung zu leisten, erstelle einfach dein InkBook-Konto. Das dauert nur 30 Sekunden.
+        </p>
+        <div style="text-align:center;margin:28px 0 8px;">
+          <a href="{activate_url}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:15px 36px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">Passwort vergeben &amp; Angebot ansehen →</a>
+        </div>
+        <p style="font-size:12px;color:#aaa;text-align:center;margin:12px 0 0;line-height:1.6;">
+          Das Angebot ist <strong>7 Tage</strong> gültig. Danach wird es automatisch archiviert.
+        </p>
+      </div>
+      {_email_footer(f"Du erhältst diese E-Mail weil du eine Anfrage bei {studio_name} auf InkBook gestellt hast.")}
+    </div>"""
+
 def deposit_deadline_cancelled_html(booking: dict) -> str:
     return f"""
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
@@ -496,6 +544,14 @@ class BookingCapacityCreate(BaseModel):
 class BookingOffer(BaseModel):
     offer_date: str                  # ISO date "2026-06-18"
     offer_time: str                  # "13:00"
+    offer_duration_min: int = 120
+    offer_total_price: float
+    offer_deposit_amount: float
+    offer_notes: str = ""
+
+class InquiryOffer(BaseModel):
+    offer_date: str
+    offer_time: str
     offer_duration_min: int = 120
     offer_total_price: float
     offer_deposit_amount: float
@@ -781,6 +837,122 @@ async def update_inquiry_status(inquiry_id: str, body: dict, current_user: dict 
     result = {"inquiry_id": inquiry_id}
     result.update(updates)
     return result
+
+@api_router.post("/inquiries/{inquiry_id}/offer")
+async def create_inquiry_offer(inquiry_id: str, offer: InquiryOffer, current_user: dict = Depends(get_current_user)):
+    """Studio creates an offer for a guest inquiry → creates a booking + sends activation email to guest."""
+    inquiry = await db.inquiries.find_one({"inquiry_id": inquiry_id})
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Anfrage nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": inquiry.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if inquiry.get("status") == "offer_sent":
+        raise HTTPException(status_code=400, detail="Für diese Anfrage wurde bereits ein Angebot gesendet")
+
+    # Resolve ghost account for this inquiry
+    guest_user_id = inquiry.get("user_id", "")
+    ghost_user = None
+    if guest_user_id:
+        try:
+            ghost_user = await db.users.find_one({"_id": ObjectId(guest_user_id)})
+        except Exception:
+            ghost_user = await db.users.find_one({"user_id": guest_user_id})
+
+    ghost_token = ghost_user.get("ghost_token", "") if ghost_user else ""
+    guest_email = inquiry.get("user_email", "")
+    guest_name = inquiry.get("user_name", "Gast")
+    studio_name = studio.get("name", "Studio")
+    studio_owner_id = studio.get("owner_id", "")
+
+    platform_fee_pct = 5.0
+    platform_fee_amount = round(offer.offer_deposit_amount * platform_fee_pct / 100, 2)
+
+    # Create a proper booking from the inquiry so the full offer→deposit→confirm flow works
+    booking_doc = {
+        "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+        "user_id": guest_user_id,
+        "user_name": guest_name,
+        "user_email": guest_email,
+        "studio_id": inquiry.get("studio_id", ""),
+        "studio_name": studio_name,
+        "slot_id": None,
+        "date": offer.offer_date,
+        "start_time": offer.offer_time,
+        "end_time": None,
+        "booking_type": "tattoo",
+        "size_category": inquiry.get("size", ""),
+        "body_part": inquiry.get("body_part", ""),
+        "notes": inquiry.get("tattoo_description", ""),
+        "reference_images": inquiry.get("reference_images", []),
+        "status": "offer_sent",
+        "payment_status": "unpaid",
+        "deposit_required": True,
+        "deposit_amount": offer.offer_deposit_amount,
+        "offer_date": offer.offer_date,
+        "offer_time": offer.offer_time,
+        "offer_duration_min": offer.offer_duration_min,
+        "offer_total_price": offer.offer_total_price,
+        "offer_deposit_amount": offer.offer_deposit_amount,
+        "offer_notes": offer.offer_notes,
+        "platform_fee_pct": platform_fee_pct,
+        "platform_fee_amount": platform_fee_amount,
+        "offer_created_at": datetime.now(timezone.utc).isoformat(),
+        "inquiry_id": inquiry_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.bookings.insert_one(booking_doc)
+
+    # Mark inquiry as offer_sent and link to the new booking
+    await db.inquiries.update_one(
+        {"inquiry_id": inquiry_id},
+        {"$set": {"status": "offer_sent", "booking_id": booking_doc["booking_id"]}}
+    )
+
+    # Send branded offer + activation email to guest
+    if guest_email:
+        try:
+            date_fmt = datetime.strptime(offer.offer_date, "%Y-%m-%d").strftime("%d.%m.%Y")
+        except Exception:
+            date_fmt = offer.offer_date
+        frontend_url = _get_frontend_url()
+        activate_url = (
+            f"{frontend_url}/activate?email={guest_email}&token={ghost_token}"
+            if ghost_token else f"{frontend_url}/login"
+        )
+        html = guest_offer_email_html(
+            guest_name=guest_name,
+            studio_name=studio_name,
+            date_fmt=date_fmt,
+            offer_time=offer.offer_time,
+            offer_duration_min=offer.offer_duration_min,
+            offer_total_price=offer.offer_total_price,
+            offer_deposit_amount=offer.offer_deposit_amount,
+            offer_notes=offer.offer_notes,
+            tattoo_desc=inquiry.get("tattoo_description", ""),
+            activate_url=activate_url,
+        )
+        asyncio.create_task(send_email(
+            to=guest_email,
+            subject=f"Dein Tattoo-Angebot von {studio_name} 🎨",
+            html=html,
+        ))
+
+    # Also mark ghost user's activation_email_sent so we don't re-send the generic activation
+    if ghost_user:
+        try:
+            await db.users.update_one(
+                {"_id": ObjectId(guest_user_id)},
+                {"$set": {"activation_email_sent": True}}
+            )
+        except Exception:
+            pass
+
+    booking_doc.pop("_id", None)
+    return {"message": "Angebot an Gast gesendet", "booking_id": booking_doc["booking_id"]}
 
 # ── User Profile ─────────────────────────────────────────────────────────────
 

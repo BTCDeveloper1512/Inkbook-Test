@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2 } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -269,8 +269,12 @@ export default function StudioDashboard() {
       return;
     }
     setOfferLoading(true);
+    const isInquiry = !!offerModal._inquiry_id;
     try {
-      await axios.post(`${API}/bookings/${offerModal.booking_id}/offer`, {
+      const url = isInquiry
+        ? `${API}/inquiries/${offerModal._inquiry_id}/offer`
+        : `${API}/bookings/${offerModal.booking_id}/offer`;
+      await axios.post(url, {
         offer_date: offerForm.offer_date,
         offer_time: offerForm.offer_time,
         offer_duration_min: parseInt(offerForm.offer_duration_min) || 120,
@@ -281,6 +285,7 @@ export default function StudioDashboard() {
       setOfferModal(null);
       setOfferForm({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
       fetchStats();
+      if (isInquiry) fetchInquiries(stats?.studio?.studio_id, false);
     } catch (e) {
       alert(e.response?.data?.detail || "Fehler beim Erstellen des Angebots");
     } finally { setOfferLoading(false); }
@@ -1309,9 +1314,10 @@ export default function StudioDashboard() {
               );
 
               const statusMap = {
-                pending:   { label: "Neu",           bg: "bg-amber-50 text-amber-700 border-amber-200" },
-                contacted: { label: "Kontaktiert",   bg: "bg-blue-50 text-blue-700 border-blue-200" },
-                closed:    { label: "Abgeschlossen", bg: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+                pending:    { label: "Neu",               bg: "bg-amber-50 text-amber-700 border-amber-200" },
+                contacted:  { label: "Kontaktiert",       bg: "bg-blue-50 text-blue-700 border-blue-200" },
+                closed:     { label: "Abgeschlossen",     bg: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+                offer_sent: { label: "Angebot gesendet",  bg: "bg-violet-50 text-violet-700 border-violet-200" },
               };
 
               return (
@@ -1359,6 +1365,18 @@ export default function StudioDashboard() {
                           <span className="text-[11px] font-inter text-zinc-400 whitespace-nowrap">{dateStr}</span>
 
                           <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                            {inq.status !== "offer_sent" && (
+                              <button
+                                onClick={() => {
+                                  setOfferModal({ _inquiry_id: inq.inquiry_id, user_name: inq.user_name, notes: inq.tattoo_description });
+                                  setOfferForm(f => ({ ...f, offer_date: "", offer_notes: "" }));
+                                }}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                                title="Angebot erstellen & per E-Mail senden"
+                              >
+                                <Tag size={11} strokeWidth={1.5} />
+                              </button>
+                            )}
                             <button
                               onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
                               className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-900 text-white hover:bg-zinc-700 transition-colors"
@@ -1404,6 +1422,17 @@ export default function StudioDashboard() {
                                   </div>
                                 )}
                                 <div className="flex items-center gap-2 flex-wrap">
+                                  {inq.status !== "offer_sent" && (
+                                    <button
+                                      onClick={() => {
+                                        setOfferModal({ _inquiry_id: inq.inquiry_id, user_name: inq.user_name, notes: inq.tattoo_description });
+                                        setOfferForm(f => ({ ...f, offer_date: "", offer_notes: "" }));
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-inter font-medium rounded-xl hover:bg-violet-700 transition-colors"
+                                    >
+                                      <Tag size={11} strokeWidth={1.5} /> Angebot erstellen
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors"
@@ -2234,6 +2263,12 @@ export default function StudioDashboard() {
                 Für <span className="font-semibold text-zinc-800">{offerModal.user_name}</span>
                 {offerModal.notes && <> · <span className="italic">"{offerModal.notes}"</span></>}
               </p>
+              {offerModal._inquiry_id && (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-50 border border-violet-100 mb-4">
+                  <Tag size={12} strokeWidth={1.5} className="text-violet-500 shrink-0" />
+                  <p className="text-xs text-violet-700 font-inter">Das Angebot wird per E-Mail an den Gast gesendet – mit einem Aktivierungslink zum InkBook-Konto.</p>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
