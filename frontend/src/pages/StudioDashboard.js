@@ -88,7 +88,8 @@ export default function StudioDashboard() {
   const [calBlockPickType, setCalBlockPickType] = useState("full");
   const [calBlockPickNote, setCalBlockPickNote] = useState("");
   const [calBlockSaving, setCalBlockSaving] = useState(false);
-  // Bookings calendar
+  const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "today"
+  // Bookings calendar (unused states kept for compatibility)
   const [bookCalMonth, setBookCalMonth] = useState(now0.getMonth() + 1);
   const [bookCalYear, setBookCalYear] = useState(now0.getFullYear());
   const [bookCalSelected, setBookCalSelected] = useState(null);
@@ -1086,20 +1087,123 @@ export default function StudioDashboard() {
           for (let i = 0; i < offset; i++) cells.push(null);
           for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
+          const todayIsoKal = new Date().toISOString().split("T")[0];
+          const todayBookings = [...activeBookings, ...pastStudioBookings]
+            .filter(b => b.date === todayIsoKal)
+            .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+          const todayLabel = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+
           return (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-5">
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-playfair font-semibold text-xl text-zinc-900">Kalender-Verwaltung</h3>
-                  <p className="text-xs text-zinc-500 font-inter mt-0.5">Markiere Tage manuell — auch für externe Termine</p>
+                  <h3 className="font-playfair font-semibold text-xl text-zinc-900">Kalender</h3>
+                  <p className="text-xs text-zinc-500 font-inter mt-0.5 capitalize">{monthLabel}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">‹</button>
-                  <span className="font-inter font-semibold text-sm text-zinc-900 min-w-[130px] text-center capitalize">{monthLabel}</span>
-                  <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">›</button>
-                </div>
+                {kalenderView === "capacity" && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">‹</button>
+                    <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors">›</button>
+                  </div>
+                )}
               </div>
+
+              {/* View toggle */}
+              <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+                {[
+                  { id: "capacity", label: "Kapazität festlegen" },
+                  { id: "today",    label: `Heutige Termine${todayBookings.length > 0 ? ` (${todayBookings.length})` : ""}` },
+                ].map(v => (
+                  <motion.button key={v.id} onClick={() => setKalenderView(v.id)} whileTap={{ scale: 0.96 }}
+                    className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${kalenderView === v.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                    {v.label}
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* ── Heutige Termine view ─────────────────────────────────── */}
+              {kalenderView === "today" && (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-zinc-50 flex items-center justify-between">
+                    <div>
+                      <p className="font-playfair font-semibold text-base text-zinc-900">Heutige Termine</p>
+                      <p className="text-[11px] font-inter text-zinc-400 mt-0.5 capitalize">{todayLabel}</p>
+                    </div>
+                    {todayBookings.length > 0 && (
+                      <span className="text-[11px] font-inter text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-full">{todayBookings.length} Termin{todayBookings.length !== 1 ? "e" : ""}</span>
+                    )}
+                  </div>
+                  {todayBookings.length === 0 ? (
+                    <div className="px-5 py-10 flex flex-col items-center text-center gap-2">
+                      <p className="text-3xl">📅</p>
+                      <p className="text-sm font-inter font-semibold text-zinc-500">Keine Termine heute</p>
+                      <p className="text-xs font-inter text-zinc-400">Genieß den freien Tag!</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-zinc-50">
+                      {todayBookings.map(b => {
+                        const isConf = b.status === "confirmed";
+                        const isPend = ["pending","pending_studio_review","under_review"].includes(b.status);
+                        const isOffer = b.status === "offer_sent";
+                        const deposit = b.offer_deposit_amount ?? b.deposit_amount;
+                        const barColor = isConf ? "bg-emerald-400" : isOffer ? "bg-violet-400" : isPend ? "bg-amber-400" : "bg-zinc-200";
+                        return (
+                          <div key={b.booking_id} className="px-5 py-4 space-y-2.5">
+                            {/* Name + time + status */}
+                            <div className="flex items-center gap-3">
+                              <div className={`w-1 h-12 rounded-full flex-shrink-0 ${barColor}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-inter font-semibold text-zinc-900">{b.user_name}</p>
+                                <p className="text-[11px] text-zinc-500 font-inter mt-0.5">
+                                  {b.start_time ? `⏰ ${b.start_time} Uhr` : "⏰ Zeit noch nicht festgelegt"}
+                                  {b.size_category && ` · ${b.size_category}`}
+                                </p>
+                              </div>
+                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${
+                                isConf ? "bg-emerald-100 text-emerald-700" :
+                                isOffer ? "bg-violet-100 text-violet-700" :
+                                isPend  ? "bg-amber-100 text-amber-700" :
+                                "bg-zinc-100 text-zinc-500"
+                              }`}>{statusLabels[b.status] || b.status}</span>
+                            </div>
+                            {/* Detail grid */}
+                            <div className="ml-4 grid grid-cols-2 gap-x-6 gap-y-1.5">
+                              {b.booking_type && (
+                                <>
+                                  <span className="text-[10px] font-inter text-zinc-400">Art</span>
+                                  <span className="text-[10px] font-inter font-semibold text-zinc-700">{b.booking_type === "consultation" ? "Beratung" : b.booking_type === "video_consultation" ? "Video-Beratung" : "Tattoo-Session"}</span>
+                                </>
+                              )}
+                              {deposit != null && deposit !== "" && (
+                                <>
+                                  <span className="text-[10px] font-inter text-zinc-400">Anzahlung</span>
+                                  <span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(deposit) === 0 ? "Kostenlos" : `€ ${parseFloat(deposit).toFixed(0)}`}</span>
+                                </>
+                              )}
+                              {b.body_part && (
+                                <>
+                                  <span className="text-[10px] font-inter text-zinc-400">Körperstelle</span>
+                                  <span className="text-[10px] font-inter font-semibold text-zinc-700">{b.body_part}</span>
+                                </>
+                              )}
+                              {b.notes && (
+                                <>
+                                  <span className="text-[10px] font-inter text-zinc-400">Anmerkung</span>
+                                  <span className="text-[10px] font-inter text-zinc-600 italic">"{b.notes}"</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Kapazität festlegen view ─────────────────────────────── */}
+              {kalenderView === "capacity" && <>
 
               {/* Legend — same as customer view */}
               <div className="flex flex-wrap gap-2">
@@ -1231,6 +1335,8 @@ export default function StudioDashboard() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              </>}
             </motion.div>
           );
         })()}
@@ -1239,8 +1345,8 @@ export default function StudioDashboard() {
         {activeTab === "bookings" && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} className="space-y-5">
 
-            {/* Mini bookings calendar */}
-            {(() => {
+            {/* Mini bookings calendar — REMOVED */}
+            {false && (() => {
               const daysInMonth = new Date(bookCalYear, bookCalMonth, 0).getDate();
               const firstWeekday = new Date(bookCalYear, bookCalMonth - 1, 1).getDay();
               const offset = (firstWeekday + 6) % 7;
