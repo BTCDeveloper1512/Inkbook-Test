@@ -750,7 +750,7 @@ export default function StudioDashboard() {
             <nav className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-2 space-y-0.5">
               {[
                 { id: "overview",  icon: <LayoutGrid    size={15} strokeWidth={1.5} />, label: "Übersicht",    badge: 0 },
-                { id: "bookings",  icon: <BookOpen      size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => b.status === "pending").length },
+                { id: "bookings",  icon: <BookOpen      size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => ["pending","pending_studio_review","under_review"].includes(b.status)).length },
                 { id: "inquiries", icon: <Inbox         size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "kalender",  icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Kalender",     badge: 0 },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
@@ -780,7 +780,7 @@ export default function StudioDashboard() {
             <div className="flex gap-1 mb-5 md:hidden bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 overflow-x-auto">
               {[
                 { id: "overview",  label: "Übersicht",  badge: 0 },
-                { id: "bookings",  label: "Buchungen",  badge: activeBookings.filter(b => b.status === "pending").length },
+                { id: "bookings",  label: "Buchungen",  badge: activeBookings.filter(b => ["pending","pending_studio_review","under_review"].includes(b.status)).length },
                 { id: "inquiries", label: "Anfragen",   badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "kalender",  label: "Kalender",   badge: 0 },
                 { id: "artists",   label: "Artists",    badge: 0 },
@@ -1025,9 +1025,19 @@ export default function StudioDashboard() {
                           <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
                         )}
                         {["pending", "confirmed"].includes(b.status) && (
-                          <motion.button whileTap={{ scale: 0.95 }} onClick={async () => { if (!window.confirm("Buchung stornieren?")) return; try { await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }); fetchStats(); } catch {} }}
+                          <motion.button whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              if (b.payment_status === "paid") {
+                                setRefundModal(b);
+                              } else {
+                                if (!window.confirm("Buchung stornieren?")) return;
+                                axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
+                              }
+                            }}
                             className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 transition-all"
-                            data-testid={`cancel-btn-overview-${b.booking_id}`}>Stornieren</motion.button>
+                            data-testid={`cancel-btn-overview-${b.booking_id}`}>
+                            {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
+                          </motion.button>
                         )}
                       </div>
                     </motion.div>
@@ -1713,8 +1723,8 @@ export default function StudioDashboard() {
                             </motion.button>
                           )}
 
-                          {/* Cancel button for all active non-past bookings */}
-                          {STUDIO_ACTIVE.includes(b.status) && !isPast && (
+                          {/* Cancel button — always for today, only future for non-past */}
+                          {STUDIO_ACTIVE.includes(b.status) && (!isPast || isBookingToday(b)) && (
                             <motion.button whileTap={{ scale: 0.95 }}
                               onClick={() => {
                                 if (b.payment_status === "paid") {
@@ -2775,8 +2785,10 @@ export default function StudioDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Minuten)</label>
-                  <input type="number" min="30" step="30" value={offerForm.offer_duration_min} onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: e.target.value }))}
+                  <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Stunden)</label>
+                  <input type="number" min="0.5" step="0.5"
+                    value={offerForm.offer_duration_min / 60}
+                    onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: Math.round(parseFloat(e.target.value || 1) * 60) }))}
                     className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">

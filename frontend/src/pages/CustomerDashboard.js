@@ -769,13 +769,18 @@ export default function CustomerDashboard() {
 
                         {/* Accept offer + pay deposit */}
                         {isOffer && !isPast && (
-                          <button onClick={() => handleAcceptOffer(booking)}
-                            disabled={acceptingOffer === booking.booking_id}
-                            className="px-3 py-1.5 bg-violet-600 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-violet-700 transition-colors whitespace-nowrap disabled:opacity-50"
-                            data-testid={`accept-offer-btn-${booking.booking_id}`}
-                          >
-                            <CheckCircle size={11} strokeWidth={1.5} /> {acceptingOffer === booking.booking_id ? "..." : "Angebot annehmen & bezahlen"}
-                          </button>
+                          <div className="w-full flex flex-col gap-2">
+                            {booking.deposit_deadline_at && (
+                              <DepositCountdown deadlineAt={booking.deposit_deadline_at} />
+                            )}
+                            <button onClick={() => handleAcceptOffer(booking)}
+                              disabled={acceptingOffer === booking.booking_id}
+                              className="px-3 py-1.5 bg-violet-600 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-violet-700 transition-colors whitespace-nowrap disabled:opacity-50 self-start"
+                              data-testid={`accept-offer-btn-${booking.booking_id}`}
+                            >
+                              <CheckCircle size={11} strokeWidth={1.5} /> {acceptingOffer === booking.booking_id ? "..." : "Angebot annehmen & bezahlen"}
+                            </button>
+                          </div>
                         )}
 
                         {/* Regular deposit payment */}

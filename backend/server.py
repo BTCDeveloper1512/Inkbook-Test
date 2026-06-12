@@ -1779,6 +1779,9 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
     platform_fee_pct = 5.0
     platform_fee_amount = round(offer.offer_deposit_amount * platform_fee_pct / 100, 2)
 
+    # Set 15-minute deadline starting from when offer is sent
+    offer_deadline_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+
     await db.bookings.update_one(
         {"booking_id": booking_id},
         {"$set": {
@@ -1792,6 +1795,8 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
             "platform_fee_pct": platform_fee_pct,
             "platform_fee_amount": platform_fee_amount,
             "offer_created_at": datetime.now(timezone.utc).isoformat(),
+            "deposit_deadline_at": offer_deadline_at,
+            "deposit_required": True,
         }}
     )
 
@@ -1802,16 +1807,17 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
     except Exception:
         date_fmt = offer.offer_date
 
+    deposit_str = f"€{offer.offer_deposit_amount:.0f}" if offer.offer_deposit_amount else ""
     asyncio.create_task(_post_system_message(
         customer_id=customer_id,
         studio_owner_id=owner_id,
-        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · €{offer.offer_deposit_amount:.0f} Anzahlung",
+        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · {deposit_str} Anzahlung – bitte innerhalb von 15 Minuten annehmen.",
         triggered_by_id=owner_id
     ))
     asyncio.create_task(send_push_notification(
         user_id=customer_id,
-        title=f"Angebot erhalten – {studio.get('name', '')}",
-        body=f"{date_fmt} um {offer.offer_time} Uhr · €{offer.offer_total_price:.0f} gesamt",
+        title=f"⏳ Neues Angebot – {studio.get('name', '')} (15 Min. Zeit)",
+        body=f"{date_fmt} um {offer.offer_time} Uhr · {deposit_str} Anzahlung – jetzt annehmen!",
         url="/dashboard"
     ))
 
@@ -1868,15 +1874,10 @@ async def accept_booking_offer(booking_id: str, current_user: dict = Depends(get
             triggered_by_id=user_id
         ))
     else:
-        # Set 15-minute deposit deadline
-        deadline_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
-        await db.bookings.update_one(
-            {"booking_id": booking_id},
-            {"$set": {"deposit_deadline_at": deadline_at}}
-        )
         deposit_amt = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
         deposit_str = f"€{deposit_amt:.0f}" if deposit_amt > 0 else ""
-        sys_text = f"✅ Angebot angenommen – bitte die Anzahlung ({deposit_str}) innerhalb von 15 Minuten bezahlen, sonst verfällt der Termin automatisch."
+        # Deadline was already set when offer was created; status updated above
+        sys_text = f"✅ Angebot angenommen – bitte jetzt die Anzahlung ({deposit_str}) bezahlen, um den Termin zu sichern."
         asyncio.create_task(send_push_notification(
             user_id=owner_id,
             title="Angebot angenommen – Anzahlung läuft",
@@ -4492,10 +4493,9 @@ async def _check_deposit_deadlines():
         try:
             now_iso = datetime.now(timezone.utc).isoformat()
             expired = await db.bookings.find({
-                "status": "confirmed",
-                "deposit_required": True,
+                "status": {"$in": ["confirmed", "offer_sent", "waiting_for_deposit"]},
                 "deposit_deadline_at": {"$ne": None, "$lt": now_iso},
-                "payment_status": {"$nin": ["paid"]}
+                "payment_status": {"$nin": ["paid", "refunded", "free"]}
             }, {"_id": 0}).to_list(None)
             for booking in expired:
                 await db.bookings.update_one(
