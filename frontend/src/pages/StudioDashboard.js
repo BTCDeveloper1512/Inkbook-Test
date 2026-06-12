@@ -88,7 +88,10 @@ export default function StudioDashboard() {
   const [calBlockPickType, setCalBlockPickType] = useState("full");
   const [calBlockPickNote, setCalBlockPickNote] = useState("");
   const [calBlockSaving, setCalBlockSaving] = useState(false);
-  const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "today"
+  const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "termine"
+  const [calViewMonth, setCalViewMonth] = useState(now0.getMonth() + 1);
+  const [calViewYear, setCalViewYear] = useState(now0.getFullYear());
+  const [calViewSelected, setCalViewSelected] = useState(new Date().toISOString().split("T")[0]);
   // Bookings calendar (unused states kept for compatibility)
   const [bookCalMonth, setBookCalMonth] = useState(now0.getMonth() + 1);
   const [bookCalYear, setBookCalYear] = useState(now0.getFullYear());
@@ -1113,7 +1116,7 @@ export default function StudioDashboard() {
               <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
                 {[
                   { id: "capacity", label: "Kapazität festlegen" },
-                  { id: "today",    label: `Heutige Termine${todayBookings.length > 0 ? ` (${todayBookings.length})` : ""}` },
+                  { id: "termine",  label: "Termine" },
                 ].map(v => (
                   <motion.button key={v.id} onClick={() => setKalenderView(v.id)} whileTap={{ scale: 0.96 }}
                     className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${kalenderView === v.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
@@ -1122,85 +1125,119 @@ export default function StudioDashboard() {
                 ))}
               </div>
 
-              {/* ── Heutige Termine view ─────────────────────────────────── */}
-              {kalenderView === "today" && (
-                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-                  <div className="px-5 py-4 border-b border-zinc-50 flex items-center justify-between">
-                    <div>
-                      <p className="font-playfair font-semibold text-base text-zinc-900">Heutige Termine</p>
-                      <p className="text-[11px] font-inter text-zinc-400 mt-0.5 capitalize">{todayLabel}</p>
+              {/* ── Termine view ─────────────────────────────────────────── */}
+              {kalenderView === "termine" && (() => {
+                const allBks = [...activeBookings, ...pastStudioBookings];
+                const bksByDate = {};
+                allBks.forEach(b => {
+                  if (b.date) { if (!bksByDate[b.date]) bksByDate[b.date] = []; bksByDate[b.date].push(b); }
+                });
+                const dim = new Date(calViewYear, calViewMonth, 0).getDate();
+                const off = (new Date(calViewYear, calViewMonth - 1, 1).getDay() + 6) % 7;
+                const todayIsoV = new Date().toISOString().split("T")[0];
+                const vMonthLabel = new Date(calViewYear, calViewMonth - 1, 1).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+                const prevVMo = () => { if (calViewMonth === 1) { setCalViewMonth(12); setCalViewYear(y => y-1); } else setCalViewMonth(m => m-1); };
+                const nextVMo = () => { if (calViewMonth === 12) { setCalViewMonth(1); setCalViewYear(y => y+1); } else setCalViewMonth(m => m+1); };
+                const vCells = [];
+                for (let i=0;i<off;i++) vCells.push(null);
+                for (let d=1;d<=dim;d++) vCells.push(d);
+                const selBks = calViewSelected ? (bksByDate[calViewSelected] || []).slice().sort((a,b)=>(a.start_time||"").localeCompare(b.start_time||"")) : [];
+                const selLabel = calViewSelected ? new Date(calViewSelected+"T12:00:00").toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"long",year:"numeric"}) : "";
+                return (
+                  <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                    {/* Mini calendar */}
+                    <div className="px-4 pt-4 pb-3 border-b border-zinc-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="font-inter font-semibold text-sm text-zinc-900 capitalize">{vMonthLabel}</p>
+                        <div className="flex items-center gap-1">
+                          <button onClick={prevVMo} className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors text-sm">‹</button>
+                          <button onClick={() => { setCalViewMonth(now0.getMonth()+1); setCalViewYear(now0.getFullYear()); setCalViewSelected(todayIsoV); }} className="px-2 py-0.5 text-[10px] font-inter font-semibold text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors">Heute</button>
+                          <button onClick={nextVMo} className="w-7 h-7 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 transition-colors text-sm">›</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-7 mb-1">
+                        {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                          <div key={d} className="text-center text-[10px] font-inter font-semibold text-zinc-400 pb-1">{d}</div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-7 gap-0.5">
+                        {vCells.map((day, i) => {
+                          if (!day) return <div key={`e-${i}`} />;
+                          const iso = `${calViewYear}-${String(calViewMonth).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                          const bks = bksByDate[iso] || [];
+                          const isToday = iso === todayIsoV;
+                          const isSel = calViewSelected === iso;
+                          const confCnt = bks.filter(b => b.status === "confirmed").length;
+                          const pendCnt = bks.filter(b => ["pending","pending_studio_review","under_review","offer_sent"].includes(b.status)).length;
+                          return (
+                            <button key={iso} onClick={() => setCalViewSelected(iso)}
+                              className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all
+                                ${isSel ? "bg-zinc-900 shadow-md" : isToday ? "ring-2 ring-zinc-900 ring-offset-1" : bks.length > 0 ? "bg-zinc-50 hover:bg-zinc-100" : "hover:bg-zinc-50"}
+                              `}>
+                              <span className={`text-xs font-inter font-medium leading-none ${isSel ? "text-white" : "text-zinc-700"}`}>{day}</span>
+                              {bks.length > 0 && (
+                                <div className="flex gap-0.5 mt-0.5">
+                                  {Array.from({length:Math.min(confCnt,3)}).map((_,k)=><span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-emerald-300":"bg-emerald-500"}`}/>)}
+                                  {Array.from({length:Math.min(pendCnt,3)}).map((_,k)=><span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-amber-300":"bg-amber-500"}`}/>)}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center gap-3 mt-3">
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"/><span className="text-[10px] font-inter text-zinc-400">Bestätigt</span></div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] font-inter text-zinc-400">Ausstehend</span></div>
+                      </div>
                     </div>
-                    {todayBookings.length > 0 && (
-                      <span className="text-[11px] font-inter text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-full">{todayBookings.length} Termin{todayBookings.length !== 1 ? "e" : ""}</span>
+                    {/* Selected day detail */}
+                    {calViewSelected && (
+                      <>
+                        <div className="px-5 py-2.5 bg-zinc-50/80 flex items-center justify-between">
+                          <p className="text-[11px] font-inter font-semibold text-zinc-600 capitalize">{selLabel}</p>
+                          <span className="text-[10px] font-inter text-zinc-400">{selBks.length} Termin{selBks.length !== 1 ? "e" : ""}</span>
+                        </div>
+                        {selBks.length === 0 ? (
+                          <div className="px-5 py-8 flex flex-col items-center gap-2 text-center">
+                            <p className="text-2xl">📅</p>
+                            <p className="text-sm font-inter font-semibold text-zinc-400">Keine Termine</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-zinc-50">
+                            {selBks.map(b => {
+                              const isConf = b.status === "confirmed";
+                              const isPend = ["pending","pending_studio_review","under_review"].includes(b.status);
+                              const isOffer = b.status === "offer_sent";
+                              const deposit = b.offer_deposit_amount ?? b.deposit_amount;
+                              const barColor = isConf ? "bg-emerald-400" : isOffer ? "bg-violet-400" : isPend ? "bg-amber-400" : "bg-zinc-200";
+                              return (
+                                <div key={b.booking_id} className="px-5 py-4 space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-1 h-10 rounded-full flex-shrink-0 ${barColor}`} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-inter font-semibold text-zinc-900">{b.user_name}</p>
+                                      <p className="text-[11px] text-zinc-500 font-inter">
+                                        {b.start_time ? `⏰ ${b.start_time} Uhr` : "⏰ Zeit ausstehend"}
+                                        {b.size_category && ` · ${b.size_category}`}
+                                      </p>
+                                    </div>
+                                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${isConf?"bg-emerald-100 text-emerald-700":isOffer?"bg-violet-100 text-violet-700":isPend?"bg-amber-100 text-amber-700":"bg-zinc-100 text-zinc-500"}`}>{statusLabels[b.status]||b.status}</span>
+                                  </div>
+                                  <div className="ml-4 grid grid-cols-2 gap-x-6 gap-y-1">
+                                    {deposit != null && deposit !== "" && <><span className="text-[10px] font-inter text-zinc-400">Anzahlung</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(deposit)===0?"Kostenlos":`€ ${parseFloat(deposit).toFixed(0)}`}</span></>}
+                                    {b.body_part && <><span className="text-[10px] font-inter text-zinc-400">Körperstelle</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.body_part}</span></>}
+                                    {b.notes && <><span className="text-[10px] font-inter text-zinc-400">Anmerkung</span><span className="text-[10px] font-inter text-zinc-600 italic">"{b.notes}"</span></>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
-                  {todayBookings.length === 0 ? (
-                    <div className="px-5 py-10 flex flex-col items-center text-center gap-2">
-                      <p className="text-3xl">📅</p>
-                      <p className="text-sm font-inter font-semibold text-zinc-500">Keine Termine heute</p>
-                      <p className="text-xs font-inter text-zinc-400">Genieß den freien Tag!</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-zinc-50">
-                      {todayBookings.map(b => {
-                        const isConf = b.status === "confirmed";
-                        const isPend = ["pending","pending_studio_review","under_review"].includes(b.status);
-                        const isOffer = b.status === "offer_sent";
-                        const deposit = b.offer_deposit_amount ?? b.deposit_amount;
-                        const barColor = isConf ? "bg-emerald-400" : isOffer ? "bg-violet-400" : isPend ? "bg-amber-400" : "bg-zinc-200";
-                        return (
-                          <div key={b.booking_id} className="px-5 py-4 space-y-2.5">
-                            {/* Name + time + status */}
-                            <div className="flex items-center gap-3">
-                              <div className={`w-1 h-12 rounded-full flex-shrink-0 ${barColor}`} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-inter font-semibold text-zinc-900">{b.user_name}</p>
-                                <p className="text-[11px] text-zinc-500 font-inter mt-0.5">
-                                  {b.start_time ? `⏰ ${b.start_time} Uhr` : "⏰ Zeit noch nicht festgelegt"}
-                                  {b.size_category && ` · ${b.size_category}`}
-                                </p>
-                              </div>
-                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${
-                                isConf ? "bg-emerald-100 text-emerald-700" :
-                                isOffer ? "bg-violet-100 text-violet-700" :
-                                isPend  ? "bg-amber-100 text-amber-700" :
-                                "bg-zinc-100 text-zinc-500"
-                              }`}>{statusLabels[b.status] || b.status}</span>
-                            </div>
-                            {/* Detail grid */}
-                            <div className="ml-4 grid grid-cols-2 gap-x-6 gap-y-1.5">
-                              {b.booking_type && (
-                                <>
-                                  <span className="text-[10px] font-inter text-zinc-400">Art</span>
-                                  <span className="text-[10px] font-inter font-semibold text-zinc-700">{b.booking_type === "consultation" ? "Beratung" : b.booking_type === "video_consultation" ? "Video-Beratung" : "Tattoo-Session"}</span>
-                                </>
-                              )}
-                              {deposit != null && deposit !== "" && (
-                                <>
-                                  <span className="text-[10px] font-inter text-zinc-400">Anzahlung</span>
-                                  <span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(deposit) === 0 ? "Kostenlos" : `€ ${parseFloat(deposit).toFixed(0)}`}</span>
-                                </>
-                              )}
-                              {b.body_part && (
-                                <>
-                                  <span className="text-[10px] font-inter text-zinc-400">Körperstelle</span>
-                                  <span className="text-[10px] font-inter font-semibold text-zinc-700">{b.body_part}</span>
-                                </>
-                              )}
-                              {b.notes && (
-                                <>
-                                  <span className="text-[10px] font-inter text-zinc-400">Anmerkung</span>
-                                  <span className="text-[10px] font-inter text-zinc-600 italic">"{b.notes}"</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
 
               {/* ── Kapazität festlegen view ─────────────────────────────── */}
               {kalenderView === "capacity" && <>
