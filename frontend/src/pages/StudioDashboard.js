@@ -1236,7 +1236,8 @@ export default function StudioDashboard() {
                                     <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${isConf?"bg-emerald-100 text-emerald-700":isOffer?"bg-violet-100 text-violet-700":isPend?"bg-amber-100 text-amber-700":"bg-zinc-100 text-zinc-500"}`}>{statusLabels[b.status]||b.status}</span>
                                   </div>
                                   <div className="ml-4 grid grid-cols-2 gap-x-6 gap-y-1">
-                                    {deposit != null && deposit !== "" && <><span className="text-[10px] font-inter text-zinc-400">Anzahlung</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(deposit)===0?"Kostenlos":`€ ${parseFloat(deposit).toFixed(0)}`}</span></>}
+                                    {b.offer_deposit_amount != null && b.offer_deposit_amount !== "" && <><span className="text-[10px] font-inter text-zinc-400">Anzahlung</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(b.offer_deposit_amount)===0?"Kostenlos":`€ ${parseFloat(b.offer_deposit_amount).toFixed(0)}`}</span></>}
+                                    {(b.preferred_time_from || b.preferred_time_to) && <><span className="text-[10px] font-inter text-zinc-400">Wunschzeit</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.preferred_time_from||"?"} – {b.preferred_time_to||"?"}</span></>}
                                     {b.body_part && <><span className="text-[10px] font-inter text-zinc-400">Körperstelle</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.body_part}</span></>}
                                     {b.notes && <><span className="text-[10px] font-inter text-zinc-400">Anmerkung</span><span className="text-[10px] font-inter text-zinc-600 italic">"{b.notes}"</span></>}
                                   </div>
@@ -1527,12 +1528,18 @@ export default function StudioDashboard() {
                               </div>
                               {/* Row 2: details grid */}
                               <div className="ml-4 grid grid-cols-2 gap-x-4 gap-y-1">
-                                {deposit != null && deposit !== "" && (
+                                {b.offer_deposit_amount != null && b.offer_deposit_amount !== "" && (
                                   <>
                                     <span className="text-[10px] font-inter text-zinc-400">Anzahlung</span>
                                     <span className="text-[10px] font-inter font-semibold text-zinc-700">
-                                      {parseFloat(deposit) === 0 ? "Kostenlos" : `€ ${parseFloat(deposit).toFixed(0)}`}
+                                      {parseFloat(b.offer_deposit_amount) === 0 ? "Kostenlos" : `€ ${parseFloat(b.offer_deposit_amount).toFixed(0)}`}
                                     </span>
+                                  </>
+                                )}
+                                {(b.preferred_time_from || b.preferred_time_to) && (
+                                  <>
+                                    <span className="text-[10px] font-inter text-zinc-400">Wunschzeit</span>
+                                    <span className="text-[10px] font-inter font-semibold text-zinc-700">{b.preferred_time_from||"?"} – {b.preferred_time_to||"?"}</span>
                                   </>
                                 )}
                                 {b.body_part && (

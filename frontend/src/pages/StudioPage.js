@@ -1130,8 +1130,7 @@ export default function StudioPage() {
 
                 {studio?.deposit_required && selectedDate && (
                   <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
-                    <span>Anzahlung erforderlich:</span>
-                    <span className="font-semibold text-zinc-900">€{studio.deposit_amount || 50}</span>
+                    <span>Das Studio legt die Anzahlung im Angebot fest.</span>
                   </div>
                 )}
 
@@ -1240,8 +1239,7 @@ export default function StudioPage() {
 
                 {studio?.deposit_required && (
                   <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
-                    <span>Anzahlung erforderlich:</span>
-                    <span className="font-semibold text-zinc-900">€{studio.deposit_amount || 50}</span>
+                    <span>Das Studio legt die Anzahlung im Angebot fest.</span>
                   </div>
                 )}
                 {bookingSuccess ? (
