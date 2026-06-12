@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
-import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, Calendar, CalendarPlus, Trash2, SmilePlus } from "lucide-react";
+import { Send, Image as ImageIcon, ArrowLeft, MessageSquare, X, Check, CheckCheck, CalendarPlus, Trash2, SmilePlus, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import EmojiPicker from "emoji-picker-react";
 
@@ -26,15 +26,13 @@ export default function MessagesPage() {
   const [otherIsTyping, setOtherIsTyping] = useState(false);
   const [lightboxImg, setLightboxImg] = useState(null);
 
-  // ── Slot offer state ─────────────────────────────────────────────────────────
-  const [showSlotPanel, setShowSlotPanel] = useState(false);
-  const [slotPanelMode, setSlotPanelMode] = useState("existing");
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  // ── Offer panel state ────────────────────────────────────────────────────────
+  const [showOfferPanel, setShowOfferPanel] = useState(false);
+  const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
+  const [linkedBooking, setLinkedBooking] = useState(null);
+  const [loadingLinkedBooking, setLoadingLinkedBooking] = useState(false);
+  const [offerLoading, setOfferLoading] = useState(false);
   const [studioId, setStudioId] = useState(null);
-  const [slotForm, setSlotForm] = useState({ date: "", start_time: "", end_time: "", slot_type: "tattoo" });
-  const [selectedExistingSlot, setSelectedExistingSlot] = useState(null);
-  const [sendingSlot, setSendingSlot] = useState(false);
   const [bookingMsgId, setBookingMsgId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingConv, setDeletingConv] = useState(false);
@@ -219,6 +217,9 @@ export default function MessagesPage() {
     clearInterval(pollMsgRef.current);
     clearInterval(pollTypingRef.current);
     setOtherIsTyping(false);
+    setShowOfferPanel(false);
+    setLinkedBooking(null);
+    setOfferForm({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
 
     if (!activeConv?.other_id) return;
 
@@ -334,58 +335,44 @@ export default function MessagesPage() {
     } catch {}
   };
 
-  // ─── Slot offer helpers ───────────────────────────────────────────────────
-  const fetchAvailableSlots = useCallback(async (sid) => {
-    const id = sid || studioId;
-    if (!id) return;
-    setLoadingSlots(true);
+  // ─── Offer helpers ────────────────────────────────────────────────────────
+  const fetchLinkedBooking = useCallback(async (customerId) => {
+    if (!customerId) return;
+    setLoadingLinkedBooking(true);
+    setLinkedBooking(null);
     try {
-      const { data } = await axios.get(`${API}/studios/${id}/slots`, { withCredentials: true });
-      const today = new Date().toISOString().split("T")[0];
-      setAvailableSlots(data.filter(s => s.date >= today));
-    } catch {} finally { setLoadingSlots(false); }
-  }, [studioId]);
+      const { data } = await axios.get(`${API}/bookings`, { withCredentials: true });
+      const open = data.find(b =>
+        b.user_id === customerId &&
+        ["pending", "pending_studio_review", "under_review"].includes(b.status)
+      );
+      setLinkedBooking(open || null);
+    } catch {} finally { setLoadingLinkedBooking(false); }
+  }, []);
 
-  const sendSlotOffer = async () => {
-    const conv = activeConvRef.current;
-    if (!conv?.other_id || !studioId) return;
-    setSendingSlot(true);
+  const handleSendOffer = async () => {
+    if (!linkedBooking?.booking_id) return;
+    if (!offerForm.offer_date || !offerForm.offer_time || !offerForm.offer_total_price || !offerForm.offer_deposit_amount) {
+      alert("Bitte fülle alle Pflichtfelder aus.");
+      return;
+    }
+    setOfferLoading(true);
     try {
-      let slotId, slotData;
-      if (slotPanelMode === "existing" && selectedExistingSlot) {
-        slotId = selectedExistingSlot.slot_id;
-        slotData = selectedExistingSlot;
-      } else {
-        const { data: newSlot } = await axios.post(
-          `${API}/studios/${studioId}/slots`,
-          { ...slotForm, duration_minutes: 60 },
-          { withCredentials: true }
-        );
-        slotId = newSlot.slot_id;
-        slotData = newSlot;
-      }
-      await axios.post(`${API}/messages`, {
-        recipient_id: conv.other_id,
-        content: "",
-        image_url: "",
-        slot_offer: {
-          slot_id: slotId,
-          studio_id: studioId,
-          date: slotData.date,
-          start_time: slotData.start_time,
-          end_time: slotData.end_time,
-          slot_type: slotData.slot_type || slotForm.slot_type,
-          status: "available"
-        }
+      await axios.post(`${API}/bookings/${linkedBooking.booking_id}/offer`, {
+        offer_date: offerForm.offer_date,
+        offer_time: offerForm.offer_time,
+        offer_duration_min: parseInt(offerForm.offer_duration_min) || 120,
+        offer_total_price: parseFloat(offerForm.offer_total_price) || 0,
+        offer_deposit_amount: parseFloat(offerForm.offer_deposit_amount) || 0,
+        offer_notes: offerForm.offer_notes,
       }, { withCredentials: true });
-      await fetchMessages(conv.other_id);
+      setShowOfferPanel(false);
+      setOfferForm({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
+      await fetchMessages(activeConvRef.current?.other_id);
       fetchConversations(false);
-      setShowSlotPanel(false);
-      setSelectedExistingSlot(null);
-      setSlotForm({ date: "", start_time: "", end_time: "", slot_type: "tattoo" });
     } catch (e) {
-      alert(e.response?.data?.detail || "Fehler beim Senden des Terminvorschlags");
-    } finally { setSendingSlot(false); }
+      alert(e.response?.data?.detail || "Fehler beim Erstellen des Angebots");
+    } finally { setOfferLoading(false); }
   };
 
   const bookSlotFromChat = async (messageId) => {
@@ -857,129 +844,113 @@ export default function MessagesPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Slot Offer Panel – studio only */}
+                {/* Offer Panel – studio only */}
                 <AnimatePresence>
-                  {showSlotPanel && user?.role === "studio_owner" && (
+                  {showOfferPanel && user?.role === "studio_owner" && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                       className="bg-white border-t border-zinc-100 flex-shrink-0 overflow-hidden">
                       <div className="p-4">
                         {/* Header */}
                         <div className="flex items-center justify-between mb-3">
                           <p className="font-inter font-semibold text-sm text-zinc-900 flex items-center gap-2">
-                            <CalendarPlus size={15} strokeWidth={1.5} className="text-zinc-500" />
-                            Terminvorschlag senden
+                            <FileText size={15} strokeWidth={1.5} className="text-violet-500" />
+                            Angebot erstellen
                           </p>
-                          <button onClick={() => setShowSlotPanel(false)} className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors">
+                          <button onClick={() => setShowOfferPanel(false)} className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors">
                             <X size={14} strokeWidth={2} />
                           </button>
                         </div>
-                        {/* Mode Tabs */}
-                        <div className="flex gap-1 mb-4 bg-zinc-100 p-1 rounded-xl w-fit">
-                          <button onClick={() => { setSlotPanelMode("existing"); fetchAvailableSlots(); }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${slotPanelMode === "existing" ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
-                            data-testid="slot-tab-existing">
-                            Bestehender Slot
-                          </button>
-                          <button onClick={() => setSlotPanelMode("new")}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-inter font-medium transition-all ${slotPanelMode === "new" ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
-                            data-testid="slot-tab-new">
-                            Neuer Slot
-                          </button>
-                        </div>
 
-                        {/* Existing Slots */}
-                        {slotPanelMode === "existing" && (
-                          <div>
-                            {loadingSlots ? (
-                              <div className="flex items-center justify-center py-4">
-                                <div className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
-                              </div>
-                            ) : availableSlots.length === 0 ? (
-                              <p className="text-xs text-zinc-400 font-inter py-2 text-center bg-zinc-50 rounded-xl px-3">
-                                Keine freien Slots vorhanden. Erstelle zuerst Slots im Dashboard.
-                              </p>
-                            ) : (
-                              <div className="space-y-1.5 max-h-44 overflow-y-auto">
-                                {availableSlots.map(slot => (
-                                  <button key={slot.slot_id}
-                                    onClick={() => setSelectedExistingSlot(selectedExistingSlot?.slot_id === slot.slot_id ? null : slot)}
-                                    className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all flex items-center gap-3 ${
-                                      selectedExistingSlot?.slot_id === slot.slot_id
-                                        ? "bg-zinc-900 text-white border-zinc-900"
-                                        : "border-zinc-100 hover:border-zinc-300 bg-white"
-                                    }`}
-                                    data-testid={`slot-pick-${slot.slot_id}`}
-                                  >
-                                    <Calendar size={13} strokeWidth={1.5} className="flex-shrink-0 opacity-70" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-inter font-semibold">
-                                        {new Date(slot.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "short" })} · {slot.start_time} – {slot.end_time}
-                                      </p>
-                                      <p className={`text-xs font-inter ${selectedExistingSlot?.slot_id === slot.slot_id ? "text-zinc-300" : "text-zinc-400"}`}>
-                                        {slot.slot_type === "consultation" ? "Beratung" : "Tattoo"}
-                                      </p>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                        {/* No open booking warning */}
+                        {loadingLinkedBooking ? (
+                          <div className="flex items-center justify-center py-4">
+                            <div className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
                           </div>
-                        )}
-
-                        {/* New Slot */}
-                        {slotPanelMode === "new" && (
-                          <div className="grid grid-cols-2 gap-2.5">
-                            <div className="col-span-2">
-                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Datum</label>
-                              <input type="date" value={slotForm.date}
-                                onChange={e => setSlotForm(p => ({...p, date: e.target.value}))}
-                                min={new Date().toISOString().split("T")[0]}
-                                className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
-                                data-testid="new-slot-date" />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Von</label>
-                              <input type="time" value={slotForm.start_time}
-                                onChange={e => setSlotForm(p => ({...p, start_time: e.target.value}))}
-                                className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
-                                data-testid="new-slot-start" />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Bis</label>
-                              <input type="time" value={slotForm.end_time}
-                                onChange={e => setSlotForm(p => ({...p, end_time: e.target.value}))}
-                                className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
-                                data-testid="new-slot-end" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Art</label>
-                              <div className="flex gap-2">
-                                {[{v:"tattoo",l:"Tattoo"},{v:"consultation",l:"Beratung"}].map(t => (
-                                  <button key={t.v} type="button" onClick={() => setSlotForm(p => ({...p, slot_type: t.v}))}
-                                    className={`px-4 py-2 text-xs font-inter font-medium rounded-xl border transition-all ${slotForm.slot_type === t.v ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 text-zinc-600"}`}
-                                    data-testid={`slot-type-${t.v}`}>
-                                    {t.l}
-                                  </button>
-                                ))}
+                        ) : !linkedBooking ? (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3">
+                            <p className="text-xs font-inter text-amber-700 font-medium">Keine offene Buchungsanfrage gefunden.</p>
+                            <p className="text-xs font-inter text-amber-600 mt-0.5">Der Kunde muss zuerst eine Anfrage stellen, damit du ein Angebot erstellen kannst.</p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Booking info pill */}
+                            <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+                              <CalendarPlus size={13} strokeWidth={1.5} className="text-violet-400 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-inter font-semibold text-violet-800 truncate">
+                                  Anfrage von {linkedBooking.user_name || "Kunde"}
+                                </p>
+                                {linkedBooking.notes && (
+                                  <p className="text-xs font-inter text-violet-500 truncate">"{linkedBooking.notes}"</p>
+                                )}
                               </div>
                             </div>
-                          </div>
-                        )}
 
-                        {/* Send Button */}
-                        <div className="flex justify-end mt-4">
-                          <button
-                            onClick={sendSlotOffer}
-                            disabled={sendingSlot ||
-                              (slotPanelMode === "existing" && !selectedExistingSlot) ||
-                              (slotPanelMode === "new" && (!slotForm.date || !slotForm.start_time || !slotForm.end_time))}
-                            className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-semibold text-sm hover:bg-zinc-700 transition-colors disabled:opacity-40 flex items-center gap-2"
-                            data-testid="send-slot-offer-btn"
-                          >
-                            <CalendarPlus size={14} strokeWidth={1.5} />
-                            {sendingSlot ? "Wird gesendet..." : "Terminvorschlag senden"}
-                          </button>
-                        </div>
+                            {/* Form grid */}
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <div className="col-span-2">
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Datum *</label>
+                                <input type="date" value={offerForm.offer_date}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_date: e.target.value }))}
+                                  min={new Date().toISOString().split("T")[0]}
+                                  className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                  data-testid="offer-date" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Uhrzeit *</label>
+                                <input type="time" value={offerForm.offer_time}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_time: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                  data-testid="offer-time" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Dauer (Std.)</label>
+                                <input type="number" min="0.5" step="0.5" placeholder="2"
+                                  value={offerForm.offer_duration_min / 60}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: Math.round(parseFloat(e.target.value || 1) * 60) }))}
+                                  className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                  data-testid="offer-duration" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Gesamtpreis (€) *</label>
+                                <input type="number" min="0" step="5" placeholder="200"
+                                  value={offerForm.offer_total_price}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_total_price: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                  data-testid="offer-total-price" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Anzahlung (€) *</label>
+                                <input type="number" min="0.50" step="5" placeholder="50"
+                                  value={offerForm.offer_deposit_amount}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_deposit_amount: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
+                                  data-testid="offer-deposit" />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Notiz (optional)</label>
+                                <textarea rows={2} value={offerForm.offer_notes}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_notes: e.target.value }))}
+                                  placeholder="Hinweise für den Kunden..."
+                                  className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50 resize-none"
+                                  data-testid="offer-notes" />
+                              </div>
+                            </div>
+
+                            {/* Submit */}
+                            <div className="flex justify-end mt-3">
+                              <motion.button whileTap={{ scale: 0.97 }}
+                                onClick={handleSendOffer}
+                                disabled={offerLoading || !offerForm.offer_date || !offerForm.offer_time || !offerForm.offer_total_price || !offerForm.offer_deposit_amount}
+                                className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl font-inter font-semibold text-sm hover:bg-zinc-700 transition-colors disabled:opacity-40 flex items-center gap-2"
+                                data-testid="send-offer-btn"
+                              >
+                                <FileText size={14} strokeWidth={1.5} />
+                                {offerLoading ? "Wird gesendet..." : "Angebot senden"}
+                              </motion.button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -1069,14 +1040,18 @@ export default function MessagesPage() {
                         )}
                       </AnimatePresence>
                     </div>
-                    {/* Slot offer button – studio only */}
+                    {/* Offer button – studio only */}
                     {user?.role === "studio_owner" && (
                       <button type="button"
-                        onClick={() => { setShowSlotPanel(p => { if (!p) fetchAvailableSlots(); return !p; }); }}
-                        className={`p-2.5 rounded-xl transition-all flex-shrink-0 mb-0.5 ${showSlotPanel ? "bg-zinc-900 text-white" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"}`}
-                        data-testid="slot-offer-btn"
-                        title="Terminvorschlag senden">
-                        <CalendarPlus size={18} strokeWidth={1.5} />
+                        onClick={() => {
+                          const next = !showOfferPanel;
+                          setShowOfferPanel(next);
+                          if (next && activeConv?.other_id) fetchLinkedBooking(activeConv.other_id);
+                        }}
+                        className={`p-2.5 rounded-xl transition-all flex-shrink-0 mb-0.5 ${showOfferPanel ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"}`}
+                        data-testid="offer-panel-btn"
+                        title="Angebot erstellen">
+                        <FileText size={18} strokeWidth={1.5} />
                       </button>
                     )}
                     <div className="flex-1">
