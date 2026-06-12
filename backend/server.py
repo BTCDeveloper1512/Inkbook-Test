@@ -287,6 +287,48 @@ def guest_offer_email_html(
       {_email_footer(f"Du erhältst diese E-Mail weil du eine Anfrage bei {studio_name} auf InkBook gestellt hast.")}
     </div>"""
 
+def studio_cancelled_refund_html(booking: dict) -> str:
+    deposit = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
+    deposit_str = f"€ {deposit:.2f}"
+    date_raw = booking.get("offer_date") or booking.get("date", "")
+    try:
+        date_fmt = datetime.strptime(date_raw, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except Exception:
+        date_fmt = date_raw
+    time_str = booking.get("offer_time") or booking.get("start_time", "")
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#dc2626;letter-spacing:0.05em;text-transform:uppercase;">Termin storniert</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#111;letter-spacing:-0.4px;">Dein Termin wurde storniert</h2>
+        <p style="font-size:14px;color:#555;margin:0 0 24px;line-height:1.6;">
+          Das Studio <strong style="color:#111;">{booking.get('studio_name', '')}</strong> hat deinen Termin leider storniert.
+          Da du bereits eine Anzahlung geleistet hast, wird der Betrag automatisch zurückgebucht.
+        </p>
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;margin-bottom:24px;">
+          {_detail_row("Studio", booking.get('studio_name', ''), highlight=True)}
+          {_detail_row("Termin", f"{date_fmt}{(' um ' + time_str + ' Uhr') if time_str else ''}")}
+          {_detail_row("Rückerstattung", deposit_str)}
+          {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
+        </table>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+          <p style="font-size:13px;font-weight:700;color:#15803d;margin:0 0 6px;">💳 Rückerstattung läuft automatisch</p>
+          <p style="font-size:13px;color:#166534;margin:0;line-height:1.6;">
+            Der Betrag von <strong>{deposit_str}</strong> wird von Stripe auf deine ursprüngliche Zahlungsmethode zurückgebucht.
+            Du musst nichts weiter tun. Die Gutschrift erscheint in der Regel innerhalb von <strong>5–10 Werktagen</strong> auf deinem Kontoauszug,
+            je nach Bank auch früher.
+          </p>
+        </div>
+        <p style="font-size:13px;color:#888;line-height:1.6;margin:0;">
+          Du kannst jederzeit ein neues Angebot bei einem anderen Studio auf InkBook anfragen.
+        </p>
+      </div>
+      {_email_footer(f"Du erhältst diese E-Mail weil du eine Buchung bei {booking.get('studio_name', '')} auf InkBook hattest.")}
+    </div>"""
+
 def deposit_deadline_cancelled_html(booking: dict) -> str:
     return f"""
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
@@ -1955,6 +1997,14 @@ async def cancel_booking_with_refund(booking_id: str, current_user: dict = Depen
             studio_owner_id=owner_id,
             text=f"❌ Termin vom Studio storniert. Die Anzahlung ({deposit_str}) wird automatisch auf deine ursprüngliche Zahlungsmethode zurückgebucht — du musst nichts tun.",
             triggered_by_id=owner_id
+        ))
+
+    user_email = booking.get("user_email", "")
+    if user_email:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"Dein Termin wurde storniert – Anzahlung ({deposit_str}) wird zurückgebucht",
+            html=studio_cancelled_refund_html(booking)
         ))
 
     if customer_id:
