@@ -590,6 +590,8 @@ class BookingCapacityCreate(BaseModel):
     booking_type: str = "tattoo"
     notes: str = ""
     reference_images: List[str] = []
+    preferred_time_from: str = ""   # e.g. "09:00"
+    preferred_time_to: str = ""     # e.g. "14:00"
 
 class BookingOffer(BaseModel):
     offer_date: str                  # ISO date "2026-06-18"
@@ -1388,7 +1390,8 @@ async def _post_system_message(customer_id: str, studio_owner_id: str, text: str
             "last_message": text,
             "last_message_at": datetime.now(timezone.utc).isoformat(),
             "last_sender_id": "inkbook_system",
-        }},
+        },
+        "$unset": {"deleted_by": ""}},
         upsert=True
     )
 
@@ -1602,6 +1605,8 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         "capacity_cost": capacity_cost,
         "notes": data.notes,
         "reference_images": data.reference_images,
+        "preferred_time_from": data.preferred_time_from,
+        "preferred_time_to": data.preferred_time_to,
         "status": "pending_studio_review",
         "payment_status": "unpaid",
         "deposit_required": studio.get("deposit_required", False),
@@ -1611,11 +1616,16 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     await db.bookings.insert_one(booking_doc)
 
     owner_id = studio.get("owner_id", "")
+    time_hint = ""
+    if data.preferred_time_from and data.preferred_time_to:
+        time_hint = f" · Wunschzeit: {data.preferred_time_from}–{data.preferred_time_to} Uhr"
+    elif data.preferred_time_from:
+        time_hint = f" · Ab {data.preferred_time_from} Uhr"
     # Auto-create conversation thread with system message
     asyncio.create_task(_post_system_message(
         customer_id=user_id,
         studio_owner_id=owner_id,
-        text=f"📩 Neue Anfrage eingegangen: {data.size_category.capitalize()}-Tattoo am {data.date}. Das Studio meldet sich bald mit einem Angebot.",
+        text=f"📩 Neue Anfrage eingegangen: {data.size_category.capitalize()}-Tattoo am {data.date}{time_hint}. Das Studio meldet sich bald mit einem Angebot.",
         triggered_by_id=user_id
     ))
 

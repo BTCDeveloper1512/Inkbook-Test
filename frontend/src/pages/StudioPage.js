@@ -435,6 +435,8 @@ export default function StudioPage() {
   }, []);
   const [sizeCategory, setSizeCategory] = useState(null);
   const [bodyPart, setBodyPart] = useState("");
+  const [preferredTimeFrom, setPreferredTimeFrom] = useState("");
+  const [preferredTimeTo, setPreferredTimeTo] = useState("");
   const [capacityData, setCapacityData] = useState({});
 
   const today = new Date();
@@ -540,6 +542,8 @@ export default function StudioPage() {
         booking_type: bookingType,
         notes: bookingNotes,
         reference_images: refImages,
+        preferred_time_from: preferredTimeFrom,
+        preferred_time_to: preferredTimeTo,
       }, { withCredentials: true });
       setBookingSuccess(data);
     } catch (e) {
@@ -1071,10 +1075,31 @@ export default function StudioPage() {
                   })()}
                 </AnimatePresence>
 
-                {/* Step 4: Notes + ref images */}
+                {/* Step 4: Time preference + Notes + ref images */}
                 <AnimatePresence>
                   {selectedDate && sizeCategory && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                      <div className="mb-4">
+                        <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2 flex items-center gap-1.5">
+                          <Clock size={11} strokeWidth={1.5} /> Wunschzeit (optional)
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <label className="block text-[10px] text-zinc-400 font-inter mb-1">Von</label>
+                            <input type="time" value={preferredTimeFrom} onChange={e => setPreferredTimeFrom(e.target.value)}
+                              className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter text-zinc-900 focus:outline-none focus:border-zinc-400 transition-all"
+                              data-testid="preferred-time-from" />
+                          </div>
+                          <span className="text-zinc-400 font-inter text-sm mt-4">–</span>
+                          <div className="flex-1">
+                            <label className="block text-[10px] text-zinc-400 font-inter mb-1">Bis</label>
+                            <input type="time" value={preferredTimeTo} onChange={e => setPreferredTimeTo(e.target.value)}
+                              className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-inter text-zinc-900 focus:outline-none focus:border-zinc-400 transition-all"
+                              data-testid="preferred-time-to" />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-zinc-400 font-inter mt-1.5">Die genaue Uhrzeit bestätigt das Studio – deine Angabe hilft bei der Planung.</p>
+                      </div>
                       <div className="mb-4">
                         <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">{t("booking.notes")}</p>
                         <textarea value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} rows={3}

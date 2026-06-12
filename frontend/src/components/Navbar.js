@@ -106,7 +106,17 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-
+            {user && (
+              <Link to="/messages" className="relative px-4 py-2 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full font-inter transition-all duration-200 flex items-center gap-1.5" data-testid="nav-messages-link">
+                <MessageSquare size={14} strokeWidth={1.5} />
+                Nachrichten
+                {countToShow > 0 && (
+                  <span className="absolute -top-0.5 right-1.5 min-w-[17px] h-[17px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none" data-testid="nav-unread-badge">
+                    {countToShow > 9 ? "9+" : countToShow}
+                  </span>
+                )}
+              </Link>
+            )}
           </div>
 
           {/* Right */}
@@ -166,13 +176,21 @@ export default function Navbar() {
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t border-zinc-100 py-3 space-y-1 overflow-hidden">
               {[
                 { to: "/search", label: t("nav.search") },
-                ...(user ? [{ to: dashboardPath, label: t("nav.dashboard") }] : [
+                ...(user ? [
+                  { to: dashboardPath, label: t("nav.dashboard") },
+                  { to: "/messages", label: "Nachrichten", badge: countToShow }
+                ] : [
                   { to: "/login", label: t("nav.login") },
                   { to: "/register?role=studio", label: "Als Studio registrieren" }
-                ])
+                ]),
               ].map(link => (
-                <Link key={link.to} to={link.to} className="block px-3 py-2.5 text-sm font-inter text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl" onClick={() => setMobileOpen(false)}>
-                  {link.label}
+                <Link key={link.to} to={link.to} className="block px-3 py-2.5 text-sm font-inter text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl flex items-center justify-between" onClick={() => setMobileOpen(false)}>
+                  <span>{link.label}</span>
+                  {link.badge > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {link.badge > 9 ? "9+" : link.badge}
+                    </span>
+                  )}
                 </Link>
               ))}
             </motion.div>

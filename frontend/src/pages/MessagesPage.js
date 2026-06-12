@@ -874,16 +874,22 @@ export default function MessagesPage() {
                         ) : (
                           <>
                             {/* Booking info pill */}
-                            <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
-                              <CalendarPlus size={13} strokeWidth={1.5} className="text-violet-400 flex-shrink-0" />
-                              <div className="min-w-0">
+                            <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 mb-3">
+                              <div className="flex items-center gap-2">
+                                <CalendarPlus size={13} strokeWidth={1.5} className="text-violet-400 flex-shrink-0" />
                                 <p className="text-xs font-inter font-semibold text-violet-800 truncate">
                                   Anfrage von {linkedBooking.user_name || "Kunde"}
+                                  {linkedBooking.date && <span className="font-normal text-violet-600"> · {new Date(linkedBooking.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}</span>}
                                 </p>
-                                {linkedBooking.notes && (
-                                  <p className="text-xs font-inter text-violet-500 truncate">"{linkedBooking.notes}"</p>
-                                )}
                               </div>
+                              {(linkedBooking.preferred_time_from || linkedBooking.preferred_time_to) && (
+                                <p className="text-xs font-inter text-violet-600 mt-1 flex items-center gap-1">
+                                  🕐 Wunschzeit: {linkedBooking.preferred_time_from || "?"} – {linkedBooking.preferred_time_to || "?"}
+                                </p>
+                              )}
+                              {linkedBooking.notes && (
+                                <p className="text-xs font-inter text-violet-500 mt-0.5 truncate">"{linkedBooking.notes}"</p>
+                              )}
                             </div>
 
                             {/* Form grid */}
