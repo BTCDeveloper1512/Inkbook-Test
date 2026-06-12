@@ -1874,6 +1874,79 @@ async def accept_booking_offer(booking_id: str, current_user: dict = Depends(get
     return {"message": "Angebot angenommen", "status": new_status, "is_free": is_free}
 
 
+@api_router.post("/bookings/{booking_id}/cancel-with-refund")
+async def cancel_booking_with_refund(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Studio cancels a paid booking and issues a Stripe refund automatically."""
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if booking.get("payment_status") != "paid":
+        raise HTTPException(status_code=400, detail="Keine bezahlte Anzahlung vorhanden")
+
+    # Find the paid transaction for this booking
+    txn = await db.payment_transactions.find_one({"booking_id": booking_id, "payment_status": "paid"})
+    refund_id = None
+
+    if txn and txn.get("stripe_payment_intent_id"):
+        pi_id = txn["stripe_payment_intent_id"]
+        try:
+            refund = await asyncio.to_thread(stripe_lib.Refund.create, payment_intent=pi_id)
+            refund_id = refund["id"]
+            await db.payment_transactions.update_one(
+                {"booking_id": booking_id, "payment_status": "paid"},
+                {"$set": {
+                    "refund_id": refund_id,
+                    "refund_status": "refunded",
+                    "refunded_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Rückerstattung fehlgeschlagen: {str(e)}")
+
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {
+            "status": "studio_cancelled",
+            "cancelled_by": "studio",
+            "cancelled_at": datetime.now(timezone.utc).isoformat(),
+            "refund_id": refund_id,
+            "refund_status": "refunded" if refund_id else "manual",
+            "payment_status": "refunded",
+        }}
+    )
+
+    customer_id = booking.get("user_id", "")
+    owner_id = studio.get("owner_id", "")
+    deposit = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
+    deposit_str = f"€{deposit:.0f}" if deposit > 0 else ""
+
+    if customer_id and owner_id:
+        asyncio.create_task(_post_system_message(
+            customer_id=customer_id,
+            studio_owner_id=owner_id,
+            text=f"❌ Termin vom Studio storniert. Die Anzahlung ({deposit_str}) wird automatisch auf deine ursprüngliche Zahlungsmethode zurückgebucht — du musst nichts tun."
+        ))
+
+    if customer_id:
+        asyncio.create_task(send_push_notification(
+            user_id=customer_id,
+            title="Termin storniert – Rückerstattung läuft",
+            body=f"Dein Termin wurde storniert. Die Anzahlung wird zurückgebucht.",
+            url="/dashboard"
+        ))
+
+    return {"message": "Storniert und Rückerstattung eingeleitet", "refund_id": refund_id}
+
+
 @api_router.post("/bookings/{booking_id}/no-show")
 async def mark_no_show(booking_id: str, current_user: dict = Depends(get_current_user)):
     """Studio marks a confirmed booking as no-show. Deposit is forfeited."""

@@ -135,6 +135,8 @@ export default function StudioDashboard() {
   const [offerModal, setOfferModal] = useState(null);
   const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
   const [offerLoading, setOfferLoading] = useState(false);
+  const [refundModal, setRefundModal] = useState(null); // booking object with paid deposit
+  const [refundLoading, setRefundLoading] = useState(false);
 
   const fetchUnreadMessages = async () => {
     try {
@@ -1714,14 +1716,18 @@ export default function StudioDashboard() {
                           {/* Cancel button for all active non-past bookings */}
                           {STUDIO_ACTIVE.includes(b.status) && !isPast && (
                             <motion.button whileTap={{ scale: 0.95 }}
-                              onClick={async () => {
-                                if (!window.confirm("Buchung wirklich stornieren?")) return;
-                                try { await axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }); fetchStats(); } catch {}
+                              onClick={() => {
+                                if (b.payment_status === "paid") {
+                                  setRefundModal(b);
+                                } else {
+                                  if (!window.confirm("Buchung wirklich stornieren?")) return;
+                                  axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
+                                }
                               }}
                               className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
                               data-testid={`cancel-booking-studio-${b.booking_id}`}
                             >
-                              Stornieren
+                              {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
                             </motion.button>
                           )}
                           <motion.button whileTap={{ scale: 0.95 }}
@@ -2801,6 +2807,91 @@ export default function StudioDashboard() {
                 <motion.button whileTap={{ scale: 0.97 }} onClick={handleCreateOffer} disabled={offerLoading}
                   className="flex-1 px-4 py-2.5 bg-zinc-900 text-white text-sm font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {offerLoading ? "Wird gesendet…" : "Angebot senden"}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Refund cancellation modal */}
+      <AnimatePresence>
+        {refundModal && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={e => { if (e.target === e.currentTarget && !refundLoading) setRefundModal(null); }}
+          >
+            <motion.div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm"
+              initial={{ scale: 0.92, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center mr-3 flex-shrink-0">
+                  <span className="text-lg">💳</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-zinc-900 font-inter text-base">Stornieren & Anzahlung zurückzahlen</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5 font-inter">
+                    {refundModal.user_name || "Kunde"} · {refundModal.offer_date || refundModal.date || ""}
+                    {(refundModal.offer_time || refundModal.start_time) ? ` · ${refundModal.offer_time || refundModal.start_time} Uhr` : ""}
+                  </p>
+                </div>
+                {!refundLoading && (
+                  <button onClick={() => setRefundModal(null)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors ml-2">
+                    <X size={16} strokeWidth={2} />
+                  </button>
+                )}
+              </div>
+
+              {/* Deposit info */}
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-amber-800 font-inter">Anzahlung bezahlt</span>
+                  <span className="text-sm font-bold text-amber-900 font-inter">
+                    €{parseFloat(refundModal.offer_deposit_amount || refundModal.deposit_amount || 0).toFixed(0)}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700 font-inter leading-relaxed">
+                  Stripe erstattet den Betrag automatisch auf die Karte zurück, mit der der Kunde bezahlt hat. Du brauchst keine Bankdaten — Stripe erledigt das.
+                </p>
+              </div>
+
+              <div className="bg-zinc-50 rounded-2xl p-3 mb-5">
+                <p className="text-xs text-zinc-600 font-inter leading-relaxed">
+                  Nach der Stornierung bekommt der Kunde eine Benachrichtigung und sieht die Rückerstattung in der App. Die Gutschrift erscheint in 5–10 Werktagen auf dem Kontoauszug.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRefundModal(null)}
+                  disabled={refundLoading}
+                  className="flex-1 py-2.5 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-2xl transition-all font-inter disabled:opacity-50"
+                >
+                  Abbrechen
+                </button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  disabled={refundLoading}
+                  onClick={async () => {
+                    setRefundLoading(true);
+                    try {
+                      await axios.post(`${API}/bookings/${refundModal.booking_id}/cancel-with-refund`, {}, { withCredentials: true });
+                      setRefundModal(null);
+                      fetchStats();
+                    } catch (err) {
+                      alert(err?.response?.data?.detail || "Fehler bei der Rückerstattung. Bitte erneut versuchen.");
+                    } finally {
+                      setRefundLoading(false);
+                    }
+                  }}
+                  className="flex-1 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-2xl transition-all font-inter disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {refundLoading ? (
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Läuft...</>
+                  ) : (
+                    "Stornieren & Zurückzahlen"
+                  )}
                 </motion.button>
               </div>
             </motion.div>
