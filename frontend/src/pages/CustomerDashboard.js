@@ -308,9 +308,11 @@ export default function CustomerDashboard() {
   const handleAcceptOffer = async (booking) => {
     setAcceptingOffer(booking.booking_id);
     try {
-      await axios.post(`${API}/bookings/${booking.booking_id}/accept-offer`, {}, { withCredentials: true });
+      const { data } = await axios.post(`${API}/bookings/${booking.booking_id}/accept-offer`, {}, { withCredentials: true });
       fetchStats();
-      handlePayDeposit(booking);
+      if (!data.is_free) {
+        handlePayDeposit(booking);
+      }
     } catch (e) {
       alert(e.response?.data?.detail || "Fehler beim Annehmen des Angebots");
     } finally { setAcceptingOffer(""); }

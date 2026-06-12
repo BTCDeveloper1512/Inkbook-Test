@@ -1827,33 +1827,51 @@ async def accept_booking_offer(booking_id: str, current_user: dict = Depends(get
     if booking.get("status") != "offer_sent":
         raise HTTPException(status_code=400, detail="Kein offenes Angebot vorhanden")
 
-    await db.bookings.update_one(
-        {"booking_id": booking_id},
-        {"$set": {
-            "status": "waiting_for_deposit",
-            "offer_accepted_at": datetime.now(timezone.utc).isoformat(),
-            "deposit_required": True,
-            "deposit_amount": booking.get("offer_deposit_amount", booking.get("deposit_amount", 50.0)),
-            "date": booking.get("offer_date", booking.get("date", "")),
-            "start_time": booking.get("offer_time", booking.get("start_time", "")),
-        }}
-    )
+    deposit_amount = float(booking.get("offer_deposit_amount", booking.get("deposit_amount", 50.0)) or 0)
+    is_free = deposit_amount == 0
+
+    new_status = "confirmed" if is_free else "waiting_for_deposit"
+    update_fields = {
+        "status": new_status,
+        "offer_accepted_at": datetime.now(timezone.utc).isoformat(),
+        "deposit_required": not is_free,
+        "deposit_amount": deposit_amount,
+        "date": booking.get("offer_date", booking.get("date", "")),
+        "start_time": booking.get("offer_time", booking.get("start_time", "")),
+    }
+    if is_free:
+        update_fields["payment_status"] = "free"
+        update_fields["confirmed_at"] = datetime.now(timezone.utc).isoformat()
+
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_fields})
 
     studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
     owner_id = studio.get("owner_id", "") if studio else ""
+
+    if is_free:
+        sys_text = "✅ Angebot angenommen – Termin bestätigt (keine Anzahlung erforderlich)."
+        asyncio.create_task(send_push_notification(
+            user_id=owner_id,
+            title="Termin bestätigt",
+            body=f"{booking.get('user_name','Kunde')} hat das kostenlose Angebot angenommen",
+            url="/studio-dashboard"
+        ))
+    else:
+        sys_text = "✅ Angebot angenommen. Bitte die Anzahlung bezahlen, um den Termin zu sichern."
+        asyncio.create_task(send_push_notification(
+            user_id=owner_id,
+            title="Angebot angenommen",
+            body=f"{booking.get('user_name','Kunde')} hat dein Angebot angenommen",
+            url="/studio-dashboard"
+        ))
+
     asyncio.create_task(_post_system_message(
         customer_id=user_id,
         studio_owner_id=owner_id,
-        text="✅ Angebot angenommen. Bitte die Anzahlung bezahlen, um den Termin zu sichern."
-    ))
-    asyncio.create_task(send_push_notification(
-        user_id=owner_id,
-        title="Angebot angenommen",
-        body=f"{booking.get('user_name','Kunde')} hat dein Angebot angenommen",
-        url="/studio-dashboard"
+        text=sys_text
     ))
 
-    return {"message": "Angebot angenommen", "status": "waiting_for_deposit"}
+    return {"message": "Angebot angenommen", "status": new_status, "is_free": is_free}
 
 
 @api_router.post("/bookings/{booking_id}/no-show")

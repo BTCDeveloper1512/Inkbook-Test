@@ -1158,56 +1158,6 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
-              {/* Block list */}
-              {(() => {
-                const monthPrefix = `${calBlockYear}-${String(calBlockMonth).padStart(2,"0")}`;
-                const monthBlocks = calBlocks.filter(b => b.date.startsWith(monthPrefix));
-                if (!monthBlocks.length) return null;
-                return (
-                  <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-                    <div className="px-5 py-3 border-b border-zinc-50 flex items-center justify-between">
-                      <p className="text-xs font-inter font-semibold text-zinc-500 uppercase tracking-widest">Manuelle Einträge</p>
-                      <span className="text-[11px] font-inter text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">{monthBlocks.length}</span>
-                    </div>
-                    <div className="divide-y divide-zinc-50/70">
-                      {monthBlocks.map(b => {
-                        const bt = BLOCK_TYPES.find(t => t.id === b.block_type) || { label: b.block_type, dot: "bg-zinc-400" };
-                        const dateObj = new Date(b.date + "T12:00:00");
-                        const dayName = dateObj.toLocaleDateString("de-DE", { weekday: "short" });
-                        const dayNum  = dateObj.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-                        return (
-                          <div key={b.block_id} className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50/70 transition-colors group">
-                            {/* Date badge */}
-                            <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-100 flex flex-col items-center justify-center flex-shrink-0">
-                              <span className="text-[9px] font-inter font-semibold text-zinc-400 uppercase leading-none">{dayName}</span>
-                              <span className="text-xs font-inter font-bold text-zinc-900 leading-tight">{dateObj.getDate()}</span>
-                            </div>
-                            {/* Color bar */}
-                            <div className={`w-1 h-8 rounded-full flex-shrink-0 ${dotCls[b.block_type] || "bg-zinc-400"}`} />
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-inter font-semibold text-zinc-900">{bt.label}</span>
-                                <span className="text-[10px] font-inter text-zinc-400">{dayNum}</span>
-                              </div>
-                              {b.note && <p className="text-[11px] text-zinc-400 font-inter truncate mt-0.5">{b.note}</p>}
-                            </div>
-                            {/* Actions */}
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => openDay(b.date)} className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-all" title="Bearbeiten">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                              </button>
-                              <button onClick={() => handleDeleteCalBlock(b.block_id)} className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Entfernen">
-                                <Trash2 size={12} strokeWidth={1.5} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* Block pick modal */}
               <AnimatePresence>
@@ -1400,18 +1350,49 @@ export default function StudioDashboard() {
                         {bookingsByDate[bookCalSelected].map(b => {
                           const isConf = b.status === "confirmed";
                           const isPend = b.status === "pending";
+                          const statusLabel = statusLabels[b.status] || b.status;
+                          const deposit = b.offer_deposit_amount ?? b.deposit_amount;
                           return (
-                            <div key={b.booking_id} className="flex items-center gap-3 px-5 py-3">
-                              <div className={`w-1 h-8 rounded-full flex-shrink-0 ${isConf ? "bg-emerald-400" : isPend ? "bg-amber-400" : "bg-zinc-200"}`} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-inter font-semibold text-zinc-900 truncate">{b.user_name}</p>
-                                <p className="text-[10px] text-zinc-400 font-inter">{b.start_time || "Zeit ausstehend"} · {b.booking_type === "consultation" ? "Beratung" : "Tattoo"}{b.size_category ? ` · ${b.size_category}` : ""}</p>
+                            <div key={b.booking_id} className="px-5 py-3.5 space-y-2">
+                              {/* Row 1: color bar + name + status */}
+                              <div className="flex items-center gap-3">
+                                <div className={`w-1 h-10 rounded-full flex-shrink-0 ${isConf ? "bg-emerald-400" : isPend ? "bg-amber-400" : "bg-zinc-200"}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-inter font-semibold text-zinc-900">{b.user_name}</p>
+                                  <p className="text-[11px] text-zinc-500 font-inter">
+                                    {b.start_time ? `⏰ ${b.start_time} Uhr` : "⏰ Zeit ausstehend"}
+                                    {b.size_category && ` · ${b.size_category}`}
+                                  </p>
+                                </div>
+                                <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${
+                                  isConf ? "bg-emerald-100 text-emerald-700" :
+                                  isPend ? "bg-amber-100 text-amber-700" :
+                                  "bg-zinc-100 text-zinc-500"
+                                }`}>{statusLabel}</span>
                               </div>
-                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${
-                                isConf ? "bg-emerald-100 text-emerald-700" :
-                                isPend ? "bg-amber-100 text-amber-700" :
-                                "bg-zinc-100 text-zinc-500"
-                              }`}>{isConf ? "Bestätigt" : isPend ? "Ausstehend" : b.status}</span>
+                              {/* Row 2: details grid */}
+                              <div className="ml-4 grid grid-cols-2 gap-x-4 gap-y-1">
+                                {deposit != null && deposit !== "" && (
+                                  <>
+                                    <span className="text-[10px] font-inter text-zinc-400">Anzahlung</span>
+                                    <span className="text-[10px] font-inter font-semibold text-zinc-700">
+                                      {parseFloat(deposit) === 0 ? "Kostenlos" : `€ ${parseFloat(deposit).toFixed(0)}`}
+                                    </span>
+                                  </>
+                                )}
+                                {b.body_part && (
+                                  <>
+                                    <span className="text-[10px] font-inter text-zinc-400">Motiv / Stelle</span>
+                                    <span className="text-[10px] font-inter font-semibold text-zinc-700 truncate">{b.body_part}</span>
+                                  </>
+                                )}
+                                {b.notes && (
+                                  <>
+                                    <span className="text-[10px] font-inter text-zinc-400 pt-0.5">Anmerkung</span>
+                                    <span className="text-[10px] font-inter text-zinc-600 italic col-span-1">"{b.notes}"</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
