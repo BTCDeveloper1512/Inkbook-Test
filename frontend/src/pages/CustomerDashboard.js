@@ -15,6 +15,37 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+function DepositCountdown({ deadlineAt }) {
+  const [remaining, setRemaining] = React.useState(null);
+  const [urgent, setUrgent] = React.useState(false);
+  const [expired, setExpired] = React.useState(false);
+  React.useEffect(() => {
+    const calc = () => {
+      const diff = new Date(deadlineAt) - Date.now();
+      if (diff <= 0) { setExpired(true); setRemaining(null); return; }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setUrgent(diff < 5 * 60000);
+      setRemaining(`${m}:${String(s).padStart(2, "0")}`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [deadlineAt]);
+  if (expired) return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-inter font-semibold px-2.5 py-1 rounded-full border bg-red-50 text-red-600 border-red-200">
+      ⏱ Frist abgelaufen
+    </span>
+  );
+  if (!remaining) return null;
+  return (
+    <div className={`flex items-center gap-1.5 rounded-xl px-3 py-2 border text-xs font-inter font-medium w-full ${urgent ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
+      <span className={`text-sm ${urgent ? "animate-pulse" : ""}`}>⏳</span>
+      <span>Zahle in <strong>{remaining} Min.</strong> an — sonst verfällt dein Termin automatisch</span>
+    </div>
+  );
+}
+
 const statusConfig = {
   pending:               { label: "Ausstehend",           cls: "bg-amber-50 text-amber-700 border-amber-200" },
   pending_studio_review: { label: "In Bearbeitung",       cls: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -749,12 +780,17 @@ export default function CustomerDashboard() {
 
                         {/* Regular deposit payment */}
                         {needsDeposit && !isOffer && booking.payment_status !== "paid" && (
-                          <button onClick={() => handlePayDeposit(booking)}
-                            className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap"
-                            data-testid={`pay-deposit-btn-${booking.booking_id}`}
-                          >
-                            <CreditCard size={11} strokeWidth={1.5} /> Anzahlung
-                          </button>
+                          <div className="w-full flex flex-col gap-2">
+                            {booking.deposit_deadline_at && (
+                              <DepositCountdown deadlineAt={booking.deposit_deadline_at} />
+                            )}
+                            <button onClick={() => handlePayDeposit(booking)}
+                              className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter rounded-full flex items-center gap-1.5 hover:bg-zinc-700 transition-colors whitespace-nowrap self-start"
+                              data-testid={`pay-deposit-btn-${booking.booking_id}`}
+                            >
+                              <CreditCard size={11} strokeWidth={1.5} /> Jetzt Anzahlung bezahlen
+                            </button>
+                          </div>
                         )}
 
                         {/* Reschedule: only for confirmed slot bookings */}

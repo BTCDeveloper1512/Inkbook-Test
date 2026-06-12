@@ -1308,8 +1308,9 @@ async def get_available_dates(studio_id: str, year: int, month: int, slot_type: 
     return {"available_dates": [r["_id"] for r in result]}
 
 # ─── Booking system-message helper ───────────────────────────────────────────
-async def _post_system_message(customer_id: str, studio_owner_id: str, text: str):
-    """Inserts an automated InkBook system message in the customer↔studio conversation."""
+async def _post_system_message(customer_id: str, studio_owner_id: str, text: str, triggered_by_id: str = None):
+    """Inserts an automated InkBook system message in the customer↔studio conversation.
+    triggered_by_id: the user_id of whoever triggered the action (determines left/right alignment in chat)."""
     if not customer_id or not studio_owner_id:
         return
     participants = sorted([customer_id, studio_owner_id])
@@ -1326,6 +1327,7 @@ async def _post_system_message(customer_id: str, studio_owner_id: str, text: str
         "read": False,
         "is_system": True,
         "conv_id": conv_id,
+        "triggered_by_id": triggered_by_id,
     }
     await db.messages.insert_one(msg_doc)
 
@@ -1571,7 +1573,8 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     asyncio.create_task(_post_system_message(
         customer_id=user_id,
         studio_owner_id=owner_id,
-        text=f"📩 Neue Anfrage eingegangen: {data.size_category.capitalize()}-Tattoo am {data.date}. Das Studio meldet sich bald mit einem Angebot."
+        text=f"📩 Neue Anfrage eingegangen: {data.size_category.capitalize()}-Tattoo am {data.date}. Das Studio meldet sich bald mit einem Angebot.",
+        triggered_by_id=user_id
     ))
 
     studio_owner = await db.users.find_one({"user_id": owner_id})
@@ -1733,7 +1736,8 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     # System chat message for cancellations
     if customer_id and owner_id and is_cancellation:
         msg = "❌ Termin vom Studio abgesagt." if effective_status == "studio_cancelled" else "❌ Termin vom Kunden abgesagt."
-        asyncio.create_task(_post_system_message(customer_id=customer_id, studio_owner_id=owner_id, text=msg))
+        cancel_triggered_by = owner_id if effective_status == "studio_cancelled" else customer_id
+        asyncio.create_task(_post_system_message(customer_id=customer_id, studio_owner_id=owner_id, text=msg, triggered_by_id=cancel_triggered_by))
 
     return {"message": "Booking updated"}
 
@@ -1801,7 +1805,8 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
     asyncio.create_task(_post_system_message(
         customer_id=customer_id,
         studio_owner_id=owner_id,
-        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · €{offer.offer_deposit_amount:.0f} Anzahlung"
+        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · €{offer.offer_deposit_amount:.0f} Anzahlung",
+        triggered_by_id=owner_id
     ))
     asyncio.create_task(send_push_notification(
         user_id=customer_id,
@@ -1856,20 +1861,34 @@ async def accept_booking_offer(booking_id: str, current_user: dict = Depends(get
             body=f"{booking.get('user_name','Kunde')} hat das kostenlose Angebot angenommen",
             url="/studio-dashboard"
         ))
+        asyncio.create_task(_post_system_message(
+            customer_id=user_id,
+            studio_owner_id=owner_id,
+            text=sys_text,
+            triggered_by_id=user_id
+        ))
     else:
-        sys_text = "✅ Angebot angenommen. Bitte die Anzahlung bezahlen, um den Termin zu sichern."
+        # Set 15-minute deposit deadline
+        deadline_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        await db.bookings.update_one(
+            {"booking_id": booking_id},
+            {"$set": {"deposit_deadline_at": deadline_at}}
+        )
+        deposit_amt = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
+        deposit_str = f"€{deposit_amt:.0f}" if deposit_amt > 0 else ""
+        sys_text = f"✅ Angebot angenommen – bitte die Anzahlung ({deposit_str}) innerhalb von 15 Minuten bezahlen, sonst verfällt der Termin automatisch."
         asyncio.create_task(send_push_notification(
             user_id=owner_id,
-            title="Angebot angenommen",
-            body=f"{booking.get('user_name','Kunde')} hat dein Angebot angenommen",
+            title="Angebot angenommen – Anzahlung läuft",
+            body=f"{booking.get('user_name','Kunde')} hat dein Angebot angenommen. Anzahlung ({deposit_str}) läuft in 15 Min. ab.",
             url="/studio-dashboard"
         ))
-
-    asyncio.create_task(_post_system_message(
-        customer_id=user_id,
-        studio_owner_id=owner_id,
-        text=sys_text
-    ))
+        asyncio.create_task(_post_system_message(
+            customer_id=user_id,
+            studio_owner_id=owner_id,
+            text=sys_text,
+            triggered_by_id=user_id
+        ))
 
     return {"message": "Angebot angenommen", "status": new_status, "is_free": is_free}
 
@@ -1933,7 +1952,8 @@ async def cancel_booking_with_refund(booking_id: str, current_user: dict = Depen
         asyncio.create_task(_post_system_message(
             customer_id=customer_id,
             studio_owner_id=owner_id,
-            text=f"❌ Termin vom Studio storniert. Die Anzahlung ({deposit_str}) wird automatisch auf deine ursprüngliche Zahlungsmethode zurückgebucht — du musst nichts tun."
+            text=f"❌ Termin vom Studio storniert. Die Anzahlung ({deposit_str}) wird automatisch auf deine ursprüngliche Zahlungsmethode zurückgebucht — du musst nichts tun.",
+            triggered_by_id=owner_id
         ))
 
     if customer_id:
@@ -1972,7 +1992,8 @@ async def mark_no_show(booking_id: str, current_user: dict = Depends(get_current
     asyncio.create_task(_post_system_message(
         customer_id=customer_id,
         studio_owner_id=owner_id,
-        text="⚠️ Nicht erschienen: Kunde ist nicht zum Termin gekommen. Die Anzahlung wurde einbehalten."
+        text="⚠️ Nicht erschienen: Kunde ist nicht zum Termin gekommen. Die Anzahlung wurde einbehalten.",
+        triggered_by_id=owner_id
     ))
 
     return {"message": "No-Show markiert", "status": "no_show"}
@@ -2645,7 +2666,8 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
                     date_fmt = bdate
                 asyncio.create_task(_post_system_message(
                     customer_id=customer_id, studio_owner_id=owner_id,
-                    text=f"💳 Anzahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist jetzt bestätigt ✓"
+                    text=f"💳 Anzahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist jetzt bestätigt ✓",
+                    triggered_by_id=customer_id
                 ))
             if studio_obj and owner_id:
                 asyncio.create_task(send_push_notification(

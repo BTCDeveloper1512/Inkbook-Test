@@ -630,13 +630,33 @@ export default function MessagesPage() {
                       </div>
 
                       {group.msgs.map((msg, i) => {
-                        // ── System messages (centered, no avatar) ─────────────
+                        // ── System messages (aligned by who triggered action) ──
                         if (msg.is_system) {
+                          const sysIsMine = msg.triggered_by_id && msg.triggered_by_id === userId;
+                          const sysIsOther = msg.triggered_by_id && msg.triggered_by_id !== userId;
+                          if (!msg.triggered_by_id) {
+                            // Legacy centered style
+                            return (
+                              <div key={msg.message_id} className="flex justify-center my-3" data-testid={`system-msg-${msg.message_id}`}>
+                                <span className="text-xs text-zinc-400 font-inter bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-200 max-w-xs text-center italic">
+                                  {msg.content}
+                                </span>
+                              </div>
+                            );
+                          }
                           return (
-                            <div key={msg.message_id} className="flex justify-center my-3" data-testid={`system-msg-${msg.message_id}`}>
-                              <span className="text-xs text-zinc-400 font-inter bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-200 max-w-xs text-center italic">
+                            <div key={msg.message_id} className={`flex mb-1 ${sysIsMine ? "justify-end" : "justify-start"}`} data-testid={`system-msg-${msg.message_id}`}>
+                              {sysIsOther && <div className="w-7 h-7 bg-zinc-200 rounded-full flex items-center justify-center text-xs font-bold font-inter flex-shrink-0 self-end mr-2 mb-1 text-zinc-500">🤖</div>}
+                              <div className={`max-w-[72%] px-3.5 py-2 rounded-2xl text-xs font-inter leading-relaxed border italic ${
+                                sysIsMine
+                                  ? "bg-zinc-800 text-zinc-200 border-zinc-700 rounded-br-sm"
+                                  : "bg-white text-zinc-500 border-zinc-200 rounded-bl-sm shadow-sm"
+                              }`}>
                                 {msg.content}
-                              </span>
+                                <p className={`text-[9px] mt-1 not-italic ${sysIsMine ? "text-zinc-400 text-right" : "text-zinc-400"}`}>
+                                  InkBook · {new Date(msg.created_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              </div>
                             </div>
                           );
                         }
