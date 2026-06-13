@@ -91,6 +91,14 @@ export default function GuestBookingModal({ studio, onClose }) {
         wished_date_to: form.wished_date_to || null,
         wished_time: form.wished_time && form.wished_time !== "Keine Präferenz" ? form.wished_time : null,
       });
+      if (window.posthog) {
+        window.posthog.capture("inquiry_submitted", {
+          studio_id: studio.studio_id,
+          studio_name: studio.name,
+          size: form.size || null,
+          body_part: form.body_part || null,
+        });
+      }
       setStep("success");
     } catch (err) {
       setError(err.response?.data?.detail || "Fehler beim Senden. Bitte versuche es erneut.");

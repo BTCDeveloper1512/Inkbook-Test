@@ -24,6 +24,9 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const user = await register(form.email, form.password, form.name, form.role);
+      if (window.posthog) {
+        window.posthog.capture("user_registered", { role: user.role });
+      }
       navigate(user.role === "studio_owner" ? "/studio-dashboard" : "/dashboard");
     } catch (err) {
       const d = err.response?.data?.detail;

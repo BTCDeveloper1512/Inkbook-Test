@@ -141,6 +141,17 @@ export default function SearchPage() {
     if (activeStyles.length > 0) params.style = activeStyles[0];
     if (priceRange) params.price_range = priceRange;
     if (minRating) params.min_rating = minRating;
+    if (search || city || activeStyles.length > 0 || priceRange || minRating) {
+      if (window.posthog) {
+        window.posthog.capture("search_performed", {
+          query: search || null,
+          city: city || null,
+          styles: activeStyles.length > 0 ? activeStyles : null,
+          price_range: priceRange || null,
+          min_rating: minRating || null,
+        });
+      }
+    }
     axios.get(`${API}/studios`, { params })
       .then(({ data }) => { if (!cancelled) setStudios(data); })
       .catch(console.error)

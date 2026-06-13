@@ -4,6 +4,16 @@ import { X, ChevronDown, ChevronUp } from "lucide-react";
 
 const STORAGE_KEY = "inkbook_cookie_consent";
 const CONSENT_VERSION = 1;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+function sendConsentToBackend(analytics, marketing, timestamp) {
+  fetch(`${API}/consent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ analytics, marketing, timestamp }),
+  }).catch(() => {});
+}
 
 function getStoredConsent() {
   try {
@@ -76,17 +86,20 @@ export default function CookieBanner() {
   }, []);
 
   const handleAcceptAll = () => {
-    saveConsent(true, true);
+    const consent = saveConsent(true, true);
+    sendConsentToBackend(true, true, consent.timestamp);
     setVisible(false);
   };
 
   const handleDeclineAll = () => {
-    saveConsent(false, false);
+    const consent = saveConsent(false, false);
+    sendConsentToBackend(false, false, consent.timestamp);
     setVisible(false);
   };
 
   const handleSaveSelection = () => {
-    saveConsent(analytics, marketing);
+    const consent = saveConsent(analytics, marketing);
+    sendConsentToBackend(analytics, marketing, consent.timestamp);
     setVisible(false);
   };
 

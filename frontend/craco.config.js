@@ -44,6 +44,13 @@ let webpackConfig = {
           '**/public/**',
         ],
       };
+      // Remove incompatible plugins: ForkTsCheckerWebpackPlugin (ajv v8 compat) + ESLintWebpackPlugin
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        (p) => !p.constructor || (
+          p.constructor.name !== "ForkTsCheckerWebpackPlugin" &&
+          p.constructor.name !== "ESLintWebpackPlugin"
+        )
+      );
       if (config.enableHealthCheck && healthPluginInstance) {
         webpackConfig.plugins.push(healthPluginInstance);
       }
@@ -80,13 +87,14 @@ webpackConfig.devServer = (devServerConfig) => {
   devServerConfig.allowedHosts = "all";
 
   // Proxy /api requests to the backend so the browser never crosses origins
-  devServerConfig.proxy = {
-    "/api": {
+  devServerConfig.proxy = [
+    {
+      context: ["/api"],
       target: "http://localhost:8000",
       changeOrigin: true,
       secure: false,
     },
-  };
+  ];
 
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;

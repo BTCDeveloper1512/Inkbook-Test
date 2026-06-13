@@ -500,6 +500,14 @@ export default function StudioPage() {
         setStudio(studioRes.data);
         setReviews(reviewsRes.data);
         setArtists(artistsRes.data);
+        if (window.posthog) {
+          window.posthog.capture("studio_viewed", {
+            studio_id: studioRes.data.studio_id,
+            studio_name: studioRes.data.name,
+            city: studioRes.data.city,
+            avg_rating: studioRes.data.avg_rating,
+          });
+        }
       } catch { navigate("/"); } finally { setLoading(false); }
     };
     fetchData();
@@ -517,8 +525,13 @@ export default function StudioPage() {
   }, [selectedDate, bookingType, studioId]);
 
   const handleBook = async () => {
-    if (!user) { setShowGuestModal(true); return; }
+    if (!user) {
+      if (window.posthog) window.posthog.capture("inquiry_started", { studio_id: studioId, studio_name: studio?.name, source: "guest_modal" });
+      setShowGuestModal(true);
+      return;
+    }
     if (!selectedSlot) return;
+    if (window.posthog) window.posthog.capture("inquiry_started", { studio_id: studioId, studio_name: studio?.name, source: "authenticated_slot" });
     setBookingLoading(true);
     try {
       const { data } = await axios.post(`${API}/bookings`, {
@@ -526,12 +539,18 @@ export default function StudioPage() {
         booking_type: bookingType, notes: bookingNotes, reference_images: refImages
       }, { withCredentials: true });
       setBookingSuccess(data);
+      if (window.posthog) window.posthog.capture("booking_confirmed", { studio_id: studioId, studio_name: studio?.name, booking_type: bookingType });
     } catch (e) { alert(e.response?.data?.detail || "Buchung fehlgeschlagen"); } finally { setBookingLoading(false); }
   };
 
   const handleCapacityBook = async () => {
-    if (!user) { setShowGuestModal(true); return; }
+    if (!user) {
+      if (window.posthog) window.posthog.capture("inquiry_started", { studio_id: studioId, studio_name: studio?.name, source: "guest_modal" });
+      setShowGuestModal(true);
+      return;
+    }
     if (!selectedDate || !sizeCategory) return;
+    if (window.posthog) window.posthog.capture("inquiry_started", { studio_id: studioId, studio_name: studio?.name, source: "authenticated_capacity" });
     setBookingLoading(true);
     try {
       const { data } = await axios.post(`${API}/bookings/capacity`, {
@@ -546,6 +565,7 @@ export default function StudioPage() {
         preferred_time_to: preferredTimeTo,
       }, { withCredentials: true });
       setBookingSuccess(data);
+      if (window.posthog) window.posthog.capture("booking_confirmed", { studio_id: studioId, studio_name: studio?.name, booking_type: bookingType, size_category: sizeCategory });
     } catch (e) {
       alert(e.response?.data?.detail || "Anfrage fehlgeschlagen");
     } finally { setBookingLoading(false); }

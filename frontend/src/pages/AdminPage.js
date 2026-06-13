@@ -36,6 +36,7 @@ const SIDEBAR = [
   ]},
   { group: "Finanzen",      items: [
     { id: "revenue",         label: "Einnahmen",       icon: DollarSign },
+    { id: "metrics",         label: "Plattform-Metriken", icon: TrendingUp },
   ]},
   { group: "Content",       items: [
     { id: "reviews",         label: "Bewertungen",     icon: Star },
@@ -165,6 +166,7 @@ export default function AdminPage() {
   const [replyLoading, setReplyLoading] = useState(false);
   const [supportTab, setSupportTab] = useState("tickets");
   const [broadcastRatings, setBroadcastRatings] = useState(null);
+  const [businessMetrics, setBusinessMetrics] = useState(null);
 
   // UI states
   const [searchStudios, setSearchStudios] = useState("");
@@ -239,9 +241,11 @@ export default function AdminPage() {
         setDirectChats((await ax().get(`${API}/admin/direct-chats`)).data);
       if (section === "broadcast" && broadcastRatings === null)
         setBroadcastRatings((await ax().get(`${API}/admin/broadcast/ratings`)).data);
+      if (section === "metrics" && !businessMetrics)
+        setBusinessMetrics((await ax().get(`${API}/admin/business-metrics`)).data);
     } catch {}
   }, [bookings.length, revenue, reviews.length, faqs.length,
-      subscribers.length, reports.length, tickets.length, broadcastRatings]);
+      subscribers.length, reports.length, tickets.length, broadcastRatings, businessMetrics]);
 
   const switchSection = (id) => { setActiveSection(id); lazyFetch(id); };
 
@@ -721,6 +725,134 @@ export default function AdminPage() {
                         </div>
                       )}
                     </SectionCard>
+                  </div>
+                )}
+
+                {/* ══════════════════════════════════════════ PLATTFORM-METRIKEN */}
+                {activeSection === "metrics" && (
+                  <div className="space-y-6">
+                    {!businessMetrics ? (
+                      <div className="py-16 text-center text-zinc-400 font-inter text-sm"><Loader2 size={20} className="animate-spin mx-auto mb-2" /> Lade Metriken…</div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          {[
+                            { label: "GMV (Gesamtvolumen)", value: `€ ${(businessMetrics.gmv || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })}`, color: "text-emerald-600", icon: DollarSign },
+                            { label: "Ø Buchungswert", value: `€ ${(businessMetrics.avg_booking_value || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })}`, color: "text-zinc-900", icon: BarChart3 },
+                            { label: "Conversion Rate", value: `${businessMetrics.conversion_rate || 0} %`, color: "text-violet-600", icon: TrendingUp },
+                            { label: "DAU / MAU", value: `${businessMetrics.dau || 0} / ${businessMetrics.mau || 0}`, color: "text-blue-600", icon: Users },
+                          ].map((c, i) => {
+                            const Icon = c.icon;
+                            return (
+                              <div key={i} className="bg-white rounded-2xl border border-black/[0.04] p-5">
+                                <div className="flex items-center justify-between mb-3">
+                                  <Icon size={16} strokeWidth={1.5} className="text-zinc-400" />
+                                </div>
+                                <p className={`text-2xl font-playfair font-semibold ${c.color}`}>{c.value}</p>
+                                <p className="text-xs font-inter text-zinc-500 mt-1">{c.label}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                          <div className="bg-white rounded-xl border border-zinc-100 p-5">
+                            <p className="text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-3">Cookie-Opt-in-Rate</p>
+                            <p className="text-2xl font-playfair font-semibold text-zinc-900 mb-1">{businessMetrics.consent_total || 0}</p>
+                            <p className="text-xs text-zinc-400 font-inter mb-3">Einwilligungen gesamt</p>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-inter text-zinc-600">Analytics</span>
+                                <span className="text-xs font-inter font-semibold text-emerald-600">{businessMetrics.analytics_optin_rate || 0} %</span>
+                              </div>
+                              <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${businessMetrics.analytics_optin_rate || 0}%` }} />
+                              </div>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs font-inter text-zinc-600">Marketing</span>
+                                <span className="text-xs font-inter font-semibold text-blue-600">{businessMetrics.marketing_optin_rate || 0} %</span>
+                              </div>
+                              <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${businessMetrics.marketing_optin_rate || 0}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-xl border border-zinc-100 p-5">
+                            <p className="text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-3">Buchungen</p>
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-inter text-zinc-600">Gesamt</span>
+                                <span className="text-sm font-inter font-semibold text-zinc-900">{businessMetrics.total_bookings || 0}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-inter text-zinc-600">Bestätigt / Abgeschlossen</span>
+                                <span className="text-sm font-inter font-semibold text-emerald-600">{businessMetrics.confirmed_bookings || 0}</span>
+                              </div>
+                              <div className="h-px bg-zinc-100 my-2" />
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-inter text-zinc-600">Conversion Rate</span>
+                                <span className="text-sm font-inter font-semibold text-violet-600">{businessMetrics.conversion_rate || 0} %</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-xl border border-zinc-100 p-5">
+                            <p className="text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-3">Aktive User</p>
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-inter text-zinc-600">DAU (letzte 24h)</span>
+                                <span className="text-sm font-inter font-semibold text-zinc-900">{businessMetrics.dau || 0}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-inter text-zinc-600">MAU (letzte 30 Tage)</span>
+                                <span className="text-sm font-inter font-semibold text-blue-600">{businessMetrics.mau || 0}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <SectionCard title={`Top Studios nach Umsatz`}>
+                            {(businessMetrics.top_studios_by_revenue || []).length === 0
+                              ? <EmptyState text="Noch keine Buchungshistorie" />
+                              : (businessMetrics.top_studios_by_revenue || []).map((s, i) => (
+                                <div key={i} className="flex items-center justify-between px-5 py-3 border-b border-zinc-50 last:border-0">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-inter font-bold text-zinc-300 w-4">#{i + 1}</span>
+                                    <div>
+                                      <p className="text-sm font-inter font-medium text-zinc-900">{s.name}</p>
+                                      <p className="text-xs text-zinc-400 font-inter">{s.city} · {s.booking_count} Buchungen</p>
+                                    </div>
+                                  </div>
+                                  <span className="text-sm font-inter font-semibold text-emerald-600">€ {(s.revenue || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</span>
+                                </div>
+                              ))}
+                          </SectionCard>
+
+                          <SectionCard title={`Churn-Risiko Studios (${(businessMetrics.churn_risk_studios || []).length})`}>
+                            {(businessMetrics.churn_risk_studios || []).length === 0
+                              ? <div className="py-12 text-center text-emerald-600 font-inter text-sm">✓ Alle Studios aktiv in den letzten 30 Tagen</div>
+                              : (businessMetrics.churn_risk_studios || []).map((s, i) => (
+                                <div key={i} className="flex items-center justify-between px-5 py-3 border-b border-zinc-50 last:border-0">
+                                  <div>
+                                    <p className="text-sm font-inter font-medium text-zinc-900">{s.name}</p>
+                                    <p className="text-xs text-zinc-400 font-inter">{s.city}</p>
+                                  </div>
+                                  <span className="text-xs px-2.5 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 font-inter">Keine Buchung ≥ 30 Tage</span>
+                                </div>
+                              ))}
+                          </SectionCard>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => { setBusinessMetrics(null); lazyFetch("metrics"); }}
+                            className="btn-secondary flex items-center gap-2 text-sm"
+                          >
+                            <Activity size={13} /> Aktualisieren
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 

@@ -3348,6 +3348,37 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
+class ConsentData(BaseModel):
+    analytics: bool
+    marketing: bool
+    timestamp: str
+
+@api_router.post("/consent")
+async def save_consent(data: ConsentData, request: Request):
+    import hashlib
+    ip = request.client.host if request.client else "unknown"
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:16]
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "consent_id": f"cns_{uuid.uuid4().hex[:10]}",
+        "ip_hash": ip_hash,
+        "analytics": data.analytics,
+        "marketing": data.marketing,
+        "timestamp": data.timestamp or now,
+        "saved_at": now,
+    }
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+            user_id = payload.get("sub") or payload.get("user_id")
+            if user_id:
+                doc["user_id"] = user_id
+        except Exception:
+            pass
+    await db.consent_records.insert_one(doc)
+    return {"ok": True}
+
 @api_router.get("/admin/stats")
 async def admin_stats(current_user: dict = Depends(require_admin)):
     total_users = await db.users.count_documents({})
@@ -4302,6 +4333,118 @@ async def admin_stats_enhanced(current_user: dict = Depends(require_admin)):
             "open_reports": open_reports, "top_studios": top_studios}
 
 
+@api_router.get("/admin/business-metrics")
+async def admin_business_metrics(current_user: dict = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
+    thirty_days_ago = (now - timedelta(days=30)).isoformat()
+    seven_days_ago = (now - timedelta(days=7)).isoformat()
+    one_day_ago = (now - timedelta(days=1)).isoformat()
+
+    # GMV: total paid transactions
+    gmv_cursor = db.payment_transactions.aggregate([
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ])
+    gmv_result = await gmv_cursor.to_list(1)
+    gmv = round(gmv_result[0]["total"] if gmv_result else 0, 2)
+
+    # Booking counts (for informational fields)
+    total_bookings = await db.bookings.count_documents({})
+    confirmed_bookings = await db.bookings.count_documents({"status": {"$in": ["confirmed", "completed"]}})
+
+    # Conversion rate: confirmed inquiries / all inquiries (inquiry-based definition)
+    total_inquiries = await db.inquiries.count_documents({})
+    confirmed_inquiries = await db.inquiries.count_documents({"status": {"$in": ["confirmed", "completed", "offer_accepted"]}})
+    conversion_rate = round((confirmed_inquiries / total_inquiries * 100), 1) if total_inquiries > 0 else 0
+
+    # Average booking value (from paid transactions)
+    paid_count_cursor = db.payment_transactions.aggregate([
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {"_id": None, "count": {"$sum": 1}}}
+    ])
+    paid_count_result = await paid_count_cursor.to_list(1)
+    paid_count = paid_count_result[0]["count"] if paid_count_result else 0
+    avg_booking_value = round(gmv / paid_count, 2) if paid_count > 0 else 0
+
+    # DAU/MAU: users active in last 1 / 30 days (based on last_seen or created_at)
+    dau = await db.users.count_documents({"$or": [
+        {"last_seen": {"$gte": one_day_ago}},
+        {"last_login": {"$gte": one_day_ago}},
+    ]})
+    mau = await db.users.count_documents({"$or": [
+        {"last_seen": {"$gte": thirty_days_ago}},
+        {"last_login": {"$gte": thirty_days_ago}},
+    ]})
+
+    # Consent opt-in rates
+    total_consent = await db.consent_records.count_documents({})
+    analytics_optin = await db.consent_records.count_documents({"analytics": True})
+    marketing_optin = await db.consent_records.count_documents({"marketing": True})
+    analytics_rate = round(analytics_optin / total_consent * 100, 1) if total_consent > 0 else 0
+    marketing_rate = round(marketing_optin / total_consent * 100, 1) if total_consent > 0 else 0
+
+    # Studios with no booking in last 30 days (churn risk)
+    all_studios = await db.studios.find({"is_active": True}, {"_id": 0, "studio_id": 1, "name": 1, "city": 1}).to_list(500)
+    churn_risk_studios = []
+    for s in all_studios:
+        recent_booking = await db.bookings.find_one({
+            "studio_id": s["studio_id"],
+            "created_at": {"$gte": thirty_days_ago}
+        })
+        if not recent_booking:
+            churn_risk_studios.append({"studio_id": s["studio_id"], "name": s.get("name", ""), "city": s.get("city", "")})
+
+    # Top 5 studios by revenue (paid transactions), then annotate with booking count
+    revenue_pipeline = [
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {"_id": "$studio_id", "revenue": {"$sum": "$amount"}}},
+        {"$sort": {"revenue": -1}},
+        {"$limit": 5}
+    ]
+    top_raw = await db.payment_transactions.aggregate(revenue_pipeline).to_list(5)
+    top_studios_by_revenue = []
+    for ts in top_raw:
+        s = await db.studios.find_one({"studio_id": ts["_id"]}, {"_id": 0, "name": 1, "city": 1, "avg_rating": 1})
+        booking_count = await db.bookings.count_documents({"studio_id": ts["_id"]})
+        if s:
+            top_studios_by_revenue.append({
+                **s,
+                "studio_id": ts["_id"],
+                "booking_count": booking_count,
+                "revenue": round(ts["revenue"], 2),
+            })
+    # If no payment_transactions, fall back to booking count ranking
+    if not top_studios_by_revenue:
+        fallback_pipeline = [
+            {"$group": {"_id": "$studio_id", "booking_count": {"$sum": 1}}},
+            {"$sort": {"booking_count": -1}},
+            {"$limit": 5}
+        ]
+        fallback_raw = await db.bookings.aggregate(fallback_pipeline).to_list(5)
+        for ts in fallback_raw:
+            s = await db.studios.find_one({"studio_id": ts["_id"]}, {"_id": 0, "name": 1, "city": 1, "avg_rating": 1})
+            if s:
+                top_studios_by_revenue.append({
+                    **s,
+                    "studio_id": ts["_id"],
+                    "booking_count": ts["booking_count"],
+                    "revenue": 0,
+                })
+
+    return {
+        "gmv": gmv,
+        "avg_booking_value": avg_booking_value,
+        "total_bookings": total_bookings,
+        "confirmed_bookings": confirmed_bookings,
+        "conversion_rate": conversion_rate,
+        "dau": dau,
+        "mau": mau,
+        "consent_total": total_consent,
+        "analytics_optin_rate": analytics_rate,
+        "marketing_optin_rate": marketing_rate,
+        "churn_risk_studios": churn_risk_studios[:10],
+        "top_studios_by_revenue": top_studios_by_revenue,
+    }
 
 
 
