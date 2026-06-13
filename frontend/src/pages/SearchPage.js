@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import StudioCard from "../components/StudioCard";
@@ -102,8 +103,8 @@ export default function SearchPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [studios, setStudios] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [allStudios, setAllStudios] = useState(null); // null = initial load pending
+  const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState(searchParams.get("search") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [city, setCity] = useState("");
@@ -114,50 +115,48 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState("recommended");
   const [filterData, setFilterData] = useState({ cities: [], styles: [] });
 
-  // Populate filter options from all studios on mount
+  // Single fetch on mount — provides both filter options AND initial results
   useEffect(() => {
     axios.get(`${API}/studios`).then(({ data }) => {
+      setAllStudios(data);
       const cities = [...new Set(data.map((s) => s.city).filter(Boolean))].sort();
       const styleCounts = {};
-      data.forEach((s) =>
-        (s.styles || []).forEach((st) => {
-          styleCounts[st] = (styleCounts[st] || 0) + 1;
-        })
-      );
-      const styles = Object.entries(styleCounts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([label, count]) => ({ label, count }));
+      data.forEach((s) => (s.styles || []).forEach((st) => { styleCounts[st] = (styleCounts[st] || 0) + 1; }));
+      const styles = Object.entries(styleCounts).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }));
       setFilterData({ cities, styles });
-    }).catch(() => {});
+    }).catch(() => setAllStudios([])).finally(() => setLoading(false));
   }, []);
 
-  // Single effect — re-runs whenever any filter changes
+  // PostHog tracking when search params change
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const params = {};
-    if (search) params.search = search;
-    if (city) params.city = city;
-    if (activeStyles.length > 0) params.style = activeStyles[0];
-    if (priceRange) params.price_range = priceRange;
-    if (minRating) params.min_rating = minRating;
-    if (search || city || activeStyles.length > 0 || priceRange || minRating) {
-      if (window.posthog) {
-        window.posthog.capture("search_performed", {
-          query: search || null,
-          city: city || null,
-          styles: activeStyles.length > 0 ? activeStyles : null,
-          price_range: priceRange || null,
-          min_rating: minRating || null,
-        });
-      }
+    if (!allStudios || !(search || city || activeStyles.length > 0 || priceRange || minRating)) return;
+    if (window.posthog) {
+      window.posthog.capture("search_performed", {
+        query: search || null, city: city || null,
+        styles: activeStyles.length > 0 ? activeStyles : null,
+        price_range: priceRange || null, min_rating: minRating || null,
+      });
     }
-    axios.get(`${API}/studios`, { params })
-      .then(({ data }) => { if (!cancelled) setStudios(data); })
-      .catch(console.error)
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [search, city, activeStyles, priceRange, minRating]);
+  }, [search, city, activeStyles, priceRange, minRating, allStudios]);
+
+  // Client-side filtering — instant, zero extra network calls
+  const studios = useMemo(() => {
+    if (!allStudios) return [];
+    return allStudios.filter((s) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (![s.name, s.description, s.city].some((f) => f?.toLowerCase().includes(q))) return false;
+      }
+      if (city && !s.city?.toLowerCase().includes(city.toLowerCase())) return false;
+      if (activeStyles.length > 0) {
+        const sStyles = (s.styles || []).map((x) => x.toLowerCase());
+        if (!activeStyles.some((st) => sStyles.includes(st.toLowerCase()))) return false;
+      }
+      if (priceRange && s.price_range !== priceRange) return false;
+      if (minRating && (s.avg_rating || 0) < parseFloat(minRating)) return false;
+      return true;
+    });
+  }, [allStudios, search, city, activeStyles, priceRange, minRating]);
 
   const toggleStyle = (s) => {
     setActiveStyles((prev) =>
@@ -458,7 +457,12 @@ export default function SearchPage() {
             ))}
           </div>
         ) : sortedStudios.length === 0 ? (
-          <div className="text-center py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-center py-24"
+          >
             <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search size={24} className="text-zinc-400" strokeWidth={1.5} />
             </div>
@@ -476,13 +480,27 @@ export default function SearchPage() {
                 Filter zurücksetzen
               </button>
             )}
-          </div>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+          <motion.div
+            key={`${search}-${city}-${activeStyles.join()}-${priceRange}-${minRating}-${sortBy}`}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
+          >
             {sortedStudios.map((studio, i) => (
-              <StudioCard key={studio.studio_id} studio={studio} index={i} />
+              <motion.div
+                key={studio.studio_id}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.45,
+                  delay: Math.min(i * 0.07, 0.5),
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                <StudioCard studio={studio} index={i} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </main>
 
