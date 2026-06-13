@@ -1218,11 +1218,59 @@ async def list_studios(
     return studios
 
 @api_router.get("/studios/{studio_id}")
-async def get_studio(studio_id: str):
+async def get_studio(studio_id: str, request: Request = None):
     studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0})
     if not studio:
         raise HTTPException(status_code=404, detail="Studio not found")
+    # Record page view asynchronously (fire-and-forget)
+    async def _record_view():
+        try:
+            await db.studio_page_views.insert_one({
+                "studio_id": studio_id,
+                "viewed_at": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception:
+            pass
+    asyncio.create_task(_record_view())
     return studio
+
+
+@api_router.get("/studios/{studio_id}/analytics")
+async def get_studio_analytics(studio_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if studio.get("owner_id") != owner_id and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Nicht berechtigt")
+
+    now = datetime.now(timezone.utc)
+    thirty_days_ago = (now - timedelta(days=30)).isoformat()
+
+    page_views = await db.studio_page_views.count_documents({
+        "studio_id": studio_id,
+        "viewed_at": {"$gte": thirty_days_ago},
+    })
+    inquiries_received = await db.inquiries.count_documents({
+        "studio_id": studio_id,
+        "created_at": {"$gte": thirty_days_ago},
+    })
+    bookings_confirmed = await db.bookings.count_documents({
+        "studio_id": studio_id,
+        "status": {"$in": ["confirmed", "completed"]},
+        "created_at": {"$gte": thirty_days_ago},
+    })
+
+    view_to_inquiry = round(inquiries_received / page_views * 100, 1) if page_views > 0 else 0
+    inquiry_to_booking = round(bookings_confirmed / inquiries_received * 100, 1) if inquiries_received > 0 else 0
+
+    return {
+        "page_views": page_views,
+        "inquiries_received": inquiries_received,
+        "bookings_confirmed": bookings_confirmed,
+        "view_to_inquiry_pct": view_to_inquiry,
+        "inquiry_to_booking_pct": inquiry_to_booking,
+    }
 
 @api_router.post("/studios")
 async def create_studio(data: StudioCreate, current_user: dict = Depends(get_current_user)):

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -137,11 +137,20 @@ export default function StudioDashboard() {
   const [offerLoading, setOfferLoading] = useState(false);
   const [refundModal, setRefundModal] = useState(null); // booking object with paid deposit
   const [refundLoading, setRefundLoading] = useState(false);
+  const [pageAnalytics, setPageAnalytics] = useState(null);
 
   const fetchUnreadMessages = async () => {
     try {
       const { data } = await axios.get(`${API}/messages/unread-count`, { withCredentials: true });
       setUnreadMessages(data?.unread_count || 0);
+    } catch {}
+  };
+
+  const fetchAnalytics = async (studioId) => {
+    if (!studioId) return;
+    try {
+      const { data } = await axios.get(`${API}/studios/${studioId}/analytics`, { withCredentials: true });
+      setPageAnalytics(data);
     } catch {}
   };
 
@@ -341,6 +350,7 @@ export default function StudioDashboard() {
         fetchCalBlocks(data.studio.studio_id);
         fetchCalCapacity(data.studio.studio_id, calBlockYear, calBlockMonth);
         fetchConnectStatus();
+        fetchAnalytics(data.studio.studio_id);
         const firstLoad = !inquiriesInitialized.current;
         if (firstLoad) inquiriesInitialized.current = true;
         fetchInquiries(data.studio.studio_id, firstLoad);
@@ -1045,6 +1055,67 @@ export default function StudioDashboard() {
                 </div>
               )}
             </motion.div>
+
+            {/* Page Analytics Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, type: "spring", stiffness: 280, damping: 22 }}
+              className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
+                  <Eye size={14} className="text-white" strokeWidth={1.5} />
+                </div>
+                <p className="text-sm font-inter font-semibold text-zinc-900">Seitenanalyse</p>
+                <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100 ml-auto">Letzte 30 Tage</span>
+              </div>
+
+              {/* Funnel metrics */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-zinc-50 rounded-xl p-3.5">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Seitenaufrufe</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">{pageAnalytics?.page_views ?? "—"}</p>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Besucher</p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-3.5">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Anfragen</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">{pageAnalytics?.inquiries_received ?? "—"}</p>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Eingegangen</p>
+                </div>
+                <div className="bg-zinc-900 rounded-xl p-3.5">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Buchungen</p>
+                  <p className="text-2xl font-playfair font-semibold text-white">{pageAnalytics?.bookings_confirmed ?? "—"}</p>
+                  <p className="text-xs text-white/40 font-inter mt-0.5">Bestätigt</p>
+                </div>
+              </div>
+
+              {/* Conversion funnel */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-inter font-semibold text-zinc-500 uppercase tracking-wider">Aufrufe → Anfragen</span>
+                      <span className="text-xs font-inter font-semibold text-zinc-700">{pageAnalytics?.view_to_inquiry_pct ?? 0} %</span>
+                    </div>
+                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-zinc-400 rounded-full transition-all duration-700" style={{ width: `${Math.min(pageAnalytics?.view_to_inquiry_pct ?? 0, 100)}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-inter font-semibold text-zinc-500 uppercase tracking-wider">Anfragen → Buchungen</span>
+                      <span className="text-xs font-inter font-semibold text-zinc-700">{pageAnalytics?.inquiry_to_booking_pct ?? 0} %</span>
+                    </div>
+                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-zinc-900 rounded-full transition-all duration-700" style={{ width: `${Math.min(pageAnalytics?.inquiry_to_booking_pct ?? 0, 100)}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
           </motion.div>
         )}
 
