@@ -471,12 +471,13 @@ export default function AdminPage() {
                       })}
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                       {[
                         { label: "Newsletter-Abos",   value: enhanced?.newsletter_subscribers || 0, color: "text-blue-600" },
                         { label: "Offene Meldungen",  value: enhanced?.open_reports || 0,           color: "text-red-600" },
                         { label: "Neue Nutzer/Woche", value: enhanced?.new_users_week || 0,         color: "text-emerald-600" },
                         { label: "Pending Buchungen", value: stats?.pending_bookings || 0,           color: "text-amber-600" },
+                        { label: "Analytics Opt-in",  value: enhanced?.analytics_consent_rate != null ? `${enhanced.analytics_consent_rate}%` : "—", color: "text-violet-600" },
                       ].map((c, i) => (
                         <div key={i} className="bg-white rounded-xl border border-zinc-100 p-4">
                           <p className={`text-2xl font-playfair font-semibold ${c.color}`}>{c.value}</p>

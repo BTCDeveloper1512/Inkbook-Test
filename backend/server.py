@@ -4328,9 +4328,13 @@ async def admin_stats_enhanced(current_user: dict = Depends(require_admin)):
         s = await db.studios.find_one({"studio_id": ts["_id"]}, {"_id": 0, "name": 1, "city": 1, "avg_rating": 1})
         if s:
             top_studios.append({**s, "booking_count": ts["count"], "studio_id": ts["_id"]})
+    total_consent = await db.consent_records.count_documents({})
+    analytics_optin = await db.consent_records.count_documents({"analytics": True})
+    analytics_consent_rate = round(analytics_optin / total_consent * 100, 1) if total_consent > 0 else 0
     return {"new_users_today": new_users_today, "new_users_week": new_users_week,
             "new_bookings_week": new_bookings_week, "newsletter_subscribers": newsletter_count,
-            "open_reports": open_reports, "top_studios": top_studios}
+            "open_reports": open_reports, "top_studios": top_studios,
+            "analytics_consent_rate": analytics_consent_rate}
 
 
 @api_router.get("/admin/business-metrics")
