@@ -1,0 +1,11 @@
+diff --git a/node_modules/ajv-keywords/keywords/_formatLimit.js b/node_modules/ajv-keywords/keywords/_formatLimit.js
+--- a/node_modules/ajv-keywords/keywords/_formatLimit.js
++++ b/node_modules/ajv-keywords/keywords/_formatLimit.js
+@@ -59,6 +59,7 @@
+ 
+ function extendFormats(ajv) {
+   var formats = ajv._formats;
++  if (!formats) return;
+   for (var name in COMPARE_FORMATS) {
+     var format = formats[name];
+     // the last condition is needed if it's RegExp from another window
