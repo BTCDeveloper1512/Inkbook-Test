@@ -502,6 +502,7 @@ export default function StudioPage() {
         setStudio(studioRes.data);
         setReviews(reviewsRes.data);
         setArtists(artistsRes.data);
+        if (artistsRes.data.length > 1) setSelectedCapArtist(artistsRes.data[0].artist_id);
         if (window.posthog) {
           window.posthog.capture("studio_viewed", {
             studio_id: studioRes.data.studio_id,
@@ -1009,20 +1010,8 @@ export default function StudioPage() {
                 {/* Step 2b: Artist selector — only when studio has multiple artists */}
                 {sizeCategory && artists.length > 1 && (
                   <div className="mb-5">
-                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Artist wählen <span className="text-zinc-300 font-normal normal-case tracking-normal">(optional)</span></p>
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Artist wählen</p>
                     <div className="flex flex-col gap-1.5">
-                      <button
-                        onClick={() => { setSelectedCapArtist(null); setSelectedDate(null); }}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${selectedCapArtist === null ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
-                      >
-                        <span className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${selectedCapArtist === null ? "bg-zinc-700" : "bg-zinc-100"}`}>
-                          <span className="text-base">🏠</span>
-                        </span>
-                        <div>
-                          <p className={`text-xs font-inter font-semibold ${selectedCapArtist === null ? "text-white" : "text-zinc-800"}`}>Kein Artist gewählt</p>
-                          <p className={`text-[10px] font-inter ${selectedCapArtist === null ? "text-zinc-300" : "text-zinc-400"}`}>Studio-weite Verfügbarkeit anzeigen</p>
-                        </div>
-                      </button>
                       {artists.map(a => (
                         <button
                           key={a.artist_id}
@@ -1053,7 +1042,7 @@ export default function StudioPage() {
                       {selectedCapArtist && (() => { const a = artists.find(x => x.artist_id === selectedCapArtist); return a ? <span className="ml-1 font-normal normal-case tracking-normal text-zinc-400">– {a.name}</span> : null; })()}
                     </p>
                     <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-                      {[{color:"bg-emerald-400",label:"Verfügbar"},{color:"bg-amber-400",label:"Begrenzt"},{color:"bg-blue-400",label:"Nur klein"},{color:"bg-zinc-200",label:"Ausgebucht"},{color:"bg-orange-300",label:"Urlaub"}].map(l => (
+                      {[{color:"bg-teal-400",label:"Verfügbar"},{color:"bg-yellow-400",label:"Begrenzt"},{color:"bg-indigo-400",label:"Nur klein"},{color:"bg-rose-400",label:"Blockiert"},{color:"bg-violet-400",label:"Urlaub"}].map(l => (
                         <div key={l.label} className="flex items-center gap-1">
                           <span className={`w-2 h-2 rounded-full ${l.color}`} />
                           <span className="text-[10px] text-zinc-400 font-inter">{l.label}</span>
@@ -1083,24 +1072,26 @@ export default function StudioPage() {
                         const dotColor = isSelected
                           ? "bg-white/60"
                           : isVacation
-                            ? "bg-orange-300"
+                            ? "bg-violet-400"
                             : !canFit
-                              ? "bg-zinc-200"
+                              ? "bg-rose-400"
                               : remaining >= 5
-                                ? "bg-emerald-400"
+                                ? "bg-teal-400"
                                 : remaining >= 3
-                                  ? "bg-amber-400"
-                                  : "bg-blue-400";
+                                  ? "bg-yellow-400"
+                                  : "bg-indigo-400";
+                        const noteTitle = isVacation ? "Urlaub / geschlossen" : (capDay?.note || undefined);
                         return (
-                          <button key={iso} disabled={isPast || !canFit || isVacation}
-                            title={isVacation ? "Studio geschlossen (Urlaub)" : (capDay?.note || undefined)}
-                            onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
-                            className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-orange-50" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
-                            data-testid={`date-btn-${iso}`}
-                          >
-                            <span>{day.getDate()}</span>
-                            {!isPast && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
-                          </button>
+                          <div key={iso} title={noteTitle}>
+                            <button disabled={isPast || !canFit || isVacation}
+                              onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
+                              className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
+                              data-testid={`date-btn-${iso}`}
+                            >
+                              <span>{day.getDate()}</span>
+                              {!isPast && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
