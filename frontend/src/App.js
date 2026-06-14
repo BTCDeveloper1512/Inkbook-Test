@@ -24,6 +24,7 @@ import AGBPage from "./pages/AGBPage";
 import FAQPage from "./pages/FAQPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
 import ActivatePage from "./pages/ActivatePage";
+import { InkNotifyMount } from "./components/InkNotify";
 import "./App.css";
 
 function AppRouter() {
@@ -75,6 +76,7 @@ function AppRouter() {
       <CookieBanner />
       <SupportChat />
       <PWAInstallBanner />
+      <InkNotifyMount />
     </>
   );
 }

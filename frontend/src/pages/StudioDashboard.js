@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { notify } from "../components/InkNotify";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
@@ -91,6 +92,10 @@ export default function StudioDashboard() {
   const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "termine"
   const [studioArtists, setStudioArtists] = useState([]);
   const [calArtistId, setCalArtistId] = useState(null); // null = studio-wide view
+  // Refs for stale-closure-safe polling
+  const calArtistIdRef    = useRef(null);
+  const calBlockYearRef   = useRef(now0.getFullYear());
+  const calBlockMonthRef  = useRef(now0.getMonth() + 1);
   const [calViewMonth, setCalViewMonth] = useState(now0.getMonth() + 1);
   const [calViewYear, setCalViewYear] = useState(now0.getFullYear());
   const [calViewSelected, setCalViewSelected] = useState(new Date().toISOString().split("T")[0]);
@@ -168,6 +173,10 @@ export default function StudioDashboard() {
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
     return () => { clearInterval(pollInterval); clearInterval(msgInterval); clearInterval(tickInterval); };
   }, []);
+
+  useEffect(() => { calArtistIdRef.current   = calArtistId;   }, [calArtistId]);
+  useEffect(() => { calBlockYearRef.current  = calBlockYear;  }, [calBlockYear]);
+  useEffect(() => { calBlockMonthRef.current = calBlockMonth; }, [calBlockMonth]);
 
   useEffect(() => {
     const studioId = stats?.studio?.studio_id;
@@ -299,14 +308,14 @@ export default function StudioDashboard() {
       setRevenueInputs(prev => { const n = { ...prev }; delete n[bookingId]; return n; });
       fetchStats();
     } catch (e) {
-      alert("Fehler beim Abschließen des Termins.");
+      notify.error("Fehler beim Abschließen des Termins.");
     }
   };
 
   const handleCreateOffer = async () => {
     if (!offerModal) return;
     if (!offerForm.offer_date || !offerForm.offer_time || !offerForm.offer_total_price || !offerForm.offer_deposit_amount) {
-      alert("Bitte alle Pflichtfelder ausfüllen (Datum, Uhrzeit, Gesamtpreis, Anzahlung).");
+      notify.error("Bitte alle Pflichtfelder ausfüllen (Datum, Uhrzeit, Gesamtpreis, Anzahlung).");
       return;
     }
     setOfferLoading(true);
@@ -328,7 +337,7 @@ export default function StudioDashboard() {
       fetchStats();
       if (isInquiry) fetchInquiries(stats?.studio?.studio_id, false);
     } catch (e) {
-      alert(e.response?.data?.detail || "Fehler beim Erstellen des Angebots");
+      notify.error(e.response?.data?.detail || "Fehler beim Erstellen des Angebots");
     } finally { setOfferLoading(false); }
   };
 
@@ -357,8 +366,8 @@ export default function StudioDashboard() {
       const { data } = await axios.get(`${API}/dashboard/stats`, { withCredentials: true });
       setStats(data);
       if (data.has_studio && data.studio) {
-        fetchCalBlocks(data.studio.studio_id);
-        fetchCalCapacity(data.studio.studio_id, calBlockYear, calBlockMonth);
+        fetchCalBlocks(data.studio.studio_id, calArtistIdRef.current);
+        fetchCalCapacity(data.studio.studio_id, calBlockYearRef.current, calBlockMonthRef.current, calArtistIdRef.current);
         fetchConnectStatus();
         fetchAnalytics(data.studio.studio_id);
         const firstLoad = !inquiriesInitialized.current;
@@ -423,7 +432,7 @@ export default function StudioDashboard() {
       setRejectModal(null);
       setRejectReason("");
     } catch (err) {
-      alert(err.response?.data?.detail || "Fehler beim Löschen.");
+      notify.error(err.response?.data?.detail || "Fehler beim Löschen.");
     } finally { setRejectLoading(false); }
   };
 
@@ -487,7 +496,7 @@ export default function StudioDashboard() {
       setCalBlockPickDate(null);
       setCalBlockPickNote("");
     } catch (e) {
-      alert(e.response?.data?.detail || "Fehler beim Speichern");
+      notify.error(e.response?.data?.detail || "Fehler beim Speichern");
     } finally { setCalBlockSaving(false); }
   };
 
@@ -505,7 +514,7 @@ export default function StudioDashboard() {
       await axios.post(`${API}/studios`, studioForm, { withCredentials: true });
       setShowCreateStudio(false);
       fetchStats();
-    } catch (err) { alert(err.response?.data?.detail || "Fehler beim Erstellen"); }
+    } catch (err) { notify.error(err.response?.data?.detail || "Fehler beim Erstellen"); }
   };
 
   const handleConfirmBooking = async (bookingId) => {
@@ -524,7 +533,7 @@ export default function StudioDashboard() {
       setEditSuccess(true);
       setTimeout(() => setEditSuccess(false), 3000);
       fetchStats();
-    } catch (err) { alert(err.response?.data?.detail || "Fehler"); } finally { setEditLoading(false); }
+    } catch (err) { notify.error(err.response?.data?.detail || "Fehler"); } finally { setEditLoading(false); }
   };
 
   const handleChangeName = async () => {
@@ -1055,11 +1064,12 @@ export default function StudioDashboard() {
                         )}
                         {["pending", "confirmed"].includes(b.status) && (
                           <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => {
+                            onClick={async () => {
                               if (b.payment_status === "paid") {
                                 setRefundModal(b);
                               } else {
-                                if (!window.confirm("Buchung stornieren?")) return;
+                                const ok = await notify.confirm("Buchung stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
+                                if (!ok) return;
                                 axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
                               }
                             }}
@@ -1141,15 +1151,15 @@ export default function StudioDashboard() {
         {/* Kalender Tab — manual calendar blocking */}
         {activeTab === "kalender" && (() => {
           const BLOCK_TYPES = [
-            { id: "available", label: "Verfügbar",   desc: "Kapazität freigeben / erzwingen", dot: "bg-emerald-400" },
-            { id: "limited",   label: "Begrenzt",    desc: "Begrenzte Kapazität",             dot: "bg-amber-400"   },
-            { id: "small_only",label: "Nur klein",   desc: "Nur kleine Tattoos möglich",      dot: "bg-blue-400"    },
-            { id: "full",      label: "Ausgebucht",  desc: "Tag vollständig blockieren",      dot: "bg-zinc-400"    },
-            { id: "vacation",  label: "Urlaub",      desc: "Urlaub / geschlossen",            dot: "bg-orange-300"  },
+            { id: "available", label: "Verfügbar",   desc: "Kapazität freigeben / erzwingen", dot: "bg-teal-400"    },
+            { id: "limited",   label: "Begrenzt",    desc: "Begrenzte Kapazität",             dot: "bg-yellow-400"  },
+            { id: "small_only",label: "Nur klein",   desc: "Nur kleine Tattoos möglich",      dot: "bg-indigo-400"  },
+            { id: "full",      label: "Blockiert",   desc: "Tag vollständig blockieren",      dot: "bg-rose-400"    },
+            { id: "vacation",  label: "Urlaub",      desc: "Urlaub / geschlossen",            dot: "bg-violet-400"  },
           ];
-          const dotCls  = { available: "bg-emerald-400", limited: "bg-amber-400", small_only: "bg-blue-400", full: "bg-zinc-400", vacation: "bg-orange-300", busy: "bg-zinc-400", private: "bg-zinc-400" };
-          const bgCls   = { available: "bg-emerald-50 border-emerald-200", limited: "bg-amber-50 border-amber-200", small_only: "bg-blue-50 border-blue-200", full: "bg-zinc-100 border-zinc-300", vacation: "bg-orange-50 border-orange-200", busy: "bg-zinc-100 border-zinc-300", private: "bg-zinc-100 border-zinc-300" };
-          const textCls = { available: "text-emerald-800", limited: "text-amber-800", small_only: "text-blue-800", full: "text-zinc-600", vacation: "text-orange-800", busy: "text-zinc-600", private: "text-zinc-600" };
+          const dotCls  = { available: "bg-teal-400", limited: "bg-yellow-400", small_only: "bg-indigo-400", full: "bg-rose-400", vacation: "bg-violet-400", busy: "bg-rose-400", private: "bg-rose-400" };
+          const bgCls   = { available: "bg-teal-50 border-teal-200", limited: "bg-yellow-50 border-yellow-200", small_only: "bg-indigo-50 border-indigo-200", full: "bg-rose-50 border-rose-200", vacation: "bg-violet-50 border-violet-200", busy: "bg-rose-50 border-rose-200", private: "bg-rose-50 border-rose-200" };
+          const textCls = { available: "text-teal-800", limited: "text-yellow-800", small_only: "text-indigo-800", full: "text-rose-700", vacation: "text-violet-800", busy: "text-rose-700", private: "text-rose-700" };
 
           // Capacity dot color from API status (for non-blocked days)
           const capDotCls = (status) => {
@@ -1359,6 +1369,7 @@ export default function StudioDashboard() {
                                     <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${isConf?"bg-emerald-100 text-emerald-700":isOffer?"bg-violet-100 text-violet-700":isPend?"bg-amber-100 text-amber-700":"bg-zinc-100 text-zinc-500"}`}>{statusLabels[b.status]||b.status}</span>
                                   </div>
                                   <div className="ml-4 grid grid-cols-2 gap-x-6 gap-y-1">
+                                    {b.artist_name && <><span className="text-[10px] font-inter text-zinc-400">Artist</span><span className="text-[10px] font-inter font-semibold text-violet-700">🎨 {b.artist_name}</span></>}
                                     {b.offer_deposit_amount != null && b.offer_deposit_amount !== "" && <><span className="text-[10px] font-inter text-zinc-400">Anzahlung</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(b.offer_deposit_amount)===0?"Kostenlos":`€ ${parseFloat(b.offer_deposit_amount).toFixed(0)}`}</span></>}
                                     {(b.preferred_time_from || b.preferred_time_to) && <><span className="text-[10px] font-inter text-zinc-400">Wunschzeit</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.preferred_time_from||"?"} – {b.preferred_time_to||"?"}</span></>}
                                     {b.body_part && <><span className="text-[10px] font-inter text-zinc-400">Körperstelle</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.body_part}</span></>}
@@ -1665,6 +1676,12 @@ export default function StudioDashboard() {
                               </div>
                               {/* Row 2: details grid */}
                               <div className="ml-4 grid grid-cols-2 gap-x-4 gap-y-1">
+                                {b.artist_name && (
+                                  <>
+                                    <span className="text-[10px] font-inter text-zinc-400">Artist</span>
+                                    <span className="text-[10px] font-inter font-semibold text-violet-700">🎨 {b.artist_name}</span>
+                                  </>
+                                )}
                                 {b.offer_deposit_amount != null && b.offer_deposit_amount !== "" && (
                                   <>
                                     <span className="text-[10px] font-inter text-zinc-400">Anzahlung</span>
@@ -1857,8 +1874,9 @@ export default function StudioDashboard() {
                           {b.status === "confirmed" && isPast && (
                             <motion.button whileTap={{ scale: 0.95 }}
                               onClick={async () => {
-                                if (!window.confirm("Kunden als nicht erschienen markieren? Die Anzahlung wird einbehalten.")) return;
-                                try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { alert(e.response?.data?.detail || "Fehler"); }
+                                const ok = await notify.confirm("Kunde als No-Show markieren?", "Die Anzahlung wird einbehalten.");
+                                if (!ok) return;
+                                try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { notify.error(e.response?.data?.detail || "Fehler"); }
                               }}
                               className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all"
                               data-testid={`no-show-btn-${b.booking_id}`}
@@ -1870,11 +1888,12 @@ export default function StudioDashboard() {
                           {/* Cancel button — always for today, only future for non-past */}
                           {STUDIO_ACTIVE.includes(b.status) && (!isPast || isBookingToday(b)) && (
                             <motion.button whileTap={{ scale: 0.95 }}
-                              onClick={() => {
+                              onClick={async () => {
                                 if (b.payment_status === "paid") {
                                   setRefundModal(b);
                                 } else {
-                                  if (!window.confirm("Buchung wirklich stornieren?")) return;
+                                  const ok = await notify.confirm("Buchung wirklich stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
+                                  if (!ok) return;
                                   axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
                                 }
                               }}
@@ -3036,7 +3055,7 @@ export default function StudioDashboard() {
                       setRefundModal(null);
                       fetchStats();
                     } catch (err) {
-                      alert(err?.response?.data?.detail || "Fehler bei der Rückerstattung. Bitte erneut versuchen.");
+                      notify.error(err?.response?.data?.detail || "Fehler bei der Rückerstattung. Bitte erneut versuchen.");
                     } finally {
                       setRefundLoading(false);
                     }

@@ -593,6 +593,8 @@ class BookingCapacityCreate(BaseModel):
     reference_images: List[str] = []
     preferred_time_from: str = ""   # e.g. "09:00"
     preferred_time_to: str = ""     # e.g. "14:00"
+    artist_id: Optional[str] = None  # optional preferred artist
+    artist_name: str = ""            # display name of the artist
 
 class BookingOffer(BaseModel):
     offer_date: str                  # ISO date "2026-06-18"
@@ -1485,22 +1487,22 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
             "$or": [{"artist_id": artist_id}, {"artist_id": None}, {"artist_id": {"$exists": False}}]
         }).to_list(200)
         # Build dict: artist-specific blocks override studio-wide ones
-        manual_blocks: Dict[str, str] = {}
+        manual_blocks: Dict[str, dict] = {}
         # First pass: studio-wide
         for b in all_blocks_list:
             if not b.get("artist_id"):
-                manual_blocks[b["date"]] = b["block_type"]
+                manual_blocks[b["date"]] = {"block_type": b["block_type"], "note": b.get("note", "")}
         # Second pass: artist-specific overrides
         for b in all_blocks_list:
             if b.get("artist_id") == artist_id:
-                manual_blocks[b["date"]] = b["block_type"]
+                manual_blocks[b["date"]] = {"block_type": b["block_type"], "note": b.get("note", "")}
     else:
         manual_blocks_list = await db.calendar_blocks.find({
             "studio_id": studio_id,
             "date": {"$gte": first_day, "$lte": last_day},
             "$or": [{"artist_id": None}, {"artist_id": {"$exists": False}}]
         }).to_list(100)
-        manual_blocks = {b["date"]: b["block_type"] for b in manual_blocks_list}
+        manual_blocks = {b["date"]: {"block_type": b["block_type"], "note": b.get("note", "")} for b in manual_blocks_list}
 
     from datetime import date as date_type
     from_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
@@ -1513,7 +1515,9 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
         used = used_by_date.get(iso, 0)
         remaining = _DAY_CAPACITY - used
         if iso in manual_blocks:
-            btype = manual_blocks[iso]
+            blk = manual_blocks[iso]
+            btype = blk["block_type"]
+            note = blk["note"]
             if btype in ("busy", "private", "full"):
                 status = "full"
                 remaining = 0
@@ -1529,7 +1533,7 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
             else:  # "limited"
                 status = "limited"
                 remaining = max(0, 4 - used)
-            result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype}
+            result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype, "note": note}
         else:
             if remaining <= 0:
                 status = "full"
@@ -1539,7 +1543,7 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
                 status = "limited"
             else:
                 status = "available"
-            result[iso] = {"used": used, "remaining": remaining, "status": status}
+            result[iso] = {"used": used, "remaining": remaining, "status": status, "note": ""}
         current += timedelta(days=1)
 
     return {"dates": result, "day_capacity": _DAY_CAPACITY}
@@ -1642,18 +1646,34 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
 
     capacity_cost = _SIZE_CAPACITY[data.size_category]
 
-    # Check capacity for the requested day
-    existing = await db.bookings.find({
+    # Check capacity for the requested day — per-artist if artist_id provided
+    booking_filter: Dict[str, Any] = {
         "studio_id": data.studio_id,
         "date": data.date,
         "status": {"$in": _ACTIVE_STATUSES},
         "capacity_cost": {"$exists": True}
-    }).to_list(100)
+    }
+    if data.artist_id:
+        booking_filter["artist_id"] = data.artist_id
+    existing = await db.bookings.find(booking_filter).to_list(100)
     used = sum(int(b.get("capacity_cost", 0)) for b in existing)
     remaining = _DAY_CAPACITY - used
 
-    # Apply manual calendar block cap
-    manual_block = await db.calendar_blocks.find_one({"studio_id": data.studio_id, "date": data.date})
+    # Apply manual calendar block cap — artist-specific block takes priority over studio-wide
+    if data.artist_id:
+        manual_block = await db.calendar_blocks.find_one({
+            "studio_id": data.studio_id, "date": data.date, "artist_id": data.artist_id
+        })
+        if not manual_block:
+            manual_block = await db.calendar_blocks.find_one({
+                "studio_id": data.studio_id, "date": data.date,
+                "$or": [{"artist_id": None}, {"artist_id": {"$exists": False}}]
+            })
+    else:
+        manual_block = await db.calendar_blocks.find_one({
+            "studio_id": data.studio_id, "date": data.date,
+            "$or": [{"artist_id": None}, {"artist_id": {"$exists": False}}]
+        })
     if manual_block:
         btype = manual_block.get("block_type", "")
         if btype in ("busy", "private", "full"):
@@ -1692,6 +1712,8 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         "reference_images": data.reference_images,
         "preferred_time_from": data.preferred_time_from,
         "preferred_time_to": data.preferred_time_to,
+        "artist_id": data.artist_id,
+        "artist_name": data.artist_name,
         "status": "pending_studio_review",
         "payment_status": "unpaid",
         "deposit_required": studio.get("deposit_required", False),

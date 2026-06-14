@@ -12,6 +12,7 @@ import PaymentModal from "../components/PaymentModal";
 import DashboardHeroSmoke from "../components/DashboardHeroSmoke";
 import BorderGlow from "../components/BorderGlow/BorderGlow";
 import { motion, AnimatePresence } from "framer-motion";
+import { notify } from "../components/InkNotify";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -322,11 +323,12 @@ export default function CustomerDashboard() {
         booking_id: booking.booking_id, origin_url: window.location.origin
       }, { withCredentials: true });
       setPaymentSession(data);
-    } catch (e) { alert(e.response?.data?.detail || "Zahlungsfehler"); }
+    } catch (e) { notify.error(e.response?.data?.detail || "Zahlungsfehler"); }
   };
 
   const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm("Buchung wirklich absagen?")) return;
+    const ok = await notify.confirm("Buchung wirklich absagen?", "Diese Aktion kann nicht rückgängig gemacht werden.");
+    if (!ok) return;
     setCancelLoading(bookingId);
     try {
       await axios.put(`${API}/bookings/${bookingId}/status`, null, {
@@ -345,7 +347,7 @@ export default function CustomerDashboard() {
         handlePayDeposit(booking);
       }
     } catch (e) {
-      alert(e.response?.data?.detail || "Fehler beim Annehmen des Angebots");
+      notify.error(e.response?.data?.detail || "Fehler beim Annehmen des Angebots");
     } finally { setAcceptingOffer(""); }
   };
 
@@ -371,7 +373,7 @@ export default function CustomerDashboard() {
       await axios.put(`${API}/bookings/${rescheduleBooking.booking_id}/reschedule`, { new_slot_id: newSlotId }, { withCredentials: true });
       setRescheduleBooking(null);
       fetchStats();
-    } catch (e) { alert(e.response?.data?.detail || "Umbuchung fehlgeschlagen"); } finally { setRescheduleLoading(false); }
+    } catch (e) { notify.error(e.response?.data?.detail || "Umbuchung fehlgeschlagen"); } finally { setRescheduleLoading(false); }
   };
 
   const getDates = () => {
@@ -755,6 +757,7 @@ export default function CustomerDashboard() {
                           <div className="mt-2.5 bg-violet-50 border border-violet-200 rounded-xl p-3">
                             <p className="text-xs font-inter font-semibold text-violet-800 mb-1.5">🎨 Studio-Angebot erhalten</p>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-inter text-violet-700">
+                              {booking.artist_name && <><span>Artist</span><span className="font-semibold">🎨 {booking.artist_name}</span></>}
                               <span>Datum</span><span className="font-semibold">{booking.offer_date ? new Date(booking.offer_date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" }) : "–"}</span>
                               <span>Uhrzeit</span><span className="font-semibold">{booking.offer_time ? `${booking.offer_time} Uhr` : "–"}</span>
                               <span>Gesamtpreis</span><span className="font-semibold">{booking.offer_total_price ? `€ ${parseFloat(booking.offer_total_price).toLocaleString("de-DE", { minimumFractionDigits: 2 })}` : "–"}</span>

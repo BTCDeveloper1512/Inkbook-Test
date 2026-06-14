@@ -13,6 +13,7 @@ import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
 import GradualBlur from "../components/GradualBlur/GradualBlur";
 import StudioMap from "../components/StudioMap";
+import { notify } from "../components/InkNotify";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
@@ -541,7 +542,7 @@ export default function StudioPage() {
       }, { withCredentials: true });
       setBookingSuccess(data);
       if (window.posthog) window.posthog.capture("booking_confirmed", { studio_id: studioId, studio_name: studio?.name, booking_type: bookingType });
-    } catch (e) { alert(e.response?.data?.detail || "Buchung fehlgeschlagen"); } finally { setBookingLoading(false); }
+    } catch (e) { notify.error(e.response?.data?.detail || "Buchung fehlgeschlagen"); } finally { setBookingLoading(false); }
   };
 
   const handleCapacityBook = async () => {
@@ -564,11 +565,13 @@ export default function StudioPage() {
         reference_images: refImages,
         preferred_time_from: preferredTimeFrom,
         preferred_time_to: preferredTimeTo,
+        artist_id: selectedCapArtist || null,
+        artist_name: selectedCapArtist ? (artists.find(a => a.artist_id === selectedCapArtist)?.name || "") : "",
       }, { withCredentials: true });
       setBookingSuccess(data);
       if (window.posthog) window.posthog.capture("booking_confirmed", { studio_id: studioId, studio_name: studio?.name, booking_type: bookingType, size_category: sizeCategory });
     } catch (e) {
-      alert(e.response?.data?.detail || "Anfrage fehlgeschlagen");
+      notify.error(e.response?.data?.detail || "Anfrage fehlgeschlagen");
     } finally { setBookingLoading(false); }
   };
 
@@ -597,7 +600,7 @@ export default function StudioPage() {
       setReportingReviewId(null);
       setReportReason("");
     } catch (e) {
-      alert(e.response?.data?.detail || "Meldung fehlgeschlagen");
+      notify.error(e.response?.data?.detail || "Meldung fehlgeschlagen");
     } finally {
       setReportSubmitting(false);
     }
@@ -1090,7 +1093,7 @@ export default function StudioPage() {
                                   : "bg-blue-400";
                         return (
                           <button key={iso} disabled={isPast || !canFit || isVacation}
-                            title={isVacation ? "Studio geschlossen (Urlaub)" : undefined}
+                            title={isVacation ? "Studio geschlossen (Urlaub)" : (capDay?.note || undefined)}
                             onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
                             className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-orange-50" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
                             data-testid={`date-btn-${iso}`}
