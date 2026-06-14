@@ -86,26 +86,80 @@ webpackConfig.devServer = (devServerConfig) => {
   devServerConfig.port = 5000;
   devServerConfig.allowedHosts = "all";
 
-  // Proxy /api requests to the backend so the browser never crosses origins
-  devServerConfig.proxy = [
-    {
-      context: ["/api"],
-      target: "http://localhost:8000",
-      changeOrigin: true,
-      secure: false,
-    },
-  ];
-
-  if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
-    const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
-    devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-      if (originalSetupMiddlewares) {
-        middlewares = originalSetupMiddlewares(middlewares, devServer);
+  // Inject /api proxy as the FIRST middleware in the WDS middleware array.
+  // http-proxy-middleware v2 + WDS v5 breaks POST response forwarding (compression
+  // middleware wraps res.write/end, causing the proxy response to be silently dropped).
+  // We use a minimal hand-rolled Node.js http proxy that bypasses this issue entirely.
+  const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
+  devServerConfig.setupMiddlewares = (middlewares, devServer) => {
+    const http = require("http");
+    const forwardToBackend = (req, res, body) => {
+      const headers = { ...req.headers, host: "localhost:8000" };
+      // Override content-length to match the actual buffered body length
+      if (body && body.length > 0) {
+        headers["content-length"] = String(body.length);
+      } else {
+        delete headers["content-length"];
+        delete headers["transfer-encoding"];
       }
-      setupHealthEndpoints(devServer, healthPluginInstance);
-      return middlewares;
+      const options = {
+        hostname: "localhost",
+        port: 8000,
+        path: req.url,
+        method: req.method,
+        headers,
+      };
+      const proxyReq = http.request(options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        const responseChunks = [];
+        proxyRes.on("data", (c) => responseChunks.push(c));
+        proxyRes.on("end", () => res.end(Buffer.concat(responseChunks)));
+      });
+      proxyReq.on("error", (err) => {
+        console.error("[api-proxy] backend error:", err.message);
+        if (!res.headersSent) { res.writeHead(502); res.end("Bad Gateway"); }
+      });
+      if (body && body.length > 0) proxyReq.write(body);
+      proxyReq.end();
     };
-  }
+
+    const apiProxyMw = (req, res, next) => {
+      if (!req.url.startsWith("/api")) return next();
+
+      // IMPORTANT: @emergentbase/visual-edits body parser runs before this middleware
+      // via devServer.app.use() and pre-consumes the POST body stream, setting req.body.
+      // If req.body is already set, use it directly — the stream is exhausted.
+      if (req.body !== undefined) {
+        let bodyBuf;
+        if (Buffer.isBuffer(req.body)) {
+          bodyBuf = req.body;
+        } else if (typeof req.body === "string") {
+          bodyBuf = Buffer.from(req.body);
+        } else if (req.body !== null && typeof req.body === "object") {
+          // visual-edits parsed JSON — re-serialize to send to backend
+          bodyBuf = Buffer.from(JSON.stringify(req.body));
+        } else {
+          bodyBuf = Buffer.alloc(0);
+        }
+        return forwardToBackend(req, res, bodyBuf);
+      }
+
+      // Body not yet consumed — read it from the stream
+      const chunks = [];
+      req.on("data", (chunk) => chunks.push(chunk));
+      req.on("end", () => forwardToBackend(req, res, Buffer.concat(chunks)));
+      req.on("error", (err) => { console.error("[api-proxy] req error:", err.message); next(err); });
+    };
+    // Insert at front so it runs before webpack-dev-middleware and historyApiFallback
+    middlewares.unshift({ name: "api-proxy", middleware: apiProxyMw });
+    if (originalSetupMiddlewares) {
+      middlewares = originalSetupMiddlewares(middlewares, devServer);
+    }
+    if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
+      setupHealthEndpoints(devServer, healthPluginInstance);
+    }
+    return middlewares;
+  };
 
   return devServerConfig;
 };
