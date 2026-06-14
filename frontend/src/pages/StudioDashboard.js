@@ -1855,8 +1855,8 @@ export default function StudioDashboard() {
                             </span>
                           )}
 
-                          {/* Payment button for past confirmed */}
-                          {isPast && b.status === "confirmed" && (
+                          {/* Payment button for all confirmed bookings */}
+                          {b.status === "confirmed" && (
                             <motion.button whileTap={{ scale: 0.95 }}
                               onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
                               className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
