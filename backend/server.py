@@ -1960,7 +1960,7 @@ async def send_final_payment_link(booking_id: str, request: Request, current_use
             "quantity": 1,
         }],
         mode="payment",
-        success_url=f"{origin}/dashboard?payment=final_success",
+        success_url=f"{origin}/dashboard?payment=final_success&session_id={session_id}",
         cancel_url=f"{origin}/dashboard",
         metadata={
             "session_id": session_id,
@@ -2901,55 +2901,102 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
     if txn.get("payment_status") == "paid":
         return {"payment_status": "paid"}
 
-    # Verify with Stripe if we have a payment intent
+    is_final = txn.get("payment_type") == "final"
+
+    # Verify with Stripe — PaymentIntent (deposits) or Checkout Session (final payments)
+    stripe_lib_local = get_stripe_client()
     pi_id = txn.get("stripe_payment_intent_id")
+    cs_id = txn.get("stripe_session_id")
     if pi_id:
-        stripe = get_stripe_client()
-        intent = await asyncio.to_thread(stripe.PaymentIntent.retrieve, pi_id)
+        intent = await asyncio.to_thread(stripe_lib_local.PaymentIntent.retrieve, pi_id)
         if intent["status"] != "succeeded":
             raise HTTPException(status_code=400, detail="Zahlung noch nicht abgeschlossen")
+    elif cs_id:
+        cs = await asyncio.to_thread(stripe_lib_local.checkout.Session.retrieve, cs_id)
+        if cs["payment_status"] != "paid":
+            raise HTTPException(status_code=400, detail="Zahlung noch nicht abgeschlossen")
 
+    now_iso = datetime.now(timezone.utc).isoformat()
     await db.payment_transactions.update_one(
         {"session_id": session_id},
-        {"$set": {"payment_status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"payment_status": "paid", "paid_at": now_iso}}
     )
+
     if txn.get("booking_id"):
-        await db.bookings.update_one(
-            {"booking_id": txn["booking_id"]},
-            {"$set": {"payment_status": "paid", "status": "confirmed", "deposit_deadline_at": None}}
-        )
-        booking = await db.bookings.find_one({"booking_id": txn["booking_id"]})
+        booking_id_ref = txn["booking_id"]
+        if is_final:
+            # Final payment → mark booking completed with revenue
+            revenue_amount = txn.get("amount", 0)
+            await db.bookings.update_one(
+                {"booking_id": booking_id_ref},
+                {"$set": {"status": "completed", "revenue": revenue_amount, "completed_at": now_iso}}
+            )
+        else:
+            await db.bookings.update_one(
+                {"booking_id": booking_id_ref},
+                {"$set": {"payment_status": "paid", "status": "confirmed", "deposit_deadline_at": None}}
+            )
+
+        booking = await db.bookings.find_one({"booking_id": booking_id_ref})
+        studio_obj = await db.studios.find_one({"studio_id": booking.get("studio_id")}) if booking else None
+        owner_id = studio_obj.get("owner_id", "") if studio_obj else ""
+        customer_id = booking.get("user_id", "") if booking else ""
+
         if booking:
             user_email = booking.get("user_email", "")
-            if user_email:
-                asyncio.create_task(send_email(
-                    to=user_email,
-                    subject=f"Dein Termin ist final gesichert – {booking.get('studio_name', '')}",
-                    html=payment_confirmed_html(booking)
-                ))
-            # System message confirming deposit
-            studio_obj = await db.studios.find_one({"studio_id": booking.get("studio_id")})
-            owner_id = studio_obj.get("owner_id", "") if studio_obj else ""
-            customer_id = booking.get("user_id", "")
-            if customer_id and owner_id:
-                bdate = booking.get("offer_date") or booking.get("date", "")
-                btime = booking.get("offer_time") or booking.get("start_time", "")
-                try:
-                    date_fmt = datetime.strptime(bdate, "%Y-%m-%d").strftime("%d.%m.%Y")
-                except Exception:
-                    date_fmt = bdate
-                asyncio.create_task(_post_system_message(
-                    customer_id=customer_id, studio_owner_id=owner_id,
-                    text=f"💳 Anzahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist jetzt bestätigt ✓",
-                    triggered_by_id=customer_id
-                ))
-            if studio_obj and owner_id:
-                asyncio.create_task(send_push_notification(
-                    user_id=owner_id,
-                    title="Anzahlung erhalten",
-                    body=f"{booking.get('user_name','Kunde')} hat die Anzahlung bezahlt",
-                    url="/studio-dashboard"
-                ))
+            bdate = booking.get("offer_date") or booking.get("date", "")
+            btime = booking.get("offer_time") or booking.get("start_time", "")
+            try:
+                date_fmt = datetime.strptime(bdate, "%Y-%m-%d").strftime("%d.%m.%Y")
+            except Exception:
+                date_fmt = bdate
+
+            if is_final:
+                if user_email:
+                    asyncio.create_task(send_email(
+                        to=user_email,
+                        subject=f"Zahlung erhalten – Danke! · {booking.get('studio_name', '')}",
+                        html=f"""<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#18181b;">
+  <div style="background:#18181b;padding:24px 32px;border-radius:16px 16px 0 0;"><p style="color:#fff;font-size:22px;font-weight:700;margin:0;">InkBook &#9998;</p></div>
+  <div style="background:#fff;padding:32px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;">
+    <p style="font-size:18px;font-weight:600;margin:0 0 8px;">Zahlung erhalten &#10003;</p>
+    <p style="color:#71717a;font-size:14px;margin:0 0 16px;">Deine Zahlung f&#252;r den Termin am {date_fmt} bei {booking.get('studio_name','')} ist eingegangen. Vielen Dank!</p>
+  </div>
+</div>"""
+                    ))
+                if customer_id and owner_id:
+                    asyncio.create_task(_post_system_message(
+                        customer_id=customer_id, studio_owner_id=owner_id,
+                        text=f"💳 Zahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist abgeschlossen ✓",
+                        triggered_by_id=customer_id
+                    ))
+                if studio_obj and owner_id:
+                    asyncio.create_task(send_push_notification(
+                        user_id=owner_id,
+                        title="Zahlung erhalten",
+                        body=f"{booking.get('user_name','Kunde')} hat die Abschlusszahlung bezahlt",
+                        url="/studio-dashboard"
+                    ))
+            else:
+                if user_email:
+                    asyncio.create_task(send_email(
+                        to=user_email,
+                        subject=f"Dein Termin ist final gesichert – {booking.get('studio_name', '')}",
+                        html=payment_confirmed_html(booking)
+                    ))
+                if customer_id and owner_id:
+                    asyncio.create_task(_post_system_message(
+                        customer_id=customer_id, studio_owner_id=owner_id,
+                        text=f"💳 Anzahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist jetzt bestätigt ✓",
+                        triggered_by_id=customer_id
+                    ))
+                if studio_obj and owner_id:
+                    asyncio.create_task(send_push_notification(
+                        user_id=owner_id,
+                        title="Anzahlung erhalten",
+                        body=f"{booking.get('user_name','Kunde')} hat die Anzahlung bezahlt",
+                        url="/studio-dashboard"
+                    ))
 
     return {"payment_status": "paid"}
 
@@ -3313,7 +3360,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 {"studio_id": studio_id}, {"booking_id": 1, "_id": 0}
             ).to_list(5000)
         }
-        deposit_txns = [t for t in revenue_docs if t.get("booking_id") in all_studio_booking_ids_for_deposits]
+        deposit_txns = [t for t in revenue_docs if t.get("booking_id") in all_studio_booking_ids_for_deposits and t.get("payment_type") != "final"]
         deposit_count = len(deposit_txns)
         deposit_total = sum(t.get("amount", 0) for t in deposit_txns)
         now_iso = datetime.now(timezone.utc)

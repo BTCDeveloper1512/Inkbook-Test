@@ -296,6 +296,24 @@ export default function CustomerDashboard() {
     return () => { clearInterval(pollInterval); clearInterval(msgInterval); clearInterval(tickInterval); };
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentType = params.get("payment");
+    const sid = params.get("session_id");
+    if (paymentType === "final_success" && sid) {
+      window.history.replaceState({}, "", window.location.pathname);
+      (async () => {
+        try {
+          await axios.post(`${API}/payments/confirm/${sid}`, {}, { withCredentials: true });
+          notify.success("Zahlung erfolgreich! Dein Termin ist jetzt abgeschlossen.");
+          fetchStats();
+        } catch (e) {
+          notify.info("Zahlung wurde bereits verarbeitet.");
+        }
+      })();
+    }
+  }, []);
+
   const fetchMessages = async () => {
     try {
       const [convsRes, unreadRes] = await Promise.all([
