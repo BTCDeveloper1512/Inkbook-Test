@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -122,6 +122,10 @@ export default function StudioDashboard() {
   const [notesLightbox, setNotesLightbox] = useState(null);
   const [bookingSearch, setBookingSearch] = useState("");
   const [revenueInputs, setRevenueInputs] = useState({});
+  const [finalPayModal, setFinalPayModal] = useState(null);
+  const [finalPayAmount, setFinalPayAmount] = useState("");
+  const [finalPayMethod, setFinalPayMethod] = useState("cash");
+  const [finalPayLoading, setFinalPayLoading] = useState(false);
   const [connectStatus, setConnectStatus] = useState(null);
   const [connectLoading, setConnectLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState(null);
@@ -296,6 +300,28 @@ export default function StudioDashboard() {
 
     const fname = `inkbook-monatsumsatz-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}.pdf`;
     doc.save(fname);
+  };
+
+  const handleFinalPayment = async () => {
+    if (!finalPayModal) return;
+    const amount = parseFloat(finalPayAmount || 0);
+    if (amount <= 0) { notify.error("Bitte einen Betrag eingeben."); return; }
+    setFinalPayLoading(true);
+    try {
+      if (finalPayMethod === "cash") {
+        await axios.put(`${API}/bookings/${finalPayModal.booking_id}/complete`, { revenue: amount }, { withCredentials: true });
+        notify.success(`€ ${amount.toFixed(2)} als Bareinnahme gespeichert.`);
+      } else {
+        const { data } = await axios.post(`${API}/bookings/${finalPayModal.booking_id}/send-final-payment`, { amount }, { withCredentials: true });
+        notify.success(`Zahlungslink an ${data.email_sent_to || "Kunde"} gesendet!`);
+      }
+      setFinalPayModal(null);
+      setFinalPayAmount("");
+      setFinalPayMethod("cash");
+      fetchStats();
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Fehler bei der Zahlung.");
+    } finally { setFinalPayLoading(false); }
   };
 
   const handleCompleteBooking = async (bookingId) => {    const revenue = parseFloat(revenueInputs[bookingId] || 0);
@@ -871,62 +897,53 @@ export default function StudioDashboard() {
               ))}
             </motion.div>
 
-            {/* Revenue */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Tagesumsatz",   value: todayRevenue,  accent: true },
-                { label: "Monatsumsatz",  value: monthRevenue },
-                { label: "Gesamtumsatz",  value: totalRevenue },
-              ].map((r, i) => (
-                <div key={i}
-                  className={`rounded-2xl border p-4 cursor-default ${r.accent ? "bg-zinc-900 border-zinc-800" : "bg-white border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]"}`}
-                  data-testid={`revenue-card-${i}`}
-                >
-                  <p className={`text-xs font-inter font-semibold uppercase tracking-wider mb-1.5 ${r.accent ? "text-white/50" : "text-zinc-400"}`}>{r.label}</p>
-                  <p className={`text-xl font-playfair font-semibold ${r.accent ? "text-white" : "text-zinc-900"}`}>
-                    €&thinsp;{r.value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Stripe Anzahlungen + PDF */}
+            {/* Umsatz & Zahlungen — unified card */}
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
-                    <CreditCard size={14} className="text-white" strokeWidth={1.5} />
+                    <TrendingUp size={14} className="text-white" strokeWidth={1.5} />
                   </div>
-                  <p className="text-sm font-inter font-semibold text-zinc-900">Stripe Anzahlungen</p>
+                  <p className="text-sm font-inter font-semibold text-zinc-900">Umsatz &amp; Zahlungen</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <motion.button whileTap={{ scale: 0.96 }} onClick={generateRevenuePDF}
                     className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-full font-inter text-xs text-zinc-600 hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
                     data-testid="pdf-export-btn">
-                    <Download size={12} strokeWidth={1.8} /> Umsatz PDF
+                    <Download size={12} strokeWidth={1.8} /> PDF
                   </motion.button>
                   <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live</span>
                 </div>
               </div>
+              {/* Row 1: heute + monat */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-zinc-900 rounded-xl p-3.5" data-testid="revenue-card-0">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1">Heute</p>
+                  <p className="text-2xl font-playfair font-semibold text-white">€&thinsp;{todayRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-white/30 font-inter mt-0.5">abgeschlossene Termine</p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-3.5" data-testid="revenue-card-1">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Dieser Monat</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">€&thinsp;{monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">abgeschlossene Termine</p>
+                </div>
+              </div>
+              {/* Row 2: gesamt + stripe monat + stripe gesamt */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-zinc-50 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Anzahl gesamt</p>
-                  <p className="text-2xl font-playfair font-semibold text-zinc-900">{stats?.deposit_count ?? 0}</p>
-                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Zahlungen</p>
+                <div className="bg-zinc-50 rounded-xl p-3.5" data-testid="revenue-card-2">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Gesamtumsatz</p>
+                  <p className="text-lg font-playfair font-semibold text-zinc-900">€&thinsp;{totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">bar &amp; stripe</p>
                 </div>
                 <div className="bg-zinc-50 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Diesen Monat</p>
-                  <p className="text-2xl font-playfair font-semibold text-zinc-900">
-                    €&thinsp;{(stats?.deposit_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Anzahlungen</p>
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Anzahlungen</p>
+                  <p className="text-lg font-playfair font-semibold text-zinc-900">€&thinsp;{(stats?.deposit_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">Monat · {stats?.deposit_count ?? 0}×</p>
                 </div>
                 <div className="bg-zinc-900 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Gesamt</p>
-                  <p className="text-2xl font-playfair font-semibold text-white">
-                    €&thinsp;{(stats?.deposit_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-white/40 font-inter mt-0.5">Eingenommen</p>
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1">Stripe gesamt</p>
+                  <p className="text-lg font-playfair font-semibold text-white">€&thinsp;{(stats?.deposit_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-white/30 font-inter mt-0.5">eingegangen</p>
                 </div>
               </div>
             </div>
@@ -1838,25 +1855,15 @@ export default function StudioDashboard() {
                             </span>
                           )}
 
-                          {/* Revenue entry + complete for past confirmed */}
+                          {/* Payment button for past confirmed */}
                           {isPast && b.status === "confirmed" && (
-                            <div className="flex flex-col items-end gap-1.5 mt-0.5">
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-inter">€</span>
-                                <input type="number" min="0" step="0.01" placeholder="0,00"
-                                  value={revenueInputs[b.booking_id] || ""}
-                                  onChange={e => setRevenueInputs(prev => ({ ...prev, [b.booking_id]: e.target.value }))}
-                                  className="pl-7 pr-3 py-1.5 w-28 text-xs border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 text-zinc-900 bg-white transition-colors"
-                                  data-testid={`revenue-input-${b.booking_id}`}
-                                />
-                              </div>
-                              <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleCompleteBooking(b.booking_id)}
-                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors w-28 justify-center"
-                                data-testid={`complete-booking-btn-${b.booking_id}`}
-                              >
-                                <CheckCircle size={11} strokeWidth={2} /> Abschließen
-                              </motion.button>
-                            </div>
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
+                              data-testid={`complete-booking-btn-${b.booking_id}`}
+                            >
+                              <CreditCard size={11} strokeWidth={2} /> Zahlung erfassen
+                            </motion.button>
                           )}
 
                           {/* Offer button for new requests */}
@@ -3072,6 +3079,110 @@ export default function StudioDashboard() {
             </motion.div>
           </motion.div>
         )}
+      {/* ── Zahlung-erfassen-Modal ── */}
+      <AnimatePresence>
+        {finalPayModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget && !finalPayLoading) setFinalPayModal(null); }}
+          >
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-base font-playfair font-semibold text-zinc-900">Zahlung erfassen</p>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">{finalPayModal.user_name} · {finalPayModal.offer_date || finalPayModal.date || ""}</p>
+                </div>
+                {!finalPayLoading && (
+                  <button onClick={() => setFinalPayModal(null)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={16} strokeWidth={2} /></button>
+                )}
+              </div>
+
+              {/* Amount input */}
+              <div className="mb-5">
+                <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Betrag (€)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-inter">€</span>
+                  <input
+                    type="number" min="0.50" step="0.01" placeholder="0,00"
+                    value={finalPayAmount}
+                    onChange={e => setFinalPayAmount(e.target.value)}
+                    autoFocus
+                    className="w-full pl-8 pr-4 py-3 text-sm border border-zinc-200 rounded-2xl font-inter focus:outline-none focus:border-zinc-900 text-zinc-900 bg-white transition-colors"
+                  />
+                </div>
+                {finalPayModal.offer_total_price && (
+                  <p className="text-[10px] text-zinc-400 font-inter mt-1.5">
+                    Gesamtpreis lt. Angebot: €&thinsp;{parseFloat(finalPayModal.offer_total_price).toFixed(2)}
+                    {finalPayModal.offer_deposit_amount && parseFloat(finalPayModal.offer_deposit_amount) > 0
+                      ? ` · Anzahlung: €\u202F${parseFloat(finalPayModal.offer_deposit_amount).toFixed(2)} · Restbetrag: €\u202F${Math.max(0, parseFloat(finalPayModal.offer_total_price) - parseFloat(finalPayModal.offer_deposit_amount)).toFixed(2)}`
+                      : ""}
+                  </p>
+                )}
+              </div>
+
+              {/* Payment method */}
+              <div className="mb-6">
+                <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Zahlungsart</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setFinalPayMethod("cash")}
+                    className={`flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 transition-all ${finalPayMethod === "cash" ? "border-zinc-900 bg-zinc-900" : "border-zinc-200 bg-white hover:border-zinc-400"}`}
+                  >
+                    <Banknote size={20} strokeWidth={1.5} className={finalPayMethod === "cash" ? "text-white" : "text-zinc-500"} />
+                    <span className={`text-xs font-inter font-semibold ${finalPayMethod === "cash" ? "text-white" : "text-zinc-700"}`}>Barzahlung</span>
+                    <span className={`text-[10px] font-inter leading-tight text-center ${finalPayMethod === "cash" ? "text-white/50" : "text-zinc-400"}`}>Sofort in Umsatz</span>
+                  </button>
+                  <button
+                    onClick={() => setFinalPayMethod("stripe")}
+                    className={`flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 transition-all ${finalPayMethod === "stripe" ? "border-violet-600 bg-violet-600" : "border-zinc-200 bg-white hover:border-violet-300"}`}
+                  >
+                    <Send size={20} strokeWidth={1.5} className={finalPayMethod === "stripe" ? "text-white" : "text-violet-500"} />
+                    <span className={`text-xs font-inter font-semibold ${finalPayMethod === "stripe" ? "text-white" : "text-zinc-700"}`}>Stripe-Link</span>
+                    <span className={`text-[10px] font-inter leading-tight text-center ${finalPayMethod === "stripe" ? "text-white/60" : "text-zinc-400"}`}>Link per E-Mail</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Info box */}
+              {finalPayMethod === "stripe" && (
+                <div className="bg-violet-50 border border-violet-100 rounded-2xl p-3 mb-5 text-xs font-inter text-violet-700 leading-relaxed">
+                  Der Kunde erhält einen Stripe-Zahlungslink per E-Mail (<span className="font-semibold">{finalPayModal.user_email || "gespeicherte E-Mail"}</span>). Nach erfolgreicher Zahlung wird der Termin automatisch als abgeschlossen markiert.
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  disabled={finalPayLoading}
+                  onClick={() => setFinalPayModal(null)}
+                  className="flex-1 py-3 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-2xl transition-all font-inter disabled:opacity-50"
+                >
+                  Abbrechen
+                </button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  disabled={finalPayLoading || !finalPayAmount || parseFloat(finalPayAmount) <= 0}
+                  onClick={handleFinalPayment}
+                  className={`flex-1 py-3 text-sm font-medium text-white rounded-2xl transition-all font-inter disabled:opacity-50 flex items-center justify-center gap-2 ${finalPayMethod === "stripe" ? "bg-violet-600 hover:bg-violet-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                >
+                  {finalPayLoading ? (
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Läuft...</>
+                  ) : finalPayMethod === "cash" ? (
+                    <><Banknote size={15} strokeWidth={1.8} /> Einnahme speichern</>
+                  ) : (
+                    <><Send size={15} strokeWidth={1.8} /> Link senden</>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       </AnimatePresence>
     </div>
   );

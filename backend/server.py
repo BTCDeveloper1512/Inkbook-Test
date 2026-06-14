@@ -1918,6 +1918,112 @@ async def complete_booking(booking_id: str, request: Request, current_user: dict
     )
     return {"success": True}
 
+
+@api_router.post("/bookings/{booking_id}/send-final-payment")
+async def send_final_payment_link(booking_id: str, request: Request, current_user: dict = Depends(get_current_user)):
+    """Studio creates a Stripe Checkout Session and emails the payment link to the customer."""
+    data = await request.json()
+    amount = float(data.get("amount", 0) or 0)
+    if amount < 0.50:
+        raise HTTPException(status_code=400, detail="Betrag muss mindestens € 0,50 sein")
+
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    customer_email = booking.get("user_email", "")
+    studio_name = studio.get("name", "Studio")
+    amount_cents = int(round(amount * 100))
+    origin = str(request.base_url).rstrip("/")
+    session_id = f"fin_{uuid.uuid4().hex[:16]}"
+
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    connect_account_id = studio.get("stripe_connect_account_id")
+    connect_status = studio.get("stripe_connect_status")
+    use_connect = bool(connect_account_id and connect_status == "complete")
+    platform_fee_cents = int(round(amount_cents * 0.05))
+
+    checkout_kwargs = dict(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency": "eur",
+                "product_data": {"name": f"Tattoo-Zahlung \u2013 {studio_name}"},
+                "unit_amount": amount_cents,
+            },
+            "quantity": 1,
+        }],
+        mode="payment",
+        success_url=f"{origin}/dashboard?payment=final_success",
+        cancel_url=f"{origin}/dashboard",
+        metadata={
+            "session_id": session_id,
+            "booking_id": booking_id,
+            "payment_type": "final",
+        },
+    )
+    if customer_email:
+        checkout_kwargs["customer_email"] = customer_email
+    if use_connect:
+        checkout_kwargs["payment_intent_data"] = {
+            "transfer_data": {"destination": connect_account_id},
+            "application_fee_amount": platform_fee_cents,
+        }
+
+    try:
+        session = await asyncio.to_thread(stripe_lib.checkout.Session.create, **checkout_kwargs)
+        checkout_url = session.url
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {str(e)}")
+
+    await db.payment_transactions.insert_one({
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
+        "booking_id": booking_id,
+        "user_id": booking.get("user_id"),
+        "session_id": session_id,
+        "stripe_session_id": session.id,
+        "studio_id": booking.get("studio_id"),
+        "amount": amount,
+        "payment_status": "pending",
+        "payment_type": "final",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    if customer_email:
+        booking_date = booking.get("offer_date") or booking.get("date") or ""
+        date_str = ""
+        if booking_date:
+            try:
+                date_str = datetime.strptime(booking_date, "%Y-%m-%d").strftime("%d.%m.%Y")
+            except Exception:
+                date_str = booking_date
+        date_text = f" für dein Tattoo am {date_str}" if date_str else ""
+        html = f"""<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#18181b;">
+  <div style="background:#18181b;padding:24px 32px;border-radius:16px 16px 0 0;">
+    <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">InkBook &#9998;</p>
+  </div>
+  <div style="background:#fff;padding:32px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;">
+    <p style="font-size:18px;font-weight:600;margin:0 0 8px;">Zahlungslink f&#252;r dein Tattoo &#128179;</p>
+    <p style="color:#71717a;font-size:14px;margin:0 0 24px;">{studio_name} hat einen Zahlungslink{date_text} erstellt. Klicke unten um sicher per Karte zu bezahlen.</p>
+    <div style="text-align:center;margin:0 0 24px;">
+      <a href="{checkout_url}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:100px;font-size:15px;font-weight:600;">
+        Jetzt bezahlen &mdash; &euro;&thinsp;{amount:.2f}
+      </a>
+    </div>
+    <p style="color:#a1a1aa;font-size:12px;margin:0;">Dieser Link ist 24&thinsp;Stunden g&#252;ltig. Bei Fragen melde dich direkt bei {studio_name}.</p>
+  </div>
+</div>"""
+        asyncio.create_task(send_email(customer_email, f"&#128179; Zahlungslink \u2013 {studio_name}", html))
+
+    return {"success": True, "email_sent_to": customer_email, "checkout_url": checkout_url}
+
+
 # ─── Booking Offer / Accept / No-Show ────────────────────────────────────────
 
 @api_router.post("/bookings/{booking_id}/offer")

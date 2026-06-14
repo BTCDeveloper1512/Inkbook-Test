@@ -1080,9 +1080,9 @@ export default function StudioPage() {
                                 : remaining >= 3
                                   ? "bg-yellow-400"
                                   : "bg-indigo-400";
-                        const noteTitle = isVacation ? "Urlaub / geschlossen" : (capDay?.note || undefined);
+                        const noteTitle = isVacation ? "Urlaub / geschlossen" : (capDay?.note || null);
                         return (
-                          <div key={iso} title={noteTitle}>
+                          <div key={iso} className="relative group">
                             <button disabled={isPast || !canFit || isVacation}
                               onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
                               className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
@@ -1091,6 +1091,14 @@ export default function StudioPage() {
                               <span>{day.getDate()}</span>
                               {!isPast && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
                             </button>
+                            {noteTitle && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-out w-max max-w-[140px]">
+                                <div className="bg-zinc-900 text-white text-[10px] font-inter rounded-xl px-3 py-2 shadow-xl leading-snug text-center whitespace-normal">
+                                  {noteTitle}
+                                </div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-zinc-900" />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
