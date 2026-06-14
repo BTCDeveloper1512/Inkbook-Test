@@ -521,6 +521,7 @@ class CalendarBlockCreate(BaseModel):
     date: str           # ISO date "2026-06-18"
     block_type: str = "busy"   # busy | vacation | limited | private
     note: str = ""
+    artist_id: Optional[str] = None  # None = studio-wide block; set = per-artist block
 
 class ActivateAccountRequest(BaseModel):
     email: EmailStr
@@ -1448,8 +1449,9 @@ _SIZE_CAPACITY: Dict[str, int] = {"mini": 1, "small": 2, "medium": 3, "large": 5
 _DAY_CAPACITY = 8
 
 @api_router.get("/studios/{studio_id}/capacity-calendar")
-async def get_capacity_calendar(studio_id: str, year: int, month: int):
-    """Returns per-day capacity status for a studio in a given month, merging manual blocks."""
+async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id: Optional[str] = None):
+    """Returns per-day capacity status for a studio in a given month, merging manual blocks.
+    If artist_id is provided, filters by that artist's bookings and blocks (plus studio-wide blocks)."""
     import calendar as cal_mod
     first_day = f"{year}-{month:02d}-01"
     last_day_num = cal_mod.monthrange(year, month)[1]
@@ -1457,24 +1459,48 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int):
     today_iso = datetime.now(timezone.utc).date().isoformat()
     from_date = max(first_day, today_iso)
 
-    bookings = await db.bookings.find({
+    booking_query: Dict[str, Any] = {
         "studio_id": studio_id,
         "date": {"$gte": from_date, "$lte": last_day},
         "status": {"$in": _ACTIVE_STATUSES},
         "capacity_cost": {"$exists": True}
-    }).to_list(500)
+    }
+    if artist_id:
+        booking_query["artist_id"] = artist_id
+
+    bookings = await db.bookings.find(booking_query).to_list(500)
 
     used_by_date: Dict[str, int] = {}
     for b in bookings:
         d = b.get("date", "")
         used_by_date[d] = used_by_date.get(d, 0) + int(b.get("capacity_cost", 0))
 
-    # Load manual calendar blocks for this month
-    manual_blocks_list = await db.calendar_blocks.find({
-        "studio_id": studio_id,
-        "date": {"$gte": first_day, "$lte": last_day}
-    }).to_list(100)
-    manual_blocks: Dict[str, str] = {b["date"]: b["block_type"] for b in manual_blocks_list}
+    # Load manual calendar blocks for this month.
+    # When artist_id is given: merge studio-wide blocks (artist_id=null) with artist-specific ones.
+    # Artist-specific blocks take priority over studio-wide blocks.
+    if artist_id:
+        all_blocks_list = await db.calendar_blocks.find({
+            "studio_id": studio_id,
+            "date": {"$gte": first_day, "$lte": last_day},
+            "$or": [{"artist_id": artist_id}, {"artist_id": None}, {"artist_id": {"$exists": False}}]
+        }).to_list(200)
+        # Build dict: artist-specific blocks override studio-wide ones
+        manual_blocks: Dict[str, str] = {}
+        # First pass: studio-wide
+        for b in all_blocks_list:
+            if not b.get("artist_id"):
+                manual_blocks[b["date"]] = b["block_type"]
+        # Second pass: artist-specific overrides
+        for b in all_blocks_list:
+            if b.get("artist_id") == artist_id:
+                manual_blocks[b["date"]] = b["block_type"]
+    else:
+        manual_blocks_list = await db.calendar_blocks.find({
+            "studio_id": studio_id,
+            "date": {"$gte": first_day, "$lte": last_day},
+            "$or": [{"artist_id": None}, {"artist_id": {"$exists": False}}]
+        }).to_list(100)
+        manual_blocks = {b["date"]: b["block_type"] for b in manual_blocks_list}
 
     from datetime import date as date_type
     from_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
@@ -1556,8 +1582,13 @@ _BLOCK_TYPE_LABELS = {
 }
 
 @api_router.get("/studios/{studio_id}/calendar-blocks")
-async def get_calendar_blocks(studio_id: str):
-    blocks = await db.calendar_blocks.find({"studio_id": studio_id}).sort("date", 1).to_list(500)
+async def get_calendar_blocks(studio_id: str, artist_id: Optional[str] = None):
+    query: Dict[str, Any] = {"studio_id": studio_id}
+    if artist_id:
+        query["artist_id"] = artist_id
+    else:
+        query["$or"] = [{"artist_id": None}, {"artist_id": {"$exists": False}}]
+    blocks = await db.calendar_blocks.find(query).sort("date", 1).to_list(500)
     for b in blocks:
         b.pop("_id", None)
     return blocks
@@ -1570,14 +1601,20 @@ async def create_calendar_block(studio_id: str, data: CalendarBlockCreate, curre
         raise HTTPException(status_code=403, detail="Not authorized")
     if data.block_type not in _BLOCK_TYPE_LABELS:
         raise HTTPException(status_code=400, detail="Ungültiger Blocktyp")
-    # Remove any existing block for this date (one block per day)
-    await db.calendar_blocks.delete_many({"studio_id": studio_id, "date": data.date})
+    # Remove any existing block for this date + artist combination
+    del_query: Dict[str, Any] = {"studio_id": studio_id, "date": data.date}
+    if data.artist_id:
+        del_query["artist_id"] = data.artist_id
+    else:
+        del_query["$or"] = [{"artist_id": None}, {"artist_id": {"$exists": False}}]
+    await db.calendar_blocks.delete_many(del_query)
     block_doc = {
         "block_id": f"blk_{uuid.uuid4().hex[:12]}",
         "studio_id": studio_id,
         "date": data.date,
         "block_type": data.block_type,
         "note": data.note,
+        "artist_id": data.artist_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.calendar_blocks.insert_one(block_doc)

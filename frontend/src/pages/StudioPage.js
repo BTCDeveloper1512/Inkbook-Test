@@ -438,6 +438,7 @@ export default function StudioPage() {
   const [preferredTimeFrom, setPreferredTimeFrom] = useState("");
   const [preferredTimeTo, setPreferredTimeTo] = useState("");
   const [capacityData, setCapacityData] = useState({});
+  const [selectedCapArtist, setSelectedCapArtist] = useState(null); // null = no artist filter
 
   const today = new Date();
   const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
@@ -482,12 +483,12 @@ export default function StudioPage() {
   // Fetch capacity calendar (for tattoo flow)
   useEffect(() => {
     if (!studioId || bookingType !== "tattoo") return;
-    axios.get(`${API}/studios/${studioId}/capacity-calendar`, {
-      params: { year: calMonth.year, month: calMonth.month + 1 }
-    }).then(({ data }) => {
-      setCapacityData(data.dates || {});
-    }).catch(() => {});
-  }, [studioId, calMonth, bookingType]);
+    const params = { year: calMonth.year, month: calMonth.month + 1 };
+    if (selectedCapArtist) params.artist_id = selectedCapArtist;
+    axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params })
+      .then(({ data }) => { setCapacityData(data.dates || {}); })
+      .catch(() => {});
+  }, [studioId, calMonth, bookingType, selectedCapArtist]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1002,10 +1003,52 @@ export default function StudioPage() {
                   </div>
                 )}
 
+                {/* Step 2b: Artist selector — only when studio has multiple artists */}
+                {sizeCategory && artists.length > 1 && (
+                  <div className="mb-5">
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Artist wählen <span className="text-zinc-300 font-normal normal-case tracking-normal">(optional)</span></p>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        onClick={() => { setSelectedCapArtist(null); setSelectedDate(null); }}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${selectedCapArtist === null ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
+                      >
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${selectedCapArtist === null ? "bg-zinc-700" : "bg-zinc-100"}`}>
+                          <span className="text-base">🏠</span>
+                        </span>
+                        <div>
+                          <p className={`text-xs font-inter font-semibold ${selectedCapArtist === null ? "text-white" : "text-zinc-800"}`}>Kein Artist gewählt</p>
+                          <p className={`text-[10px] font-inter ${selectedCapArtist === null ? "text-zinc-300" : "text-zinc-400"}`}>Studio-weite Verfügbarkeit anzeigen</p>
+                        </div>
+                      </button>
+                      {artists.map(a => (
+                        <button
+                          key={a.artist_id}
+                          onClick={() => { setSelectedCapArtist(a.artist_id); setSelectedDate(null); }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${selectedCapArtist === a.artist_id ? "bg-zinc-900 text-white border-zinc-900" : "border-zinc-200 hover:border-zinc-400 bg-white"}`}
+                        >
+                          {a.profile_image ? (
+                            <img src={a.profile_image} alt={a.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                          ) : (
+                            <span className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${selectedCapArtist === a.artist_id ? "bg-zinc-700 text-white" : "bg-zinc-100 text-zinc-500"}`}>{(a.name||"?")[0]}</span>
+                          )}
+                          <div>
+                            <p className={`text-xs font-inter font-semibold ${selectedCapArtist === a.artist_id ? "text-white" : "text-zinc-800"}`}>{a.name}</p>
+                            {a.styles?.length > 0 && (
+                              <p className={`text-[10px] font-inter ${selectedCapArtist === a.artist_id ? "text-zinc-300" : "text-zinc-400"}`}>{a.styles.slice(0,3).join(" · ")}</p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Step 3: Calendar (shown after size selected) */}
                 {sizeCategory && (
                   <div className="mb-5">
-                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum</p>
+                    <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum
+                      {selectedCapArtist && (() => { const a = artists.find(x => x.artist_id === selectedCapArtist); return a ? <span className="ml-1 font-normal normal-case tracking-normal text-zinc-400">– {a.name}</span> : null; })()}
+                    </p>
                     <div className="flex items-center gap-2.5 mb-3 flex-wrap">
                       {[{color:"bg-emerald-400",label:"Verfügbar"},{color:"bg-amber-400",label:"Begrenzt"},{color:"bg-blue-400",label:"Nur klein"},{color:"bg-zinc-200",label:"Ausgebucht"},{color:"bg-orange-300",label:"Urlaub"}].map(l => (
                         <div key={l.label} className="flex items-center gap-1">

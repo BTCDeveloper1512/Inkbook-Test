@@ -89,6 +89,8 @@ export default function StudioDashboard() {
   const [calBlockPickNote, setCalBlockPickNote] = useState("");
   const [calBlockSaving, setCalBlockSaving] = useState(false);
   const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "termine"
+  const [studioArtists, setStudioArtists] = useState([]);
+  const [calArtistId, setCalArtistId] = useState(null); // null = studio-wide view
   const [calViewMonth, setCalViewMonth] = useState(now0.getMonth() + 1);
   const [calViewYear, setCalViewYear] = useState(now0.getFullYear());
   const [calViewSelected, setCalViewSelected] = useState(new Date().toISOString().split("T")[0]);
@@ -169,8 +171,16 @@ export default function StudioDashboard() {
 
   useEffect(() => {
     const studioId = stats?.studio?.studio_id;
-    if (studioId) fetchCalCapacity(studioId, calBlockYear, calBlockMonth);
-  }, [calBlockMonth, calBlockYear, stats?.studio?.studio_id]); // eslint-disable-line
+    if (studioId) {
+      fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId);
+      fetchCalBlocks(studioId, calArtistId);
+    }
+  }, [calBlockMonth, calBlockYear, stats?.studio?.studio_id, calArtistId]); // eslint-disable-line
+
+  useEffect(() => {
+    const studioId = stats?.studio?.studio_id;
+    if (studioId) fetchStudioArtists(studioId);
+  }, [stats?.studio?.studio_id]); // eslint-disable-line
 
   const fetchSubscription = async () => {
     try {
@@ -438,16 +448,25 @@ export default function StudioDashboard() {
     } finally { setConnectLoading(false); }
   };
 
-  const fetchCalBlocks = async (studioId) => {
+  const fetchStudioArtists = async (studioId) => {
     try {
-      const { data } = await axios.get(`${API}/studios/${studioId}/calendar-blocks`);
+      const { data } = await axios.get(`${API}/studios/${studioId}/artists`);
+      setStudioArtists(data || []);
+    } catch {}
+  };
+
+  const fetchCalBlocks = async (studioId, artistId = null) => {
+    try {
+      const params = artistId ? { artist_id: artistId } : {};
+      const { data } = await axios.get(`${API}/studios/${studioId}/calendar-blocks`, { params });
       setCalBlocks(data);
     } catch {}
   };
 
-  const fetchCalCapacity = async (studioId, year, month) => {
+  const fetchCalCapacity = async (studioId, year, month, artistId = null) => {
     try {
-      const { data } = await axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params: { year, month } });
+      const params = { year, month, ...(artistId ? { artist_id: artistId } : {}) };
+      const { data } = await axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params });
       setCalCapData(data.dates || {});
     } catch {}
   };
@@ -461,8 +480,9 @@ export default function StudioDashboard() {
         date: calBlockPickDate,
         block_type: calBlockPickType,
         note: calBlockPickNote,
+        artist_id: calArtistId || null,
       }, { withCredentials: true });
-      await Promise.all([fetchCalBlocks(studioId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth)]);
+      await Promise.all([fetchCalBlocks(studioId, calArtistId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId)]);
       setCalBlockPickModal(false);
       setCalBlockPickDate(null);
       setCalBlockPickNote("");
@@ -475,8 +495,7 @@ export default function StudioDashboard() {
     const studioId = stats?.studio?.studio_id;
     try {
       await axios.delete(`${API}/studios/${studioId}/calendar-blocks/${blockId}`, { withCredentials: true });
-      const sId = studioId;
-      await Promise.all([fetchCalBlocks(sId), fetchCalCapacity(sId, calBlockYear, calBlockMonth)]);
+      await Promise.all([fetchCalBlocks(studioId, calArtistId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId)]);
     } catch {}
   };
 
@@ -1208,6 +1227,39 @@ export default function StudioDashboard() {
                 ))}
               </div>
 
+              {/* Artist selector — only shown in capacity view if studio has artists */}
+              {kalenderView === "capacity" && studioArtists.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-inter font-semibold text-zinc-400 uppercase tracking-widest mb-2">Kalender für</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setCalArtistId(null)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-inter font-semibold transition-all border ${calArtistId === null ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"}`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-zinc-400 opacity-60" />
+                      Ganzes Studio
+                    </button>
+                    {studioArtists.map(a => (
+                      <button
+                        key={a.artist_id}
+                        onClick={() => setCalArtistId(a.artist_id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-inter font-semibold transition-all border ${calArtistId === a.artist_id ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"}`}
+                      >
+                        {a.profile_image ? (
+                          <img src={a.profile_image} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        ) : (
+                          <span className="w-4 h-4 rounded-full bg-zinc-200 flex items-center justify-center text-[8px] font-bold text-zinc-500">{(a.name||"?")[0]}</span>
+                        )}
+                        {a.name}
+                      </button>
+                    ))}
+                  </div>
+                  {calArtistId && (
+                    <p className="text-[10px] font-inter text-zinc-400 mt-1.5">Blöcke gelten nur für {studioArtists.find(a => a.artist_id === calArtistId)?.name}. Studio-weite Blöcke bleiben aktiv.</p>
+                  )}
+                </div>
+              )}
+
               {/* ── Termine view ─────────────────────────────────────────── */}
               {kalenderView === "termine" && (() => {
                 const allBks = [...activeBookings, ...pastStudioBookings];
@@ -1405,9 +1457,23 @@ export default function StudioDashboard() {
                         </h3>
                         <button onClick={() => setCalBlockPickModal(false)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={16} strokeWidth={2} /></button>
                       </div>
-                      <p className="text-xs font-inter text-zinc-500 mb-4">
+                      <p className="text-xs font-inter text-zinc-500 mb-1">
                         {new Date(calBlockPickDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
                       </p>
+                      {/* Show context: artist or studio-wide */}
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-inter font-semibold mb-4 ${calArtistId ? "bg-zinc-100 text-zinc-700" : "bg-blue-50 text-blue-700"}`}>
+                        {calArtistId ? (
+                          <>
+                            {studioArtists.find(a => a.artist_id === calArtistId)?.profile_image
+                              ? <img src={studioArtists.find(a => a.artist_id === calArtistId)?.profile_image} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                              : <span className="w-3.5 h-3.5 rounded-full bg-zinc-300 flex items-center justify-center text-[7px]">{(studioArtists.find(a => a.artist_id === calArtistId)?.name || "?")[0]}</span>
+                            }
+                            {studioArtists.find(a => a.artist_id === calArtistId)?.name}
+                          </>
+                        ) : (
+                          <>🏠 Ganzes Studio</>
+                        )}
+                      </div>
 
                       <div className="space-y-2 mb-4">
                         {BLOCK_TYPES.map(bt => (
