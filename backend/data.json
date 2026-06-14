@@ -2,7 +2,7 @@
   "users": [
     {
       "email": "ole.hellwig1512@gmail.com",
-      "password_hash": "$2b$12$ARknSHlOiUUBTpvzcTJCEexj7EpKDOB2chjRK/MZhA.GY1awaVirS",
+      "password_hash": "$2b$12$td6kgjqsIyXxJWwBTyxkA.UVEFRlsb6xha9CpCHMZI4hZAO3/TXaO",
       "name": "JohannINK Est. 2023",
       "role": "studio_owner",
       "created_at": "2026-05-19T17:57:47.180950+00:00",
@@ -65,6 +65,21 @@
   "conversations": [],
   "payment_transactions": [],
   "reviews": [],
-  "studio_page_views": [],
-  "consent_records": []
+  "studio_page_views": [
+    {
+      "studio_id": "studio_fe27560f7248",
+      "viewed_at": "2026-06-14T11:27:35.609814+00:00",
+      "_id": "6a2e902766fe840a5c27fc2d"
+    },
+    {
+      "studio_id": "studio_fe27560f7248",
+      "viewed_at": "2026-06-14T11:27:35.990491+00:00",
+      "_id": "6a2e902766fe840a5c27fc2e"
+    }
+  ],
+  "consent_records": [],
+  "slots": [],
+  "config": [],
+  "calendar_blocks": [],
+  "artists": []
 }
