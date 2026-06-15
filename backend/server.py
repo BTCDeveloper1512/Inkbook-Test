@@ -1901,10 +1901,133 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
     return {"message": "Booking updated"}
 
 
+# ─── Invoice Helpers ──────────────────────────────────────────────────────────
+
+def _fmt_eur(amount: float) -> str:
+    return f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def _invoice_html(inv_num: str, now_fmt: str, studio_name: str, user_name: str,
+                  type_label: str, bdate_fmt: str, btime: str,
+                  pay_type_label: str, pay_label: str, amount: float) -> str:
+    amt = f"&#8364;&#8201;{_fmt_eur(amount)}"
+    time_part = f"&middot; {btime}" if btime else ""
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:620px;margin:0 auto;color:#18181b;">
+  <div style="background:#18181b;padding:28px 32px;border-radius:16px 16px 0 0;">
+    <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">InkBook &#9998;</p>
+    <p style="color:#a1a1aa;font-size:13px;margin:6px 0 0;">Tattoo Studio Booking</p>
+  </div>
+  <div style="background:#fff;padding:32px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+      <div>
+        <p style="font-size:22px;font-weight:700;margin:0 0 4px;">Rechnung</p>
+        <p style="color:#71717a;font-size:14px;margin:0;">Nr.&nbsp;{inv_num}</p>
+      </div>
+      <div style="text-align:right;">
+        <p style="font-size:12px;color:#a1a1aa;margin:0;">Erstellt am</p>
+        <p style="font-size:14px;font-weight:600;margin:4px 0 0;">{now_fmt}</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:24px;">
+      <div style="flex:1;background:#f4f4f5;border-radius:12px;padding:16px;">
+        <p style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px;">Studio</p>
+        <p style="font-size:15px;font-weight:600;margin:0;">{studio_name}</p>
+      </div>
+      <div style="flex:1;background:#f4f4f5;border-radius:12px;padding:16px;">
+        <p style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px;">Kunde</p>
+        <p style="font-size:15px;font-weight:600;margin:0;">{user_name}</p>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
+      <thead>
+        <tr style="background:#f4f4f5;">
+          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Leistung</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Termin</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Typ</th>
+          <th style="padding:10px 14px;text-align:right;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Betrag</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:14px 14px;">{type_label}</td>
+          <td style="padding:14px 14px;">{bdate_fmt} {time_part}</td>
+          <td style="padding:14px 14px;">{pay_type_label}</td>
+          <td style="padding:14px 14px;text-align:right;font-weight:700;">{amt}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="background:#18181b;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <p style="color:#a1a1aa;font-size:12px;margin:0;">Zahlungsart</p>
+        <p style="color:#fff;font-size:13px;font-weight:600;margin:4px 0 0;">{pay_label}</p>
+      </div>
+      <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">{amt}</p>
+    </div>
+    <p style="color:#71717a;font-size:13px;margin:0 0 6px;">Vielen Dank f&#252;r deinen Besuch bei {studio_name}!&nbsp;&#128420;</p>
+    <p style="color:#a1a1aa;font-size:11px;margin:0;">Diese Rechnung wurde automatisch von InkBook erstellt und best&#228;tigt den Zahlungseingang.</p>
+  </div>
+</div>"""
+
+
+async def _next_invoice_number(studio_id: str) -> str:
+    count = await db.invoices.count_documents({"studio_id": studio_id})
+    year = datetime.now(timezone.utc).year
+    return f"INK-{year}-{str(count + 1).zfill(4)}"
+
+
+async def _create_invoice(booking: dict, studio: dict, amount: float, payment_method: str, payment_type: str) -> dict:
+    """Create invoice record in DB and email it to the customer."""
+    inv_num = await _next_invoice_number(studio.get("studio_id", ""))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    now_fmt = datetime.now(timezone.utc).strftime("%d.%m.%Y")
+    bdate = booking.get("offer_date") or booking.get("date", "")
+    try:
+        bdate_fmt = datetime.strptime(bdate, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except Exception:
+        bdate_fmt = bdate
+    btime = booking.get("offer_time") or booking.get("start_time", "")
+    btype = booking.get("booking_type", "tattoo")
+    type_label = {"tattoo": "Tattoo-Sitzung", "consultation": "Beratung", "full_day": "Ganztag",
+                  "video_consultation": "Videoberatung"}.get(btype, "Tattoo-Sitzung")
+    pay_label = {"stripe": "Stripe (Karte)", "cash": "Barzahlung"}.get(payment_method, payment_method)
+    pay_type_label = {"deposit": "Anzahlung", "final": "Abschlusszahlung", "cash": "Barzahlung"}.get(payment_type, "Zahlung")
+    studio_name = studio.get("name", "Studio")
+    user_name = booking.get("user_name", "")
+    user_email = booking.get("user_email", "")
+
+    doc = {
+        "invoice_id":     f"inv_{uuid.uuid4().hex[:12]}",
+        "invoice_number": inv_num,
+        "booking_id":     booking.get("booking_id"),
+        "studio_id":      studio.get("studio_id"),
+        "studio_name":    studio_name,
+        "user_id":        booking.get("user_id"),
+        "user_name":      user_name,
+        "user_email":     user_email,
+        "amount":         amount,
+        "payment_method": payment_method,
+        "payment_type":   payment_type,
+        "booking_date":   bdate,
+        "booking_time":   btime,
+        "booking_type":   btype,
+        "created_at":     now_iso,
+    }
+    await db.invoices.insert_one(doc)
+
+    if user_email:
+        html = _invoice_html(inv_num, now_fmt, studio_name, user_name, type_label,
+                             bdate_fmt, btime, pay_type_label, pay_label, amount)
+        asyncio.create_task(send_email(user_email, f"Rechnung {inv_num} \u00b7 {studio_name}", html))
+
+    return doc
+
+
+# ─── Booking Complete / Invoice ────────────────────────────────────────────────
+
 @api_router.put("/bookings/{booking_id}/complete")
 async def complete_booking(booking_id: str, request: Request, current_user: dict = Depends(get_current_user)):
     data = await request.json()
     revenue = float(data.get("revenue", 0) or 0)
+    payment_method = data.get("payment_method", "cash")
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -1912,11 +2035,26 @@ async def complete_booking(booking_id: str, request: Request, current_user: dict
     user_id = current_user.get("id") or current_user.get("user_id")
     if not studio or studio.get("owner_id") != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
+    now_iso = datetime.now(timezone.utc).isoformat()
     await db.bookings.update_one(
         {"booking_id": booking_id},
-        {"$set": {"status": "completed", "revenue": revenue, "completed_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"status": "completed", "revenue": revenue, "completed_at": now_iso, "payment_method": payment_method}}
     )
+    if revenue > 0:
+        asyncio.create_task(_create_invoice(booking, studio, revenue, payment_method, "cash"))
     return {"success": True}
+
+
+@api_router.get("/studios/my/invoices")
+async def get_my_invoices(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    invoices = await db.invoices.find(
+        {"studio_id": studio["studio_id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return {"invoices": invoices}
 
 
 @api_router.post("/bookings/{booking_id}/send-final-payment")
@@ -2073,8 +2211,9 @@ async def check_final_payment(booking_id: str, current_user: dict = Depends(get_
     )
     await db.bookings.update_one(
         {"booking_id": booking_id},
-        {"$set": {"status": "completed", "revenue": revenue_amount, "completed_at": now_iso}}
+        {"$set": {"status": "completed", "revenue": revenue_amount, "completed_at": now_iso, "payment_method": "stripe"}}
     )
+    asyncio.create_task(_create_invoice(booking, studio, revenue_amount, "stripe", "final"))
 
     # Notify studio owner via push + chat message
     owner_id = studio.get("owner_id", "")
@@ -3000,7 +3139,7 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
             revenue_amount = txn.get("amount", 0)
             await db.bookings.update_one(
                 {"booking_id": booking_id_ref},
-                {"$set": {"status": "completed", "revenue": revenue_amount, "completed_at": now_iso}}
+                {"$set": {"status": "completed", "revenue": revenue_amount, "completed_at": now_iso, "payment_method": "stripe"}}
             )
         else:
             await db.bookings.update_one(
@@ -3068,6 +3207,10 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
                         body=f"{booking.get('user_name','Kunde')} hat die Anzahlung bezahlt",
                         url="/studio-dashboard"
                     ))
+                if studio_obj and booking:
+                    asyncio.create_task(_create_invoice(booking, studio_obj, txn.get("amount", 0), "stripe", "deposit"))
+        if is_final and booking and studio_obj:
+            asyncio.create_task(_create_invoice(booking, studio_obj, txn.get("amount", 0), "stripe", "final"))
 
     return {"payment_status": "paid"}
 
@@ -3441,6 +3584,30 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             if (t.get("paid_at") or t.get("created_at", "")).startswith(month_prefix)
         )
 
+        # Cash revenue breakdown (bookings completed via cash payment)
+        cash_bookings_all = await db.bookings.find(
+            {"studio_id": studio_id, "status": "completed", "payment_method": "cash"},
+            {"_id": 0}
+        ).to_list(500)
+        cash_revenue_month = sum(
+            b.get("revenue", 0) for b in cash_bookings_all
+            if (b.get("completed_at") or "").startswith(month_prefix)
+        )
+        cash_revenue_total = sum(b.get("revenue", 0) for b in cash_bookings_all)
+
+        # Stripe final payment breakdown
+        stripe_final_txns = [
+            t for t in revenue_docs
+            if t.get("booking_id") in all_studio_booking_ids_for_deposits and t.get("payment_type") == "final"
+        ]
+        stripe_final_month = sum(
+            t.get("amount", 0) for t in stripe_final_txns
+            if (t.get("paid_at") or t.get("created_at", "")).startswith(month_prefix)
+        )
+        stripe_final_total = sum(t.get("amount", 0) for t in stripe_final_txns)
+        stripe_revenue_month = deposit_month + stripe_final_month
+        stripe_revenue_total = deposit_total + stripe_final_total
+
         upcoming = await db.bookings.find(
             {"studio_id": studio_id, "status": {"$in": ["pending", "confirmed"]}},
             {"_id": 0}
@@ -3463,6 +3630,10 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             "deposit_count": deposit_count,
             "deposit_total": deposit_total,
             "deposit_month": deposit_month,
+            "cash_revenue_month": cash_revenue_month,
+            "cash_revenue_total": cash_revenue_total,
+            "stripe_revenue_month": stripe_revenue_month,
+            "stripe_revenue_total": stripe_revenue_total,
         }
     else:
         # Support both old UUID-based user_id and new ObjectId-string user_id

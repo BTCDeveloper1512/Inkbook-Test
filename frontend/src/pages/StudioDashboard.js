@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { notify } from "../components/InkNotify";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -127,6 +127,8 @@ export default function StudioDashboard() {
   const [finalPayMethod, setFinalPayMethod] = useState("cash");
   const [finalPayLoading, setFinalPayLoading] = useState(false);
   const [checkPayLoading, setCheckPayLoading] = useState({});
+  const [invoices, setInvoices] = useState([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [connectStatus, setConnectStatus] = useState(null);
   const [connectLoading, setConnectLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState(null);
@@ -195,6 +197,10 @@ export default function StudioDashboard() {
     const studioId = stats?.studio?.studio_id;
     if (studioId) fetchStudioArtists(studioId);
   }, [stats?.studio?.studio_id]); // eslint-disable-line
+
+  useEffect(() => {
+    if (activeTab === "invoices") fetchInvoices();
+  }, [activeTab]); // eslint-disable-line
 
   const fetchSubscription = async () => {
     try {
@@ -265,29 +271,31 @@ export default function StudioDashboard() {
     // ── Table ─────────────────────────────────────────────────
     autoTable(doc, {
       startY: 94,
-      head: [["Datum", "Uhrzeit", "Kunde", "Art des Termins", "Betrag"]],
+      head: [["Datum", "Uhrzeit", "Kunde", "Art des Termins", "Zahlungsart", "Betrag"]],
       body: rows.length > 0
         ? rows.map(b => [
             b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : "–",
             b.start_time && b.end_time ? `${b.start_time} – ${b.end_time}` : b.start_time || "–",
             b.user_name || "–",
             typeLabels[b.booking_type] || b.booking_type || "–",
+            b.payment_method === "stripe" ? "Stripe" : b.payment_method === "cash" ? "Bar" : "–",
             `\u20AC ${(b.revenue || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           ])
-        : [["–", "–", "Keine abgeschlossenen Termine in diesem Monat", "", ""]],
+        : [["–", "–", "Keine abgeschlossenen Termine in diesem Monat", "", "", ""]],
       foot: rows.length > 0
-        ? [["", "", "", "Gesamt", `\u20AC ${monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]]
+        ? [["", "", "", "", "Gesamt", `\u20AC ${monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]]
         : undefined,
       styles: { font: "helvetica", fontSize: 10, cellPadding: 4 },
       headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
       footStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [249, 249, 249] },
       columnStyles: {
-        0: { cellWidth: 24 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 40 },
-        4: { cellWidth: 30, halign: "right" },
+        0: { cellWidth: 22 },
+        1: { cellWidth: 26 },
+        2: { cellWidth: 42 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 28, halign: "right" },
       },
       tableLineColor: [235, 235, 235],
       tableLineWidth: 0.1,
@@ -332,7 +340,7 @@ export default function StudioDashboard() {
     setFinalPayLoading(true);
     try {
       if (finalPayMethod === "cash") {
-        await axios.put(`${API}/bookings/${finalPayModal.booking_id}/complete`, { revenue: amount }, { withCredentials: true });
+        await axios.put(`${API}/bookings/${finalPayModal.booking_id}/complete`, { revenue: amount, payment_method: "cash" }, { withCredentials: true });
         notify.success(`€ ${amount.toFixed(2)} als Bareinnahme gespeichert.`);
       } else {
         const { data } = await axios.post(`${API}/bookings/${finalPayModal.booking_id}/send-final-payment`, { amount, origin_url: window.location.origin }, { withCredentials: true });
@@ -428,6 +436,14 @@ export default function StudioDashboard() {
       }
     } catch { navigate("/login"); } finally { setLoading(false); }
   };
+
+  const fetchInvoices = useCallback(async () => {
+    setInvoicesLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/studios/my/invoices`, { withCredentials: true });
+      setInvoices(data.invoices || []);
+    } catch { /* ignore */ } finally { setInvoicesLoading(false); }
+  }, []);
 
   const fetchConnectStatus = async () => {
     try {
@@ -841,6 +857,7 @@ export default function StudioDashboard() {
                 { id: "inquiries", icon: <Inbox         size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "kalender",  icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Kalender",     badge: 0 },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
+                { id: "invoices",  icon: <Receipt       size={15} strokeWidth={1.5} />, label: "Rechnungen",   badge: 0 },
                 { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
                 { id: "profile",   icon: <Settings2     size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
               ].map(item => (
@@ -951,7 +968,7 @@ export default function StudioDashboard() {
                   <p className="text-[10px] text-zinc-400 font-inter mt-0.5">abgeschlossene Termine</p>
                 </div>
               </div>
-              {/* Row 2: gesamt + stripe monat + stripe gesamt */}
+              {/* Row 2: gesamt + bar monat + stripe monat */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-zinc-50 rounded-xl p-3.5" data-testid="revenue-card-2">
                   <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Gesamtumsatz</p>
@@ -959,14 +976,14 @@ export default function StudioDashboard() {
                   <p className="text-[10px] text-zinc-400 font-inter mt-0.5">bar &amp; stripe</p>
                 </div>
                 <div className="bg-zinc-50 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Anzahlungen</p>
-                  <p className="text-lg font-playfair font-semibold text-zinc-900">€&thinsp;{(stats?.deposit_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">Monat · {stats?.deposit_count ?? 0}×</p>
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Bar (Monat)</p>
+                  <p className="text-lg font-playfair font-semibold text-zinc-900">€&thinsp;{(stats?.cash_revenue_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">Barzahlungen</p>
                 </div>
                 <div className="bg-zinc-900 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1">Stripe gesamt</p>
-                  <p className="text-lg font-playfair font-semibold text-white">€&thinsp;{(stats?.deposit_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-white/30 font-inter mt-0.5">eingegangen</p>
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1">Stripe (Monat)</p>
+                  <p className="text-lg font-playfair font-semibold text-white">€&thinsp;{(stats?.stripe_revenue_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-white/30 font-inter mt-0.5">Anzahl. &amp; Abschlüsse</p>
                 </div>
               </div>
             </div>
@@ -2123,6 +2140,60 @@ export default function StudioDashboard() {
             })()}
           </motion.div>
         )}
+
+        {/* Invoices Tab */}
+        {activeTab === "invoices" && (() => {
+          const payTypeLabel = { deposit: "Anzahlung", final: "Abschluss", cash: "Barzahlung" };
+          const payMethodLabel = { stripe: "Stripe", cash: "Bar" };
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="font-playfair font-bold text-xl text-zinc-900">Rechnungen</h2>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Alle ausgestellten Rechnungen deines Studios</p>
+                </div>
+              </div>
+              {invoicesLoading ? (
+                <div className="flex items-center justify-center py-16 text-zinc-400">
+                  <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mr-3" />
+                  <span className="text-sm font-inter">Lade Rechnungen…</span>
+                </div>
+              ) : invoices.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm p-12 text-center">
+                  <Receipt size={32} className="mx-auto mb-3 text-zinc-300" />
+                  <p className="font-inter text-sm text-zinc-500">Noch keine Rechnungen vorhanden.</p>
+                  <p className="font-inter text-xs text-zinc-400 mt-1">Rechnungen werden automatisch erstellt, sobald Zahlungen eingehen.</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-[120px_1fr_1fr_100px_90px_100px] gap-0 border-b border-zinc-100 px-5 py-3">
+                    {["Nr.", "Datum", "Kunde", "Typ", "Zahlungsart", "Betrag"].map(h => (
+                      <p key={h} className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">{h}</p>
+                    ))}
+                  </div>
+                  {invoices.map((inv, i) => {
+                    const dateStr = inv.created_at ? new Date(inv.created_at).toLocaleDateString("de-DE") : "–";
+                    const amtStr = `€\u2009${(inv.amount || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    return (
+                      <div key={inv.invoice_id} className={`grid grid-cols-[120px_1fr_1fr_100px_90px_100px] gap-0 px-5 py-3.5 items-center ${i % 2 === 1 ? "bg-zinc-50/60" : ""} ${i < invoices.length - 1 ? "border-b border-zinc-100" : ""}`}>
+                        <p className="text-xs font-mono font-semibold text-zinc-700">{inv.invoice_number}</p>
+                        <p className="text-xs font-inter text-zinc-600">{dateStr}</p>
+                        <p className="text-xs font-inter text-zinc-600 truncate">{inv.user_name || "–"}</p>
+                        <span className="text-[10px] font-inter font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 w-fit">
+                          {payTypeLabel[inv.payment_type] || inv.payment_type || "–"}
+                        </span>
+                        <span className={`text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full w-fit ${inv.payment_method === "stripe" ? "bg-violet-50 text-violet-700" : "bg-emerald-50 text-emerald-700"}`}>
+                          {payMethodLabel[inv.payment_method] || inv.payment_method || "–"}
+                        </span>
+                        <p className="text-xs font-inter font-semibold text-zinc-900 text-right">{amtStr}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
 
         {/* Artists Tab */}
         {activeTab === "artists" && stats?.studio && (
