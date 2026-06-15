@@ -2138,6 +2138,83 @@ export default function StudioDashboard() {
         {activeTab === "invoices" && (() => {
           const payTypeLabel = { deposit: "Anzahlung", final: "Abschluss", cash: "Barzahlung" };
           const payMethodLabel = { stripe: "Stripe", cash: "Bar" };
+          const typeLabels = { tattoo: "Tattoo-Sitzung", consultation: "Beratung", full_day: "Ganztag", video_consultation: "Videoberatung" };
+          const payMethodFull = { stripe: "Stripe (Karte)", cash: "Barzahlung" };
+          const payTypeFull = { deposit: "Anzahlung", final: "Abschlusszahlung", cash: "Barzahlung" };
+
+          const downloadInvoicePDF = (inv) => {
+            const doc = new jsPDF();
+            const sName = inv.studio_name || "Studio";
+            const cName = inv.user_name || "Kunde";
+            const invNum = inv.invoice_number || "INK-?";
+            const dateStr = inv.created_at ? new Date(inv.created_at).toLocaleDateString("de-DE") : "–";
+            const bDateStr = inv.booking_date ? new Date(inv.booking_date + "T12:00:00").toLocaleDateString("de-DE") : "–";
+            const timeStr = inv.booking_time ? ` · ${inv.booking_time}` : "";
+            const tLabel = typeLabels[inv.booking_type] || "Tattoo-Sitzung";
+            const pMethod = payMethodFull[inv.payment_method] || inv.payment_method || "–";
+            const pType = payTypeFull[inv.payment_type] || inv.payment_type || "–";
+            const amtFmt = (inv.amount || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Header
+            doc.setFillColor(24, 24, 27);
+            doc.rect(0, 0, 210, 36, "F");
+            doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+            doc.text("InkBook", 14, 16);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(180, 180, 180);
+            doc.text("Tattoo Studio Booking", 14, 25);
+
+            // Title
+            doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(24, 24, 27);
+            doc.text("Rechnung", 14, 52);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(113, 113, 122);
+            doc.text(`Nr. ${invNum}`, 14, 60);
+
+            // Date (right)
+            doc.setFontSize(9); doc.text("Erstellt am", 196, 52, { align: "right" });
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(24, 24, 27);
+            doc.text(dateStr, 196, 59, { align: "right" });
+
+            // Studio / Kunde boxes
+            doc.setFillColor(244, 244, 245);
+            doc.roundedRect(14, 67, 85, 22, 3, 3, "F");
+            doc.roundedRect(111, 67, 85, 22, 3, 3, "F");
+            doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(113, 113, 122);
+            doc.text("STUDIO", 18, 73); doc.text("KUNDE", 115, 73);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(24, 24, 27);
+            doc.text(sName, 18, 83, { maxWidth: 77 });
+            doc.text(cName, 115, 83, { maxWidth: 77 });
+
+            // Table
+            autoTable(doc, {
+              startY: 97,
+              head: [["Leistung", "Termin", "Typ", "Betrag"]],
+              body: [[tLabel, `${bDateStr}${timeStr}`, pType, `\u20AC ${amtFmt}`]],
+              styles: { font: "helvetica", fontSize: 10, cellPadding: 5 },
+              headStyles: { fillColor: [244, 244, 245], textColor: [113, 113, 122], fontStyle: "bold", fontSize: 8 },
+              columnStyles: {
+                0: { cellWidth: 55 }, 1: { cellWidth: 58 }, 2: { cellWidth: 42 }, 3: { cellWidth: 35, halign: "right" },
+              },
+              tableLineColor: [235, 235, 235], tableLineWidth: 0.1,
+            });
+
+            // Total block
+            const finalY = doc.lastAutoTable.finalY + 8;
+            doc.setFillColor(24, 24, 27);
+            doc.roundedRect(14, finalY, 182, 24, 4, 4, "F");
+            doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(161, 161, 170);
+            doc.text(`Zahlungsart: ${pMethod}`, 20, finalY + 10);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+            doc.text(`\u20AC ${amtFmt}`, 192, finalY + 16, { align: "right" });
+
+            // Footer
+            const pageH = doc.internal.pageSize.height;
+            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(180, 180, 180);
+            doc.text("Erstellt mit InkBook · inkbook.io", 14, pageH - 8);
+            doc.text(invNum, 196, pageH - 8, { align: "right" });
+
+            doc.save(`${invNum}.pdf`);
+          };
+
           return (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
               <div className="flex items-center justify-between mb-5">
@@ -2159,16 +2236,16 @@ export default function StudioDashboard() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-[120px_1fr_1fr_100px_90px_100px] gap-0 border-b border-zinc-100 px-5 py-3">
-                    {["Nr.", "Datum", "Kunde", "Typ", "Zahlungsart", "Betrag"].map(h => (
-                      <p key={h} className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">{h}</p>
+                  <div className="grid grid-cols-[120px_1fr_1fr_100px_90px_90px_40px] gap-0 border-b border-zinc-100 px-5 py-3">
+                    {["Nr.", "Datum", "Kunde", "Typ", "Zahlungsart", "Betrag", ""].map((h, idx) => (
+                      <p key={idx} className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400">{h}</p>
                     ))}
                   </div>
                   {invoices.map((inv, i) => {
                     const dateStr = inv.created_at ? new Date(inv.created_at).toLocaleDateString("de-DE") : "–";
                     const amtStr = `€\u2009${(inv.amount || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     return (
-                      <div key={inv.invoice_id} className={`grid grid-cols-[120px_1fr_1fr_100px_90px_100px] gap-0 px-5 py-3.5 items-center ${i % 2 === 1 ? "bg-zinc-50/60" : ""} ${i < invoices.length - 1 ? "border-b border-zinc-100" : ""}`}>
+                      <div key={inv.invoice_id} className={`grid grid-cols-[120px_1fr_1fr_100px_90px_90px_40px] gap-0 px-5 py-3.5 items-center ${i % 2 === 1 ? "bg-zinc-50/60" : ""} ${i < invoices.length - 1 ? "border-b border-zinc-100" : ""}`}>
                         <p className="text-xs font-mono font-semibold text-zinc-700">{inv.invoice_number}</p>
                         <p className="text-xs font-inter text-zinc-600">{dateStr}</p>
                         <p className="text-xs font-inter text-zinc-600 truncate">{inv.user_name || "–"}</p>
@@ -2178,7 +2255,14 @@ export default function StudioDashboard() {
                         <span className={`text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full w-fit ${inv.payment_method === "stripe" ? "bg-violet-50 text-violet-700" : "bg-emerald-50 text-emerald-700"}`}>
                           {payMethodLabel[inv.payment_method] || inv.payment_method || "–"}
                         </span>
-                        <p className="text-xs font-inter font-semibold text-zinc-900 text-right">{amtStr}</p>
+                        <p className="text-xs font-inter font-semibold text-zinc-900">{amtStr}</p>
+                        <button
+                          onClick={() => downloadInvoicePDF(inv)}
+                          title="PDF herunterladen"
+                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-100 hover:bg-zinc-900 hover:text-white text-zinc-500 transition-all"
+                        >
+                          <Download size={13} strokeWidth={1.8} />
+                        </button>
                       </div>
                     );
                   })}
