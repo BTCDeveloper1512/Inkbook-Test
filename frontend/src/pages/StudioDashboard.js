@@ -1008,43 +1008,14 @@ export default function StudioDashboard() {
                         <p className="font-inter font-semibold text-sm text-white">{b.user_name}</p>
                         <p className="text-xs text-white/50 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => setNotesModal(b)}
-                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-white/20 text-white/70 rounded-full font-inter hover:bg-white/10 hover:text-white transition-all"
-                            data-testid={`notes-btn-today-${b.booking_id}`}>
-                            <FileText size={11} strokeWidth={1.5} /> Bemerkungen
-                          </motion.button>
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => handleContactCustomer(b)}
-                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-white/20 text-white/70 rounded-full font-inter hover:bg-white/10 hover:text-white transition-all"
-                            data-testid={`contact-customer-btn-today-${b.booking_id}`}>
-                            <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
-                          </motion.button>
-                          {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
-                            ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
-                            : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
-                          }
-                          {b.status === "confirmed" && b.payment_status === "paid" && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
-                          )}
-                          {b.status === "pending" && !(b.deposit_required && b.payment_status !== "paid") && (
-                            <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-white text-zinc-900 rounded-full font-inter font-semibold hover:bg-zinc-100 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
-                          )}
-                          {/* VIDEO CONSULTATION HIDDEN
-                          {b.booking_type === "video_consultation" && b.status === "confirmed" && (
-                            <motion.button whileTap={{ scale: 0.95 }} onClick={() => setVideoCallBooking(b)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-full font-inter hover:bg-emerald-400 transition-colors" data-testid={`video-join-btn-overview-${b.booking_id}`}>
-                              <Video size={11} strokeWidth={2} /> Beitreten
-                            </motion.button>
-                          )}
-                          */}
-                        </div>
-                        {/* VIDEO CONSULTATION HIDDEN
-                        {b.booking_type === "video_consultation" && b.status === "confirmed" && (
-                          <VideoCountdownTimer booking={b} onAutoCancel={fetchStats} />
+                      <div className="flex flex-col items-end gap-1">
+                        {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
+                          ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
+                          : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
+                        }
+                        {b.status === "confirmed" && b.payment_status === "paid" && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
                         )}
-                        */}
                       </div>
                     </motion.div>
                   ))}
@@ -1079,44 +1050,13 @@ export default function StudioDashboard() {
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5 group-hover:text-zinc-700 transition-colors">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <motion.button whileTap={{ scale: 0.95 }}
-                          onClick={() => setNotesModal(b)}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
-                          data-testid={`notes-btn-upcoming-${b.booking_id}`}>
-                          <FileText size={11} strokeWidth={1.5} /> Bemerkungen
-                        </motion.button>
-                        <motion.button whileTap={{ scale: 0.95 }}
-                          onClick={() => handleContactCustomer(b)}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
-                          data-testid={`contact-customer-btn-${b.booking_id}`}>
-                          <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
-                        </motion.button>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
                           ? <span className="text-xs px-2.5 py-1 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200">Warte auf Anzahlung</span>
                           : <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status]}`}>{b.status === "pending" ? "Ausstehend" : "Bestätigt"}</span>
                         }
                         {b.status === "confirmed" && b.payment_status === "paid" && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
-                        )}
-                        {b.status === "pending" && !(b.deposit_required && b.payment_status !== "paid") && (
-                          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleConfirmBooking(b.booking_id)} className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-full font-inter hover:bg-zinc-700 transition-colors" data-testid={`confirm-btn-${b.booking_id}`}>Bestätigen</motion.button>
-                        )}
-                        {["pending", "confirmed"].includes(b.status) && (
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={async () => {
-                              if (b.payment_status === "paid") {
-                                setRefundModal(b);
-                              } else {
-                                const ok = await notify.confirm("Buchung stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
-                                if (!ok) return;
-                                axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/bookings/${b.booking_id}/status`, null, { params: { status: "cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
-                              }
-                            }}
-                            className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 transition-all"
-                            data-testid={`cancel-btn-overview-${b.booking_id}`}>
-                            {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
-                          </motion.button>
                         )}
                       </div>
                     </motion.div>
