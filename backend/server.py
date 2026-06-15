@@ -1546,7 +1546,19 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
             result[iso] = {"used": used, "remaining": remaining, "status": status, "note": ""}
         current += timedelta(days=1)
 
-    return {"dates": result, "day_capacity": _DAY_CAPACITY}
+    studio_doc = await db.studios.find_one({"studio_id": studio_id}, {"slots_visible_until": 1})
+    slots_visible_until = studio_doc.get("slots_visible_until") if studio_doc else None
+    return {"dates": result, "day_capacity": _DAY_CAPACITY, "slots_visible_until": slots_visible_until}
+
+@api_router.put("/studios/my/visibility-cutoff")
+async def set_visibility_cutoff(data: dict, current_user: dict = Depends(get_current_user)):
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": owner_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    cutoff = data.get("slots_visible_until")
+    await db.studios.update_one({"studio_id": studio["studio_id"]}, {"$set": {"slots_visible_until": cutoff}})
+    return {"slots_visible_until": cutoff}
 
 @api_router.post("/studios/{studio_id}/slots")
 async def create_slot(studio_id: str, data: SlotCreate, current_user: dict = Depends(get_current_user)):

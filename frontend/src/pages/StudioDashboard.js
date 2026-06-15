@@ -89,6 +89,9 @@ export default function StudioDashboard() {
   const [calBlockPickType, setCalBlockPickType] = useState("full");
   const [calBlockPickNote, setCalBlockPickNote] = useState("");
   const [calBlockSaving, setCalBlockSaving] = useState(false);
+  const [calSelectedDates, setCalSelectedDates] = useState(new Set());
+  const [visibleUntil, setVisibleUntil] = useState("");
+  const [visibleUntilSaving, setVisibleUntilSaving] = useState(false);
   const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "termine"
   const [studioArtists, setStudioArtists] = useState([]);
   const [calArtistId, setCalArtistId] = useState(null); // null = studio-wide view
@@ -542,23 +545,26 @@ export default function StudioDashboard() {
       const params = { year, month, ...(artistId ? { artist_id: artistId } : {}) };
       const { data } = await axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params });
       setCalCapData(data.dates || {});
+      if (data.slots_visible_until !== undefined) setVisibleUntil(data.slots_visible_until || "");
     } catch {}
   };
 
   const handleSaveCalBlock = async () => {
-    if (!calBlockPickDate) return;
+    if (calSelectedDates.size === 0) return;
     const studioId = stats?.studio?.studio_id;
     setCalBlockSaving(true);
     try {
-      await axios.post(`${API}/studios/${studioId}/calendar-blocks`, {
-        date: calBlockPickDate,
-        block_type: calBlockPickType,
-        note: calBlockPickNote,
-        artist_id: calArtistId || null,
-      }, { withCredentials: true });
+      await Promise.all([...calSelectedDates].map(date =>
+        axios.post(`${API}/studios/${studioId}/calendar-blocks`, {
+          date,
+          block_type: calBlockPickType,
+          note: calBlockPickNote,
+          artist_id: calArtistId || null,
+        }, { withCredentials: true })
+      ));
       await Promise.all([fetchCalBlocks(studioId, calArtistId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId)]);
       setCalBlockPickModal(false);
-      setCalBlockPickDate(null);
+      setCalSelectedDates(new Set());
       setCalBlockPickNote("");
     } catch (e) {
       notify.error(e.response?.data?.detail || "Fehler beim Speichern");
@@ -571,6 +577,18 @@ export default function StudioDashboard() {
       await axios.delete(`${API}/studios/${studioId}/calendar-blocks/${blockId}`, { withCredentials: true });
       await Promise.all([fetchCalBlocks(studioId, calArtistId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId)]);
     } catch {}
+  };
+
+  const handleSaveVisibleUntil = async (cutoffValue) => {
+    const studioId = stats?.studio?.studio_id;
+    if (!studioId) return;
+    setVisibleUntilSaving(true);
+    try {
+      await axios.put(`${API}/studios/my/visibility-cutoff`, { slots_visible_until: cutoffValue ?? null }, { withCredentials: true });
+      notify.success("Sichtbarkeit gespeichert");
+      await fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId);
+    } catch { notify.error("Fehler beim Speichern"); }
+    finally { setVisibleUntilSaving(false); }
   };
 
   const handleCreateStudio = async (e) => {
@@ -1181,10 +1199,18 @@ export default function StudioDashboard() {
           };
 
           const openDay = (iso) => {
-            setCalBlockPickDate(iso);
-            const existing = blocksByDate[iso];
+            setCalSelectedDates(prev => {
+              const next = new Set(prev);
+              if (next.has(iso)) next.delete(iso); else next.add(iso);
+              return next;
+            });
+          };
+
+          const openBulkModal = () => {
+            const firstDate = [...calSelectedDates][0];
+            const existing = firstDate ? blocksByDate[firstDate] : null;
             setCalBlockPickType(existing ? existing.block_type : "busy");
-            setCalBlockPickNote(existing ? (existing.note || "") : "");
+            setCalBlockPickNote("");
             setCalBlockPickModal(true);
           };
 
@@ -1392,6 +1418,33 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
+              {/* Visibility cutoff setting */}
+              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-inter font-semibold text-zinc-900 mb-0.5">Termine sichtbar bis</p>
+                    <p className="text-[11px] text-zinc-400 font-inter">Kunden sehen Slots nur bis zu diesem Datum. Tage danach erscheinen als „Bald verfügbar".</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <input
+                      type="date" value={visibleUntil}
+                      onChange={e => setVisibleUntil(e.target.value)}
+                      className="border border-zinc-200 rounded-xl px-3 py-2 text-sm font-inter text-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                    <button onClick={() => handleSaveVisibleUntil(visibleUntil || null)} disabled={visibleUntilSaving}
+                      className="px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-inter font-semibold hover:bg-zinc-700 transition-colors disabled:opacity-60">
+                      {visibleUntilSaving ? "…" : "Speichern"}
+                    </button>
+                    {visibleUntil && (
+                      <button onClick={() => { setVisibleUntil(""); handleSaveVisibleUntil(null); }}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:bg-zinc-50 transition-colors text-sm">
+                        <X size={13} strokeWidth={2} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Calendar grid */}
               <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
                 {/* Day headers */}
@@ -1409,27 +1462,37 @@ export default function StudioDashboard() {
                     const capDay = calCapData[iso];
                     const isToday = iso === todayIso;
                     const isPast = iso < todayIso;
-                    // Determine dot: manual block wins, else use capacity status
+                    const isSelected = calSelectedDates.has(iso);
+                    const isAfterCutoff = !isPast && visibleUntil && iso > visibleUntil;
                     const dotColor = block
                       ? dotCls[block.block_type] || "bg-zinc-400"
                       : capDay
                         ? capDotCls(capDay.status)
                         : isPast ? "bg-zinc-200" : "bg-emerald-400";
                     const blockType = block?.block_type;
-                    const hasBg = !!block;
+                    const hasBg = !!block && !isSelected;
                     return (
                       <button
                         key={iso}
                         onClick={() => openDay(iso)}
                         className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-sm font-inter
                           ${isPast ? "opacity-40 cursor-default" : "hover:scale-105 cursor-pointer"}
-                          ${hasBg ? `${bgCls[blockType]} border` : isToday ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 border border-transparent"}
+                          ${isSelected
+                            ? "bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-1"
+                            : hasBg
+                              ? `${bgCls[blockType]} border`
+                              : isToday
+                                ? "bg-zinc-800 text-white"
+                                : isAfterCutoff
+                                  ? "bg-zinc-50 border border-dashed border-zinc-300"
+                                  : "hover:bg-zinc-50 border border-transparent"}
                         `}
                         disabled={isPast}
-                        title={block ? `${BLOCK_TYPES.find(t=>t.id===blockType)?.label || blockType}${block.note ? ` – ${block.note}` : ""}` : capDay ? `Kapazität: ${capDay.status}` : "Tag bearbeiten"}
+                        title={isSelected ? "Ausgewählt – klicken zum Abwählen" : block ? `${BLOCK_TYPES.find(t=>t.id===blockType)?.label || blockType}${block.note ? ` – ${block.note}` : ""}` : isAfterCutoff ? "Nach Sichtbarkeits-Limit (für Kunden nicht buchbar)" : capDay ? `Kapazität: ${capDay.status}` : "Klicken zum Auswählen"}
                       >
-                        <span className={`text-xs font-semibold ${hasBg ? textCls[blockType] : isToday ? "text-white" : "text-zinc-700"}`}>{day}</span>
-                        {!isPast && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isToday && !hasBg ? "bg-white/60" : dotColor}`} />}
+                        <span className={`text-xs font-semibold ${isSelected ? "text-white" : hasBg ? textCls[blockType] : isToday ? "text-white" : isAfterCutoff ? "text-zinc-400" : "text-zinc-700"}`}>{day}</span>
+                        {!isPast && !isAfterCutoff && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? "bg-white/60" : isToday && !hasBg ? "bg-white/60" : dotColor}`} />}
+                        {!isPast && isAfterCutoff && <span className="text-[8px] mt-0.5 text-zinc-400 font-inter leading-none">bald</span>}
                       </button>
                     );
                   })}
@@ -1437,9 +1500,32 @@ export default function StudioDashboard() {
               </div>
 
 
+              {/* Multi-select floating action bar */}
+              <AnimatePresence>
+                {calSelectedDates.size > 0 && !calBlockPickModal && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-zinc-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3"
+                  >
+                    <span className="text-sm font-inter font-semibold whitespace-nowrap">
+                      {calSelectedDates.size} Tag{calSelectedDates.size > 1 ? "e" : ""} ausgewählt
+                    </span>
+                    <button onClick={openBulkModal}
+                      className="px-4 py-1.5 rounded-xl bg-white text-zinc-900 text-sm font-inter font-semibold hover:bg-zinc-100 transition-colors whitespace-nowrap">
+                      Bearbeiten
+                    </button>
+                    <button onClick={() => setCalSelectedDates(new Set())}
+                      className="p-1.5 rounded-xl hover:bg-zinc-700 transition-colors text-zinc-400 hover:text-white">
+                      <X size={14} strokeWidth={2} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Block pick modal */}
               <AnimatePresence>
-                {calBlockPickModal && calBlockPickDate && (
+                {calBlockPickModal && calSelectedDates.size > 0 && (
                   <motion.div
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="fixed inset-0 flex items-center justify-center p-6"
@@ -1454,12 +1540,15 @@ export default function StudioDashboard() {
                     >
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-playfair font-semibold text-lg text-zinc-900">
-                          Tag bearbeiten
+                          {calSelectedDates.size === 1 ? "Tag bearbeiten" : `${calSelectedDates.size} Tage bearbeiten`}
                         </h3>
                         <button onClick={() => setCalBlockPickModal(false)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={16} strokeWidth={2} /></button>
                       </div>
-                      <p className="text-xs font-inter text-zinc-500 mb-1">
-                        {new Date(calBlockPickDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                      <p className="text-xs font-inter text-zinc-500 mb-1 truncate">
+                        {calSelectedDates.size === 1
+                          ? new Date([...calSelectedDates][0] + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
+                          : [...calSelectedDates].sort().map(d => new Date(d + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })).join(", ")
+                        }
                       </p>
                       {/* Show context: artist or studio-wide */}
                       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-inter font-semibold mb-4 ${calArtistId ? "bg-zinc-100 text-zinc-700" : "bg-blue-50 text-blue-700"}`}>
@@ -1503,9 +1592,13 @@ export default function StudioDashboard() {
                       </div>
 
                       <div className="flex gap-2">
-                        {blocksByDate[calBlockPickDate] && (
+                        {[...calSelectedDates].some(d => blocksByDate[d]) && (
                           <button
-                            onClick={async () => { await handleDeleteCalBlock(blocksByDate[calBlockPickDate].block_id); setCalBlockPickModal(false); }}
+                            onClick={async () => {
+                              await Promise.all([...calSelectedDates].filter(d => blocksByDate[d]).map(d => handleDeleteCalBlock(blocksByDate[d].block_id)));
+                              setCalBlockPickModal(false);
+                              setCalSelectedDates(new Set());
+                            }}
                             className="flex-1 px-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-inter hover:bg-red-50 transition-colors"
                           >
                             Entfernen

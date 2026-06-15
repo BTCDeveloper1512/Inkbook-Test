@@ -439,6 +439,7 @@ export default function StudioPage() {
   const [preferredTimeFrom, setPreferredTimeFrom] = useState("");
   const [preferredTimeTo, setPreferredTimeTo] = useState("");
   const [capacityData, setCapacityData] = useState({});
+  const [calVisibleUntil, setCalVisibleUntil] = useState(null);
   const [selectedCapArtist, setSelectedCapArtist] = useState(null); // null = no artist filter
 
   const today = new Date();
@@ -487,7 +488,10 @@ export default function StudioPage() {
     const params = { year: calMonth.year, month: calMonth.month + 1 };
     if (selectedCapArtist) params.artist_id = selectedCapArtist;
     axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params })
-      .then(({ data }) => { setCapacityData(data.dates || {}); })
+      .then(({ data }) => {
+        setCapacityData(data.dates || {});
+        setCalVisibleUntil(data.slots_visible_until || null);
+      })
       .catch(() => {});
   }, [studioId, calMonth, bookingType, selectedCapArtist]);
 
@@ -1068,28 +1072,32 @@ export default function StudioPage() {
                         const cost = SIZE_COST[sizeCategory] || 1;
                         const remaining = capDay ? capDay.remaining : (isPast ? 0 : DAY_CAPACITY);
                         const isVacation = !isPast && capDay && capDay.status === "vacation";
-                        const canFit = !isPast && !isVacation && remaining >= cost;
+                        const isNotAvailableYet = !isPast && calVisibleUntil && iso > calVisibleUntil;
+                        const canFit = !isPast && !isVacation && !isNotAvailableYet && remaining >= cost;
                         const dotColor = isSelected
                           ? "bg-white/60"
                           : isVacation
                             ? "bg-violet-400"
-                            : !canFit
-                              ? "bg-rose-400"
-                              : remaining >= 5
-                                ? "bg-teal-400"
-                                : remaining >= 3
-                                  ? "bg-yellow-400"
-                                  : "bg-indigo-400";
-                        const noteTitle = isVacation ? "Urlaub / geschlossen" : (capDay?.note || null);
+                            : isNotAvailableYet
+                              ? "bg-zinc-300"
+                              : !canFit
+                                ? "bg-rose-400"
+                                : remaining >= 5
+                                  ? "bg-teal-400"
+                                  : remaining >= 3
+                                    ? "bg-yellow-400"
+                                    : "bg-indigo-400";
+                        const noteTitle = isNotAvailableYet ? "Bald verfügbar" : isVacation ? "Urlaub / geschlossen" : (capDay?.note || null);
                         return (
                           <div key={iso} className="relative group">
-                            <button disabled={isPast || !canFit || isVacation}
+                            <button disabled={isPast || !canFit || isVacation || isNotAvailableYet}
                               onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
-                              className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
+                              className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation || isNotAvailableYet ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isNotAvailableYet ? "bg-zinc-50 border border-dashed border-zinc-200" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
                               data-testid={`date-btn-${iso}`}
                             >
                               <span>{day.getDate()}</span>
-                              {!isPast && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
+                              {!isPast && !isNotAvailableYet && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
+                              {!isPast && isNotAvailableYet && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-inter text-zinc-400 leading-none">bald</span>}
                             </button>
                             {noteTitle && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-out w-max max-w-[140px]">
