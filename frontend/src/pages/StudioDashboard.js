@@ -955,35 +955,22 @@ export default function StudioDashboard() {
                   <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live</span>
                 </div>
               </div>
-              {/* Row 1: heute + monat */}
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div className="bg-zinc-900 rounded-xl p-3.5" data-testid="revenue-card-0">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1">Heute</p>
-                  <p className="text-2xl font-playfair font-semibold text-white">€&thinsp;{todayRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-white/30 font-inter mt-0.5">abgeschlossene Termine</p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-3.5" data-testid="revenue-card-1">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Dieser Monat</p>
-                  <p className="text-2xl font-playfair font-semibold text-zinc-900">€&thinsp;{monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">abgeschlossene Termine</p>
-                </div>
-              </div>
-              {/* Row 2: gesamt + bar monat + stripe monat */}
+              {/* 3 cards: Bar gesamt · Stripe gesamt · Insgesamt */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-zinc-50 rounded-xl p-3.5" data-testid="revenue-card-2">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Gesamtumsatz</p>
-                  <p className="text-lg font-playfair font-semibold text-zinc-900">€&thinsp;{totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">bar &amp; stripe</p>
+                <div className="bg-zinc-50 rounded-xl p-4" data-testid="revenue-card-0">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Bar</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">€&thinsp;{(stats?.cash_revenue_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-1">Barzahlungen gesamt</p>
                 </div>
-                <div className="bg-zinc-50 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1">Bar (Monat)</p>
-                  <p className="text-lg font-playfair font-semibold text-zinc-900">€&thinsp;{(stats?.cash_revenue_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-zinc-400 font-inter mt-0.5">Barzahlungen</p>
+                <div className="bg-zinc-50 rounded-xl p-4" data-testid="revenue-card-1">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Stripe</p>
+                  <p className="text-2xl font-playfair font-semibold text-zinc-900">€&thinsp;{(stats?.stripe_revenue_total ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-1">Kartenzahlungen gesamt</p>
                 </div>
-                <div className="bg-zinc-900 rounded-xl p-3.5">
-                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1">Stripe (Monat)</p>
-                  <p className="text-lg font-playfair font-semibold text-white">€&thinsp;{(stats?.stripe_revenue_month ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  <p className="text-[10px] text-white/30 font-inter mt-0.5">Anzahl. &amp; Abschlüsse</p>
+                <div className="bg-zinc-900 rounded-xl p-4" data-testid="revenue-card-2">
+                  <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Insgesamt</p>
+                  <p className="text-2xl font-playfair font-semibold text-white">€&thinsp;{totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-white/30 font-inter mt-1">bar &amp; stripe</p>
                 </div>
               </div>
             </div>
