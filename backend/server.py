@@ -2060,7 +2060,7 @@ async def check_final_payment(booking_id: str, current_user: dict = Depends(get_
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {str(e)}")
 
-    if cs.get("payment_status") != "paid":
+    if cs.payment_status != "paid":
         return {"status": "pending"}
 
     # Payment confirmed — complete booking
