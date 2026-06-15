@@ -1939,7 +1939,7 @@ async def send_final_payment_link(booking_id: str, request: Request, current_use
     customer_email = booking.get("user_email", "")
     studio_name = studio.get("name", "Studio")
     amount_cents = int(round(amount * 100))
-    origin = str(request.base_url).rstrip("/")
+    frontend_origin = data.get("origin_url", "").rstrip("/") or str(request.base_url).rstrip("/")
     session_id = f"fin_{uuid.uuid4().hex[:16]}"
 
     import stripe as stripe_lib
@@ -1960,8 +1960,8 @@ async def send_final_payment_link(booking_id: str, request: Request, current_use
             "quantity": 1,
         }],
         mode="payment",
-        success_url=f"{origin}/dashboard?payment=final_success&session_id={session_id}",
-        cancel_url=f"{origin}/dashboard",
+        success_url=f"{frontend_origin}/dashboard?payment=final_success&session_id={session_id}",
+        cancel_url=f"{frontend_origin}/dashboard",
         metadata={
             "session_id": session_id,
             "booking_id": booking_id,

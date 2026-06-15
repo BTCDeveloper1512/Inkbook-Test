@@ -312,7 +312,7 @@ export default function StudioDashboard() {
         await axios.put(`${API}/bookings/${finalPayModal.booking_id}/complete`, { revenue: amount }, { withCredentials: true });
         notify.success(`€ ${amount.toFixed(2)} als Bareinnahme gespeichert.`);
       } else {
-        const { data } = await axios.post(`${API}/bookings/${finalPayModal.booking_id}/send-final-payment`, { amount }, { withCredentials: true });
+        const { data } = await axios.post(`${API}/bookings/${finalPayModal.booking_id}/send-final-payment`, { amount, origin_url: window.location.origin }, { withCredentials: true });
         notify.success(`Zahlungslink an ${data.email_sent_to || "Kunde"} gesendet!`);
       }
       setFinalPayModal(null);
