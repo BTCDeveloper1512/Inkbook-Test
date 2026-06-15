@@ -955,6 +955,12 @@ export default function StudioDashboard() {
                   <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live</span>
                 </div>
               </div>
+              {/* Dieser Monat — full-width highlight */}
+              <div className="bg-zinc-900 rounded-xl p-4 mb-3">
+                <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Dieser Monat</p>
+                <p className="text-3xl font-playfair font-semibold text-white">€&thinsp;{monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-[10px] text-white/30 font-inter mt-1">abgeschlossene Termine im laufenden Monat</p>
+              </div>
               {/* 3 cards: Bar gesamt · Stripe gesamt · Insgesamt */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-zinc-50 rounded-xl p-4" data-testid="revenue-card-0">
