@@ -2024,6 +2024,77 @@ async def send_final_payment_link(booking_id: str, request: Request, current_use
     return {"success": True, "email_sent_to": customer_email, "checkout_url": checkout_url}
 
 
+@api_router.post("/bookings/{booking_id}/check-final-payment")
+async def check_final_payment(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Studio polls Stripe to check if the customer has paid the final payment link."""
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    # Find the most recent pending final payment transaction
+    all_txns = await db.payment_transactions.find(
+        {"booking_id": booking_id, "payment_type": "final"}
+    ).to_list(50)
+    pending_txn = next((t for t in reversed(all_txns) if t.get("payment_status") != "paid"), None)
+
+    if not pending_txn:
+        already_paid = next((t for t in all_txns if t.get("payment_status") == "paid"), None)
+        if already_paid:
+            return {"status": "already_paid", "amount": already_paid.get("amount", 0)}
+        return {"status": "no_pending_payment"}
+
+    cs_id = pending_txn.get("stripe_session_id")
+    if not cs_id:
+        return {"status": "no_stripe_session"}
+
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+
+    try:
+        cs = await asyncio.to_thread(stripe_lib.checkout.Session.retrieve, cs_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {str(e)}")
+
+    if cs.get("payment_status") != "paid":
+        return {"status": "pending"}
+
+    # Payment confirmed — complete booking
+    now_iso = datetime.now(timezone.utc).isoformat()
+    revenue_amount = pending_txn.get("amount", 0)
+
+    await db.payment_transactions.update_one(
+        {"session_id": pending_txn["session_id"]},
+        {"$set": {"payment_status": "paid", "paid_at": now_iso}}
+    )
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {"status": "completed", "revenue": revenue_amount, "completed_at": now_iso}}
+    )
+
+    # Notify studio owner via push + chat message
+    owner_id = studio.get("owner_id", "")
+    customer_id = booking.get("user_id", "")
+    bdate = booking.get("offer_date") or booking.get("date", "")
+    btime = booking.get("offer_time") or booking.get("start_time", "")
+    try:
+        date_fmt = datetime.strptime(bdate, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except Exception:
+        date_fmt = bdate
+    if customer_id and owner_id:
+        asyncio.create_task(_post_system_message(
+            customer_id=customer_id, studio_owner_id=owner_id,
+            text=f"💳 Zahlung erhalten – Termin am {date_fmt} um {btime} Uhr ist abgeschlossen ✓",
+            triggered_by_id=customer_id
+        ))
+
+    return {"status": "paid", "amount": revenue_amount}
+
+
 # ─── Booking Offer / Accept / No-Show ────────────────────────────────────────
 
 @api_router.post("/bookings/{booking_id}/offer")

@@ -126,6 +126,7 @@ export default function StudioDashboard() {
   const [finalPayAmount, setFinalPayAmount] = useState("");
   const [finalPayMethod, setFinalPayMethod] = useState("cash");
   const [finalPayLoading, setFinalPayLoading] = useState(false);
+  const [checkPayLoading, setCheckPayLoading] = useState({});
   const [connectStatus, setConnectStatus] = useState(null);
   const [connectLoading, setConnectLoading] = useState(false);
   const [stripeConnectError, setStripeConnectError] = useState(null);
@@ -300,6 +301,28 @@ export default function StudioDashboard() {
 
     const fname = `inkbook-monatsumsatz-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}.pdf`;
     doc.save(fname);
+  };
+
+  const handleCheckFinalPayment = async (bookingId) => {
+    setCheckPayLoading(prev => ({ ...prev, [bookingId]: true }));
+    try {
+      const { data } = await axios.post(`${API}/bookings/${bookingId}/check-final-payment`, {}, { withCredentials: true });
+      if (data.status === "paid") {
+        notify.success(`Zahlung bestätigt! € ${parseFloat(data.amount || 0).toFixed(2)} als Umsatz gebucht.`);
+        fetchStats();
+      } else if (data.status === "pending") {
+        notify.info("Zahlung noch nicht eingegangen. Kunde hat den Link noch nicht bezahlt.");
+      } else if (data.status === "already_paid") {
+        notify.info("Zahlung war bereits gebucht.");
+        fetchStats();
+      } else {
+        notify.warn("Kein Zahlungslink für diesen Termin gefunden.");
+      }
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Stripe-Abfrage fehlgeschlagen.");
+    } finally {
+      setCheckPayLoading(prev => ({ ...prev, [bookingId]: false }));
+    }
   };
 
   const handleFinalPayment = async () => {
@@ -1855,15 +1878,27 @@ export default function StudioDashboard() {
                             </span>
                           )}
 
-                          {/* Payment button for all confirmed bookings */}
+                          {/* Payment buttons for all confirmed bookings */}
                           {b.status === "confirmed" && (
-                            <motion.button whileTap={{ scale: 0.95 }}
-                              onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
-                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
-                              data-testid={`complete-booking-btn-${b.booking_id}`}
-                            >
-                              <CreditCard size={11} strokeWidth={2} /> Zahlung erfassen
-                            </motion.button>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <motion.button whileTap={{ scale: 0.95 }}
+                                onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
+                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
+                                data-testid={`complete-booking-btn-${b.booking_id}`}
+                              >
+                                <CreditCard size={11} strokeWidth={2} /> Zahlung erfassen
+                              </motion.button>
+                              <motion.button whileTap={{ scale: 0.95 }}
+                                onClick={() => handleCheckFinalPayment(b.booking_id)}
+                                disabled={checkPayLoading[b.booking_id]}
+                                className="flex items-center gap-1.5 text-[11px] px-3 py-1 border border-violet-200 text-violet-600 rounded-full font-inter hover:bg-violet-50 hover:border-violet-400 transition-all disabled:opacity-50"
+                              >
+                                {checkPayLoading[b.booking_id]
+                                  ? <><div className="w-2.5 h-2.5 border border-violet-400 border-t-transparent rounded-full animate-spin" /> Prüfe…</>
+                                  : <><Send size={10} strokeWidth={2} /> Stripe prüfen</>
+                                }
+                              </motion.button>
+                            </div>
                           )}
 
                           {/* Offer button for new requests */}
