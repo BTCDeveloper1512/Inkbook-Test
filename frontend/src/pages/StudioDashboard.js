@@ -1862,14 +1862,18 @@ export default function StudioDashboard() {
                             <p className="text-xs text-red-500 font-inter mt-1">Grund: {b.cancellation_reason}</p>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-2 min-w-[120px]">
-                          {/* Status badge */}
-                          <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
-                            {statusLabels[b.status] || b.status}
-                          </span>
-                          {b.status === "confirmed" && b.payment_status === "paid" && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1"><CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt</span>
-                          )}
+                        <div className="flex flex-col items-end gap-2 min-w-[140px]">
+                          {/* Status + deposit badges */}
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
+                              {statusLabels[b.status] || b.status}
+                            </span>
+                            {b.status === "confirmed" && b.payment_status === "paid" && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1">
+                                <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
+                              </span>
+                            )}
+                          </div>
 
                           {/* Revenue display for completed bookings */}
                           {b.status === "completed" && (b.revenue || 0) > 0 && (
@@ -1878,52 +1882,53 @@ export default function StudioDashboard() {
                             </span>
                           )}
 
-                          {/* Payment buttons for all confirmed bookings */}
+                          {/* Actions for confirmed bookings */}
                           {b.status === "confirmed" && (
-                            <div className="flex flex-col items-end gap-1.5">
-                              <motion.button whileTap={{ scale: 0.95 }}
+                            <div className="flex flex-col items-end gap-1.5 w-full">
+                              {/* Primary: record payment */}
+                              <motion.button whileTap={{ scale: 0.97 }}
                                 onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
-                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-full font-inter hover:bg-emerald-700 transition-colors"
+                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-inter hover:bg-emerald-700 transition-colors shadow-sm"
                                 data-testid={`complete-booking-btn-${b.booking_id}`}
                               >
                                 <CreditCard size={11} strokeWidth={2} /> Zahlung erfassen
                               </motion.button>
-                              <motion.button whileTap={{ scale: 0.95 }}
+                              {/* Secondary: poll Stripe */}
+                              <motion.button whileTap={{ scale: 0.97 }}
                                 onClick={() => handleCheckFinalPayment(b.booking_id)}
                                 disabled={checkPayLoading[b.booking_id]}
-                                className="flex items-center gap-1.5 text-[11px] px-3 py-1 border border-violet-200 text-violet-600 rounded-full font-inter hover:bg-violet-50 hover:border-violet-400 transition-all disabled:opacity-50"
+                                className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-lg font-inter hover:bg-violet-100 hover:border-violet-400 transition-all disabled:opacity-50"
                               >
                                 {checkPayLoading[b.booking_id]
-                                  ? <><div className="w-2.5 h-2.5 border border-violet-400 border-t-transparent rounded-full animate-spin" /> Prüfe…</>
-                                  : <><Send size={10} strokeWidth={2} /> Stripe prüfen</>
+                                  ? <><div className="w-2.5 h-2.5 border border-violet-400 border-t-transparent rounded-full animate-spin" /> Wird geprüft…</>
+                                  : <><CheckCircle size={10} strokeWidth={2} /> Zahlungseingang prüfen</>
                                 }
                               </motion.button>
+                              {/* No-show — only for past confirmed */}
+                              {isPast && (
+                                <motion.button whileTap={{ scale: 0.97 }}
+                                  onClick={async () => {
+                                    const ok = await notify.confirm("Kunde als No-Show markieren?", "Die Anzahlung wird einbehalten.");
+                                    if (!ok) return;
+                                    try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { notify.error(e.response?.data?.detail || "Fehler"); }
+                                  }}
+                                  className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-lg font-inter hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                                  data-testid={`no-show-btn-${b.booking_id}`}
+                                >
+                                  ⚠️ No-Show markieren
+                                </motion.button>
+                              )}
                             </div>
                           )}
 
                           {/* Offer button for new requests */}
                           {["pending_studio_review","under_review","pending"].includes(b.status) && !isPast && (
-                            <motion.button whileTap={{ scale: 0.95 }}
+                            <motion.button whileTap={{ scale: 0.97 }}
                               onClick={() => { setOfferModal(b); setOfferForm(f => ({ ...f, offer_date: b.date || "", offer_notes: "" })); }}
-                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 text-white rounded-full font-inter hover:bg-violet-700 transition-colors"
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg font-inter hover:bg-violet-700 transition-colors shadow-sm"
                               data-testid={`create-offer-btn-${b.booking_id}`}
                             >
                               📋 Angebot erstellen
-                            </motion.button>
-                          )}
-
-                          {/* No-show for past confirmed */}
-                          {b.status === "confirmed" && isPast && (
-                            <motion.button whileTap={{ scale: 0.95 }}
-                              onClick={async () => {
-                                const ok = await notify.confirm("Kunde als No-Show markieren?", "Die Anzahlung wird einbehalten.");
-                                if (!ok) return;
-                                try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { notify.error(e.response?.data?.detail || "Fehler"); }
-                              }}
-                              className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all"
-                              data-testid={`no-show-btn-${b.booking_id}`}
-                            >
-                              ⚠️ No-Show
                             </motion.button>
                           )}
 
