@@ -1862,38 +1862,36 @@ export default function StudioDashboard() {
                             <p className="text-xs text-red-500 font-inter mt-1">Grund: {b.cancellation_reason}</p>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-2 min-w-[140px]">
-                          {/* Status + deposit badges */}
-                          <div className="flex flex-col items-end gap-1">
-                            <span className={`text-xs px-2.5 py-1 rounded-full border font-inter ${statusColors[b.status] || statusColors.pending}`}>
+                        {/* ── Right action panel ── */}
+                        <div className="flex flex-col gap-1.5 min-w-[158px] bg-zinc-50 border border-zinc-200 rounded-xl p-2.5">
+
+                          {/* Status row */}
+                          <div className="flex flex-col gap-1 pb-2 border-b border-zinc-200">
+                            <span className={`text-xs px-2.5 py-1 rounded-full border font-inter text-center ${statusColors[b.status] || statusColors.pending}`}>
                               {statusLabels[b.status] || b.status}
                             </span>
                             {b.status === "confirmed" && b.payment_status === "paid" && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center gap-1">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center justify-center gap-1">
                                 <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
+                              </span>
+                            )}
+                            {b.status === "completed" && (b.revenue || 0) > 0 && (
+                              <span className="text-sm font-playfair font-semibold text-emerald-600 text-center" data-testid={`revenue-display-${b.booking_id}`}>
+                                + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             )}
                           </div>
 
-                          {/* Revenue display for completed bookings */}
-                          {b.status === "completed" && (b.revenue || 0) > 0 && (
-                            <span className="text-sm font-playfair font-semibold text-emerald-600" data-testid={`revenue-display-${b.booking_id}`}>
-                              + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          )}
-
-                          {/* Actions for confirmed bookings */}
+                          {/* Confirmed: payment actions */}
                           {b.status === "confirmed" && (
-                            <div className="flex flex-col items-end gap-1.5 w-full">
-                              {/* Primary: record payment */}
+                            <>
                               <motion.button whileTap={{ scale: 0.97 }}
                                 onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
-                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-inter hover:bg-emerald-700 transition-colors shadow-sm"
+                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-inter hover:bg-emerald-700 transition-colors"
                                 data-testid={`complete-booking-btn-${b.booking_id}`}
                               >
                                 <CreditCard size={11} strokeWidth={2} /> Zahlung erfassen
                               </motion.button>
-                              {/* Secondary: poll Stripe */}
                               <motion.button whileTap={{ scale: 0.97 }}
                                 onClick={() => handleCheckFinalPayment(b.booking_id)}
                                 disabled={checkPayLoading[b.booking_id]}
@@ -1904,7 +1902,6 @@ export default function StudioDashboard() {
                                   : <><CheckCircle size={10} strokeWidth={2} /> Zahlungseingang prüfen</>
                                 }
                               </motion.button>
-                              {/* No-show — only for past confirmed */}
                               {isPast && (
                                 <motion.button whileTap={{ scale: 0.97 }}
                                   onClick={async () => {
@@ -1918,52 +1915,57 @@ export default function StudioDashboard() {
                                   ⚠️ No-Show markieren
                                 </motion.button>
                               )}
-                            </div>
+                            </>
                           )}
 
-                          {/* Offer button for new requests */}
+                          {/* Pending: offer button */}
                           {["pending_studio_review","under_review","pending"].includes(b.status) && !isPast && (
                             <motion.button whileTap={{ scale: 0.97 }}
                               onClick={() => { setOfferModal(b); setOfferForm(f => ({ ...f, offer_date: b.date || "", offer_notes: "" })); }}
-                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg font-inter hover:bg-violet-700 transition-colors shadow-sm"
+                              className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg font-inter hover:bg-violet-700 transition-colors"
                               data-testid={`create-offer-btn-${b.booking_id}`}
                             >
                               📋 Angebot erstellen
                             </motion.button>
                           )}
 
-                          {/* Cancel button — always for today, only future for non-past */}
-                          {STUDIO_ACTIVE.includes(b.status) && (!isPast || isBookingToday(b)) && (
-                            <motion.button whileTap={{ scale: 0.95 }}
-                              onClick={async () => {
-                                if (b.payment_status === "paid") {
-                                  setRefundModal(b);
-                                } else {
-                                  const ok = await notify.confirm("Buchung wirklich stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
-                                  if (!ok) return;
-                                  axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
-                                }
-                              }}
-                              className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
-                              data-testid={`cancel-booking-studio-${b.booking_id}`}
+                          {/* Divider before utility actions */}
+                          <div className="border-t border-zinc-200 pt-1.5 flex flex-col gap-1.5">
+                            {/* Cancel */}
+                            {STUDIO_ACTIVE.includes(b.status) && (!isPast || isBookingToday(b)) && (
+                              <motion.button whileTap={{ scale: 0.97 }}
+                                onClick={async () => {
+                                  if (b.payment_status === "paid") {
+                                    setRefundModal(b);
+                                  } else {
+                                    const ok = await notify.confirm("Buchung wirklich stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
+                                    if (!ok) return;
+                                    axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
+                                  }
+                                }}
+                                className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-lg font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
+                                data-testid={`cancel-booking-studio-${b.booking_id}`}
+                              >
+                                {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
+                              </motion.button>
+                            )}
+                            {/* Notes */}
+                            <motion.button whileTap={{ scale: 0.97 }}
+                              onClick={() => setNotesModal(b)}
+                              className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-lg font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
+                              data-testid={`notes-btn-booking-${b.booking_id}`}
                             >
-                              {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
+                              <FileText size={11} strokeWidth={1.5} /> Bemerkungen
                             </motion.button>
-                          )}
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => setNotesModal(b)}
-                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-full font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
-                            data-testid={`notes-btn-booking-${b.booking_id}`}
-                          >
-                            <FileText size={11} strokeWidth={1.5} /> Bemerkungen
-                          </motion.button>
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => handleContactCustomer(b)}
-                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-full font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
-                            data-testid={`contact-customer-booking-${b.booking_id}`}
-                          >
-                            <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
-                          </motion.button>
+                            {/* Contact */}
+                            <motion.button whileTap={{ scale: 0.97 }}
+                              onClick={() => handleContactCustomer(b)}
+                              className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+                              data-testid={`contact-customer-booking-${b.booking_id}`}
+                            >
+                              <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
+                            </motion.button>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
