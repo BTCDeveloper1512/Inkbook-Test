@@ -41,13 +41,33 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 async def send_email(to: str, subject: str, html: str):
+    # ── 1. Try Resend (preferred — reliable delivery) ──────────────────────────
+    resend_api_key = os.environ.get("RESEND_API_KEY", "")
+    if resend_api_key and resend:
+        try:
+            resend.api_key = resend_api_key
+            def _send_resend():
+                resend.Emails.send({
+                    "from": "StudioOS <noreply@studioos.de>",
+                    "to": [to],
+                    "subject": subject,
+                    "html": html,
+                })
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _send_resend)
+            logger.info(f"Email sent via Resend to {to}: {subject}")
+            return
+        except Exception as e:
+            logger.warning(f"Resend failed, falling back to Gmail: {e}")
+
+    # ── 2. Gmail SMTP fallback ─────────────────────────────────────────────────
     gmail_user = os.environ.get("GMAIL_USER", "")
     gmail_pass = os.environ.get("GMAIL_APP_PASSWORD", "")
     if not gmail_user or not gmail_pass:
-        logger.info("Email skipped — GMAIL_USER / GMAIL_APP_PASSWORD not set")
+        logger.info("Email skipped — no email provider configured")
         return
 
-    def _send():
+    def _send_gmail():
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = f"StudioOS <{gmail_user}>"
@@ -61,7 +81,7 @@ async def send_email(to: str, subject: str, html: str):
 
     try:
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, _send)
+        await loop.run_in_executor(None, _send_gmail)
         logger.info(f"Email sent via Gmail to {to}: {subject}")
     except Exception as e:
         logger.warning(f"Email send failed (non-critical): {e}")
