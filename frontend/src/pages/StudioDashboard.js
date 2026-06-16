@@ -1423,23 +1423,27 @@ export default function StudioDashboard() {
                         ) : (
                           <div className="divide-y divide-zinc-50">
                             {selBks.map(b => {
-                              const isConf = b.status === "confirmed";
-                              const isPend = ["pending","pending_studio_review","under_review"].includes(b.status);
-                              const isOffer = b.status === "offer_sent";
+                              const isConf      = b.status === "confirmed";
+                              const isPend      = ["pending","pending_studio_review","under_review"].includes(b.status);
+                              const isOffer     = b.status === "offer_sent";
+                              const isCompleted = b.status === "completed";
+                              const isCancelled = ["cancelled","customer_cancelled","studio_cancelled","no_show"].includes(b.status);
                               const deposit = b.offer_deposit_amount ?? b.deposit_amount;
-                              const barColor = isConf ? "bg-emerald-400" : isOffer ? "bg-violet-400" : isPend ? "bg-amber-400" : "bg-zinc-200";
+                              const barColor = isCancelled ? "bg-red-400" : isCompleted ? "bg-zinc-300" : isConf ? "bg-emerald-400" : isOffer ? "bg-violet-400" : isPend ? "bg-amber-400" : "bg-zinc-200";
+                              const badgeCls = isCancelled ? "bg-red-100 text-red-700" : isCompleted ? "bg-zinc-100 text-zinc-400" : isConf ? "bg-emerald-100 text-emerald-700" : isOffer ? "bg-violet-100 text-violet-700" : isPend ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500";
+                              const rowCls   = isCancelled ? "opacity-70 bg-red-50/40" : isCompleted ? "opacity-50" : "";
                               return (
-                                <div key={b.booking_id} className="px-5 py-4 space-y-2">
+                                <div key={b.booking_id} className={`px-5 py-4 space-y-2 ${rowCls}`}>
                                   <div className="flex items-center gap-3">
                                     <div className={`w-1 h-10 rounded-full flex-shrink-0 ${barColor}`} />
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-inter font-semibold text-zinc-900">{b.user_name}</p>
-                                      <p className="text-[11px] text-zinc-500 font-inter">
+                                      <p className={`text-sm font-inter font-semibold ${isCompleted ? "text-zinc-400" : isCancelled ? "text-zinc-500" : "text-zinc-900"}`}>{b.user_name}</p>
+                                      <p className="text-[11px] text-zinc-400 font-inter">
                                         {b.start_time ? `⏰ ${b.start_time} Uhr` : "⏰ Zeit ausstehend"}
                                         {b.size_category && ` · ${b.size_category}`}
                                       </p>
                                     </div>
-                                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${isConf?"bg-emerald-100 text-emerald-700":isOffer?"bg-violet-100 text-violet-700":isPend?"bg-amber-100 text-amber-700":"bg-zinc-100 text-zinc-500"}`}>{statusLabels[b.status]||b.status}</span>
+                                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-inter font-medium flex-shrink-0 ${badgeCls}`}>{statusLabels[b.status]||b.status}</span>
                                   </div>
                                   <div className="ml-4 grid grid-cols-2 gap-x-6 gap-y-1">
                                     {b.artist_name && <><span className="text-[10px] font-inter text-zinc-400">Artist</span><span className="text-[10px] font-inter font-semibold text-violet-700">🎨 {b.artist_name}</span></>}
