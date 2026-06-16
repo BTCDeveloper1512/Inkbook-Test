@@ -1496,25 +1496,6 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
-              {/* Capacity settings card */}
-              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm p-4 space-y-4">
-                {/* Global daily capacity */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-inter font-semibold text-zinc-900 mb-0.5">Tageskapazität (Punkte)</p>
-                    <p className="text-[11px] text-zinc-400 font-inter">Maximale Punkte pro Tag für das gesamte Studio. Einzelne Tage können abweichen.</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <input
-                      type="number" min={1} max={200} value={dayCapInput}
-                      onChange={e => setDayCapInput(e.target.value)}
-                      onBlur={() => { if (Number(dayCapInput) !== dayCapacity) handleSaveDayCapacity(); }}
-                      className="border border-zinc-200 rounded-xl px-3 py-2 text-sm font-inter text-zinc-700 w-20 text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* Calendar grid */}
               <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
                 {/* Day headers */}
