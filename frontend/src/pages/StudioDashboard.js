@@ -86,6 +86,7 @@ export default function StudioDashboard() {
   const [dayCapInput, setDayCapInput] = useState(8);
   const [dayCapSaving, setDayCapSaving] = useState(false);
   const [calBlockPickCap, setCalBlockPickCap] = useState(""); // per-day custom capacity override
+  const [showBlockRestriction, setShowBlockRestriction] = useState(false); // show/hide block type section in modal
   const now0 = new Date();
   const [calBlockMonth, setCalBlockMonth] = useState(now0.getMonth() + 1);
   const [calBlockYear, setCalBlockYear] = useState(now0.getFullYear());
@@ -584,13 +585,16 @@ export default function StudioDashboard() {
   const handleSaveCalBlock = async () => {
     if (calSelectedDates.size === 0) return;
     const studioId = stats?.studio?.studio_id;
+    const customCap = calBlockPickCap !== "" && Number(calBlockPickCap) > 0 ? Number(calBlockPickCap) : null;
+    // If no restriction is shown, we save as "available" (no blocking, just capacity override if set)
+    const blockType = showBlockRestriction ? calBlockPickType : "available";
+    if (!showBlockRestriction && !customCap) { notify.error("Bitte Kapazität eingeben oder eine Einschränkung wählen."); return; }
     setCalBlockSaving(true);
     try {
-      const customCap = calBlockPickCap !== "" && Number(calBlockPickCap) > 0 ? Number(calBlockPickCap) : null;
       await Promise.all([...calSelectedDates].map(date =>
         axios.post(`${API}/studios/${studioId}/calendar-blocks`, {
           date,
-          block_type: calBlockPickType,
+          block_type: blockType,
           note: calBlockPickNote,
           artist_id: calArtistId || null,
           custom_capacity: customCap,
@@ -1243,10 +1247,14 @@ export default function StudioDashboard() {
           const openBulkModal = () => {
             const firstDate = [...calSelectedDates][0];
             const existing = firstDate ? blocksByDate[firstDate] : null;
-            setCalBlockPickType(existing ? existing.block_type : "busy");
-            setCalBlockPickNote("");
             const capDay = firstDate ? calCapData[firstDate] : null;
+            const existingBlockType = existing?.block_type;
+            // If block is "available" with custom capacity, treat as capacity-only
+            const isCapacityOnly = !existingBlockType || existingBlockType === "available";
+            setCalBlockPickType(existing && !isCapacityOnly ? existingBlockType : "full");
+            setCalBlockPickNote(existing?.note || "");
             setCalBlockPickCap(capDay?.custom_capacity ? String(capDay.custom_capacity) : "");
+            setShowBlockRestriction(!!existing && !isCapacityOnly);
             setCalBlockPickModal(true);
           };
 
@@ -1626,19 +1634,19 @@ export default function StudioDashboard() {
                       className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm"
                       onClick={e => e.stopPropagation()}
                     >
-                      <div className="flex items-center justify-between mb-4">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3">
                         <h3 className="font-playfair font-semibold text-lg text-zinc-900">
                           {calSelectedDates.size === 1 ? "Tag bearbeiten" : `${calSelectedDates.size} Tage bearbeiten`}
                         </h3>
                         <button onClick={() => setCalBlockPickModal(false)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={16} strokeWidth={2} /></button>
                       </div>
-                      <p className="text-xs font-inter text-zinc-500 mb-1 truncate">
+                      <p className="text-[11px] font-inter text-zinc-400 mb-1 truncate">
                         {calSelectedDates.size === 1
                           ? new Date([...calSelectedDates][0] + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
                           : [...calSelectedDates].sort().map(d => new Date(d + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })).join(", ")
                         }
                       </p>
-                      {/* Show context: artist or studio-wide */}
                       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-inter font-semibold mb-4 ${calArtistId ? "bg-zinc-100 text-zinc-700" : "bg-blue-50 text-blue-700"}`}>
                         {calArtistId ? (
                           <>
@@ -1648,52 +1656,82 @@ export default function StudioDashboard() {
                             }
                             {studioArtists.find(a => a.artist_id === calArtistId)?.name}
                           </>
-                        ) : (
-                          <>🏠 Ganzes Studio</>
-                        )}
+                        ) : (<>🏠 Ganzes Studio</>)}
                       </div>
 
-                      <div className="space-y-2 mb-4">
-                        {BLOCK_TYPES.map(bt => (
-                          <button
-                            key={bt.id}
-                            onClick={() => setCalBlockPickType(bt.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${calBlockPickType === bt.id ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 hover:border-zinc-200"}`}
-                          >
-                            <span className={`w-3 h-3 rounded-full flex-shrink-0 ${dotCls[bt.id]}`} />
-                            <div className="text-left flex-1">
-                              <p className="text-sm font-inter font-semibold text-zinc-900">{bt.label}</p>
-                              <p className="text-xs text-zinc-400 font-inter">{bt.desc}</p>
-                            </div>
-                            {calBlockPickType === bt.id && <CheckCircle size={14} className="text-zinc-900" strokeWidth={2} />}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-3 mb-4">
-                        <div className="flex-1">
-                          <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Notiz <span className="font-normal">(optional)</span></label>
-                          <input
-                            type="text" value={calBlockPickNote} onChange={e => setCalBlockPickNote(e.target.value)}
-                            placeholder="z. B. Workshop, Messe, privat..."
-                            className="input-base w-full"
-                          />
-                        </div>
-                        <div className="w-28 flex-shrink-0">
-                          <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Punkte <span className="font-normal">(opt.)</span></label>
+                      {/* ── PRIMARY: Kapazität ── */}
+                      <div className="mb-4">
+                        <p className="text-[11px] font-inter font-semibold text-zinc-500 uppercase tracking-wider mb-2">Kapazität für diesen Tag</p>
+                        <div className="flex items-center gap-3 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3">
                           <input
                             type="number" min={1} max={200} value={calBlockPickCap}
                             onChange={e => setCalBlockPickCap(e.target.value)}
                             placeholder={String(dayCapacity)}
-                            className="input-base w-full text-center"
+                            className="w-16 text-center text-xl font-inter font-bold text-zinc-900 bg-transparent focus:outline-none"
                           />
+                          <div className="flex-1">
+                            <p className="text-sm font-inter font-semibold text-zinc-700">Punkte / Tag</p>
+                            <p className="text-[11px] text-zinc-400 font-inter">
+                              {calBlockPickCap && Number(calBlockPickCap) !== dayCapacity
+                                ? <span className="text-amber-600 font-semibold">Abweichend vom Standard ({dayCapacity} Pt.)</span>
+                                : `Standard: ${dayCapacity} Punkte`
+                              }
+                            </p>
+                          </div>
+                          {calBlockPickCap && (
+                            <button onClick={() => setCalBlockPickCap("")} className="text-zinc-300 hover:text-zinc-500 transition-colors">
+                              <X size={13} strokeWidth={2} />
+                            </button>
+                          )}
                         </div>
                       </div>
-                      {calBlockPickCap && Number(calBlockPickCap) !== dayCapacity && (
-                        <p className="text-[11px] text-amber-600 font-inter mb-4 flex items-center gap-1">
-                          <span>⚠️</span> Tageskapazität für {calSelectedDates.size === 1 ? "diesen Tag" : "diese Tage"}: <strong>{calBlockPickCap} Punkte</strong> (statt {dayCapacity})
-                        </p>
-                      )}
+
+                      {/* ── SECONDARY: Verfügbarkeit einschränken (optional) ── */}
+                      <div className="mb-4">
+                        <button
+                          onClick={() => setShowBlockRestriction(v => !v)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 hover:border-zinc-400 transition-all bg-white"
+                        >
+                          <div className="flex items-center gap-2">
+                            {showBlockRestriction
+                              ? <span className={`w-2.5 h-2.5 rounded-full ${dotCls[calBlockPickType] || "bg-zinc-400"}`} />
+                              : <span className="w-2.5 h-2.5 rounded-full bg-zinc-200" />
+                            }
+                            <span className="text-sm font-inter font-semibold text-zinc-800">
+                              {showBlockRestriction ? (BLOCK_TYPES.find(b => b.id === calBlockPickType)?.label || "Einschränkung") : "Verfügbarkeit einschränken"}
+                            </span>
+                          </div>
+                          <span className="text-zinc-400 text-xs font-inter">{showBlockRestriction ? "entfernen ×" : "optional →"}</span>
+                        </button>
+                        {showBlockRestriction && (
+                          <div className="space-y-1.5 mt-2">
+                            {BLOCK_TYPES.map(bt => (
+                              <button
+                                key={bt.id}
+                                onClick={() => setCalBlockPickType(bt.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${calBlockPickType === bt.id ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 hover:border-zinc-200"}`}
+                              >
+                                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${dotCls[bt.id]}`} />
+                                <div className="text-left flex-1">
+                                  <p className="text-sm font-inter font-semibold text-zinc-900">{bt.label}</p>
+                                  <p className="text-xs text-zinc-400 font-inter">{bt.desc}</p>
+                                </div>
+                                {calBlockPickType === bt.id && <CheckCircle size={14} className="text-zinc-900" strokeWidth={2} />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Note */}
+                      <div className="mb-4">
+                        <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Notiz <span className="font-normal">(optional)</span></label>
+                        <input
+                          type="text" value={calBlockPickNote} onChange={e => setCalBlockPickNote(e.target.value)}
+                          placeholder="z. B. Workshop, Messe, privat..."
+                          className="input-base w-full"
+                        />
+                      </div>
 
                       <div className="flex gap-2">
                         {[...calSelectedDates].some(d => blocksByDate[d]) && (

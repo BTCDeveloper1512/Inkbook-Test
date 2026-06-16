@@ -21,11 +21,11 @@ const priceLabels = { budget: "€", medium: "€€", premium: "€€€", lux
 const SIZE_COST = { mini: 1, small: 2, medium: 3, large: 5, xl: 8 };
 const DAY_CAPACITY = 8;
 const SIZES = [
-  { id: "mini",   label: "Mini",       desc: "Schriftzug, Symbol, Fineline",   cost: 1 },
-  { id: "small",  label: "Klein",      desc: "bis ca. 5 cm",                   cost: 2 },
-  { id: "medium", label: "Mittel",     desc: "bis ca. 10 cm",                  cost: 3 },
-  { id: "large",  label: "Groß",       desc: "Unterarm, Schulter",             cost: 5 },
-  { id: "xl",     label: "Ganzer Tag", desc: "Rücken, Sleeve, großes Projekt", cost: 8 },
+  { id: "mini",   label: "Mini",   desc: "Schriftzug, Symbol, Fineline",   cost: 1 },
+  { id: "small",  label: "Small",  desc: "bis ca. 5 cm",                   cost: 2 },
+  { id: "medium", label: "Medium", desc: "bis ca. 10 cm",                  cost: 3 },
+  { id: "large",  label: "Large",  desc: "Unterarm, Schulter",             cost: 5 },
+  { id: "xl",     label: "XL",     desc: "Rücken, Sleeve, großes Projekt", cost: 8 },
 ];
 
 const formatDate = (d) => {
