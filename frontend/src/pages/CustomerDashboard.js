@@ -5,7 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight } from "lucide-react";
+import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart } from "lucide-react";
+import StudioCard from "../components/StudioCard";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
 import PaymentModal from "../components/PaymentModal";
@@ -252,6 +253,8 @@ export default function CustomerDashboard() {
   const [conversations, setConversations] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [acceptingOffer, setAcceptingOffer] = useState("");
+  const [favoriteStudios, setFavoriteStudios] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   const fetchReviewedIds = async () => {
     try {
@@ -287,10 +290,23 @@ export default function CustomerDashboard() {
     setReviewReminderBooking(null);
   };
 
+  const fetchFavorites = async () => {
+    setFavoritesLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/favorites/studios`, { withCredentials: true });
+      setFavoriteStudios(data || []);
+    } catch {
+      setFavoriteStudios([]);
+    } finally {
+      setFavoritesLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchMessages();
     fetchReviewedIds();
+    fetchFavorites();
     const pollInterval = setInterval(fetchStats, 8000);
     const msgInterval = setInterval(fetchMessages, 15000);
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
@@ -666,9 +682,10 @@ export default function CustomerDashboard() {
           {[
             { id: "today", label: `Heutige Termine (${todayBookings.length})` },
             { id: "upcoming", label: `${t("dashboard.upcoming")} (${upcoming.length})` },
-            { id: "past", label: `${t("dashboard.past")} (${past.length})` }
+            { id: "past", label: `${t("dashboard.past")} (${past.length})` },
+            { id: "favorites", label: `Favoriten (${favoriteStudios.length})` }
           ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "favorites") fetchFavorites(); }}
               className={`flex-shrink-0 px-5 py-2 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
               data-testid={`${tab.id}-tab`}
             >
@@ -677,7 +694,63 @@ export default function CustomerDashboard() {
           ))}
         </div>
 
+        {/* Favorites Tab Content */}
+        {activeTab === "favorites" && (
+          <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+            <AnimatePresence mode="wait">
+              {favoritesLoading ? (
+                <motion.div key="fav-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="space-y-3">
+                      <div className="aspect-[4/3] bg-zinc-100 rounded-2xl animate-pulse" />
+                      <div className="h-4 bg-zinc-100 rounded animate-pulse w-3/4" />
+                      <div className="h-3 bg-zinc-100 rounded animate-pulse w-1/2" />
+                    </div>
+                  ))}
+                </motion.div>
+              ) : favoriteStudios.length === 0 ? (
+                <motion.div key="fav-empty" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="py-20 flex flex-col items-center justify-center"
+                >
+                  <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mb-5">
+                    <Heart size={26} className="text-zinc-300" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="font-playfair text-xl text-zinc-900 mb-1.5">Noch keine Favoriten</h3>
+                  <p className="text-zinc-400 font-inter text-sm mb-7 text-center max-w-xs">
+                    Klicke auf das Herz-Symbol auf einer Studio-Kachel, um sie hier zu speichern.
+                  </p>
+                  <Link to="/search" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                    <Search size={13} strokeWidth={1.5} /> Studios entdecken
+                  </Link>
+                </motion.div>
+              ) : (
+                <motion.div key="fav-grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {favoriteStudios.map((studio, i) => (
+                    <motion.div key={studio.studio_id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      <StudioCard
+                        studio={studio}
+                        index={i}
+                        favorited={true}
+                        onToggleFavorite={(sid, isFav) => {
+                          if (!isFav) setFavoriteStudios(prev => prev.filter(s => s.studio_id !== sid));
+                        }}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         {/* Bookings List */}
+        {activeTab !== "favorites" && (
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
           <AnimatePresence mode="wait">
             {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).length === 0 ? (
@@ -884,6 +957,7 @@ export default function CustomerDashboard() {
             )}
           </AnimatePresence>
         </div>
+        )}
       </div>
 
       {/* Review Reminder Popup */}

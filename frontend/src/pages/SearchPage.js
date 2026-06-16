@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import StudioCard from "../components/StudioCard";
+import { useAuth } from "../context/AuthContext";
 import {
   Search, SlidersHorizontal, X, MapPin, Calendar, Palette,
   Star, ChevronDown
@@ -112,8 +113,9 @@ export default function SearchPage() {
   const [priceRange, setPriceRange] = useState("");
   const [minRating, setMinRating] = useState("");
   const [openPanel, setOpenPanel] = useState(null);
-  const [sortBy, setSortBy] = useState("recommended");
   const [filterData, setFilterData] = useState({ cities: [], styles: [] });
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const { user } = useAuth();
 
   // Single fetch on mount — provides both filter options AND initial results
   useEffect(() => {
@@ -126,6 +128,14 @@ export default function SearchPage() {
       setFilterData({ cities, styles });
     }).catch(() => setAllStudios([])).finally(() => setLoading(false));
   }, []);
+
+  // Fetch favorites for logged-in users
+  useEffect(() => {
+    if (!user) { setFavoriteIds(new Set()); return; }
+    axios.get(`${API}/favorites`, { withCredentials: true })
+      .then(({ data }) => setFavoriteIds(new Set(data.favorites || [])))
+      .catch(() => {});
+  }, [user]);
 
   // PostHog tracking when search params change
   useEffect(() => {
@@ -173,12 +183,13 @@ export default function SearchPage() {
 
   const activeCount = [city, priceRange, minRating].filter(Boolean).length + activeStyles.length;
 
-  const sortedStudios = [...studios].sort((a, b) => {
-    if (sortBy === "rating") return (b.avg_rating || 0) - (a.avg_rating || 0);
-    if (sortBy === "price_asc") return (a.starting_price || 0) - (b.starting_price || 0);
-    if (sortBy === "price_desc") return (b.starting_price || 0) - (a.starting_price || 0);
-    return 0;
-  });
+  const handleFavoriteToggle = (studioId, isFav) => {
+    setFavoriteIds(prev => {
+      const next = new Set(prev);
+      isFav ? next.add(studioId) : next.delete(studioId);
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -429,21 +440,11 @@ export default function SearchPage() {
               <span>Suche läuft…</span>
             ) : (
               <>
-                <span className="font-semibold text-zinc-900">{sortedStudios.length} Studios</span> gefunden
+                <span className="font-semibold text-zinc-900">{studios.length} Studios</span> gefunden
                 {city && <span className="text-zinc-400"> in {city}</span>}
               </>
             )}
           </p>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="text-xs border border-zinc-200 rounded-xl px-3 py-2 text-zinc-600 outline-none focus:border-zinc-400 font-inter"
-          >
-            <option value="recommended">Empfohlen</option>
-            <option value="rating">Beste Bewertung</option>
-            <option value="price_asc">Niedrigster Preis</option>
-            <option value="price_desc">Höchster Preis</option>
-          </select>
         </div>
 
         {loading ? (
@@ -456,7 +457,7 @@ export default function SearchPage() {
               </div>
             ))}
           </div>
-        ) : sortedStudios.length === 0 ? (
+        ) : studios.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -483,10 +484,10 @@ export default function SearchPage() {
           </motion.div>
         ) : (
           <motion.div
-            key={`${search}-${city}-${activeStyles.join()}-${priceRange}-${minRating}-${sortBy}`}
+            key={`${search}-${city}-${activeStyles.join()}-${priceRange}-${minRating}`}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
           >
-            {sortedStudios.map((studio, i) => (
+            {studios.map((studio, i) => (
               <motion.div
                 key={studio.studio_id}
                 initial={{ opacity: 0, y: 40 }}
@@ -497,7 +498,12 @@ export default function SearchPage() {
                   ease: [0.22, 1, 0.36, 1],
                 }}
               >
-                <StudioCard studio={studio} index={i} />
+                <StudioCard
+                  studio={studio}
+                  index={i}
+                  favorited={favoriteIds.has(studio.studio_id)}
+                  onToggleFavorite={handleFavoriteToggle}
+                />
               </motion.div>
             ))}
           </motion.div>

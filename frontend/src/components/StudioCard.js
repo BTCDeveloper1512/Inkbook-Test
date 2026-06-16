@@ -1,15 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Star, Heart } from "lucide-react";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const priceStarting = { budget: 80, medium: 150, premium: 280, luxury: 450 };
 
-export default function StudioCard({ studio, index = 0 }) {
+export default function StudioCard({ studio, index = 0, favorited = false, onToggleFavorite }) {
   const navigate = useNavigate();
-  const [saved, setSaved] = useState(false);
+  const { user } = useAuth();
+  const [saved, setSaved] = useState(favorited);
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => { setSaved(favorited); }, [favorited]);
 
   const startingPrice = studio.starting_price || priceStarting[studio.price_range] || null;
   const imageSrc = studio.banner_image || null;
+
+  const handleToggleFavorite = async (e) => {
+    e.stopPropagation();
+    if (!user) return;
+    if (toggling) return;
+    setToggling(true);
+    const newSaved = !saved;
+    setSaved(newSaved);
+    try {
+      if (newSaved) {
+        await axios.post(`${API}/favorites/${studio.studio_id}`, {}, { withCredentials: true });
+      } else {
+        await axios.delete(`${API}/favorites/${studio.studio_id}`, { withCredentials: true });
+      }
+      if (onToggleFavorite) onToggleFavorite(studio.studio_id, newSaved);
+    } catch {
+      setSaved(!newSaved);
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <div
@@ -17,7 +46,6 @@ export default function StudioCard({ studio, index = 0 }) {
       onClick={() => navigate(`/studios/${studio.studio_id}`)}
       data-testid={`studio-card-${studio.studio_id}`}
     >
-      {/* Photo */}
       <div
         className="relative rounded-2xl overflow-hidden bg-zinc-100 mb-3"
         style={{ aspectRatio: "4/3" }}
@@ -34,24 +62,25 @@ export default function StudioCard({ studio, index = 0 }) {
           </div>
         )}
 
-        {/* Save button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
-          className="absolute top-3 right-3 p-1.5 rounded-full"
-          aria-label={saved ? "Gespeichert" : "Speichern"}
-        >
-          <Heart
-            size={20}
-            className={
-              saved
-                ? "fill-zinc-900 text-zinc-900"
-                : "fill-white/40 text-white drop-shadow-sm"
-            }
-            strokeWidth={1.8}
-          />
-        </button>
+        {user && (
+          <button
+            onClick={handleToggleFavorite}
+            disabled={toggling}
+            className="absolute top-3 right-3 p-1.5 rounded-full transition-transform active:scale-90"
+            aria-label={saved ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufuegen"}
+          >
+            <Heart
+              size={20}
+              className={
+                saved
+                  ? "fill-rose-500 text-rose-500 drop-shadow-sm"
+                  : "fill-white/40 text-white drop-shadow-sm"
+              }
+              strokeWidth={1.8}
+            />
+          </button>
+        )}
 
-        {/* Style badges */}
         {studio.styles?.length > 0 && (
           <div className="absolute bottom-3 left-3 flex gap-1.5 flex-wrap">
             {studio.styles.slice(0, 2).map((s) => (
@@ -70,7 +99,6 @@ export default function StudioCard({ studio, index = 0 }) {
           </div>
         )}
 
-        {/* Verified badge */}
         {studio.is_verified && (
           <div
             className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full"
@@ -93,7 +121,6 @@ export default function StudioCard({ studio, index = 0 }) {
         )}
       </div>
 
-      {/* Info row */}
       <div className="space-y-0.5">
         <div className="flex items-center justify-between">
           <p className="font-semibold text-sm text-zinc-900 truncate pr-2">{studio.name}</p>
@@ -109,7 +136,7 @@ export default function StudioCard({ studio, index = 0 }) {
         </div>
         <p className="text-zinc-400 text-xs">{studio.city}</p>
         {startingPrice && (
-          <p className="text-sm text-zinc-900 pt-0.5 font-semibold">ab €{startingPrice}</p>
+          <p className="text-sm text-zinc-900 pt-0.5 font-semibold">ab &euro;{startingPrice}</p>
         )}
       </div>
     </div>

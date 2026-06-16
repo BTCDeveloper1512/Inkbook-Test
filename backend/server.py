@@ -766,6 +766,39 @@ async def logout():
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
+@api_router.get("/favorites")
+async def get_favorites(current_user: dict = Depends(get_current_user)):
+    user = await db.users.find_one({"_id": current_user["_id"]})
+    return {"favorites": user.get("favorite_studios", [])}
+
+@api_router.post("/favorites/{studio_id}")
+async def add_favorite(studio_id: str, current_user: dict = Depends(get_current_user)):
+    user = await db.users.find_one({"_id": current_user["_id"]})
+    favs = user.get("favorite_studios", [])
+    if studio_id not in favs:
+        favs.append(studio_id)
+    await db.users.update_one({"_id": current_user["_id"]}, {"$set": {"favorite_studios": favs}})
+    return {"status": "added"}
+
+@api_router.delete("/favorites/{studio_id}")
+async def remove_favorite(studio_id: str, current_user: dict = Depends(get_current_user)):
+    user = await db.users.find_one({"_id": current_user["_id"]})
+    favs = [f for f in user.get("favorite_studios", []) if f != studio_id]
+    await db.users.update_one({"_id": current_user["_id"]}, {"$set": {"favorite_studios": favs}})
+    return {"status": "removed"}
+
+@api_router.get("/favorites/studios")
+async def get_favorite_studios(current_user: dict = Depends(get_current_user)):
+    user = await db.users.find_one({"_id": current_user["_id"]})
+    fav_ids = user.get("favorite_studios", [])
+    studios = []
+    for sid in fav_ids:
+        s = await db.studios.find_one({"studio_id": sid})
+        if s:
+            s.pop("_id", None)
+            studios.append(s)
+    return studios
+
 @api_router.post("/auth/activate")
 async def activate_account(data: ActivateAccountRequest):
     from fastapi.responses import JSONResponse as JR
