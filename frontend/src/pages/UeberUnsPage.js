@@ -18,12 +18,12 @@ export default function UeberUnsPage() {
       {/* Hero */}
       <div className="bg-zinc-900 text-white py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <p className="text-xs tracking-widest uppercase text-zinc-500 font-inter mb-4">Über InkBook</p>
+          <p className="text-xs tracking-widest uppercase text-zinc-500 font-inter mb-4">Über StudioOS</p>
           <h1 className="font-playfair text-5xl font-semibold mb-6 leading-tight">
             Tattoo-Buchungen.<br />Neu gedacht.
           </h1>
           <p className="text-base text-zinc-400 font-inter leading-relaxed max-w-xl mx-auto">
-            InkBook verbindet Tattoo-Enthusiasten mit den besten Studios und Artists Deutschlands –
+            StudioOS verbindet Tattoo-Enthusiasten mit den besten Studios und Artists Deutschlands –
             einfach, transparent und ohne Wartezeiten.
           </p>
         </div>
@@ -39,7 +39,7 @@ export default function UeberUnsPage() {
           </h2>
           <p className="text-sm text-zinc-600 font-inter leading-relaxed mb-4">
             Wir glauben, dass jeder Mensch Zugang zu erstklassigen Tattoo-Artists verdient –
-            unabhängig von Ort oder persönlichen Kontakten. InkBook macht es möglich,
+            unabhängig von Ort oder persönlichen Kontakten. StudioOS macht es möglich,
             das perfekte Studio zu finden, Artists zu vergleichen und direkt zu buchen.
           </p>
           <p className="text-sm text-zinc-400 font-inter leading-relaxed italic">
@@ -65,7 +65,7 @@ export default function UeberUnsPage() {
             />
             <ValueCard
               title="Community"
-              text="InkBook verbindet eine Gemeinschaft von Ink-Liebhabern und talentierten Künstlern."
+              text="StudioOS verbindet eine Gemeinschaft von Ink-Liebhabern und talentierten Künstlern."
             />
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function UeberUnsPage() {
                 Verstreute Messenger, keine Übersicht, keine einfache Möglichkeit für Kunden zu buchen.
               </p>
               <p className="text-sm text-zinc-500 font-inter leading-relaxed mt-3">
-                InkBook ist meine Antwort darauf: Eine Plattform, die Termine, Chats, Studio-Profile
+                StudioOS ist meine Antwort darauf: Eine Plattform, die Termine, Chats, Studio-Profile
                 und Kundenverwaltung in einem vereint – durchdacht, modern und speziell für
                 die Tattoo-Community entwickelt.
               </p>
@@ -105,9 +105,9 @@ export default function UeberUnsPage() {
 
         {/* CTA */}
         <div className="bg-zinc-900 rounded-2xl p-8 text-center">
-          <p className="font-playfair text-2xl text-white mb-2">Werde Teil von InkBook.</p>
+          <p className="font-playfair text-2xl text-white mb-2">Werde Teil von StudioOS.</p>
           <p className="text-sm text-zinc-400 font-inter mb-6">
-            Ob Studio-Inhaber oder Tattoo-Fan – InkBook ist für dich gemacht.
+            Ob Studio-Inhaber oder Tattoo-Fan – StudioOS ist für dich gemacht.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

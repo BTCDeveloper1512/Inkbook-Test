@@ -1,7 +1,7 @@
 {
-  "short_name": "InkBook",
-  "name": "InkBook – Tattoo Booking",
-  "description": "Finde und buche Tattoo-Studios und Artists in deiner Nähe",
+  "short_name": "StudioOS",
+  "name": "StudioOS – Tattoo Studio Management",
+  "description": "Das Studio Operating System für Tattoo-Studios und ihre Kunden",
   "icons": [
     {
       "src": "favicon.ico",

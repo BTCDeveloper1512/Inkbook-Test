@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
 import axios from "axios";
 import BlurText from "./BlurText/BlurText";
+import { StudioOSMark } from "./StudioOSLogo";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -80,15 +81,11 @@ export default function Navbar() {
                 </motion.button>
               )}
             </AnimatePresence>
-            <Link to="/" className="flex items-center" data-testid="nav-logo">
-              <BlurText
-                text="InkBook"
-                animateBy="characters"
-                direction="top"
-                delay={60}
-                stepDuration={0.32}
-                className="text-xl font-playfair font-semibold tracking-tight text-zinc-900 select-none"
-              />
+            <Link to="/" className="flex items-center gap-2 select-none" data-testid="nav-logo">
+              <StudioOSMark size={26} />
+              <span className="text-xl font-playfair font-semibold tracking-tight text-zinc-900">
+                Studio<span className="font-bold">OS</span>
+              </span>
             </Link>
           </div>
 

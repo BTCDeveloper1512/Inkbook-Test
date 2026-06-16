@@ -151,7 +151,7 @@ function AIChat({ onBack }) {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: "Hallo! Ich bin Ink, dein KI-Buchungsassistent von InkBook. Ich kann Studios in deiner Nähe suchen, freie Termine anzeigen und Buchungen direkt hier im Chat durchführen.",
+      content: "Hallo! Ich bin Ink, dein KI-Buchungsassistent von StudioOS. Ich kann Studios in deiner Nähe suchen, freie Termine anzeigen und Buchungen direkt hier im Chat durchführen.",
     }
   ]);
   const [input, setInput] = useState("");
@@ -207,7 +207,7 @@ function AIChat({ onBack }) {
 
   const SUGGESTIONS = [
     "Studios in meiner Stadt suchen",
-    "Was ist InkBook?",
+    "Was ist StudioOS?",
     "Wie läuft eine Buchung ab?",
   ];
 
@@ -641,7 +641,7 @@ function DirectChat({ onBack, user }) {
         </div>
         <div>
           <p className="text-xs font-inter font-semibold text-zinc-900 leading-tight">Direkter Support</p>
-          <p className="text-[10px] text-zinc-400 font-inter">InkBook Team</p>
+          <p className="text-[10px] text-zinc-400 font-inter">StudioOS Team</p>
         </div>
       </div>
 
@@ -678,7 +678,7 @@ function DirectChat({ onBack, user }) {
                   <div className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs font-inter leading-relaxed ${
                     m.from === "user" ? "bg-zinc-900 text-white rounded-br-sm" : "bg-zinc-100 text-zinc-800 rounded-bl-sm"
                   }`}>
-                    {m.from === "admin" && <p className="text-[9px] text-zinc-500 mb-1 font-semibold">InkBook Support</p>}
+                    {m.from === "admin" && <p className="text-[9px] text-zinc-500 mb-1 font-semibold">StudioOS Support</p>}
                     {m.content}
                   </div>
                 </div>
@@ -782,7 +782,7 @@ export default function SupportChat() {
           {view === "home" && (
             <div className="flex flex-col h-full">
               <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-900">
-                <p className="text-white font-playfair font-semibold text-base">InkBook Support</p>
+                <p className="text-white font-playfair font-semibold text-base">StudioOS Support</p>
                 <p className="text-zinc-400 text-xs font-inter mt-0.5">Wie können wir dir helfen?</p>
               </div>
               <div className="flex-1 p-4 space-y-3 overflow-y-auto">

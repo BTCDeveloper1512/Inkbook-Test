@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Mail, Globe, ArrowRight } from "lucide-react";
+import { StudioOSMark } from "./StudioOSLogo";
 
 export default function Footer() {
   return (
@@ -10,10 +11,8 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-zinc-900 font-bold text-sm font-playfair">I</span>
-              </div>
-              <span className="text-lg font-playfair font-semibold">InkBook</span>
+              <StudioOSMark size={30} />
+              <span className="text-lg font-playfair font-semibold">Studio<strong>OS</strong></span>
             </div>
             <p className="text-zinc-500 text-sm font-inter leading-relaxed">Die Premium-Plattform für Tattoo-Studios und ihre Kunden.</p>
           </div>
@@ -72,7 +71,7 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="border-t border-zinc-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-zinc-600 font-inter">© 2026 InkBook. Alle Rechte vorbehalten.</p>
+          <p className="text-xs text-zinc-600 font-inter">© 2026 StudioOS. Alle Rechte vorbehalten.</p>
           <div className="flex gap-5">
             {[
               { label: "Datenschutz", to: "/datenschutz" },

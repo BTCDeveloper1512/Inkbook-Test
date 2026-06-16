@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
           <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center">
             <span className="text-white font-playfair font-bold text-sm">I</span>
           </div>
-          <span className="text-lg font-playfair font-semibold text-zinc-900">InkBook</span>
+          <span className="text-lg font-playfair font-semibold text-zinc-900">StudioOS</span>
         </Link>
 
         {/* Invalid / missing token */}
@@ -92,7 +92,7 @@ export default function ResetPasswordPage() {
           <>
             <h1 className="text-3xl font-playfair font-semibold text-zinc-900 mb-2">Neues Passwort</h1>
             <p className="text-sm text-zinc-500 font-inter mb-8 leading-relaxed">
-              Wähle ein neues, sicheres Passwort für dein InkBook-Konto.
+              Wähle ein neues, sicheres Passwort für dein StudioOS-Konto.
             </p>
 
             {error && (

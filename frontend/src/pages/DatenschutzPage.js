@@ -24,7 +24,7 @@ export default function DatenschutzPage() {
         <div className="bg-white rounded-2xl border border-zinc-100 p-8 space-y-0">
           <Section title="1. Verantwortlicher">
             <p>
-              Verantwortlich für die Datenverarbeitung auf dieser Website ist InkBook (Anschrift folgt,
+              Verantwortlich für die Datenverarbeitung auf dieser Website ist StudioOS (Anschrift folgt,
               siehe <Link to="/impressum" className="text-zinc-900 underline">Impressum</Link>).
             </p>
           </Section>
@@ -42,7 +42,7 @@ export default function DatenschutzPage() {
 
           <Section title="3. Zweck der Datenverarbeitung">
             <ul className="list-disc pl-5 space-y-1">
-              <li>Bereitstellung und Betrieb der InkBook-Plattform</li>
+              <li>Bereitstellung und Betrieb der StudioOS-Plattform</li>
               <li>Abwicklung von Buchungen und Terminen</li>
               <li>Kommunikation zwischen Kunden und Studios</li>
               <li>Zahlungsabwicklung über Stripe (eigene Datenschutzrichtlinie)</li>
@@ -77,7 +77,7 @@ export default function DatenschutzPage() {
 
           <Section title="7. Cookies">
             <p>
-              InkBook setzt technisch notwendige Cookies für die Grundfunktionalität (Session, Authentifizierung)
+              StudioOS setzt technisch notwendige Cookies für die Grundfunktionalität (Session, Authentifizierung)
               sowie optionale Cookies für Analytics und Marketing ein. Detaillierte Einstellungen können
               jederzeit über den Cookie-Banner (unten auf der Seite) angepasst werden.
             </p>

@@ -43,7 +43,7 @@ export default function StudioMap({ address, city, studioName }) {
 
     const query = encodeURIComponent(`${address || ""}, ${city || ""}`);
     fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
-      headers: { "Accept-Language": "de", "User-Agent": "InkBook-App/1.0" },
+      headers: { "Accept-Language": "de", "User-Agent": "StudioOS-App/1.0" },
     })
       .then(r => r.json())
       .then(data => {

@@ -47,7 +47,7 @@ export default function RegisterPage() {
             <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center">
               <span className="text-white font-playfair font-bold text-sm">I</span>
             </div>
-            <span className="text-lg font-playfair font-semibold">InkBook</span>
+            <span className="text-lg font-playfair font-semibold">StudioOS</span>
           </Link>
 
           <h1 className="text-3xl font-playfair font-semibold text-zinc-900 mb-1">{t("auth.register")}</h1>

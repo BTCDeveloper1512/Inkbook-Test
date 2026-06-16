@@ -30,7 +30,7 @@ export default function TattooAnimation() {
           100%   { fill-opacity: 1; }
         }
 
-        /* ── "InkBook" draws in ── */
+        /* ── "StudioOS" draws in ── */
         @keyframes draw-main {
           from { stroke-dashoffset: 1400; }
           to   { stroke-dashoffset: 0;    }
@@ -190,7 +190,7 @@ export default function TattooAnimation() {
             WELCOME TO
           </text>
 
-          {/* "InkBook" — bold wordmark */}
+          {/* "StudioOS" — bold wordmark */}
           <text
             x="200" y="305"
             textAnchor="middle"
@@ -203,7 +203,7 @@ export default function TattooAnimation() {
             fill="#000"
             className="text-main"
           >
-            InkBook
+            StudioOS
           </text>
         </g>
 

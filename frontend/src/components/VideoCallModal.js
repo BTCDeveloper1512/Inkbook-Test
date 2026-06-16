@@ -181,7 +181,7 @@ export default function VideoCallModal({ booking, userRole, onClose }) {
             </div>
             <div>
               <p className="text-white font-inter font-medium text-sm leading-none mb-0.5">Videoberatung</p>
-              <p className="text-zinc-600 text-xs font-inter">{booking.studio_name || "InkBook"}</p>
+              <p className="text-zinc-600 text-xs font-inter">{booking.studio_name || "StudioOS"}</p>
             </div>
           </div>
 

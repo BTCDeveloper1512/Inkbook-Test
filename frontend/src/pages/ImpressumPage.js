@@ -26,7 +26,7 @@ export default function ImpressumPage() {
 
         <div className="bg-white rounded-2xl border border-zinc-100 p-8 space-y-0">
           <Section title="Anbieter">
-            <p><strong>InkBook GmbH</strong> <span className="text-xs text-zinc-400">(Folgt noch)</span></p>
+            <p><strong>StudioOS GmbH</strong> <span className="text-xs text-zinc-400">(Folgt noch)</span></p>
             <p><Placeholder label="Straße und Hausnummer" /></p>
             <p><Placeholder label="PLZ und Stadt" />, Deutschland</p>
           </Section>

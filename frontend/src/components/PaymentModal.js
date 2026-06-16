@@ -235,7 +235,7 @@ export default function PaymentModal({ session, onClose, onSuccess }) {
             <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xs font-playfair">I</span>
             </div>
-            <span className="font-playfair font-semibold text-zinc-900 text-sm">InkBook · Sicherer Checkout</span>
+            <span className="font-playfair font-semibold text-zinc-900 text-sm">StudioOS · Sicherer Checkout</span>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors">
             <X size={16} strokeWidth={1.5} />

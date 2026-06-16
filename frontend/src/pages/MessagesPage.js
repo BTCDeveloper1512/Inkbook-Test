@@ -226,7 +226,7 @@ export default function MessagesPage() {
     fetchMessages(activeConv.other_id);
     // Reset scroll state when opening a different conversation
     userScrolledUp.current = false;
-    // Fetch broadcast ratings when opening InkBook system conversation
+    // Fetch broadcast ratings when opening StudioOS system conversation
     if (activeConv.other_id === "inkbook_system") fetchMyBroadcastRatings();
 
     // Poll messages every 2s using ref to avoid stale closure
@@ -641,14 +641,14 @@ export default function MessagesPage() {
                               }`}>
                                 {msg.content}
                                 <p className={`text-[9px] mt-1 not-italic ${sysIsMine ? "text-zinc-400 text-right" : "text-zinc-400"}`}>
-                                  InkBook · {new Date(msg.created_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                                  StudioOS · {new Date(msg.created_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
                                 </p>
                               </div>
                             </div>
                           );
                         }
 
-                        // ── Broadcast messages (InkBook system) ───────────────
+                        // ── Broadcast messages (StudioOS system) ───────────────
                         if (msg.is_broadcast || msg.sender_id === "inkbook_system") {
                           const lines = (msg.content || "").split("\n");
                           const title = lines[0]?.replace(/\*\*/g, "") || "";
@@ -659,7 +659,7 @@ export default function MessagesPage() {
                           return (
                             <div key={msg.message_id} className="flex justify-center my-2" data-testid={`broadcast-msg-${msg.message_id}`}>
                               <div className="bg-zinc-900 text-white rounded-2xl px-4 py-3 max-w-[85%] text-center">
-                                <p className="text-[9px] tracking-widest uppercase text-zinc-400 font-inter mb-1">InkBook News</p>
+                                <p className="text-[9px] tracking-widest uppercase text-zinc-400 font-inter mb-1">StudioOS News</p>
                                 {title && <p className="text-sm font-inter font-semibold leading-tight mb-1">{title}</p>}
                                 {body && <p className="text-xs text-zinc-300 font-inter leading-relaxed">{body}</p>}
                                 <p className="text-[9px] text-zinc-500 font-inter mt-1.5">{fmt(msg.created_at)}</p>
@@ -984,7 +984,7 @@ export default function MessagesPage() {
                 {/* Input Area – blocked if other party ended conversation or broadcast */}
                 {activeConv.other_id === "inkbook_system" ? (
                   <div className="px-4 py-4 bg-zinc-50 border-t border-zinc-100 flex-shrink-0 text-center" data-testid="broadcast-readonly-banner">
-                    <p className="text-xs text-zinc-400 font-inter">Dies ist eine Systemnachricht von InkBook. Antworten sind nicht möglich.</p>
+                    <p className="text-xs text-zinc-400 font-inter">Dies ist eine Systemnachricht von StudioOS. Antworten sind nicht möglich.</p>
                   </div>
                 ) : isEndedByOther ? (
                   <div className="px-4 py-5 bg-white border-t border-zinc-100 flex-shrink-0 text-center" data-testid="conv-ended-banner">

@@ -23,17 +23,17 @@ export default function AGBPage() {
         <div className="bg-white rounded-2xl border border-zinc-100 p-8">
           <Section number={1} title="Geltungsbereich">
             <p>
-              Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die Nutzung der InkBook-Plattform
+              Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die Nutzung der StudioOS-Plattform
               (nachfolgend „Plattform"), die unter inkbook.de und zugehörigen Subdomains betrieben wird.
             </p>
             <p>
-              Anbieter ist die InkBook GmbH (vollständige Angaben siehe{" "}
+              Anbieter ist die StudioOS GmbH (vollständige Angaben siehe{" "}
               <Link to="/impressum" className="underline text-zinc-900">Impressum</Link>).
             </p>
           </Section>
 
           <Section number={2} title="Leistungsbeschreibung">
-            <p>InkBook ist eine Online-Plattform zur Vermittlung von Buchungen zwischen Tattoo-Studios/Artists und Kunden.</p>
+            <p>StudioOS ist eine Online-Plattform zur Vermittlung von Buchungen zwischen Tattoo-Studios/Artists und Kunden.</p>
             <ul className="list-disc pl-5 space-y-1">
               <li>Kunden (Endnutzer): Kostenlose Nutzung, Buchungen, Chat, Bewertungen</li>
               <li>Studios / Artists: Monatliches Abonnement für erweiterte Funktionen (Kalender, Kundenverwaltung, Dashboard)</li>
@@ -46,7 +46,7 @@ export default function AGBPage() {
               Zur vollständigen Nutzung der Plattform ist eine Registrierung erforderlich. Der Nutzer verpflichtet sich,
               wahrheitsgemäße Angaben zu machen und sein Passwort geheim zu halten.
             </p>
-            <p>InkBook behält sich vor, Konten bei Verstößen gegen diese AGB zu sperren oder zu löschen.</p>
+            <p>StudioOS behält sich vor, Konten bei Verstößen gegen diese AGB zu sperren oder zu löschen.</p>
           </Section>
 
           <Section number={4} title="Abonnement für Studios (Bezahlmodell)">
@@ -63,15 +63,15 @@ export default function AGBPage() {
 
           <Section number={5} title="Buchungen und Termine">
             <p>
-              InkBook vermittelt Buchungen zwischen Kunden und Studios. Der Vertrag über einen Tattoo-Termin
+              StudioOS vermittelt Buchungen zwischen Kunden und Studios. Der Vertrag über einen Tattoo-Termin
               kommt ausschließlich zwischen dem Kunden und dem jeweiligen Studio zustande.
-              InkBook ist nicht Vertragspartner für Tattoo-Leistungen.
+              StudioOS ist nicht Vertragspartner für Tattoo-Leistungen.
             </p>
           </Section>
 
           <Section number={6} title="Haftung">
             <p>
-              InkBook haftet nicht für die Qualität der Leistungen der auf der Plattform gelisteten Studios.
+              StudioOS haftet nicht für die Qualität der Leistungen der auf der Plattform gelisteten Studios.
               Die Haftung für leichte Fahrlässigkeit ist – soweit gesetzlich zulässig – ausgeschlossen.
             </p>
             <p className="text-zinc-400 italic">Vollständige Haftungsregelung folgt noch.</p>
@@ -85,7 +85,7 @@ export default function AGBPage() {
           </Section>
 
           <Section number={8} title="Schlussbestimmungen">
-            <p>Es gilt das Recht der Bundesrepublik Deutschland. Gerichtsstand ist – sofern gesetzlich zulässig – der Sitz von InkBook.</p>
+            <p>Es gilt das Recht der Bundesrepublik Deutschland. Gerichtsstand ist – sofern gesetzlich zulässig – der Sitz von StudioOS.</p>
             <p>
               Sollten einzelne Bestimmungen dieser AGB unwirksam sein, bleibt die Wirksamkeit der übrigen
               Bestimmungen unberührt.

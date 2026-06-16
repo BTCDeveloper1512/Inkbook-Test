@@ -7,6 +7,8 @@ import { ArrowRight, Globe, Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import BlurText from "../components/BlurText/BlurText";
+import SplashScreen from "../components/SplashScreen";
+import { StudioOSMark } from "../components/StudioOSLogo";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -237,7 +239,7 @@ function MockupDashboard() {
     <div style={{ width: "100%", height: "100%", background: "#f5f5f5", display: "flex", fontFamily: F.inter, overflow: "hidden" }}>
       {/* Sidebar */}
       <div style={{ width: 120, background: "#09090b", height: "100%", padding: "14px 9px", display: "flex", flexDirection: "column", gap: 3, flexShrink: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "white", fontFamily: F.play, marginBottom: 14, padding: "0 5px", letterSpacing: "-0.01em" }}>InkBook</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "white", fontFamily: F.play, marginBottom: 14, padding: "0 5px", letterSpacing: "-0.01em" }}>StudioOS</div>
         {[["Übersicht", true],["Buchungen", false],["Nachrichten", false],["Kalender", false],["Einstellungen", false]].map(([item, active], i) => (
           <div key={i} style={{ padding: "6px 8px", borderRadius: 7, fontSize: 8.5, background: active ? "rgba(255,255,255,0.1)" : "transparent", color: active ? "white" : "rgba(255,255,255,0.35)" }}>{item}</div>
         ))}
@@ -296,7 +298,7 @@ function MockupDashboard() {
   );
 }
 
-/** MacBook – InkBook Logo Showcase (dark) */
+/** MacBook – StudioOS Logo Showcase (dark) */
 function MockupLogo() {
   return (
     <div style={{ width: "100%", height: "100%", background: "#060606", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, position: "relative", overflow: "hidden" }}>
@@ -306,7 +308,7 @@ function MockupLogo() {
       <div style={{ position: "absolute", inset: 0, opacity: 0.06, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
       {/* Logo */}
       <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
-        <div style={{ fontSize: 38, fontWeight: 700, color: "white", fontFamily: F.play, letterSpacing: "-0.025em", lineHeight: 1, marginBottom: 10 }}>InkBook</div>
+        <div style={{ fontSize: 38, fontWeight: 700, color: "white", fontFamily: F.play, letterSpacing: "-0.025em", lineHeight: 1, marginBottom: 10 }}>Studio<span style={{ fontWeight: 800 }}>OS</span></div>
         <div style={{ width: 36, height: 1, background: "rgba(255,255,255,0.15)", margin: "0 auto 10px" }} />
         <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", letterSpacing: "0.26em", textTransform: "uppercase", fontFamily: F.inter }}>Premium Tattoo Booking</div>
       </div>
@@ -326,7 +328,7 @@ function MockupStudioProfile() {
     <div style={{ width: "100%", height: "100%", background: "#09090b", display: "flex", flexDirection: "column", fontFamily: F.inter, overflow: "hidden" }}>
       {/* Nav */}
       <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "white", fontFamily: F.play }}>InkBook</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "white", fontFamily: F.play }}>StudioOS</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["Studios","Nachrichten","Account"].map((n,i) => <div key={i} style={{ fontSize: 7.5, color: "rgba(255,255,255,0.3)", padding: "3px 8px" }}>{n}</div>)}
         </div>
@@ -461,15 +463,12 @@ function LandingNav() {
       <div className="flex items-center justify-between h-full px-4 sm:px-8" style={{ maxWidth: 1200, margin: "0 auto" }}>
         {/* Logo */}
         <Link to="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }} data-testid="landing-nav-logo">
-          <BlurText
-            text="InkBook"
-            animateBy="characters"
-            direction="top"
-            delay={55}
-            stepDuration={0.30}
-            className="font-playfair font-semibold select-none"
-            style={{ fontSize: 20, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.01em" }}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <StudioOSMark size={26} />
+            <span style={{ fontFamily: "'Playfair Display',serif", fontWeight: 600, fontSize: 20, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.01em", userSelect: "none" }}>
+              Studio<strong>OS</strong>
+            </span>
+          </div>
         </Link>
 
         {/* Center links – Desktop only */}
@@ -923,12 +922,13 @@ export default function LandingPage() {
     return () => ctx.revert();
   }, []);
 
-  const titleChars = "InkBook".split("").map((c, i) => (
+  const titleChars = "StudioOS".split("").map((c, i) => (
     <span key={i} className="ch" style={{ display: "inline-block", willChange: "transform,opacity" }}>{c}</span>
   ));
 
   return (
     <div ref={wrapRef} style={{ background: "#090909", overflowX: "hidden" }}>
+      <SplashScreen />
       <LandingNav />
 
       {/* ═══════════════════════════ HERO ═══════════════════════════ */}
@@ -1209,7 +1209,7 @@ export default function LandingPage() {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <p className="font-playfair text-white font-semibold text-base">InkBook</p>
+                <p className="font-playfair text-white font-semibold text-base">Studio<strong>OS</strong></p>
               </div>
               <p className="text-[11px] leading-relaxed" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.28)" }}>
                 Die Premium Tattoo-Buchungsplattform für Deutschland.
@@ -1271,7 +1271,7 @@ export default function LandingPage() {
           {/* Bottom bar */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-white/[0.05]">
             <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.2)" }}>
-              © 2026 InkBook · Alle Rechte vorbehalten
+              © 2026 StudioOS · Alle Rechte vorbehalten
             </p>
             <p className="text-[11px]" style={{ fontFamily: "'Inter',sans-serif", color: "rgba(255,255,255,.14)" }}>
               Made with love in Germany

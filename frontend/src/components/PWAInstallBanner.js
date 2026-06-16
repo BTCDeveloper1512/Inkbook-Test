@@ -93,12 +93,12 @@ export default function PWAInstallBanner() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <img
             src="/logo192.png"
-            alt="InkBook"
+            alt="StudioOS"
             style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0 }}
           />
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600, fontFamily: "Inter, sans-serif", color: "rgba(255,255,255,0.92)" }}>
-              InkBook installieren
+              StudioOS installieren
             </p>
             <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "Inter, sans-serif", marginTop: 2 }}>
               Zum Home-Bildschirm hinzufügen

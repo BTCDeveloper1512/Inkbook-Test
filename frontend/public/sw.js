@@ -1,6 +1,6 @@
-// InkBook Service Worker – Push Notifications + Offline Caching
+// StudioOS Service Worker – Push Notifications + Offline Caching
 
-const CACHE_NAME = 'inkbook-v3';
+const CACHE_NAME = 'studioos-v1';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -84,7 +84,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', function(event) {
   if (!event.data) return;
   let data = {};
-  try { data = event.data.json(); } catch (e) { data = { title: 'InkBook', body: event.data.text() }; }
+  try { data = event.data.json(); } catch (e) { data = { title: 'StudioOS', body: event.data.text() }; }
 
   const options = {
     body: data.body || '',
@@ -97,7 +97,7 @@ self.addEventListener('push', function(event) {
     renotify: true,
   };
   event.waitUntil(
-    self.registration.showNotification(data.title || 'InkBook', options)
+    self.registration.showNotification(data.title || 'StudioOS', options)
   );
 });
 

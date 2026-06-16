@@ -49,7 +49,7 @@ export default function ActivatePage() {
           <CheckCircle size={28} className="text-emerald-600" strokeWidth={1.5} />
         </div>
         <h1 className="font-playfair font-semibold text-2xl text-zinc-900 mb-2">Konto aktiviert!</h1>
-        <p className="text-sm text-zinc-500 font-inter mb-6">Willkommen bei InkBook. Deine Anfragen und Buchungen findest du in deinem Dashboard.</p>
+        <p className="text-sm text-zinc-500 font-inter mb-6">Willkommen bei StudioOS. Deine Anfragen und Buchungen findest du in deinem Dashboard.</p>
         <button onClick={() => navigate("/dashboard")}
           className="btn-primary w-full justify-center gap-2">
           Zum Dashboard <ArrowRight size={14} strokeWidth={1.5} />

@@ -230,7 +230,7 @@ export default function StudioDashboard() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.setTextColor(255, 255, 255);
-    doc.text("InkBook", 14, 16);
+    doc.text("StudioOS", 14, 16);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(180, 180, 180);
@@ -308,7 +308,7 @@ export default function StudioDashboard() {
     const pageH = doc.internal.pageSize.height;
     doc.setFontSize(8);
     doc.setTextColor(180, 180, 180);
-    doc.text("Erstellt mit InkBook · inkbook.io", 14, pageH - 8);
+    doc.text("Erstellt mit StudioOS · inkbook.io", 14, pageH - 8);
 
     const fname = `inkbook-monatsumsatz-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}.pdf`;
     doc.save(fname);
@@ -2252,7 +2252,7 @@ export default function StudioDashboard() {
             doc.setFillColor(24, 24, 27);
             doc.rect(0, 0, 210, 36, "F");
             doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-            doc.text("InkBook", 14, 16);
+            doc.text("StudioOS", 14, 16);
             doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(180, 180, 180);
             doc.text("Tattoo Studio Booking", 14, 25);
 
@@ -2302,7 +2302,7 @@ export default function StudioDashboard() {
             // Footer
             const pageH = doc.internal.pageSize.height;
             doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(180, 180, 180);
-            doc.text("Erstellt mit InkBook · inkbook.io", 14, pageH - 8);
+            doc.text("Erstellt mit StudioOS · inkbook.io", 14, pageH - 8);
             doc.text(invNum, 196, pageH - 8, { align: "right" });
 
             doc.save(`${invNum}.pdf`);
@@ -2571,10 +2571,10 @@ export default function StudioDashboard() {
                         <div className="bg-amber-50 border-amber-200 px-4 py-4">
                           <p className="text-sm font-inter font-semibold text-amber-900 mb-1">Anzahlungen werden eingerichtet</p>
                           <p className="text-xs text-amber-700 font-inter leading-relaxed mb-2">
-                            Die Zahlungsfunktion wird gerade für InkBook konfiguriert und steht in Kürze zur Verfügung. Du wirst benachrichtigt sobald du dein Konto verknüpfen kannst.
+                            Die Zahlungsfunktion wird gerade für StudioOS konfiguriert und steht in Kürze zur Verfügung. Du wirst benachrichtigt sobald du dein Konto verknüpfen kannst.
                           </p>
                           <p className="text-[10px] text-amber-600 font-inter">
-                            Bei Fragen wende dich an den InkBook Support.
+                            Bei Fragen wende dich an den StudioOS Support.
                           </p>
                         </div>
                       ) : (
@@ -3102,7 +3102,7 @@ export default function StudioDashboard() {
               {offerModal._inquiry_id && (
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-50 border border-violet-100 mb-4">
                   <Tag size={12} strokeWidth={1.5} className="text-violet-500 shrink-0" />
-                  <p className="text-xs text-violet-700 font-inter">Das Angebot wird per E-Mail an den Gast gesendet – mit einem Aktivierungslink zum InkBook-Konto.</p>
+                  <p className="text-xs text-violet-700 font-inter">Das Angebot wird per E-Mail an den Gast gesendet – mit einem Aktivierungslink zum StudioOS-Konto.</p>
                 </div>
               )}
 

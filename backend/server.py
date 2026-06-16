@@ -50,7 +50,7 @@ async def send_email(to: str, subject: str, html: str):
     def _send():
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = f"InkBook <{gmail_user}>"
+        msg["From"] = f"StudioOS <{gmail_user}>"
         msg["To"] = to
         msg.attach(MIMEText(html, "html", "utf-8"))
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
@@ -69,7 +69,7 @@ async def send_email(to: str, subject: str, html: str):
 def _email_header() -> str:
     return """
     <div style="background:#0a0a0a;padding:24px 32px;border-radius:12px 12px 0 0;">
-      <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0;letter-spacing:-0.5px;font-family:'Helvetica Neue',Arial,sans-serif;">InkBook</h1>
+      <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0;letter-spacing:-0.5px;font-family:'Helvetica Neue',Arial,sans-serif;">StudioOS</h1>
       <p style="color:rgba(255,255,255,0.35);font-size:11px;margin:4px 0 0;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Tattoo Booking Platform</p>
     </div>"""
 
@@ -78,7 +78,7 @@ def _email_footer(extra: str = "") -> str:
     <div style="background:#f4f4f4;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #e5e5e5;">
       {f'<p style="font-size:12px;color:#888;margin:0 0 8px;font-family:Helvetica Neue,Arial,sans-serif;">{extra}</p>' if extra else ''}
       <p style="font-size:11px;color:#bbb;margin:0;font-family:Helvetica Neue,Arial,sans-serif;">
-        © 2026 InkBook · Deutschland ·
+        © 2026 StudioOS · Deutschland ·
         <a href="#" style="color:#bbb;text-decoration:underline;">Datenschutz</a> ·
         <a href="#" style="color:#bbb;text-decoration:underline;">Impressum</a>
       </p>
@@ -126,7 +126,7 @@ def booking_confirmation_html(booking: dict, lang: str = "de") -> str:
         <div style="margin-top:28px;padding:16px 20px;background:#fafafa;border-radius:8px;border-left:3px solid #0a0a0a;">
           <p style="font-size:12px;color:#666;margin:0;line-height:1.6;">
             Deine Buchung ist eingegangen und wartet auf die Bestätigung des Studios.
-            Den Status deiner Buchung findest du jederzeit in deinem <strong style="color:#111;">InkBook Dashboard</strong>.
+            Den Status deiner Buchung findest du jederzeit in deinem <strong style="color:#111;">StudioOS Dashboard</strong>.
           </p>
         </div>
       </div>
@@ -187,7 +187,7 @@ def booking_status_html(booking: dict, status: str) -> str:
         <div style="margin-top:20px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;">
           <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#92400e;">Anzahlung erforderlich</p>
           <p style="margin:0;font-size:13px;color:#78350f;line-height:1.5;">
-            Bitte zahle die Anzahlung von <strong>€ {float(deposit_amount):.2f}</strong> über dein InkBook-Dashboard,
+            Bitte zahle die Anzahlung von <strong>€ {float(deposit_amount):.2f}</strong> über dein StudioOS-Dashboard,
             um deinen Termin zu sichern. Dein Platz ist bis zur Zahlung reserviert.
           </p>
         </div>"""
@@ -275,7 +275,7 @@ def guest_offer_email_html(
         </table>
         {notes_block}
         <p style="font-size:14px;color:#666;margin:24px 0 8px;line-height:1.6;">
-          Um das Angebot anzunehmen und die Anzahlung zu leisten, erstelle einfach dein InkBook-Konto. Das dauert nur 30 Sekunden.
+          Um das Angebot anzunehmen und die Anzahlung zu leisten, erstelle einfach dein StudioOS-Konto. Das dauert nur 30 Sekunden.
         </p>
         <div style="text-align:center;margin:28px 0 8px;">
           <a href="{activate_url}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:15px 36px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">Passwort vergeben &amp; Angebot ansehen →</a>
@@ -284,7 +284,7 @@ def guest_offer_email_html(
           Das Angebot ist <strong>7 Tage</strong> gültig. Danach wird es automatisch archiviert.
         </p>
       </div>
-      {_email_footer(f"Du erhältst diese E-Mail weil du eine Anfrage bei {studio_name} auf InkBook gestellt hast.")}
+      {_email_footer(f"Du erhältst diese E-Mail weil du eine Anfrage bei {studio_name} auf StudioOS gestellt hast.")}
     </div>"""
 
 def studio_cancelled_refund_html(booking: dict) -> str:
@@ -323,10 +323,10 @@ def studio_cancelled_refund_html(booking: dict) -> str:
           </p>
         </div>
         <p style="font-size:13px;color:#888;line-height:1.6;margin:0;">
-          Du kannst jederzeit ein neues Angebot bei einem anderen Studio auf InkBook anfragen.
+          Du kannst jederzeit ein neues Angebot bei einem anderen Studio auf StudioOS anfragen.
         </p>
       </div>
-      {_email_footer(f"Du erhältst diese E-Mail weil du eine Buchung bei {booking.get('studio_name', '')} auf InkBook hattest.")}
+      {_email_footer(f"Du erhältst diese E-Mail weil du eine Buchung bei {booking.get('studio_name', '')} auf StudioOS hattest.")}
     </div>"""
 
 def deposit_deadline_cancelled_html(booking: dict) -> str:
@@ -357,7 +357,7 @@ def deposit_deadline_cancelled_html(booking: dict) -> str:
 # ─── Database ────────────────────────────────────────────────────────────────
 from memdb import db
 
-app = FastAPI(title="InkBook API")
+app = FastAPI(title="StudioOS API")
 api_router = APIRouter(prefix="/api")
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
@@ -742,7 +742,7 @@ async def resend_activation_email(data: dict):
       <div style="padding:32px 32px 24px;">
         <h2 style="font-size:22px;font-weight:700;margin:0 0 10px;color:#111;letter-spacing:-0.4px;">Hallo {guest_name}!</h2>
         <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.6;">
-          Hier ist dein neuer Aktivierungs-Link für dein InkBook-Konto. Klicke unten, um dein Passwort festzulegen und dein Konto zu aktivieren.
+          Hier ist dein neuer Aktivierungs-Link für dein StudioOS-Konto. Klicke unten, um dein Passwort festzulegen und dein Konto zu aktivieren.
         </p>
         <a href="{activate_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
           Konto aktivieren →
@@ -752,13 +752,13 @@ async def resend_activation_email(data: dict):
           <a href="{activate_url}" style="color:#666;word-break:break-all;">{activate_url}</a>
         </p>
       </div>
-      {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
+      {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über StudioOS gestellt hast.")}
     </div>"""
     await db.users.update_one(
         {"_id": user["_id"]},
         {"$set": {"activation_email_sent": True}}
     )
-    asyncio.create_task(send_email(email, "Dein InkBook Aktivierungs-Link", html))
+    asyncio.create_task(send_email(email, "Dein StudioOS Aktivierungs-Link", html))
     return {"ok": True, "activate_url": activate_url}
 
 @api_router.post("/inquiries")
@@ -864,13 +864,13 @@ async def delete_inquiry(inquiry_id: str, body: dict = None, current_user: dict 
             </p>
             {reason_block}
             <p style="font-size:14px;color:#666;margin:16px 0 28px;line-height:1.6;">
-              Schau dir gerne andere Studios auf InkBook an — vielleicht ist das Richtige dabei.
+              Schau dir gerne andere Studios auf StudioOS an — vielleicht ist das Richtige dabei.
             </p>
             <a href="{frontend_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
               Andere Studios entdecken →
             </a>
           </div>
-          {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
+          {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über StudioOS gestellt hast.")}
         </div>"""
         asyncio.create_task(send_email(guest_email, f"Deine Anfrage bei {studio_name}", html))
 
@@ -1096,7 +1096,7 @@ async def forgot_password(data: ForgotPasswordRequest):
     html = f"""
     <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:40px 32px;background:#ffffff;border-radius:16px;">
       <div style="margin-bottom:32px;">
-        <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#0a0a0a;letter-spacing:-0.5px;">InkBook</span>
+        <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#0a0a0a;letter-spacing:-0.5px;">StudioOS</span>
       </div>
       <h2 style="font-size:20px;font-weight:600;color:#0a0a0a;margin:0 0 12px;">Passwort zurücksetzen</h2>
       <p style="font-size:15px;color:#52525b;line-height:1.6;margin:0 0 28px;">
@@ -1110,10 +1110,10 @@ async def forgot_password(data: ForgotPasswordRequest):
         Dieser Link ist <strong>1 Stunde</strong> gültig. Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.
       </p>
       <hr style="border:none;border-top:1px solid #f4f4f5;margin:28px 0;" />
-      <p style="font-size:12px;color:#d4d4d8;margin:0;">InkBook · Tattoo Booking Platform</p>
+      <p style="font-size:12px;color:#d4d4d8;margin:0;">StudioOS · Tattoo Booking Platform</p>
     </div>
     """
-    asyncio.create_task(send_email(email, "Dein InkBook Passwort zurücksetzen", html))
+    asyncio.create_task(send_email(email, "Dein StudioOS Passwort zurücksetzen", html))
     # Always log the link so it works even when email delivery is restricted
     logger.info(f"[PASSWORD RESET] Link for {email}: {reset_link}")
     return {"message": "Falls diese E-Mail existiert, wurde ein Reset-Link gesendet.", "reset_url": reset_link}
@@ -1404,7 +1404,7 @@ async def get_available_dates(studio_id: str, year: int, month: int, slot_type: 
 
 # ─── Booking system-message helper ───────────────────────────────────────────
 async def _post_system_message(customer_id: str, studio_owner_id: str, text: str, triggered_by_id: str = None):
-    """Inserts an automated InkBook system message in the customer↔studio conversation.
+    """Inserts an automated StudioOS system message in the customer↔studio conversation.
     triggered_by_id: the user_id of whoever triggered the action (determines left/right alignment in chat)."""
     if not customer_id or not studio_owner_id:
         return
@@ -1413,7 +1413,7 @@ async def _post_system_message(customer_id: str, studio_owner_id: str, text: str
     msg_doc = {
         "message_id": f"msg_{uuid.uuid4().hex[:12]}",
         "sender_id": "inkbook_system",
-        "sender_name": "InkBook",
+        "sender_name": "StudioOS",
         "recipient_id": customer_id,
         "content": text,
         "image_url": None,
@@ -1925,7 +1925,7 @@ def _invoice_html(inv_num: str, now_fmt: str, studio_name: str, user_name: str,
     time_part = f"&middot; {btime}" if btime else ""
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:620px;margin:0 auto;color:#18181b;">
   <div style="background:#18181b;padding:28px 32px;border-radius:16px 16px 0 0;">
-    <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">InkBook &#9998;</p>
+    <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">StudioOS &#9998;</p>
     <p style="color:#a1a1aa;font-size:13px;margin:6px 0 0;">Tattoo Studio Booking</p>
   </div>
   <div style="background:#fff;padding:32px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;">
@@ -1975,7 +1975,7 @@ def _invoice_html(inv_num: str, now_fmt: str, studio_name: str, user_name: str,
       <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">{amt}</p>
     </div>
     <p style="color:#71717a;font-size:13px;margin:0 0 6px;">Vielen Dank f&#252;r deinen Besuch bei {studio_name}!&nbsp;&#128420;</p>
-    <p style="color:#a1a1aa;font-size:11px;margin:0;">Diese Rechnung wurde automatisch von InkBook erstellt und best&#228;tigt den Zahlungseingang.</p>
+    <p style="color:#a1a1aa;font-size:11px;margin:0;">Diese Rechnung wurde automatisch von StudioOS erstellt und best&#228;tigt den Zahlungseingang.</p>
   </div>
 </div>"""
 
@@ -2156,7 +2156,7 @@ async def send_final_payment_link(booking_id: str, request: Request, current_use
         date_text = f" für dein Tattoo am {date_str}" if date_str else ""
         html = f"""<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#18181b;">
   <div style="background:#18181b;padding:24px 32px;border-radius:16px 16px 0 0;">
-    <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">InkBook &#9998;</p>
+    <p style="color:#fff;font-size:22px;font-weight:700;margin:0;">StudioOS &#9998;</p>
   </div>
   <div style="background:#fff;padding:32px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;">
     <p style="font-size:18px;font-weight:600;margin:0 0 8px;">Zahlungslink f&#252;r dein Tattoo &#128179;</p>
@@ -2560,10 +2560,10 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
     for conv in convs:
         participants = conv.get("participants", [])
         other_id = next((p for p in participants if p != user_id), None)
-        # Handle InkBook broadcast conversations
+        # Handle StudioOS broadcast conversations
         if other_id == "inkbook_system" or conv.get("is_broadcast_conv"):
-            enriched.append({**conv, "other_name": "InkBook News", "other_role": "system",
-                              "other_user_id": "inkbook_system", "last_sender_name": "InkBook",
+            enriched.append({**conv, "other_name": "StudioOS News", "other_role": "system",
+                              "other_user_id": "inkbook_system", "last_sender_name": "StudioOS",
                               "is_broadcast_conv": True})
             continue
         other_name = "Unbekannt"
@@ -2594,7 +2594,7 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
 @api_router.get("/messages/{other_user_id}")
 async def get_messages(other_user_id: str, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
-    # Handle InkBook broadcast messages
+    # Handle StudioOS broadcast messages
     if other_user_id == "inkbook_system":
         messages = await db.messages.find(
             {"sender_id": "inkbook_system", "recipient_id": user_id},
@@ -2692,7 +2692,7 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
                           <strong style="color:#111;">{studio_name}</strong> hat auf deine Tattoo-Anfrage geantwortet.
                         </p>
                         <p style="font-size:14px;color:#666;margin:0 0 28px;line-height:1.6;">
-                          Aktiviere jetzt dein kostenloses InkBook-Konto, um die Nachricht zu lesen, direkt mit dem Studio zu chatten und deinen Termin zu bestätigen.
+                          Aktiviere jetzt dein kostenloses StudioOS-Konto, um die Nachricht zu lesen, direkt mit dem Studio zu chatten und deinen Termin zu bestätigen.
                         </p>
                         <a href="{activate_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
                           Konto aktivieren &amp; Nachricht lesen →
@@ -2702,7 +2702,7 @@ async def send_message(data: MessageCreate, current_user: dict = Depends(get_cur
                           <a href="{activate_url}" style="color:#666;word-break:break-all;">{activate_url}</a>
                         </p>
                       </div>
-                      {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über InkBook gestellt hast.")}
+                      {_email_footer("Du erhältst diese E-Mail, weil du eine Anfrage über StudioOS gestellt hast.")}
                     </div>"""
                     await db.users.update_one(
                         {"_id": recipient_user["_id"]},
@@ -3179,7 +3179,7 @@ async def confirm_payment(session_id: str, current_user: dict = Depends(get_curr
                         to=user_email,
                         subject=f"Zahlung erhalten – Danke! · {booking.get('studio_name', '')}",
                         html=f"""<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#18181b;">
-  <div style="background:#18181b;padding:24px 32px;border-radius:16px 16px 0 0;"><p style="color:#fff;font-size:22px;font-weight:700;margin:0;">InkBook &#9998;</p></div>
+  <div style="background:#18181b;padding:24px 32px;border-radius:16px 16px 0 0;"><p style="color:#fff;font-size:22px;font-weight:700;margin:0;">StudioOS &#9998;</p></div>
   <div style="background:#fff;padding:32px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;">
     <p style="font-size:18px;font-weight:600;margin:0 0 8px;">Zahlung erhalten &#10003;</p>
     <p style="color:#71717a;font-size:14px;margin:0 0 16px;">Deine Zahlung f&#252;r den Termin am {date_fmt} bei {booking.get('studio_name','')} ist eingegangen. Vielen Dank!</p>
@@ -3243,7 +3243,7 @@ SUBSCRIPTION_PLANS = {
         "branding": True, "chat": False, "deposit": False,
         "video_consultation": False, "newsletter": False, "analytics": False,
         "priority_search": False,
-        "feature_labels": ["1 Artist", "5 Slots / Monat", "5 Portfolio-Bilder", "Basis-Profil", "Kontaktformular", "InkBook-Branding sichtbar"]
+        "feature_labels": ["1 Artist", "5 Slots / Monat", "5 Portfolio-Bilder", "Basis-Profil", "Kontaktformular", "StudioOS-Branding sichtbar"]
     },
     "starter": {
         "name": "Starter", "price": 19.99, "currency": "eur", "price_id": "price_starter_dummy_01",
@@ -3252,7 +3252,7 @@ SUBSCRIPTION_PLANS = {
         "branding": False, "chat": True, "deposit": False,
         "video_consultation": False, "newsletter": False, "analytics": True,
         "priority_search": False,
-        "feature_labels": ["2 Artists", "20 Slots / Monat", "20 Portfolio-Bilder", "Chat-Terminbestätigung", "E-Mail-Benachrichtigungen", "Basis-Statistiken", "Kunden-Bewertungen", "Kein InkBook-Branding"]
+        "feature_labels": ["2 Artists", "20 Slots / Monat", "20 Portfolio-Bilder", "Chat-Terminbestätigung", "E-Mail-Benachrichtigungen", "Basis-Statistiken", "Kunden-Bewertungen", "Kein StudioOS-Branding"]
     },
     "pro": {
         "name": "Pro", "price": 49.99, "currency": "eur", "price_id": "price_pro_dummy_01",
@@ -4018,7 +4018,7 @@ async def support_chat(req: SupportChatRequest):
 
     # Build conversation context for the model
     system_msg = (
-        "Du bist der freundliche Support-Assistent von InkBook, der führenden Tattoo-Buchungsplattform in Deutschland. "
+        "Du bist der freundliche Support-Assistent von StudioOS, der führenden Tattoo-Buchungsplattform in Deutschland. "
         "Du hilfst Kunden und Studios bei Fragen zu: Buchungen, Terminen, Studios, Artists, Preisen, Konten, Zahlungen, "
         "technischen Problemen und der allgemeinen App-Nutzung. "
         "Antworte immer auf Deutsch. Sei hilfsbereit, freundlich und präzise. "
@@ -4065,7 +4065,7 @@ async def support_chat(req: SupportChatRequest):
 
 # ─── AI Booking Agent ──────────────────────────────────────────────────────────
 
-AGENT_SYSTEM_PROMPT = """Du bist "Ink", der intelligente KI-Buchungsassistent von InkBook – Deutschlands führender Plattform für Tattoo-Studio-Buchungen.
+AGENT_SYSTEM_PROMPT = """Du bist "Ink", der intelligente KI-Buchungsassistent von StudioOS – Deutschlands führender Plattform für Tattoo-Studio-Buchungen.
 
 ## Deine Fähigkeiten – Tools
 Wenn du eine Aktion ausführen willst, antworte mit EXAKT dieser Syntax (NUR die TOOL-Zeile, kein weiterer Text):
@@ -4091,7 +4091,7 @@ Verfügbare Tools:
 4. Buchungen ohne Login -> sage dem Nutzer er soll sich zuerst anmelden
 5. Buchungstyp nicht angegeben -> frage danach bevor du buchst
 
-## InkBook Plattform-Wissen
+## StudioOS Plattform-Wissen
 - Buchungstypen: tattoo (Tätowierung vor Ort), consultation (Beratung vor Ort), video_consultation (Remote Video-Call)
 - Kunden: kostenlos, Studios suchen/buchen/bewerten, Live-Chat mit Studios, Video-Konsultationen
 - Studios: monatliches Abo, Kalender verwalten, Buchungen annehmen/ablehnen
@@ -4348,18 +4348,18 @@ async def newsletter_subscribe(req: NewsletterSubscribeRequest):
     html = f"""
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#fff;">
       <div style="border-bottom:2px solid #000;padding-bottom:16px;margin-bottom:24px;">
-        <h1 style="font-size:22px;font-weight:bold;margin:0;letter-spacing:-0.5px;">InkBook</h1>
+        <h1 style="font-size:22px;font-weight:bold;margin:0;letter-spacing:-0.5px;">StudioOS</h1>
       </div>
       <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;">Newsletter bestätigt</h2>
       <p style="color:#555;line-height:1.6;margin-bottom:16px;">
         Danke für deine Anmeldung! Du erhältst ab sofort Neuigkeiten, neue Studios und exklusive Angebote direkt in deinen Posteingang.
       </p>
       <div style="border-top:1px solid #eee;padding-top:16px;margin-top:24px;">
-        <p style="font-size:12px;color:#aaa;">Du kannst dich jederzeit wieder abmelden. · InkBook, Deutschland</p>
+        <p style="font-size:12px;color:#aaa;">Du kannst dich jederzeit wieder abmelden. · StudioOS, Deutschland</p>
       </div>
     </div>"""
 
-    await send_email(req.email, "Willkommen beim InkBook Newsletter!", html)
+    await send_email(req.email, "Willkommen beim StudioOS Newsletter!", html)
     return {"status": "success", "message": "Erfolgreich angemeldet! Bitte prüfe dein Postfach."}
 
 @api_router.get("/newsletter/subscribers")
@@ -4483,7 +4483,7 @@ async def admin_send_newsletter(data: NewsletterSendRequest, current_user: dict 
         return f"""<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
           {_email_header()}<div style="padding:32px;"><h2 style="font-size:20px;font-weight:700;margin:0 0 16px;color:#111;">{subject}</h2>
           <div style="font-size:14px;color:#555;line-height:1.7;">{content.replace(chr(10), '<br>')}</div></div>
-          {_email_footer("Du erhältst diese E-Mail weil du den InkBook Newsletter abonniert hast.")}</div>"""
+          {_email_footer("Du erhältst diese E-Mail weil du den StudioOS Newsletter abonniert hast.")}</div>"""
     if data.preview_email:
         await send_email(data.preview_email, f"[Vorschau] {data.subject}", nl_html(data.subject, data.content))
         return {"status": "preview_sent", "sent": 0}
@@ -4596,7 +4596,7 @@ async def admin_broadcast(data: BroadcastRequest, current_user: dict = Depends(r
             msg_doc = {
                 "message_id": f"msg_{uuid.uuid4().hex[:12]}",
                 "sender_id": "inkbook_system",
-                "sender_name": "InkBook",
+                "sender_name": "StudioOS",
                 "recipient_id": uid,
                 "content": f"**{data.title}**\n\n{data.message}",
                 "image_url": "",
@@ -5042,7 +5042,7 @@ async def admin_reply_ticket(ticket_id: str, data: TicketReply, current_user: di
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:16px 0;">
             <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">{data.message.replace(chr(10),'<br>')}</p>
           </div>
-          <p style="font-size:13px;color:#888;">Möchtest du antworten? Öffne den <strong>Support-Chat</strong> auf InkBook und wähle dein Ticket aus, um direkt zu antworten.</p>
+          <p style="font-size:13px;color:#888;">Möchtest du antworten? Öffne den <strong>Support-Chat</strong> auf StudioOS und wähle dein Ticket aus, um direkt zu antworten.</p>
           </div>{_email_footer("Du erhältst diese E-Mail als Antwort auf dein Support-Ticket.")}</div>"""
         asyncio.create_task(send_email(user_email, f"[{ticket_num}] Antwort: {subject_str}", html))
     return {"replied": True, "ticket_number": ticket_num}
@@ -5138,7 +5138,7 @@ async def admin_reply_direct_chat(chat_id: str, data: TicketReply, current_user:
         raise HTTPException(status_code=404, detail="Chat nicht gefunden")
     now = datetime.now(timezone.utc).isoformat()
     msg = {"msg_id": f"dm_{uuid.uuid4().hex[:8]}", "content": data.message, "from": "admin",
-           "from_name": "InkBook Support", "created_at": now}
+           "from_name": "StudioOS Support", "created_at": now}
     await db.direct_support_chats.update_one(
         {"chat_id": chat_id},
         {"$push": {"messages": msg}, "$set": {"updated_at": now, "status": "in_progress"}}
@@ -5195,7 +5195,7 @@ async def _init_db():
         await db.users.insert_one({
             "email": admin_email,
             "password_hash": pw_hash,
-            "name": "InkBook Admin",
+            "name": "StudioOS Admin",
             "role": "admin",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "auth_provider": "email"
@@ -5206,7 +5206,7 @@ async def _init_db():
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": pw_hash}})
 
     await seed_demo_data()
-    logger.info("InkBook API started")
+    logger.info("StudioOS API started")
 
 async def _check_deposit_deadlines():
     await asyncio.sleep(30)  # Let DB init first

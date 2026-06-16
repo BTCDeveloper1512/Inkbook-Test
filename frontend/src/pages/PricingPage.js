@@ -23,7 +23,7 @@ const PLANS = [
       { label: "5 Portfolio-Bilder", ok: true },
       { label: "Basis-Profil", ok: true },
       { label: "Kontaktformular", ok: true },
-      { label: "InkBook-Branding sichtbar", ok: false, note: "Pflicht" },
+      { label: "StudioOS-Branding sichtbar", ok: false, note: "Pflicht" },
       { label: "Chat-Terminbestätigung", ok: false },
       { label: "Analytics", ok: false },
       { label: "Bewertungen", ok: false },
@@ -47,7 +47,7 @@ const PLANS = [
       { label: "E-Mail-Benachrichtigungen", ok: true },
       { label: "Basis-Statistiken", ok: true },
       { label: "Bewertungen sammeln", ok: true },
-      { label: "Kein InkBook-Branding", ok: true },
+      { label: "Kein StudioOS-Branding", ok: true },
     ],
   },
   {

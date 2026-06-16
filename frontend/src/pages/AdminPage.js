@@ -414,7 +414,7 @@ export default function AdminPage() {
             <p className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-inter flex items-center gap-2 mb-1">
               <Shield size={11} /> Admin Panel
             </p>
-            <h1 className="text-2xl font-playfair font-semibold text-zinc-900">InkBook Operator</h1>
+            <h1 className="text-2xl font-playfair font-semibold text-zinc-900">StudioOS Operator</h1>
           </div>
           <button onClick={fetchCore} className="btn-secondary flex items-center gap-2 text-sm">
             <Activity size={13} /> Aktualisieren
@@ -1149,7 +1149,7 @@ export default function AdminPage() {
                             <div className="p-4 space-y-3 max-h-64 overflow-y-auto">
                               {selectedTicket.messages?.map((m, i) => (
                                 <div key={i} className={`rounded-xl p-3 ${m.from === "admin" ? "bg-zinc-900 text-white ml-8" : "bg-zinc-50 mr-8"}`}>
-                                  <p className="text-[10px] mb-1 opacity-60 font-inter">{m.from === "admin" ? "InkBook Support" : selectedTicket.user_name}</p>
+                                  <p className="text-[10px] mb-1 opacity-60 font-inter">{m.from === "admin" ? "StudioOS Support" : selectedTicket.user_name}</p>
                                   <p className="text-sm font-inter leading-relaxed">{m.content}</p>
                                 </div>
                               ))}
