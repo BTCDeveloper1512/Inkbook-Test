@@ -2487,7 +2487,7 @@ export default function StudioDashboard() {
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm p-12 text-center">
                   <Receipt size={32} className="mx-auto mb-3 text-zinc-300" />
                   <p className="font-inter text-sm text-zinc-500">{invNavAll ? "Noch keine Rechnungen vorhanden." : `Keine Rechnungen für ${invMonthLabel}.`}</p>
-                  <p className="font-inter text-xs text-zinc-400 mt-1">{invNavAll ? "Rechnungen werden automatisch erstellt, sobald Zahlungen eingehen." : "Navigiere zu einem anderen Monat oder wähle „Alle"."}</p>
+                  <p className="font-inter text-xs text-zinc-400 mt-1">{invNavAll ? "Rechnungen werden automatisch erstellt, sobald Zahlungen eingehen." : "Navigiere zu einem anderen Monat oder wähle 'Alle'."}</p>
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm overflow-hidden">
