@@ -6,9 +6,9 @@ export function Scene5() {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),
-      setTimeout(() => setPhase(2), 1800),
-      setTimeout(() => setPhase(3), 3200),
+      setTimeout(() => setPhase(1), 300),
+      setTimeout(() => setPhase(2), 1600),
+      setTimeout(() => setPhase(3), 3000),
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
@@ -16,62 +16,74 @@ export function Scene5() {
   return (
     <motion.div
       className="absolute inset-0 flex flex-col items-center justify-center z-30"
-      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+      style={{ background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(12px)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 1.2, ease: 'easeInOut' }}
+      transition={{ duration: 1.2 }}
     >
       <motion.div
-        className="absolute inset-0"
-        animate={{ background: phase >= 1 ? 'radial-gradient(ellipse at center, rgba(16,185,129,0.07) 0%, transparent 65%)' : 'none' }}
-        transition={{ duration: 2 }}
-      />
-
-      <motion.div
-        className="text-center relative z-10"
-        animate={{ opacity: phase >= 1 ? 1 : 0, y: phase >= 1 ? 0 : 24 }}
-        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center"
+        animate={{ opacity: phase >= 1 ? 1 : 0, y: phase >= 1 ? 0 : 20 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
       >
-        <motion.div
-          className="h-px mx-auto bg-emerald-500 mb-10"
-          initial={{ width: 0 }}
-          animate={{ width: phase >= 1 ? 64 : 0 }}
-          transition={{ duration: 0.8 }}
-        />
+        {/* Overline */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="h-px w-12" style={{ background: '#3f3f46' }} />
+          <span className="text-[0.72vw] uppercase tracking-[0.25em]" style={{ color: '#52525b' }}>
+            Jetzt starten
+          </span>
+          <div className="h-px w-12" style={{ background: '#3f3f46' }} />
+        </div>
 
+        {/* Logo */}
         <h1
-          className="text-[10vw] font-bold tracking-tighter text-white leading-none"
-          style={{ fontFamily: '"Playfair Display", serif' }}
+          className="font-black tracking-tighter leading-none text-white"
+          style={{
+            fontFamily: '"Playfair Display", Georgia, serif',
+            fontSize: '11vw'
+          }}
         >
           Studio<em>OS</em>
         </h1>
 
+        {/* Divider */}
+        <motion.div
+          className="mx-auto my-8 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, #3f3f46, transparent)' }}
+          initial={{ width: 0 }}
+          animate={{ width: phase >= 2 ? '18vw' : 0 }}
+          transition={{ duration: 0.8 }}
+        />
+
+        {/* Tagline */}
         <motion.p
-          className="mt-8 text-[1.3vw] uppercase tracking-[0.4em] text-white/50"
-          animate={{ opacity: phase >= 2 ? 1 : 0, y: phase >= 2 ? 0 : 12 }}
+          className="text-[1.4vw] font-light"
+          style={{ color: '#71717a', letterSpacing: '0.06em' }}
+          animate={{ opacity: phase >= 2 ? 1 : 0, y: phase >= 2 ? 0 : 10 }}
           transition={{ duration: 0.8 }}
         >
-          Ink meets Silicon Valley
+          Buchungen. Angebote. Zahlungen. Alles in einem.
         </motion.p>
 
+        {/* Stats */}
         <motion.div
-          className="mt-12 flex items-center justify-center gap-8"
-          animate={{ opacity: phase >= 3 ? 1 : 0 }}
+          className="mt-14 flex items-center justify-center gap-12"
+          animate={{ opacity: phase >= 3 ? 1 : 0, y: phase >= 3 ? 0 : 10 }}
           transition={{ duration: 0.8 }}
         >
           {[
-            { label: 'Customer', sub: 'Book with ease' },
-            { label: '·', sub: '' },
-            { label: 'Studio', sub: 'Manage with power' },
-          ].map(({ label, sub }, i) => (
+            ['Für Kunden', 'Einfach buchen'],
+            ['·', ''],
+            ['Für Studios', 'Professionell verwalten'],
+          ].map(([title, sub], i) => (
             <div key={i} className="text-center">
-              {label === '·' ? (
-                <span className="text-[2vw] text-emerald-500">·</span>
+              {title === '·' ? (
+                <span className="text-2xl" style={{ color: '#3f3f46' }}>·</span>
               ) : (
                 <>
-                  <div className="text-[0.9vw] uppercase tracking-widest text-zinc-300 font-medium">{label}</div>
-                  <div className="text-[0.75vw] text-zinc-600 mt-1">{sub}</div>
+                  <div className="text-[0.9vw] font-semibold text-white mb-1">{title}</div>
+                  <div className="text-[0.75vw]" style={{ color: '#52525b' }}>{sub}</div>
                 </>
               )}
             </div>
@@ -79,11 +91,13 @@ export function Scene5() {
         </motion.div>
       </motion.div>
 
+      {/* Bottom line */}
       <motion.div
-        className="absolute bottom-[8vh] w-px bg-gradient-to-b from-emerald-500 to-transparent"
-        animate={{ height: phase >= 3 ? '10vh' : 0 }}
-        transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        style={{ transformOrigin: 'top' }}
+        className="absolute bottom-[8vh] w-px"
+        style={{ background: 'linear-gradient(to bottom, #3f3f46, transparent)' }}
+        animate={{ height: phase >= 3 ? '8vh' : 0 }}
+        transition={{ duration: 1, delay: 0.3 }}
+        style2={{ transformOrigin: 'top' }}
       />
     </motion.div>
   );

@@ -8,41 +8,41 @@ import { Scene5 } from './video_scenes/Scene5';
 
 const SCENE_DURATIONS = {
   open: 5000,
-  customer: 14000,
-  studio: 14000,
-  handshake: 8000,
-  close: 6000
+  kunde1: 16000,
+  studio1: 16000,
+  verbindung: 8000,
+  abschluss: 6000
 };
 
 export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black text-white">
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-black to-zinc-900" />
-        <div className="absolute inset-0 opacity-5 pointer-events-none"
-          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-        <motion.div
-          className="absolute w-[60vw] h-[60vw] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 70%)', top: '10%', left: '-20%' }}
-          animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute w-[40vw] h-[40vw] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)', bottom: '0%', right: '-10%' }}
-          animate={{ x: [0, -30, 0], y: [0, -20, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
+    <div
+      className="relative w-full h-screen overflow-hidden text-white"
+      style={{ background: '#09090b', fontFamily: 'Inter, system-ui, sans-serif' }}
+    >
+      {/* Subtle grid background */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundSize: '48px 48px'
+        }}
+      />
+      {/* Radial vignette */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }}
+      />
 
       <AnimatePresence mode="sync">
         {currentScene === 0 && <Scene1 key="open" />}
-        {currentScene === 1 && <Scene2 key="customer" />}
+        {currentScene === 1 && <Scene2 key="kunde" />}
         {currentScene === 2 && <Scene3 key="studio" />}
-        {currentScene === 3 && <Scene4 key="handshake" />}
-        {currentScene === 4 && <Scene5 key="close" />}
+        {currentScene === 3 && <Scene4 key="verbindung" />}
+        {currentScene === 4 && <Scene5 key="abschluss" />}
       </AnimatePresence>
     </div>
   );

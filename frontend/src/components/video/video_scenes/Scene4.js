@@ -6,10 +6,10 @@ export function Scene4() {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 600),
+      setTimeout(() => setPhase(1), 500),
       setTimeout(() => setPhase(2), 2500),
       setTimeout(() => setPhase(3), 5000),
-      setTimeout(() => setPhase(4), 7000),
+      setTimeout(() => setPhase(4), 6500),
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
@@ -19,112 +19,133 @@ export function Scene4() {
       className="absolute inset-0 flex flex-col items-center justify-center z-20"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 1.05 }}
-      transition={{ duration: 1, ease: [0.25, 1, 0.5, 1] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1 }}
     >
-      <motion.h2
-        className="text-[2.5vw] font-bold text-white/80 mb-16 text-center"
-        style={{ fontFamily: '"Playfair Display", serif' }}
-        animate={{ opacity: phase >= 1 ? 1 : 0, y: phase >= 1 ? 0 : 20 }}
+      <motion.p
+        className="text-[0.9vw] uppercase tracking-[0.25em] mb-14"
+        style={{ color: '#52525b' }}
+        animate={{ opacity: phase >= 1 ? 1 : 0 }}
         transition={{ duration: 0.8 }}
       >
-        Where Art Meets Precision
-      </motion.h2>
+        Zwei Seiten. Eine Plattform.
+      </motion.p>
 
-      <div className="relative flex items-center justify-center" style={{ width: '70vw', height: '40vh' }}>
-
-        {/* Customer side */}
+      <div className="flex items-center gap-0" style={{ width: '72vw' }}>
+        {/* Kunden-Karte */}
         <motion.div
-          className="absolute rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
-          style={{ width: '26vw', height: '36vh', background: '#18181b', left: '0%' }}
+          className="rounded-2xl border p-7 flex-1"
+          style={{ background: '#18181b', borderColor: '#27272a', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
+          initial={{ opacity: 0, x: '-6vw', rotate: -3 }}
           animate={{
-            x: phase >= 2 ? '6vw' : 0,
-            rotate: phase >= 2 ? 0 : -4,
             opacity: phase >= 1 ? 1 : 0,
-            zIndex: phase >= 3 ? 5 : 1
+            x: phase >= 2 ? 0 : '-6vw',
+            rotate: phase >= 2 ? 0 : -3
           }}
-          initial={{ x: '-8vw', rotate: -8, opacity: 0 }}
-          transition={{ duration: 1.2, type: 'spring', bounce: 0.2 }}
+          transition={{ duration: 1.2, type: 'spring', bounce: 0.15 }}
         >
-          <div className="h-[22vh] bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-end p-5">
-            <div className="text-white">
-              <div className="text-[0.8vw] text-zinc-400 mb-1">Customer</div>
-              <div className="text-[1.3vw] font-bold" style={{ fontFamily: '"Playfair Display", serif' }}>Max Hellwig</div>
-            </div>
+          <div className="text-[0.72vw] uppercase tracking-[0.2em] mb-4" style={{ color: '#52525b' }}>Kunde</div>
+          <div className="text-[2.2vw] font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+            Einfach buchen
           </div>
-          <div className="p-5">
-            <div className="text-[0.85vw] text-zinc-400 mb-2">Booking Request Sent</div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400" />
-              <span className="text-[0.8vw] text-amber-400">Awaiting offer</span>
-            </div>
+          <div className="space-y-3">
+            {[
+              'Studio finden & vergleichen',
+              'Buchungsanfrage senden',
+              'Angebot annehmen',
+              'Anzahlung sicher bezahlen',
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                className="flex items-center gap-3"
+                animate={{ opacity: phase >= 2 ? 1 : 0, x: phase >= 2 ? 0 : -8 }}
+                transition={{ duration: 0.4, delay: phase >= 2 ? 0.1 + i * 0.08 : 0 }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                <span className="text-[0.85vw]" style={{ color: '#a1a1aa' }}>{item}</span>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
 
-        {/* Connection beam */}
-        <motion.div
-          className="absolute z-10 flex items-center justify-center"
-          style={{ width: '22vw', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-          animate={{ opacity: phase >= 2 ? 1 : 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
+        {/* Verbindung */}
+        <div className="flex flex-col items-center px-8">
           <motion.div
-            className="h-px w-full"
-            style={{ background: 'linear-gradient(90deg, transparent, #10b981, transparent)' }}
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: phase >= 2 ? 1 : 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
+            className="h-px"
+            style={{ background: 'linear-gradient(90deg, transparent, #3f3f46, transparent)' }}
+            initial={{ width: 0 }}
+            animate={{ width: phase >= 2 ? '8vw' : 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
           />
           <motion.div
-            className="absolute rounded-full flex items-center justify-center text-white font-bold text-[1.2vw]"
-            style={{ width: '5vw', height: '5vw', background: '#10b981' }}
-            animate={{ scale: phase >= 3 ? [1, 1.15, 1] : 1 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-xl my-4"
+            style={{ background: '#27272a', border: '1px solid #3f3f46', color: '#ffffff' }}
+            animate={{ scale: phase >= 3 ? [1, 1.15, 1] : 1, rotate: phase >= 3 ? 360 : 0 }}
+            transition={{ duration: 0.6 }}
           >
             ✓
           </motion.div>
-        </motion.div>
+          <motion.div
+            className="h-px"
+            style={{ background: 'linear-gradient(90deg, transparent, #3f3f46, transparent)' }}
+            initial={{ width: 0 }}
+            animate={{ width: phase >= 2 ? '8vw' : 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          />
+          <motion.div
+            className="mt-4 text-[0.72vw] text-center uppercase tracking-wider"
+            style={{ color: '#52525b' }}
+            animate={{ opacity: phase >= 3 ? 1 : 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            Match
+          </motion.div>
+        </div>
 
-        {/* Studio side */}
+        {/* Studio-Karte */}
         <motion.div
-          className="absolute rounded-2xl border shadow-2xl overflow-hidden"
-          style={{ width: '26vw', height: '36vh', background: '#18181b', right: '0%', borderColor: 'rgba(16,185,129,0.4)' }}
+          className="rounded-2xl border p-7 flex-1"
+          style={{ background: '#18181b', borderColor: '#3f3f46', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
+          initial={{ opacity: 0, x: '6vw', rotate: 3 }}
           animate={{
-            x: phase >= 2 ? '-6vw' : 0,
-            rotate: phase >= 2 ? 0 : 4,
             opacity: phase >= 1 ? 1 : 0,
-            scale: phase >= 3 ? 1.03 : 1,
-            zIndex: phase >= 3 ? 10 : 1
+            x: phase >= 2 ? 0 : '6vw',
+            rotate: phase >= 2 ? 0 : 3
           }}
-          initial={{ x: '8vw', rotate: 8, opacity: 0 }}
-          transition={{ duration: 1.2, type: 'spring', bounce: 0.2 }}
+          transition={{ duration: 1.2, type: 'spring', bounce: 0.15 }}
         >
-          <div className="h-[22vh] flex items-end p-5" style={{ background: 'linear-gradient(135deg, #052e16, #14532d)' }}>
-            <div className="text-white">
-              <div className="text-[0.8vw] text-emerald-400 mb-1">Studio</div>
-              <div className="text-[1.3vw] font-bold" style={{ fontFamily: '"Playfair Display", serif' }}>Black Ink Studio</div>
-            </div>
+          <div className="text-[0.72vw] uppercase tracking-[0.2em] mb-4" style={{ color: '#52525b' }}>Studio</div>
+          <div className="text-[2.2vw] font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+            Professionell verwalten
           </div>
-          <div className="p-5">
-            <div className="text-[0.85vw] text-zinc-400 mb-2">Offer Accepted</div>
-            <motion.div
-              className="flex items-center gap-2"
-              animate={{ opacity: phase >= 3 ? 1 : 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-[0.8vw] text-emerald-400">Session confirmed · Deposit paid</span>
-            </motion.div>
+          <div className="space-y-3">
+            {[
+              'Anfragen zentral empfangen',
+              'Individuelle Angebote erstellen',
+              'Kalender & Kapazität steuern',
+              'Einnahmen & Rückzahlungen tracken',
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                className="flex items-center gap-3"
+                animate={{ opacity: phase >= 2 ? 1 : 0, x: phase >= 2 ? 0 : 8 }}
+                transition={{ duration: 0.4, delay: phase >= 2 ? 0.1 + i * 0.08 : 0 }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                <span className="text-[0.85vw]" style={{ color: '#a1a1aa' }}>{item}</span>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
       </div>
 
       <motion.p
-        className="mt-16 text-[1.1vw] text-white/50 uppercase tracking-[0.3em]"
-        animate={{ opacity: phase >= 4 ? 1 : 0, y: phase >= 4 ? 0 : 12 }}
+        className="mt-14 text-[1vw] font-light"
+        style={{ color: '#52525b' }}
+        animate={{ opacity: phase >= 4 ? 1 : 0, y: phase >= 4 ? 0 : 10 }}
         transition={{ duration: 0.8 }}
       >
-        One platform · Two worlds · Zero friction
+        Kein Chaos mehr. Nur noch Kunst.
       </motion.p>
     </motion.div>
   );
