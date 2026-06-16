@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -87,6 +87,9 @@ export default function StudioDashboard() {
   const [dayCapSaving, setDayCapSaving] = useState(false);
   const [calBlockPickCap, setCalBlockPickCap] = useState(""); // per-day custom capacity override
   const [showBlockRestriction, setShowBlockRestriction] = useState(false); // show/hide block type section in modal
+  const now0rev = new Date();
+  const [revenueNavYear, setRevenueNavYear] = useState(now0rev.getFullYear());
+  const [revenueNavMonth, setRevenueNavMonth] = useState(now0rev.getMonth() + 1);
   const now0 = new Date();
   const [calBlockMonth, setCalBlockMonth] = useState(now0.getMonth() + 1);
   const [calBlockYear, setCalBlockYear] = useState(now0.getFullYear());
@@ -864,14 +867,26 @@ export default function StudioDashboard() {
 
   // Revenue calculations (only completed bookings)
   const completedBookings = allStudioBookings.filter(b => b.status === "completed");
-  const firstDayOfMonth = `${nowTime.getFullYear()}-${String(nowTime.getMonth()+1).padStart(2,'0')}-01`;
   const todayRevenue = completedBookings
     .filter(b => b.date === todayStr)
     .reduce((s, b) => s + (b.revenue || 0), 0);
-  const monthRevenue = completedBookings
-    .filter(b => b.date >= firstDayOfMonth)
-    .reduce((s, b) => s + (b.revenue || 0), 0);
   const totalRevenue = completedBookings.reduce((s, b) => s + (b.revenue || 0), 0);
+
+  // Navigable month revenue
+  const revenueMonthPrefix = `${revenueNavYear}-${String(revenueNavMonth).padStart(2,'0')}`;
+  const isCurrentMonth = revenueNavYear === nowTime.getFullYear() && revenueNavMonth === nowTime.getMonth() + 1;
+  const revenueMonthLabel = new Date(revenueNavYear, revenueNavMonth - 1, 1).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  const monthRevenue = completedBookings
+    .filter(b => (b.date || "").startsWith(revenueMonthPrefix))
+    .reduce((s, b) => s + (b.revenue || 0), 0);
+  const handleRevenueMonthPrev = () => {
+    if (revenueNavMonth === 1) { setRevenueNavMonth(12); setRevenueNavYear(y => y - 1); }
+    else setRevenueNavMonth(m => m - 1);
+  };
+  const handleRevenueMonthNext = () => {
+    if (revenueNavMonth === 12) { setRevenueNavMonth(1); setRevenueNavYear(y => y + 1); }
+    else setRevenueNavMonth(m => m + 1);
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -1011,11 +1026,24 @@ export default function StudioDashboard() {
                   <span className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">Live</span>
                 </div>
               </div>
-              {/* Dieser Monat — full-width highlight */}
+              {/* Monat — navigierbar */}
               <div className="bg-zinc-900 rounded-xl p-4 mb-3">
-                <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-1.5">Dieser Monat</p>
-                <p className="text-3xl font-playfair font-semibold text-white">€&thinsp;{monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p className="text-[10px] text-white/30 font-inter mt-1">abgeschlossene Termine im laufenden Monat</p>
+                <div className="flex items-center justify-between mb-2">
+                  <button onClick={handleRevenueMonthPrev} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                    <ChevronLeft size={15} strokeWidth={2} />
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[11px] font-inter font-semibold tracking-widest uppercase text-white/50">{revenueMonthLabel}</p>
+                    {isCurrentMonth && (
+                      <span className="text-[9px] font-inter font-semibold bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Aktuell</span>
+                    )}
+                  </div>
+                  <button onClick={handleRevenueMonthNext} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+                    <ChevronRight size={15} strokeWidth={2} />
+                  </button>
+                </div>
+                <p className="text-3xl font-playfair font-semibold text-white text-center">€&thinsp;{monthRevenue.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-[10px] text-white/30 font-inter mt-1 text-center">abgeschlossene Termine</p>
               </div>
               {/* 3 cards: Bar gesamt · Stripe gesamt · Insgesamt */}
               <div className="grid grid-cols-3 gap-3">
