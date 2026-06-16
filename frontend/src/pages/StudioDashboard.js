@@ -104,7 +104,7 @@ export default function StudioDashboard() {
   const [calSelectedDates, setCalSelectedDates] = useState(new Set());
   const [visibleUntil, setVisibleUntil] = useState("");
   const [visibleUntilSaving, setVisibleUntilSaving] = useState(false);
-  const [kalenderView, setKalenderView] = useState("capacity"); // "capacity" | "termine"
+  const [kalenderView, setKalenderView] = useState("termine"); // "termine" | "capacity"
   const [studioArtists, setStudioArtists] = useState([]);
   const [calArtistId, setCalArtistId] = useState(null); // null = studio-wide view
   // Refs for stale-closure-safe polling
@@ -1293,8 +1293,8 @@ export default function StudioDashboard() {
               {/* View toggle */}
               <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
                 {[
-                  { id: "capacity", label: "Kapazität festlegen" },
                   { id: "termine",  label: "Termine" },
+                  { id: "capacity", label: "Kapazität festlegen" },
                 ].map(v => (
                   <motion.button key={v.id} onClick={() => setKalenderView(v.id)} whileTap={{ scale: 0.96 }}
                     className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${kalenderView === v.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
