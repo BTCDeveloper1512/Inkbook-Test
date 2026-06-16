@@ -492,6 +492,7 @@ class StudioUpdate(BaseModel):
     deposit_required: Optional[bool] = None
     deposit_amount: Optional[float] = None
     deposit_deadline_hours: Optional[int] = None
+    cancellation_hours: Optional[int] = None
     banner_image: Optional[str] = None
     logo_image: Optional[str] = None
     video_consultation_enabled: Optional[bool] = None
@@ -1833,6 +1834,19 @@ async def get_bookings(current_user: dict = Depends(get_current_user)):
             bookings = []
     else:
         bookings = await db.bookings.find({"user_id": user_id}, {"_id": 0}).to_list(200)
+        studio_ids = list({b["studio_id"] for b in bookings if b.get("studio_id")})
+        if studio_ids:
+            studios_data = await db.studios.find(
+                {"studio_id": {"$in": studio_ids}},
+                {"_id": 0, "studio_id": 1, "cancellation_hours": 1}
+            ).to_list(100)
+            studios_map = {s["studio_id"]: s for s in studios_data}
+            for b in bookings:
+                sid = b.get("studio_id")
+                if sid and sid in studios_map:
+                    ch = studios_map[sid].get("cancellation_hours")
+                    if ch is not None:
+                        b["studio_cancellation_hours"] = ch
     
     return bookings
 

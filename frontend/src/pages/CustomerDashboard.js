@@ -238,6 +238,7 @@ export default function CustomerDashboard() {
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState("");
+  const [cancelModal, setCancelModal] = useState(null);
   const [reviewBooking, setReviewBooking] = useState(null);
   const [dismissedCancellations, setDismissedCancellations] = useState(() => {
     try { return JSON.parse(localStorage.getItem("inkbook_dismissed_cancellations") || "[]"); }
@@ -344,10 +345,24 @@ export default function CustomerDashboard() {
     } catch (e) { notify.error(e.response?.data?.detail || "Zahlungsfehler"); }
   };
 
-  const handleCancelBooking = async (bookingId) => {
-    const ok = await notify.confirm("Buchung wirklich absagen?", "Diese Aktion kann nicht rückgängig gemacht werden.");
-    if (!ok) return;
+  const handleCancelBooking = (booking) => {
+    const cancelHours = booking.studio_cancellation_hours;
+    const depositAmount = parseFloat(booking.offer_deposit_amount || booking.deposit_amount || 0);
+    let isWithinFreeWindow = true;
+    if (cancelHours && booking.date) {
+      const timeStr = booking.start_time || "12:00";
+      const appointmentAt = new Date(`${booking.date}T${timeStr}:00`);
+      const freeUntil = new Date(appointmentAt.getTime() - cancelHours * 3600 * 1000);
+      isWithinFreeWindow = new Date() < freeUntil;
+    }
+    setCancelModal({ booking, cancelHours, depositAmount, isWithinFreeWindow });
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!cancelModal) return;
+    const bookingId = cancelModal.booking.booking_id;
     setCancelLoading(bookingId);
+    setCancelModal(null);
     try {
       await axios.put(`${API}/bookings/${bookingId}/status`, null, {
         params: { status: "customer_cancelled" }, withCredentials: true
@@ -829,7 +844,7 @@ export default function CustomerDashboard() {
                           </button>
                         )}
                         {ACTIVE_STATUSES.includes(booking.status) && !isPast && (
-                          <button onClick={() => handleCancelBooking(booking.booking_id)}
+                          <button onClick={() => handleCancelBooking(booking)}
                             disabled={cancelLoading === booking.booking_id}
                             className="px-3 py-1.5 border border-zinc-200 text-xs font-inter text-zinc-500 rounded-full hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"
                             data-testid={`cancel-booking-btn-${booking.booking_id}`}
@@ -1009,6 +1024,53 @@ export default function CustomerDashboard() {
             onClose={() => setPaymentSession(null)}
             onSuccess={() => { setPaymentSession(null); fetchStats(); }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── Stornierung Bestätigungs-Modal ── */}
+      <AnimatePresence>
+        {cancelModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setCancelModal(null)}>
+            <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ type: "spring", stiffness: 300, damping: 28 }} className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${cancelModal.cancelHours && !cancelModal.isWithinFreeWindow ? "bg-red-100" : "bg-zinc-100"}`}>
+                  <AlertTriangle size={18} className={cancelModal.cancelHours && !cancelModal.isWithinFreeWindow ? "text-red-600" : "text-zinc-600"} strokeWidth={1.5} />
+                </div>
+                <div>
+                  <h3 className="font-inter font-semibold text-zinc-900 text-base">Termin absagen</h3>
+                  <p className="text-xs text-zinc-500 font-inter">{cancelModal.booking.studio_name}</p>
+                </div>
+              </div>
+
+              {cancelModal.cancelHours ? (
+                cancelModal.isWithinFreeWindow ? (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 mb-5">
+                    <p className="text-sm font-inter font-semibold text-emerald-800 mb-1">Kostenlose Stornierung möglich ✓</p>
+                    <p className="text-xs text-emerald-700 font-inter leading-relaxed">Du stornierst innerhalb der kostenlosen Frist. Es fallen keine Gebühren an.</p>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-5">
+                    <p className="text-sm font-inter font-semibold text-red-800 mb-1">Stornierungsfrist abgelaufen</p>
+                    <p className="text-xs text-red-700 font-inter leading-relaxed">
+                      Die kostenlose Stornierungsfrist ({cancelModal.cancelHours >= 24 ? `${cancelModal.cancelHours / 24} Tag${cancelModal.cancelHours >= 48 ? "e" : ""}` : `${cancelModal.cancelHours} Stunden`} vor dem Termin) ist abgelaufen.
+                      {cancelModal.depositAmount > 0 && ` Die Anzahlung von €\u202F${cancelModal.depositAmount.toFixed(2)} wird als Aufwandsentschädigung einbehalten.`}
+                    </p>
+                  </div>
+                )
+              ) : (
+                <p className="text-sm font-inter text-zinc-500 mb-5 leading-relaxed">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+              )}
+
+              <div className="flex gap-3">
+                <button onClick={() => setCancelModal(null)} className="flex-1 py-2.5 border border-zinc-200 text-sm font-inter text-zinc-600 rounded-xl hover:bg-zinc-50 transition-colors">
+                  Zurück
+                </button>
+                <button onClick={confirmCancelBooking} className="flex-1 py-2.5 bg-red-600 text-white text-sm font-inter font-semibold rounded-xl hover:bg-red-700 transition-colors">
+                  Ja, absagen
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

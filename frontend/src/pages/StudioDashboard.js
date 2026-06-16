@@ -2588,6 +2588,35 @@ export default function StudioDashboard() {
               )}
             </div>
 
+            {/* ── Stornierungsrichtlinie ── */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg mb-1 text-zinc-900">Stornierungsrichtlinie</h3>
+              <p className="text-xs text-zinc-400 font-inter mb-5">Lege fest, bis wann Kunden ihren Termin kostenfrei stornieren können. Nach Ablauf der Frist wird die Anzahlung als Aufwandsentschädigung einbehalten.</p>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Kostenlose Stornierung bis</label>
+                  <select
+                    value={editForm.cancellation_hours ?? ""}
+                    onChange={e => setEditForm({ ...editForm, cancellation_hours: e.target.value === "" ? null : parseInt(e.target.value) })}
+                    className="input-base w-full"
+                    data-testid="cancellation-hours-select"
+                  >
+                    <option value="">Keine Angabe / Keine kostenlose Stornierung</option>
+                    <option value="12">12 Stunden vorher</option>
+                    <option value="24">24 Stunden vorher (1 Tag)</option>
+                    <option value="48">48 Stunden vorher (2 Tage)</option>
+                    <option value="72">72 Stunden vorher (3 Tage)</option>
+                    <option value="168">1 Woche vorher</option>
+                  </select>
+                </div>
+              </div>
+              {editForm.cancellation_hours && (
+                <p className="text-xs text-zinc-500 font-inter mt-3 bg-zinc-50 rounded-xl px-3 py-2.5 leading-relaxed">
+                  Kunden sehen beim Buchen und Stornieren: <strong>Kostenlose Stornierung bis {editForm.cancellation_hours >= 24 ? `${editForm.cancellation_hours / 24} Tag${editForm.cancellation_hours >= 48 ? "e" : ""}` : `${editForm.cancellation_hours} Stunden`} vor dem Termin.</strong>
+                </p>
+              )}
+            </div>
+
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg mb-4 text-zinc-900">Tattoo-Stile</h3>
               <div className="flex flex-wrap gap-2">

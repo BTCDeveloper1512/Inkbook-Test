@@ -7,7 +7,7 @@ import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import GuestBookingModal from "../components/GuestBookingModal";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
@@ -1207,6 +1207,13 @@ export default function StudioPage() {
                   </div>
                 )}
 
+                {studio?.cancellation_hours && (
+                  <div className="text-xs text-zinc-500 font-inter mb-4 flex items-start gap-2 bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2.5">
+                    <Info size={11} className="text-zinc-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+                    <span><strong className="text-zinc-700">Stornierungsbedingung:</strong> Kostenlose Stornierung bis {studio.cancellation_hours >= 24 ? `${studio.cancellation_hours / 24} Tag${studio.cancellation_hours >= 48 ? "e" : ""}` : `${studio.cancellation_hours} Stunden`} vor dem Termin. Danach wird die Anzahlung einbehalten.</span>
+                  </div>
+                )}
+
                 {bookingSuccess ? (
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
                     <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
@@ -1313,6 +1320,12 @@ export default function StudioPage() {
                 {studio?.deposit_required && (
                   <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
                     <span>Das Studio legt die Anzahlung im Angebot fest.</span>
+                  </div>
+                )}
+                {studio?.cancellation_hours && (
+                  <div className="text-xs text-zinc-500 font-inter mb-4 flex items-start gap-2 bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2.5">
+                    <Info size={11} className="text-zinc-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+                    <span><strong className="text-zinc-700">Stornierungsbedingung:</strong> Kostenlose Stornierung bis {studio.cancellation_hours >= 24 ? `${studio.cancellation_hours / 24} Tag${studio.cancellation_hours >= 48 ? "e" : ""}` : `${studio.cancellation_hours} Stunden`} vor dem Termin. Danach wird die Anzahlung einbehalten.</span>
                   </div>
                 )}
                 {bookingSuccess ? (
