@@ -1508,12 +1508,9 @@ export default function StudioDashboard() {
                     <input
                       type="number" min={1} max={200} value={dayCapInput}
                       onChange={e => setDayCapInput(e.target.value)}
+                      onBlur={() => { if (Number(dayCapInput) !== dayCapacity) handleSaveDayCapacity(); }}
                       className="border border-zinc-200 rounded-xl px-3 py-2 text-sm font-inter text-zinc-700 w-20 text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     />
-                    <button onClick={handleSaveDayCapacity} disabled={dayCapSaving || Number(dayCapInput) === dayCapacity}
-                      className="px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-inter font-semibold hover:bg-zinc-700 transition-colors disabled:opacity-40">
-                      {dayCapSaving ? "…" : "Speichern"}
-                    </button>
                   </div>
                 </div>
                 {/* Size → points cost table */}
@@ -1521,14 +1518,14 @@ export default function StudioDashboard() {
                   <p className="text-[11px] font-inter font-semibold text-zinc-400 uppercase tracking-wider mb-2">Kapazitätskosten pro Buchung</p>
                   <div className="grid grid-cols-5 gap-1.5">
                     {[
-                      { key: "mini",   label: "Mini",   emoji: "🔹" },
-                      { key: "small",  label: "Small",  emoji: "🟢" },
-                      { key: "medium", label: "Medium", emoji: "🟡" },
-                      { key: "large",  label: "Large",  emoji: "🟠" },
-                      { key: "xl",     label: "XL",     emoji: "🔴" },
-                    ].map(({ key, label, emoji }) => (
+                      { key: "mini",   label: "Mini",   dot: "bg-violet-400"  },
+                      { key: "small",  label: "Small",  dot: "bg-teal-400"    },
+                      { key: "medium", label: "Medium", dot: "bg-amber-400"   },
+                      { key: "large",  label: "Large",  dot: "bg-orange-400"  },
+                      { key: "xl",     label: "XL",     dot: "bg-rose-500"    },
+                    ].map(({ key, label, dot }) => (
                       <div key={key} className="bg-zinc-50 rounded-xl p-2.5 text-center border border-zinc-100">
-                        <p className="text-base leading-none mb-1">{emoji}</p>
+                        <div className={`w-3 h-3 rounded-full ${dot} mx-auto mb-1.5`} />
                         <p className="text-[10px] font-inter font-semibold text-zinc-700">{label}</p>
                         <p className="text-[11px] font-inter font-bold text-zinc-900 mt-0.5">{sizeCapacity[key] ?? "—"} Pt.</p>
                       </div>
