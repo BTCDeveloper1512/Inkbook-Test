@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import TattooAnimation from "../components/TattooAnimation";
 import axios from "axios";
+import { StudioOSMark } from "../components/StudioOSLogo";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -84,10 +85,8 @@ export default function LoginPage() {
           className="w-full max-w-sm"
         >
           <Link to="/" className="flex items-center gap-2 mb-10">
-            <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center">
-              <span className="text-white font-playfair font-bold text-sm">I</span>
-            </div>
-            <span className="text-lg font-playfair font-semibold text-zinc-900">StudioOS</span>
+            <StudioOSMark size={28} />
+            <span className="text-lg font-playfair font-semibold text-zinc-900">Studio<span className="font-bold">OS</span></span>
           </Link>
 
           <AnimatePresence mode="wait">

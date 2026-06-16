@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
 import { Users, Scissors } from "lucide-react";
 import TattooAnimation from "../components/TattooAnimation";
+import { StudioOSMark } from "../components/StudioOSLogo";
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -44,10 +45,8 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="w-full max-w-sm">
           <Link to="/" className="flex items-center gap-2 mb-10">
-            <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center">
-              <span className="text-white font-playfair font-bold text-sm">I</span>
-            </div>
-            <span className="text-lg font-playfair font-semibold">StudioOS</span>
+            <StudioOSMark size={28} />
+            <span className="text-lg font-playfair font-semibold text-zinc-900">Studio<span className="font-bold">OS</span></span>
           </Link>
 
           <h1 className="text-3xl font-playfair font-semibold text-zinc-900 mb-1">{t("auth.register")}</h1>
