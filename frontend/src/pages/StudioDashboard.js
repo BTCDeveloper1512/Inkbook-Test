@@ -1913,7 +1913,13 @@ export default function StudioDashboard() {
                         <div>
                           <p className="font-inter font-semibold text-zinc-900">{b.user_name}</p>
                           <p className="text-sm text-zinc-500 font-inter">{b.user_email}</p>
-                          <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                          <p className="text-xs text-zinc-400 font-inter mt-1">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time ? `${b.start_time} – ${b.end_time}` : "Zeit ausstehend"} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                          {(b.preferred_time_from || b.preferred_time_to) && (
+                            <p className="text-xs text-zinc-400 font-inter mt-0.5">
+                              <span className="text-zinc-500 font-medium">Wunschzeit:</span>{" "}
+                              {b.preferred_time_from || "?"} – {b.preferred_time_to || "?"}
+                            </p>
+                          )}
                           {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
                           {b.reference_images?.length > 0 && (
                             <div className="flex gap-2 mt-2">
