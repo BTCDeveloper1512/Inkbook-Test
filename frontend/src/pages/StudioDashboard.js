@@ -1164,31 +1164,6 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
-              {/* Conversion funnel */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-inter font-semibold text-zinc-500 uppercase tracking-wider">Aufrufe → Anfragen</span>
-                      <span className="text-xs font-inter font-semibold text-zinc-700">{pageAnalytics?.view_to_inquiry_pct ?? 0} %</span>
-                    </div>
-                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-zinc-400 rounded-full transition-all duration-700" style={{ width: `${Math.min(pageAnalytics?.view_to_inquiry_pct ?? 0, 100)}%` }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-inter font-semibold text-zinc-500 uppercase tracking-wider">Anfragen → Buchungen</span>
-                      <span className="text-xs font-inter font-semibold text-zinc-700">{pageAnalytics?.inquiry_to_booking_pct ?? 0} %</span>
-                    </div>
-                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-zinc-900 rounded-full transition-all duration-700" style={{ width: `${Math.min(pageAnalytics?.inquiry_to_booking_pct ?? 0, 100)}%` }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </motion.div>
 
           </motion.div>
