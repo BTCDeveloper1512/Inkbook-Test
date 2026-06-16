@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
@@ -444,6 +444,18 @@ export default function StudioPage() {
 
   const today = new Date();
   const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
+
+  // Compute offer deadline label based on selected date (mirrors backend _calc_offer_deadline)
+  const offerDeadlineLabel = useMemo(() => {
+    if (!selectedDate) return null;
+    const now = new Date();
+    const appt = new Date(selectedDate + "T12:00:00");
+    const diffMs = appt - now;
+    const diffH = diffMs / 3600000;
+    if (diffH < 24) return "30 Minuten";
+    if (diffH < 7 * 24) return "2 Stunden";
+    return "24 Stunden";
+  }, [selectedDate]);
   const [availableDates, setAvailableDates] = useState(new Set());
 
   // Calendar helpers
@@ -1202,8 +1214,15 @@ export default function StudioPage() {
                 </AnimatePresence>
 
                 {studio?.deposit_required && selectedDate && (
-                  <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
+                  <div className="text-xs text-zinc-400 font-inter mb-3 flex items-center gap-1.5">
                     <span>Das Studio legt die Anzahlung im Angebot fest.</span>
+                  </div>
+                )}
+
+                {selectedDate && offerDeadlineLabel && (
+                  <div className="text-xs font-inter mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                    <span className="text-amber-600 flex-shrink-0 mt-0.5">⏳</span>
+                    <span className="text-amber-800">Nach Angebotseingang hast du <strong>{offerDeadlineLabel}</strong> Zeit, um das Angebot anzunehmen und die Anzahlung zu leisten.</span>
                   </div>
                 )}
 
@@ -1218,7 +1237,7 @@ export default function StudioPage() {
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
                     <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
                     <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">Anfrage gesendet!</p>
-                    <p className="text-xs text-emerald-600 font-inter mb-1">Das Studio meldet sich zur Bestätigung der Uhrzeit.</p>
+                    <p className="text-xs text-emerald-600 font-inter mb-1">Das Studio erstellt dein Angebot – du hast dann <strong>{offerDeadlineLabel}</strong> Zeit zum Annehmen.</p>
                     <p className="text-xs text-zinc-400 font-inter">ID: {bookingSuccess.booking_id}</p>
                     <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">Zum Dashboard</button>
                   </motion.div>
@@ -1318,8 +1337,14 @@ export default function StudioPage() {
                 </AnimatePresence>
 
                 {studio?.deposit_required && (
-                  <div className="text-xs text-zinc-400 font-inter mb-4 flex items-center gap-1.5">
+                  <div className="text-xs text-zinc-400 font-inter mb-3 flex items-center gap-1.5">
                     <span>Das Studio legt die Anzahlung im Angebot fest.</span>
+                  </div>
+                )}
+                {selectedDate && offerDeadlineLabel && (
+                  <div className="text-xs font-inter mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                    <span className="text-amber-600 flex-shrink-0 mt-0.5">⏳</span>
+                    <span className="text-amber-800">Nach Angebotseingang hast du <strong>{offerDeadlineLabel}</strong> Zeit, um das Angebot anzunehmen und die Anzahlung zu leisten.</span>
                   </div>
                 )}
                 {studio?.cancellation_hours && (
@@ -1332,7 +1357,8 @@ export default function StudioPage() {
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
                     <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
                     <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">{t("booking.success")}</p>
-                    <p className="text-xs text-emerald-600 font-inter">ID: {bookingSuccess.booking_id}</p>
+                    <p className="text-xs text-emerald-600 font-inter mb-1">Das Studio erstellt dein Angebot – du hast dann <strong>{offerDeadlineLabel}</strong> Zeit zum Annehmen.</p>
+                    <p className="text-xs text-zinc-400 font-inter">ID: {bookingSuccess.booking_id}</p>
                     <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">Zum Dashboard</button>
                   </motion.div>
                 ) : (

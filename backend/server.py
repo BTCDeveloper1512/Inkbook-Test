@@ -262,7 +262,8 @@ def payment_confirmed_html(booking: dict) -> str:
 def guest_offer_email_html(
     guest_name: str, studio_name: str, date_fmt: str, offer_time: str,
     offer_duration_min: int, offer_total_price: float, offer_deposit_amount: float,
-    offer_notes: str, tattoo_desc: str, activate_url: str
+    offer_notes: str, tattoo_desc: str, activate_url: str,
+    offer_deadline_label: str = "24 Stunden"
 ) -> str:
     notes_block = f"""
       <div style="background:#fafafa;border-left:3px solid #d1d5db;padding:14px 18px;border-radius:6px;margin-top:16px;">
@@ -282,9 +283,13 @@ def guest_offer_email_html(
           <span style="font-size:12px;font-weight:700;color:#6d28d9;letter-spacing:0.05em;text-transform:uppercase;">Neues Angebot</span>
         </div>
         <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#111;letter-spacing:-0.4px;">Hallo {guest_name}!</h2>
-        <p style="font-size:15px;color:#444;margin:0 0 24px;line-height:1.6;">
+        <p style="font-size:15px;color:#444;margin:0 0 20px;line-height:1.6;">
           <strong style="color:#111;">{studio_name}</strong> hat deine Tattoo-Anfrage geprüft und dir ein Angebot erstellt.
         </p>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+          <p style="font-size:13px;font-weight:700;color:#c2410c;margin:0 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;">⏳ Du hast {offer_deadline_label} Zeit zum Annehmen</p>
+          <p style="font-size:13px;color:#9a3412;margin:0;font-family:'Helvetica Neue',Arial,sans-serif;line-height:1.5;">Nimm das Angebot innerhalb von {offer_deadline_label} an – danach verfällt es automatisch und du musst erneut anfragen.</p>
+        </div>
         {desc_block}
         <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;margin-bottom:8px;">
           {_detail_row("Studio", studio_name, highlight=True)}
@@ -300,9 +305,6 @@ def guest_offer_email_html(
         <div style="text-align:center;margin:28px 0 8px;">
           <a href="{activate_url}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:15px 36px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:-0.2px;">Passwort vergeben &amp; Angebot ansehen →</a>
         </div>
-        <p style="font-size:12px;color:#aaa;text-align:center;margin:12px 0 0;line-height:1.6;">
-          Das Angebot ist <strong>7 Tage</strong> gültig. Danach wird es automatisch archiviert.
-        </p>
       </div>
       {_email_footer(f"Du erhältst diese E-Mail weil du eine Anfrage bei {studio_name} auf StudioOS gestellt hast.")}
     </div>"""
@@ -988,6 +990,10 @@ async def create_inquiry_offer(inquiry_id: str, offer: InquiryOffer, current_use
     platform_fee_pct = 5.0
     platform_fee_amount = round(offer.offer_deposit_amount * platform_fee_pct / 100, 2)
 
+    # Dynamic deadline based on appointment date
+    offer_deadline_dt, offer_deadline_min, offer_deadline_label = _calc_offer_deadline(offer.offer_date)
+    offer_deadline_at = offer_deadline_dt.isoformat()
+
     # Create a proper booking from the inquiry so the full offer→deposit→confirm flow works
     booking_doc = {
         "booking_id": f"book_{uuid.uuid4().hex[:12]}",
@@ -1018,6 +1024,8 @@ async def create_inquiry_offer(inquiry_id: str, offer: InquiryOffer, current_use
         "platform_fee_pct": platform_fee_pct,
         "platform_fee_amount": platform_fee_amount,
         "offer_created_at": datetime.now(timezone.utc).isoformat(),
+        "deposit_deadline_at": offer_deadline_at,
+        "offer_deadline_label": offer_deadline_label,
         "inquiry_id": inquiry_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1051,10 +1059,11 @@ async def create_inquiry_offer(inquiry_id: str, offer: InquiryOffer, current_use
             offer_notes=offer.offer_notes,
             tattoo_desc=inquiry.get("tattoo_description", ""),
             activate_url=activate_url,
+            offer_deadline_label=offer_deadline_label,
         )
         asyncio.create_task(send_email(
             to=guest_email,
-            subject=f"Dein Tattoo-Angebot von {studio_name} 🎨",
+            subject=f"⏳ Dein Tattoo-Angebot von {studio_name} – {offer_deadline_label} zum Annehmen",
             html=html,
         ))
 
@@ -2343,6 +2352,28 @@ async def check_final_payment(booking_id: str, current_user: dict = Depends(get_
 
 # ─── Booking Offer / Accept / No-Show ────────────────────────────────────────
 
+def _calc_offer_deadline(offer_date_str: str) -> tuple:
+    """
+    Returns (deadline_datetime, minutes_int, human_label) based on how far away the appointment is:
+      < 24 h  → 30 Minuten
+      1–7 d   → 2 Stunden
+      > 7 d   → 24 Stunden
+    """
+    now = datetime.now(timezone.utc)
+    try:
+        appt_dt = datetime.strptime(offer_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except Exception:
+        appt_dt = now + timedelta(days=8)
+    diff_hours = max(0, (appt_dt - now).total_seconds() / 3600)
+    if diff_hours < 24:
+        minutes, label = 30, "30 Minuten"
+    elif diff_hours < 24 * 7:
+        minutes, label = 120, "2 Stunden"
+    else:
+        minutes, label = 1440, "24 Stunden"
+    return now + timedelta(minutes=minutes), minutes, label
+
+
 @api_router.post("/bookings/{booking_id}/offer")
 async def create_booking_offer(booking_id: str, offer: BookingOffer, current_user: dict = Depends(get_current_user)):
     """Studio creates a date/price offer for a customer booking request."""
@@ -2361,8 +2392,9 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
     platform_fee_pct = 5.0
     platform_fee_amount = round(offer.offer_deposit_amount * platform_fee_pct / 100, 2)
 
-    # Set 15-minute deadline starting from when offer is sent
-    offer_deadline_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    # Dynamic deadline based on how far away the appointment is
+    offer_deadline_dt, offer_deadline_min, offer_deadline_label = _calc_offer_deadline(offer.offer_date)
+    offer_deadline_at = offer_deadline_dt.isoformat()
 
     await db.bookings.update_one(
         {"booking_id": booking_id},
@@ -2378,6 +2410,7 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
             "platform_fee_amount": platform_fee_amount,
             "offer_created_at": datetime.now(timezone.utc).isoformat(),
             "deposit_deadline_at": offer_deadline_at,
+            "offer_deadline_label": offer_deadline_label,
             "deposit_required": True,
         }}
     )
@@ -2393,15 +2426,53 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
     asyncio.create_task(_post_system_message(
         customer_id=customer_id,
         studio_owner_id=owner_id,
-        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · {deposit_str} Anzahlung – bitte innerhalb von 15 Minuten annehmen.",
+        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · {deposit_str} Anzahlung – bitte innerhalb von {offer_deadline_label} annehmen.",
         triggered_by_id=owner_id
     ))
     asyncio.create_task(send_push_notification(
         user_id=customer_id,
-        title=f"⏳ Neues Angebot – {studio.get('name', '')} (15 Min. Zeit)",
+        title=f"⏳ Neues Angebot – {studio.get('name', '')} ({offer_deadline_label} Zeit)",
         body=f"{date_fmt} um {offer.offer_time} Uhr · {deposit_str} Anzahlung – jetzt annehmen!",
         url="/dashboard"
     ))
+
+    # Send email to customer with offer details + deadline
+    user_email = booking.get("user_email", "")
+    if user_email:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"⏳ Neues Angebot von {studio.get('name', '')} – {offer_deadline_label} Zeit zum Annehmen",
+            html=f"""
+            <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+              {_email_header()}
+              <div style="padding:32px 32px 24px;">
+                <div style="display:inline-block;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+                  <span style="font-size:12px;font-weight:700;color:#6d28d9;letter-spacing:0.05em;text-transform:uppercase;">Neues Angebot</span>
+                </div>
+                <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#111;letter-spacing:-0.4px;">Du hast ein Angebot erhalten!</h2>
+                <p style="font-size:15px;color:#444;margin:0 0 20px;line-height:1.6;">
+                  <strong style="color:#111;">{studio.get('name', '')}</strong> hat dir ein Angebot für deinen Tattoo-Termin erstellt.
+                </p>
+                <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+                  <p style="font-size:13px;font-weight:700;color:#c2410c;margin:0 0 4px;">⏳ Du hast {offer_deadline_label} Zeit</p>
+                  <p style="font-size:13px;color:#9a3412;margin:0;">Nimm das Angebot innerhalb von {offer_deadline_label} in deinem Dashboard an – danach verfällt es automatisch.</p>
+                </div>
+                <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;margin-bottom:24px;">
+                  {_detail_row("Studio", studio.get('name', ''), highlight=True)}
+                  {_detail_row("Datum", date_fmt)}
+                  {_detail_row("Uhrzeit", f"{offer.offer_time} Uhr")}
+                  {_detail_row("Dauer", f"{offer.offer_duration_min} Minuten")}
+                  {_detail_row("Gesamtpreis", f"€ {offer.offer_total_price:.0f}")}
+                  {_detail_row("Anzahlung", deposit_str)}
+                </table>
+                {f'<div style="background:#fafafa;border-left:3px solid #d1d5db;padding:14px 18px;border-radius:6px;margin-bottom:24px;"><p style="font-size:12px;color:#888;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.06em;">Notiz vom Studio</p><p style="font-size:14px;color:#444;margin:0;line-height:1.6;">"{offer.offer_notes}"</p></div>' if offer.offer_notes else ""}
+                <a href="{_get_frontend_url()}/dashboard" style="display:block;text-align:center;background:#111;color:#fff;padding:14px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:-0.2px;">
+                  Jetzt Angebot annehmen →
+                </a>
+              </div>
+              {_email_footer()}
+            </div>"""
+        ))
 
     return {"message": "Angebot erstellt", "status": "offer_sent"}
 
