@@ -1464,8 +1464,38 @@ export default function StudioDashboard() {
                                     {b.offer_deposit_amount != null && b.offer_deposit_amount !== "" && <><span className="text-[10px] font-inter text-zinc-400">Anzahlung</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{parseFloat(b.offer_deposit_amount)===0?"Kostenlos":`€ ${parseFloat(b.offer_deposit_amount).toFixed(0)}`}</span></>}
                                     {(b.preferred_time_from || b.preferred_time_to) && <><span className="text-[10px] font-inter text-zinc-400">Wunschzeit</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.preferred_time_from||"?"} – {b.preferred_time_to||"?"}</span></>}
                                     {b.body_part && <><span className="text-[10px] font-inter text-zinc-400">Körperstelle</span><span className="text-[10px] font-inter font-semibold text-zinc-700">{b.body_part}</span></>}
-                                    {b.notes && <><span className="text-[10px] font-inter text-zinc-400">Anmerkung</span><span className="text-[10px] font-inter text-zinc-600 italic">"{b.notes}"</span></>}
                                   </div>
+                                  {/* Bemerkung */}
+                                  {b.notes && (
+                                    <div className="ml-4 bg-zinc-50 rounded-xl px-3 py-2 border border-zinc-100">
+                                      <p className="text-[10px] font-inter font-semibold text-zinc-400 uppercase tracking-wider mb-0.5">Bemerkung</p>
+                                      <p className="text-[11px] font-inter text-zinc-600 italic">"{b.notes}"</p>
+                                    </div>
+                                  )}
+                                  {/* Referenzbilder */}
+                                  {b.reference_images?.length > 0 && (
+                                    <div className="ml-4">
+                                      <p className="text-[10px] font-inter font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Referenzbilder</p>
+                                      <div className="flex gap-1.5 flex-wrap">
+                                        {b.reference_images.map((img, ri) => (
+                                          <a key={ri} href={img} target="_blank" rel="noreferrer">
+                                            <img src={img} alt={`ref-${ri}`} className="w-14 h-14 object-cover rounded-xl border border-zinc-200 hover:opacity-80 transition-opacity" />
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Chat-Button */}
+                                  {b.user_id && (
+                                    <div className="ml-4">
+                                      <button
+                                        onClick={() => navigate(`/messages/${b.user_id}`, { state: { recipientName: b.user_name, recipientRole: "customer" } })}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-700 text-white text-[11px] font-inter font-semibold transition-colors"
+                                      >
+                                        <MessageSquare size={11} strokeWidth={2} /> Chat öffnen
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
