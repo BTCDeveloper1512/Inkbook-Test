@@ -1378,34 +1378,48 @@ export default function StudioDashboard() {
                           const bks = bksByDate[iso] || [];
                           const isToday = iso === todayIsoV;
                           const isSel = calViewSelected === iso;
-                          const confCnt = bks.filter(b => b.status === "confirmed").length;
-                          const pendCnt = bks.filter(b => ["pending","pending_studio_review","under_review","offer_sent"].includes(b.status)).length;
+                          const confCnt      = bks.filter(b => b.status === "confirmed").length;
+                          const pendCnt      = bks.filter(b => ["pending","pending_studio_review","under_review","offer_sent"].includes(b.status)).length;
+                          const cancelCnt    = bks.filter(b => ["cancelled","customer_cancelled","studio_cancelled","no_show"].includes(b.status)).length;
+                          const completedCnt = bks.filter(b => b.status === "completed").length;
+                          const activeCnt    = confCnt + pendCnt;
+                          const onlyClosed   = bks.length > 0 && activeCnt === 0 && cancelCnt === 0; // only completed
+                          const hasCancel    = cancelCnt > 0 && activeCnt === 0;                      // only cancels (no active)
                           const dayBg = isSel
                             ? "bg-zinc-900 shadow-md"
                             : isToday
                               ? "ring-2 ring-zinc-900 ring-offset-1"
-                              : confCnt > 0
-                                ? "bg-emerald-100 ring-1 ring-emerald-300 hover:bg-emerald-200"
-                                : pendCnt > 0
-                                  ? "bg-amber-100 ring-1 ring-amber-300 hover:bg-amber-200"
-                                  : "hover:bg-zinc-50";
+                              : hasCancel
+                                ? "bg-red-50 ring-1 ring-red-200 hover:bg-red-100"
+                                : onlyClosed
+                                  ? "bg-zinc-100 hover:bg-zinc-150 opacity-60"
+                                  : confCnt > 0
+                                    ? "bg-emerald-100 ring-1 ring-emerald-300 hover:bg-emerald-200"
+                                    : pendCnt > 0
+                                      ? "bg-amber-100 ring-1 ring-amber-300 hover:bg-amber-200"
+                                      : "hover:bg-zinc-50";
+                          const numCls = isSel ? "text-white" : hasCancel ? "text-red-700" : onlyClosed ? "text-zinc-400" : confCnt > 0 ? "text-emerald-800" : pendCnt > 0 ? "text-amber-800" : "text-zinc-700";
                           return (
                             <button key={iso} onClick={() => setCalViewSelected(iso)}
                               className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all ${dayBg}`}>
-                              <span className={`text-xs font-inter font-semibold leading-none ${isSel ? "text-white" : confCnt > 0 ? "text-emerald-800" : pendCnt > 0 ? "text-amber-800" : "text-zinc-700"}`}>{day}</span>
+                              <span className={`text-xs font-inter font-semibold leading-none ${numCls}`}>{day}</span>
                               {bks.length > 0 && (
                                 <div className="flex gap-0.5 mt-0.5">
                                   {Array.from({length:Math.min(confCnt,3)}).map((_,k)=><span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-emerald-300":"bg-emerald-600"}`}/>)}
                                   {Array.from({length:Math.min(pendCnt,3)}).map((_,k)=><span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-amber-300":"bg-amber-600"}`}/>)}
+                                  {Array.from({length:Math.min(cancelCnt,3)}).map((_,k)=><span key={`x${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-red-300":"bg-red-400"}`}/>)}
+                                  {Array.from({length:Math.min(completedCnt,3)}).map((_,k)=><span key={`d${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-zinc-300":"bg-zinc-400"}`}/>)}
                                 </div>
                               )}
                             </button>
                           );
                         })}
                       </div>
-                      <div className="flex items-center gap-3 mt-3">
+                      <div className="flex flex-wrap items-center gap-3 mt-3">
                         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"/><span className="text-[10px] font-inter text-zinc-400">Bestätigt</span></div>
                         <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] font-inter text-zinc-400">Ausstehend</span></div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400"/><span className="text-[10px] font-inter text-zinc-400">Storniert</span></div>
+                        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-zinc-400"/><span className="text-[10px] font-inter text-zinc-400">Abgeschlossen</span></div>
                       </div>
                     </div>
                     {/* Selected day detail */}
