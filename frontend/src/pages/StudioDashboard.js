@@ -1513,26 +1513,6 @@ export default function StudioDashboard() {
                     />
                   </div>
                 </div>
-                {/* Size → points cost table */}
-                <div>
-                  <p className="text-[11px] font-inter font-semibold text-zinc-400 uppercase tracking-wider mb-2">Kapazitätskosten pro Buchung</p>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {[
-                      { key: "mini",   label: "Mini",   dot: "bg-violet-400"  },
-                      { key: "small",  label: "Small",  dot: "bg-teal-400"    },
-                      { key: "medium", label: "Medium", dot: "bg-amber-400"   },
-                      { key: "large",  label: "Large",  dot: "bg-orange-400"  },
-                      { key: "xl",     label: "XL",     dot: "bg-rose-500"    },
-                    ].map(({ key, label, dot }) => (
-                      <div key={key} className="bg-zinc-50 rounded-xl p-2.5 text-center border border-zinc-100">
-                        <div className={`w-3 h-3 rounded-full ${dot} mx-auto mb-1.5`} />
-                        <p className="text-[10px] font-inter font-semibold text-zinc-700">{label}</p>
-                        <p className="text-[11px] font-inter font-bold text-zinc-900 mt-0.5">{sizeCapacity[key] ?? "—"} Pt.</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-zinc-400 font-inter mt-1.5">Beispiel: 1 Large-Buchung ({sizeCapacity.large} Pt.) + 1 Small ({sizeCapacity.small} Pt.) = {(sizeCapacity.large || 0) + (sizeCapacity.small || 0)} von {dayCapacity} Pt. belegt</p>
-                </div>
               </div>
 
               {/* Calendar grid */}
