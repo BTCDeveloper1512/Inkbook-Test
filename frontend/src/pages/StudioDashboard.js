@@ -2385,76 +2385,82 @@ export default function StudioDashboard() {
             {stats?.studio?.studio_id && (() => {
               const bookingUrl = `${window.location.origin}/studios/${stats.studio.studio_id}?book=true`;
               return (
-                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Link2 size={15} className="text-zinc-900" strokeWidth={1.5} />
-                    <h3 className="font-playfair font-semibold text-lg text-zinc-900">Dein Buchungslink</h3>
-                  </div>
-                  <p className="text-xs text-zinc-500 font-inter mb-4">Teile diesen Link auf Instagram, WhatsApp oder deiner Website — Kunden landen direkt auf deiner Buchungsseite.</p>
-                  <div className="flex items-center gap-2 p-3 bg-zinc-50 border border-zinc-200 rounded-xl mb-3">
-                    <span className="flex-1 text-xs font-mono text-zinc-600 truncate">{bookingUrl}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(bookingUrl);
-                        setLinkCopied(true);
-                        setTimeout(() => setLinkCopied(false), 2500);
-                      }}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-inter font-semibold transition-all ${linkCopied ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-900 text-white hover:bg-zinc-700"}`}
-                    >
-                      {linkCopied ? <><CheckCircle size={13} strokeWidth={2} /> Kopiert!</> : <><Copy size={13} strokeWidth={1.5} /> Link kopieren</>}
-                    </button>
-                    <a
-                      href={bookingUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-inter font-medium text-zinc-600 border border-zinc-200 hover:bg-zinc-50 transition-colors"
-                    >
-                      <ExternalLink size={13} strokeWidth={1.5} /> Vorschau
-                    </a>
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                        <Link2 size={14} className="text-zinc-600" strokeWidth={1.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-inter font-semibold text-zinc-900 leading-tight">Dein Buchungslink</p>
+                        <p className="text-[11px] text-zinc-400 font-inter font-mono truncate">{bookingUrl}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(bookingUrl); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2500); }}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-inter font-semibold transition-all ${linkCopied ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-900 text-white hover:bg-zinc-700"}`}
+                      >
+                        {linkCopied ? <><CheckCircle size={12} strokeWidth={2} /> Kopiert</> : <><Copy size={12} strokeWidth={1.5} /> Kopieren</>}
+                      </button>
+                      <a href={bookingUrl} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-inter font-medium text-zinc-600 border border-zinc-200 hover:bg-zinc-50 transition-colors">
+                        <ExternalLink size={12} strokeWidth={1.5} /> Vorschau
+                      </a>
+                    </div>
                   </div>
                 </div>
               );
             })()}
 
+            {/* ── Studio-Profil ── */}
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-              <h3 className="font-playfair font-semibold text-lg mb-5 text-zinc-900">Grunddaten</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Studio-Name</label>
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-5">Studio-Profil</h3>
+
+              {/* Basis-Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Studio-Name</label>
                   <input type="text" value={editForm.name || ""} onChange={e => setEditForm({...editForm, name: e.target.value})} className="input-base w-full" data-testid="edit-studio-name" />
                 </div>
                 <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Stadt</label>
-                  <input type="text" value={editForm.city || ""} onChange={e => setEditForm({...editForm, city: e.target.value})} className="input-base w-full" data-testid="edit-studio-city" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Adresse</label>
-                  <input type="text" value={editForm.address || ""} onChange={e => setEditForm({...editForm, address: e.target.value})} className="input-base w-full" data-testid="edit-studio-address" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Beschreibung</label>
-                  <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={4} className="input-base w-full resize-none" data-testid="edit-studio-description" />
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Telefon</label>
-                  <input type="text" value={editForm.phone || ""} onChange={e => setEditForm({...editForm, phone: e.target.value})} className="input-base w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">E-Mail</label>
-                  <input type="email" value={editForm.email || ""} onChange={e => setEditForm({...editForm, email: e.target.value})} className="input-base w-full" data-testid="edit-studio-email" />
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Website</label>
-                  <input type="text" value={editForm.website || ""} onChange={e => setEditForm({...editForm, website: e.target.value})} className="input-base w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Preisklasse</label>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Preisklasse</label>
                   <select value={editForm.price_range || "medium"} onChange={e => setEditForm({...editForm, price_range: e.target.value})} className="input-base w-full" data-testid="edit-price-range">
                     <option value="budget">Günstig</option><option value="medium">Mittel</option><option value="premium">Premium</option><option value="luxury">Luxus</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Stadt</label>
+                  <input type="text" value={editForm.city || ""} onChange={e => setEditForm({...editForm, city: e.target.value})} className="input-base w-full" data-testid="edit-studio-city" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Adresse</label>
+                  <input type="text" value={editForm.address || ""} onChange={e => setEditForm({...editForm, address: e.target.value})} className="input-base w-full" data-testid="edit-studio-address" />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Beschreibung</label>
+                  <textarea value={editForm.description || ""} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={3} className="input-base w-full resize-none" data-testid="edit-studio-description" />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-zinc-100 my-4" />
+
+              {/* Kontakt */}
+              <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-3">Kontakt</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Telefon</label>
+                  <input type="text" value={editForm.phone || ""} onChange={e => setEditForm({...editForm, phone: e.target.value})} className="input-base w-full" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">E-Mail</label>
+                  <input type="email" value={editForm.email || ""} onChange={e => setEditForm({...editForm, email: e.target.value})} className="input-base w-full" data-testid="edit-studio-email" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Website</label>
+                  <input type="text" value={editForm.website || ""} onChange={e => setEditForm({...editForm, website: e.target.value})} className="input-base w-full" />
                 </div>
               </div>
             </div>
