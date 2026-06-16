@@ -1,13 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { X, CheckCircle, Send, User, Mail, ImagePlus, Trash2, Calendar, Clock } from "lucide-react";
+import { X, CheckCircle, Send, User, Mail, ImagePlus, Trash2, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SIZES = ["Klein (bis 5 cm)", "Mittel (5–15 cm)", "Groß (15–25 cm)", "XL (25 cm+)", "Ganzkörper"];
 const BODY_PARTS = ["Arm", "Unterarm", "Oberarm", "Rücken", "Brust", "Bein", "Oberschenkel", "Wade", "Schulter", "Hals", "Hand", "Fuß", "Rippen", "Bauch", "Anderes"];
 const TIME_PREFS = ["Keine Präferenz", "Früh (08:00–10:00)", "Vormittags (10:00–12:00)", "Mittags (12:00–14:00)", "Nachmittags (14:00–17:00)", "Abends (17:00–20:00)"];
+const DAY_CAPACITY = 8;
 
 function ProgressSteps({ active }) {
   const steps = [
@@ -32,6 +33,149 @@ function ProgressSteps({ active }) {
   );
 }
 
+function CapacityCalendar({ studioId, selectedDate, onSelectDate }) {
+  const today = new Date();
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const [capacityData, setCapacityData] = useState({});
+  const [calVisibleUntil, setCalVisibleUntil] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const toISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+  const getCalDays = () => {
+    const { year, month } = calMonth;
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    const startDow = (first.getDay() + 6) % 7;
+    const days = [];
+    for (let i = 0; i < startDow; i++) days.push(null);
+    for (let d = 1; d <= last.getDate(); d++) days.push(new Date(year, month, d));
+    return days;
+  };
+
+  useEffect(() => {
+    if (!studioId) return;
+    setLoading(true);
+    axios.get(`${API}/studios/${studioId}/capacity-calendar`, {
+      params: { year: calMonth.year, month: calMonth.month + 1 }
+    }).then(({ data }) => {
+      setCapacityData(data.dates || {});
+      setCalVisibleUntil(data.slots_visible_until || null);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [studioId, calMonth]);
+
+  const prevMonth = () => setCalMonth(m => {
+    const d = new Date(m.year, m.month - 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+  const nextMonth = () => setCalMonth(m => {
+    const d = new Date(m.year, m.month + 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const monthLabel = new Date(calMonth.year, calMonth.month, 1)
+    .toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+
+  const calDays = getCalDays();
+  const isPrevDisabled = calMonth.year === today.getFullYear() && calMonth.month === today.getMonth();
+
+  return (
+    <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4">
+      {/* Month navigation */}
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={prevMonth} disabled={isPrevDisabled}
+          className="p-1.5 rounded-lg hover:bg-zinc-200 text-zinc-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <ChevronLeft size={14} strokeWidth={2} />
+        </button>
+        <span className="text-xs font-inter font-semibold text-zinc-700 capitalize">{monthLabel}</span>
+        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-zinc-200 text-zinc-500 transition-colors">
+          <ChevronRight size={14} strokeWidth={2} />
+        </button>
+      </div>
+
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 mb-1">
+        {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+          <div key={d} className="text-center text-[10px] font-inter font-semibold text-zinc-400 py-0.5">{d}</div>
+        ))}
+      </div>
+
+      {/* Days grid */}
+      {loading ? (
+        <div className="flex items-center justify-center h-28">
+          <div className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-7 gap-0.5">
+          {calDays.map((day, idx) => {
+            if (!day) return <div key={`e-${idx}`} />;
+            const iso = toISO(day);
+            const isPast = iso < todayISO;
+            const isToday = iso === todayISO;
+            const isSel = iso === selectedDate;
+            const capDay = capacityData[iso];
+            const remaining = capDay ? capDay.remaining : (isPast ? 0 : DAY_CAPACITY);
+            const isVacation = !isPast && capDay && capDay.status === "vacation";
+            const isNotAvailYet = !isPast && calVisibleUntil && iso > calVisibleUntil;
+            const canFit = !isPast && !isVacation && !isNotAvailYet && remaining > 0;
+
+            const dotColor = isSel
+              ? "bg-white/70"
+              : isVacation
+                ? "bg-violet-400"
+                : isNotAvailYet
+                  ? "bg-zinc-300"
+                  : !canFit
+                    ? "bg-rose-400"
+                    : remaining >= 5
+                      ? "bg-teal-400"
+                      : remaining >= 3
+                        ? "bg-yellow-400"
+                        : "bg-indigo-400";
+
+            const btnCls = [
+              "relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-inter font-medium transition-all",
+              isPast || !canFit || isVacation || isNotAvailYet ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-200 text-zinc-700",
+              isVacation ? "bg-violet-50" : "",
+              isNotAvailYet ? "bg-zinc-100 border border-dashed border-zinc-200" : "",
+              isSel ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : "",
+              isToday && !isSel ? "ring-2 ring-zinc-800 ring-offset-1 font-bold text-zinc-900" : "",
+            ].filter(Boolean).join(" ");
+
+            return (
+              <button
+                key={iso} type="button"
+                disabled={isPast || !canFit || isVacation || isNotAvailYet}
+                onClick={() => onSelectDate(isSel ? null : iso)}
+                className={btnCls}
+                title={isVacation ? "Urlaub / geschlossen" : isNotAvailYet ? "Noch nicht buchbar" : capDay?.note || undefined}
+              >
+                <span>{day.getDate()}</span>
+                {!isPast && !isNotAvailYet && (
+                  <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${dotColor}`} />
+                )}
+                {!isPast && isNotAvailYet && (
+                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[7px] font-inter text-zinc-400">bald</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="flex items-center gap-3 flex-wrap mt-3 pt-2.5 border-t border-zinc-200">
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Verfügbar</span></div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Begrenzt</span></div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Fast voll</span></div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Ausgebucht</span></div>
+        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Urlaub</span></div>
+      </div>
+    </div>
+  );
+}
+
 export default function GuestBookingModal({ studio, onClose }) {
   const [step, setStep] = useState("form");
   const [loading, setLoading] = useState(false);
@@ -40,11 +184,18 @@ export default function GuestBookingModal({ studio, onClose }) {
     name: "", email: "", tattoo_description: "", size: "", body_part: "",
     wished_date_from: "", wished_date_to: "", wished_time: "",
   });
+  const [selectedDate, setSelectedDate] = useState(null);
   const [refImages, setRefImages] = useState([]);
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleSelectDate = (iso) => {
+    setSelectedDate(iso);
+    update("wished_date_from", iso || "");
+    update("wished_date_to", iso || "");
+  };
 
   const handleImagePick = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -195,41 +346,32 @@ export default function GuestBookingModal({ studio, onClose }) {
                   </div>
                 </div>
 
-                {/* Wished date range */}
-                <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar size={13} className="text-blue-500" strokeWidth={1.5} />
-                    <label className="text-xs font-inter font-semibold tracking-widest uppercase text-blue-600">Wunschzeitraum</label>
+                {/* Capacity Calendar */}
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">
+                    Wunschtermin <span className="normal-case font-normal">(optional)</span>
+                  </label>
+                  <CapacityCalendar
+                    studioId={studio.studio_id}
+                    selectedDate={selectedDate}
+                    onSelectDate={handleSelectDate}
+                  />
+                  {selectedDate && (
+                    <p className="text-[11px] text-zinc-500 font-inter mt-1.5 text-center">
+                      Gewählter Termin: <strong className="text-zinc-800">{new Date(selectedDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong>
+                    </p>
+                  )}
+                </div>
+
+                {/* Time preference */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Clock size={12} className="text-zinc-400" strokeWidth={1.5} />
+                    <label className="text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400">Uhrzeit-Präferenz</label>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-inter text-zinc-500 mb-1">Von</label>
-                      <input
-                        type="date" value={form.wished_date_from}
-                        onChange={e => update("wished_date_from", e.target.value)}
-                        min={new Date().toISOString().split("T")[0]}
-                        className="input-base w-full text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-inter text-zinc-500 mb-1">Bis</label>
-                      <input
-                        type="date" value={form.wished_date_to}
-                        onChange={e => update("wished_date_to", e.target.value)}
-                        min={form.wished_date_from || new Date().toISOString().split("T")[0]}
-                        className="input-base w-full text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Clock size={11} className="text-zinc-400" strokeWidth={1.5} />
-                      <label className="text-[11px] font-inter text-zinc-500">Uhrzeit-Präferenz</label>
-                    </div>
-                    <select value={form.wished_time} onChange={e => update("wished_time", e.target.value)} className="input-base w-full text-sm">
-                      {TIME_PREFS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
+                  <select value={form.wished_time} onChange={e => update("wished_time", e.target.value)} className="input-base w-full">
+                    {TIME_PREFS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
                 </div>
 
                 {/* Reference images */}
