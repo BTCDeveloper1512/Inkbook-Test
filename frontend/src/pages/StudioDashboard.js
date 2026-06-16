@@ -81,6 +81,11 @@ export default function StudioDashboard() {
   // Calendar blocks (manual studio blocking)
   const [calBlocks, setCalBlocks] = useState([]);
   const [calCapData, setCalCapData] = useState({});
+  const [dayCapacity, setDayCapacity] = useState(8);
+  const [sizeCapacity, setSizeCapacity] = useState({ mini: 1, small: 2, medium: 3, large: 5, xl: 8 });
+  const [dayCapInput, setDayCapInput] = useState(8);
+  const [dayCapSaving, setDayCapSaving] = useState(false);
+  const [calBlockPickCap, setCalBlockPickCap] = useState(""); // per-day custom capacity override
   const now0 = new Date();
   const [calBlockMonth, setCalBlockMonth] = useState(now0.getMonth() + 1);
   const [calBlockYear, setCalBlockYear] = useState(now0.getFullYear());
@@ -558,7 +563,22 @@ export default function StudioDashboard() {
       const { data } = await axios.get(`${API}/studios/${studioId}/capacity-calendar`, { params });
       setCalCapData(data.dates || {});
       if (data.slots_visible_until !== undefined) setVisibleUntil(data.slots_visible_until || "");
+      if (data.day_capacity) { setDayCapacity(data.day_capacity); setDayCapInput(data.day_capacity); }
+      if (data.size_capacity) setSizeCapacity(data.size_capacity);
     } catch {}
+  };
+
+  const handleSaveDayCapacity = async () => {
+    const studioId = stats?.studio?.studio_id;
+    if (!studioId) return;
+    setDayCapSaving(true);
+    try {
+      const { data } = await axios.put(`${API}/studios/my/day-capacity`, { day_capacity: Number(dayCapInput) }, { withCredentials: true });
+      setDayCapacity(data.day_capacity);
+      notify.success("Tageskapazität gespeichert");
+      await fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId);
+    } catch (e) { notify.error(e.response?.data?.detail || "Fehler"); }
+    finally { setDayCapSaving(false); }
   };
 
   const handleSaveCalBlock = async () => {
@@ -566,12 +586,14 @@ export default function StudioDashboard() {
     const studioId = stats?.studio?.studio_id;
     setCalBlockSaving(true);
     try {
+      const customCap = calBlockPickCap !== "" && Number(calBlockPickCap) > 0 ? Number(calBlockPickCap) : null;
       await Promise.all([...calSelectedDates].map(date =>
         axios.post(`${API}/studios/${studioId}/calendar-blocks`, {
           date,
           block_type: calBlockPickType,
           note: calBlockPickNote,
           artist_id: calArtistId || null,
+          custom_capacity: customCap,
         }, { withCredentials: true })
       ));
       await Promise.all([fetchCalBlocks(studioId, calArtistId), fetchCalCapacity(studioId, calBlockYear, calBlockMonth, calArtistId)]);
@@ -1223,6 +1245,8 @@ export default function StudioDashboard() {
             const existing = firstDate ? blocksByDate[firstDate] : null;
             setCalBlockPickType(existing ? existing.block_type : "busy");
             setCalBlockPickNote("");
+            const capDay = firstDate ? calCapData[firstDate] : null;
+            setCalBlockPickCap(capDay?.custom_capacity ? String(capDay.custom_capacity) : "");
             setCalBlockPickModal(true);
           };
 
@@ -1464,6 +1488,48 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
+              {/* Capacity settings card */}
+              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-sm p-4 space-y-4">
+                {/* Global daily capacity */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-inter font-semibold text-zinc-900 mb-0.5">Tageskapazität (Punkte)</p>
+                    <p className="text-[11px] text-zinc-400 font-inter">Maximale Punkte pro Tag für das gesamte Studio. Einzelne Tage können abweichen.</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <input
+                      type="number" min={1} max={200} value={dayCapInput}
+                      onChange={e => setDayCapInput(e.target.value)}
+                      className="border border-zinc-200 rounded-xl px-3 py-2 text-sm font-inter text-zinc-700 w-20 text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                    <button onClick={handleSaveDayCapacity} disabled={dayCapSaving || Number(dayCapInput) === dayCapacity}
+                      className="px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-inter font-semibold hover:bg-zinc-700 transition-colors disabled:opacity-40">
+                      {dayCapSaving ? "…" : "Speichern"}
+                    </button>
+                  </div>
+                </div>
+                {/* Size → points cost table */}
+                <div>
+                  <p className="text-[11px] font-inter font-semibold text-zinc-400 uppercase tracking-wider mb-2">Kapazitätskosten pro Buchung</p>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { key: "mini",   label: "Mini",   emoji: "🔹" },
+                      { key: "small",  label: "Small",  emoji: "🟢" },
+                      { key: "medium", label: "Medium", emoji: "🟡" },
+                      { key: "large",  label: "Large",  emoji: "🟠" },
+                      { key: "xl",     label: "XL",     emoji: "🔴" },
+                    ].map(({ key, label, emoji }) => (
+                      <div key={key} className="bg-zinc-50 rounded-xl p-2.5 text-center border border-zinc-100">
+                        <p className="text-base leading-none mb-1">{emoji}</p>
+                        <p className="text-[10px] font-inter font-semibold text-zinc-700">{label}</p>
+                        <p className="text-[11px] font-inter font-bold text-zinc-900 mt-0.5">{sizeCapacity[key] ?? "—"} Pt.</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-1.5">Beispiel: 1 Large-Buchung ({sizeCapacity.large} Pt.) + 1 Small ({sizeCapacity.small} Pt.) = {(sizeCapacity.large || 0) + (sizeCapacity.small || 0)} von {dayCapacity} Pt. belegt</p>
+                </div>
+              </div>
+
               {/* Calendar grid */}
               <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
                 {/* Day headers */}
@@ -1507,9 +1573,12 @@ export default function StudioDashboard() {
                                   : "hover:bg-zinc-50 border border-transparent"}
                         `}
                         disabled={isPast}
-                        title={isSelected ? "Ausgewählt – klicken zum Abwählen" : block ? `${BLOCK_TYPES.find(t=>t.id===blockType)?.label || blockType}${block.note ? ` – ${block.note}` : ""}` : isAfterCutoff ? "Nach Sichtbarkeits-Limit (für Kunden nicht buchbar)" : capDay ? `Kapazität: ${capDay.status}` : "Klicken zum Auswählen"}
+                        title={isSelected ? "Ausgewählt – klicken zum Abwählen" : block ? `${BLOCK_TYPES.find(t=>t.id===blockType)?.label || blockType}${block.note ? ` – ${block.note}` : ""}${capDay ? ` · ${capDay.used}/${capDay.effective_cap} Punkte` : ""}` : isAfterCutoff ? "Nach Sichtbarkeits-Limit (für Kunden nicht buchbar)" : capDay ? `${capDay.used}/${capDay.effective_cap} Punkte belegt` : "Klicken zum Auswählen"}
                       >
-                        <span className={`text-xs font-semibold ${isSelected ? "text-white" : hasBg ? textCls[blockType] : isToday ? "text-white" : isAfterCutoff ? "text-zinc-400" : "text-zinc-700"}`}>{day}</span>
+                        <span className={`text-xs font-semibold leading-none ${isSelected ? "text-white" : hasBg ? textCls[blockType] : isToday ? "text-white" : isAfterCutoff ? "text-zinc-400" : "text-zinc-700"}`}>{day}</span>
+                        {!isPast && !isAfterCutoff && capDay && !["full","vacation"].includes(capDay.status) && (
+                          <span className={`text-[8px] font-inter leading-none mt-0.5 ${isSelected ? "text-white/70" : isToday && !hasBg ? "text-white/70" : hasBg ? textCls[blockType] + " opacity-70" : "text-zinc-400"}`}>{capDay.used}/{capDay.effective_cap}</span>
+                        )}
                         {!isPast && !isAfterCutoff && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? "bg-white/60" : isToday && !hasBg ? "bg-white/60" : dotColor}`} />}
                         {!isPast && isAfterCutoff && <span className="text-[8px] mt-0.5 text-zinc-400 font-inter leading-none">bald</span>}
                       </button>
@@ -1601,14 +1670,30 @@ export default function StudioDashboard() {
                         ))}
                       </div>
 
-                      <div className="mb-5">
-                        <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Notiz <span className="font-normal">(optional)</span></label>
-                        <input
-                          type="text" value={calBlockPickNote} onChange={e => setCalBlockPickNote(e.target.value)}
-                          placeholder="z. B. Workshop, Messe, privat..."
-                          className="input-base w-full"
-                        />
+                      <div className="flex gap-3 mb-4">
+                        <div className="flex-1">
+                          <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Notiz <span className="font-normal">(optional)</span></label>
+                          <input
+                            type="text" value={calBlockPickNote} onChange={e => setCalBlockPickNote(e.target.value)}
+                            placeholder="z. B. Workshop, Messe, privat..."
+                            className="input-base w-full"
+                          />
+                        </div>
+                        <div className="w-28 flex-shrink-0">
+                          <label className="text-xs font-inter font-semibold text-zinc-400 mb-1.5 block">Punkte <span className="font-normal">(opt.)</span></label>
+                          <input
+                            type="number" min={1} max={200} value={calBlockPickCap}
+                            onChange={e => setCalBlockPickCap(e.target.value)}
+                            placeholder={String(dayCapacity)}
+                            className="input-base w-full text-center"
+                          />
+                        </div>
                       </div>
+                      {calBlockPickCap && Number(calBlockPickCap) !== dayCapacity && (
+                        <p className="text-[11px] text-amber-600 font-inter mb-4 flex items-center gap-1">
+                          <span>⚠️</span> Tageskapazität für {calSelectedDates.size === 1 ? "diesen Tag" : "diese Tage"}: <strong>{calBlockPickCap} Punkte</strong> (statt {dayCapacity})
+                        </p>
+                      )}
 
                       <div className="flex gap-2">
                         {[...calSelectedDates].some(d => blocksByDate[d]) && (

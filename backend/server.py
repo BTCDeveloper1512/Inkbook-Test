@@ -583,6 +583,7 @@ class CalendarBlockCreate(BaseModel):
     block_type: str = "busy"   # busy | vacation | limited | private
     note: str = ""
     artist_id: Optional[str] = None  # None = studio-wide block; set = per-artist block
+    custom_capacity: Optional[int] = None  # per-day capacity override (None = use studio default)
 
 class ActivateAccountRequest(BaseModel):
     email: EmailStr
@@ -1529,6 +1530,10 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
     today_iso = datetime.now(timezone.utc).date().isoformat()
     from_date = max(first_day, today_iso)
 
+    # Use studio's custom day_capacity if set
+    studio_doc = await db.studios.find_one({"studio_id": studio_id}, {"slots_visible_until": 1, "day_capacity": 1})
+    studio_day_cap: int = int(studio_doc.get("day_capacity") or _DAY_CAPACITY) if studio_doc else _DAY_CAPACITY
+
     booking_query: Dict[str, Any] = {
         "studio_id": studio_id,
         "date": {"$gte": from_date, "$lte": last_day},
@@ -1554,23 +1559,20 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
             "date": {"$gte": first_day, "$lte": last_day},
             "$or": [{"artist_id": artist_id}, {"artist_id": None}, {"artist_id": {"$exists": False}}]
         }).to_list(200)
-        # Build dict: artist-specific blocks override studio-wide ones
         manual_blocks: Dict[str, dict] = {}
-        # First pass: studio-wide
         for b in all_blocks_list:
             if not b.get("artist_id"):
-                manual_blocks[b["date"]] = {"block_type": b["block_type"], "note": b.get("note", "")}
-        # Second pass: artist-specific overrides
+                manual_blocks[b["date"]] = {"block_type": b["block_type"], "note": b.get("note", ""), "custom_capacity": b.get("custom_capacity")}
         for b in all_blocks_list:
             if b.get("artist_id") == artist_id:
-                manual_blocks[b["date"]] = {"block_type": b["block_type"], "note": b.get("note", "")}
+                manual_blocks[b["date"]] = {"block_type": b["block_type"], "note": b.get("note", ""), "custom_capacity": b.get("custom_capacity")}
     else:
         manual_blocks_list = await db.calendar_blocks.find({
             "studio_id": studio_id,
             "date": {"$gte": first_day, "$lte": last_day},
             "$or": [{"artist_id": None}, {"artist_id": {"$exists": False}}]
         }).to_list(100)
-        manual_blocks = {b["date"]: {"block_type": b["block_type"], "note": b.get("note", "")} for b in manual_blocks_list}
+        manual_blocks = {b["date"]: {"block_type": b["block_type"], "note": b.get("note", ""), "custom_capacity": b.get("custom_capacity")} for b in manual_blocks_list}
 
     from datetime import date as date_type
     from_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
@@ -1581,11 +1583,12 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
     while current <= last_obj:
         iso = current.isoformat()
         used = used_by_date.get(iso, 0)
-        remaining = _DAY_CAPACITY - used
         if iso in manual_blocks:
             blk = manual_blocks[iso]
             btype = blk["block_type"]
             note = blk["note"]
+            # Per-day capacity override (from block's custom_capacity, else studio default)
+            effective_cap = int(blk["custom_capacity"]) if blk.get("custom_capacity") else studio_day_cap
             if btype in ("busy", "private", "full"):
                 status = "full"
                 remaining = 0
@@ -1594,15 +1597,17 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
                 remaining = 0
             elif btype == "small_only":
                 status = "small_only"
-                remaining = max(0, 2 - used)
+                remaining = max(0, min(2, effective_cap) - used)
             elif btype == "available":
                 status = "available"
-                # remaining unchanged — force open
+                remaining = max(0, effective_cap - used)
             else:  # "limited"
                 status = "limited"
-                remaining = max(0, 4 - used)
-            result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype, "note": note}
+                remaining = max(0, min(4, effective_cap) - used)
+            result[iso] = {"used": used, "remaining": remaining, "status": status, "block_type": btype, "note": note, "effective_cap": effective_cap, "custom_capacity": blk.get("custom_capacity")}
         else:
+            effective_cap = studio_day_cap
+            remaining = effective_cap - used
             if remaining <= 0:
                 status = "full"
             elif remaining <= 2:
@@ -1611,12 +1616,24 @@ async def get_capacity_calendar(studio_id: str, year: int, month: int, artist_id
                 status = "limited"
             else:
                 status = "available"
-            result[iso] = {"used": used, "remaining": remaining, "status": status, "note": ""}
+            result[iso] = {"used": used, "remaining": remaining, "status": status, "note": "", "effective_cap": effective_cap}
         current += timedelta(days=1)
 
-    studio_doc = await db.studios.find_one({"studio_id": studio_id}, {"slots_visible_until": 1})
     slots_visible_until = studio_doc.get("slots_visible_until") if studio_doc else None
-    return {"dates": result, "day_capacity": _DAY_CAPACITY, "slots_visible_until": slots_visible_until}
+    return {"dates": result, "day_capacity": studio_day_cap, "size_capacity": _SIZE_CAPACITY, "slots_visible_until": slots_visible_until}
+
+@api_router.put("/studios/my/day-capacity")
+async def set_day_capacity(data: dict, current_user: dict = Depends(get_current_user)):
+    """Set studio's global daily capacity in points."""
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": owner_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    cap = data.get("day_capacity")
+    if cap is None or int(cap) < 1 or int(cap) > 200:
+        raise HTTPException(status_code=400, detail="Ungültige Kapazität (1–200 Punkte)")
+    await db.studios.update_one({"owner_id": owner_id}, {"$set": {"day_capacity": int(cap)}})
+    return {"day_capacity": int(cap)}
 
 @api_router.put("/studios/my/visibility-cutoff")
 async def set_visibility_cutoff(data: dict, current_user: dict = Depends(get_current_user)):
@@ -1701,6 +1718,8 @@ async def create_calendar_block(studio_id: str, data: CalendarBlockCreate, curre
         "artist_id": data.artist_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if data.custom_capacity is not None and data.custom_capacity > 0:
+        block_doc["custom_capacity"] = int(data.custom_capacity)
     await db.calendar_blocks.insert_one(block_doc)
     block_doc.pop("_id", None)
     return block_doc
@@ -1726,6 +1745,9 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
 
     capacity_cost = _SIZE_CAPACITY[data.size_category]
 
+    # Use studio's custom day_capacity if set
+    studio_day_cap: int = int(studio.get("day_capacity") or _DAY_CAPACITY)
+
     # Check capacity for the requested day — per-artist if artist_id provided
     booking_filter: Dict[str, Any] = {
         "studio_id": data.studio_id,
@@ -1737,7 +1759,7 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         booking_filter["artist_id"] = data.artist_id
     existing = await db.bookings.find(booking_filter).to_list(100)
     used = sum(int(b.get("capacity_cost", 0)) for b in existing)
-    remaining = _DAY_CAPACITY - used
+    remaining = studio_day_cap - used
 
     # Apply manual calendar block cap — artist-specific block takes priority over studio-wide
     if data.artist_id:
@@ -1756,20 +1778,22 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         })
     if manual_block:
         btype = manual_block.get("block_type", "")
+        effective_cap = int(manual_block.get("custom_capacity") or studio_day_cap)
+        remaining = effective_cap - used
         if btype in ("busy", "private", "full"):
             raise HTTPException(status_code=400, detail="Dieser Tag ist vollständig blockiert.")
         elif btype == "vacation":
             raise HTTPException(status_code=400, detail="Das Studio ist an diesem Tag im Urlaub.")
         elif btype == "small_only":
-            remaining = max(0, 2 - used)
+            remaining = max(0, min(2, effective_cap) - used)
         elif btype == "limited":
-            remaining = max(0, 4 - used)
-        # "available" → no cap
+            remaining = max(0, min(4, effective_cap) - used)
+        # "available" → use effective_cap
 
     if capacity_cost > remaining:
         raise HTTPException(
             status_code=400,
-            detail=f"Nicht genug Kapazität. Noch {remaining} von {_DAY_CAPACITY} Punkten frei, dein Tattoo benötigt {capacity_cost}."
+            detail=f"Nicht genug Kapazität. Noch {remaining} von {studio_day_cap} Punkten frei, dein Tattoo benötigt {capacity_cost}."
         )
 
     user_id = current_user.get("id") or current_user.get("user_id")
