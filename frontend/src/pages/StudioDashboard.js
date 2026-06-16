@@ -1342,16 +1342,23 @@ export default function StudioDashboard() {
                           const isSel = calViewSelected === iso;
                           const confCnt = bks.filter(b => b.status === "confirmed").length;
                           const pendCnt = bks.filter(b => ["pending","pending_studio_review","under_review","offer_sent"].includes(b.status)).length;
+                          const dayBg = isSel
+                            ? "bg-zinc-900 shadow-md"
+                            : isToday
+                              ? "ring-2 ring-zinc-900 ring-offset-1"
+                              : confCnt > 0
+                                ? "bg-emerald-100 ring-1 ring-emerald-300 hover:bg-emerald-200"
+                                : pendCnt > 0
+                                  ? "bg-amber-100 ring-1 ring-amber-300 hover:bg-amber-200"
+                                  : "hover:bg-zinc-50";
                           return (
                             <button key={iso} onClick={() => setCalViewSelected(iso)}
-                              className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all
-                                ${isSel ? "bg-zinc-900 shadow-md" : isToday ? "ring-2 ring-zinc-900 ring-offset-1" : bks.length > 0 ? "bg-zinc-50 hover:bg-zinc-100" : "hover:bg-zinc-50"}
-                              `}>
-                              <span className={`text-xs font-inter font-medium leading-none ${isSel ? "text-white" : "text-zinc-700"}`}>{day}</span>
+                              className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all ${dayBg}`}>
+                              <span className={`text-xs font-inter font-semibold leading-none ${isSel ? "text-white" : confCnt > 0 ? "text-emerald-800" : pendCnt > 0 ? "text-amber-800" : "text-zinc-700"}`}>{day}</span>
                               {bks.length > 0 && (
                                 <div className="flex gap-0.5 mt-0.5">
-                                  {Array.from({length:Math.min(confCnt,3)}).map((_,k)=><span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-emerald-300":"bg-emerald-500"}`}/>)}
-                                  {Array.from({length:Math.min(pendCnt,3)}).map((_,k)=><span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-amber-300":"bg-amber-500"}`}/>)}
+                                  {Array.from({length:Math.min(confCnt,3)}).map((_,k)=><span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-emerald-300":"bg-emerald-600"}`}/>)}
+                                  {Array.from({length:Math.min(pendCnt,3)}).map((_,k)=><span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSel?"bg-amber-300":"bg-amber-600"}`}/>)}
                                 </div>
                               )}
                             </button>
@@ -1703,24 +1710,31 @@ export default function StudioDashboard() {
                         const isToday = iso === todayIso;
                         const isSelected = bookCalSelected === iso;
                         const confirmedCount = bks.filter(b => b.status === "confirmed").length;
-                        const pendingCount  = bks.filter(b => b.status === "pending").length;
+                        const pendingCount  = bks.filter(b => ["pending","pending_studio_review","under_review","offer_sent"].includes(b.status)).length;
                         const hasBookings = bks.length > 0;
+                        const cellBg = isSelected
+                          ? "bg-zinc-900 shadow-md scale-105"
+                          : isToday
+                            ? "ring-2 ring-zinc-900 ring-offset-1 font-bold"
+                            : confirmedCount > 0
+                              ? "bg-emerald-100 ring-1 ring-emerald-300 hover:bg-emerald-200"
+                              : pendingCount > 0
+                                ? "bg-amber-100 ring-1 ring-amber-300 hover:bg-amber-200"
+                                : "hover:bg-zinc-50";
                         return (
                           <button
                             key={iso}
                             onClick={() => setBookCalSelected(isSelected ? null : iso)}
-                            className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-xs font-inter
-                              ${isSelected ? "bg-zinc-900 shadow-md scale-105" : isToday ? "ring-2 ring-zinc-900 ring-offset-1 font-bold" : hasBookings ? "bg-zinc-50 hover:bg-zinc-100" : "hover:bg-zinc-50"}
-                            `}
+                            className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-xs font-inter ${cellBg}`}
                           >
-                            <span className={`font-medium leading-none ${isSelected ? "text-white" : isToday ? "text-zinc-900" : "text-zinc-700"}`}>{day}</span>
+                            <span className={`font-semibold leading-none ${isSelected ? "text-white" : isToday ? "text-zinc-900" : confirmedCount > 0 ? "text-emerald-800" : pendingCount > 0 ? "text-amber-800" : "text-zinc-700"}`}>{day}</span>
                             {hasBookings && (
                               <div className="flex gap-0.5 mt-1">
                                 {Array.from({length: Math.min(confirmedCount, 3)}).map((_,k) => (
-                                  <span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSelected ? "bg-emerald-300" : "bg-emerald-500"}`} />
+                                  <span key={`c${k}`} className={`w-1 h-1 rounded-full ${isSelected ? "bg-emerald-300" : "bg-emerald-600"}`} />
                                 ))}
                                 {Array.from({length: Math.min(pendingCount, 3)}).map((_,k) => (
-                                  <span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSelected ? "bg-amber-300" : "bg-amber-500"}`} />
+                                  <span key={`p${k}`} className={`w-1 h-1 rounded-full ${isSelected ? "bg-amber-300" : "bg-amber-600"}`} />
                                 ))}
                               </div>
                             )}
