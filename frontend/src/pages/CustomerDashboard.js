@@ -1046,14 +1046,21 @@ export default function CustomerDashboard() {
                 cancelModal.isWithinFreeWindow ? (
                   <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 mb-5">
                     <p className="text-sm font-inter font-semibold text-emerald-800 mb-1">Kostenlose Stornierung möglich ✓</p>
-                    <p className="text-xs text-emerald-700 font-inter leading-relaxed">Du stornierst innerhalb der kostenlosen Frist. Es fallen keine Gebühren an.</p>
+                    <p className="text-xs text-emerald-700 font-inter leading-relaxed">
+                      Du stornierst innerhalb der kostenlosen Frist.
+                      {cancelModal.depositAmount > 0
+                        ? ` Deine Anzahlung von €\u202F${cancelModal.depositAmount.toFixed(2)} wird zurückerstattet.`
+                        : " Es fallen keine Gebühren an."}
+                    </p>
                   </div>
                 ) : (
                   <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-5">
                     <p className="text-sm font-inter font-semibold text-red-800 mb-1">Stornierungsfrist abgelaufen</p>
                     <p className="text-xs text-red-700 font-inter leading-relaxed">
                       Die kostenlose Stornierungsfrist ({cancelModal.cancelHours >= 24 ? `${cancelModal.cancelHours / 24} Tag${cancelModal.cancelHours >= 48 ? "e" : ""}` : `${cancelModal.cancelHours} Stunden`} vor dem Termin) ist abgelaufen.
-                      {cancelModal.depositAmount > 0 && ` Die Anzahlung von €\u202F${cancelModal.depositAmount.toFixed(2)} wird als Aufwandsentschädigung einbehalten.`}
+                      {cancelModal.depositAmount > 0
+                        ? ` Deine Anzahlung von €\u202F${cancelModal.depositAmount.toFixed(2)} wird einbehalten.`
+                        : " Die Stornierung ist gebührenfrei."}
                     </p>
                   </div>
                 )

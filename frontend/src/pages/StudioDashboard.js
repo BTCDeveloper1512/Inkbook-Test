@@ -1935,6 +1935,11 @@ export default function StudioDashboard() {
                                 ⚠️ Rückzahlung ausstehend
                               </span>
                             )}
+                            {!b.refund_pending && (b.refund_status === "refunded" || b.refund_status === "manual") && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1">
+                                <CheckCircle size={9} strokeWidth={2} /> Rückzahlung eingeleitet
+                              </span>
+                            )}
                             {b.status === "completed" && (b.revenue || 0) > 0 && (
                               <span className="text-sm font-playfair font-semibold text-emerald-600 text-center" data-testid={`revenue-display-${b.booking_id}`}>
                                 + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
