@@ -693,7 +693,14 @@ class AdminStudioUpdate(BaseModel):
 @api_router.post("/auth/register")
 async def register(data: UserRegister, response: JSONResponse = None):
     from fastapi.responses import JSONResponse as JR
+    import dns.resolver
     email = data.email.lower()
+    # Validate that the email domain has MX records (rejects non-existent domains)
+    domain = email.split("@")[-1]
+    try:
+        await asyncio.to_thread(dns.resolver.resolve, domain, "MX")
+    except Exception:
+        raise HTTPException(status_code=400, detail="E-Mail-Adresse ungültig oder Domain existiert nicht")
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")

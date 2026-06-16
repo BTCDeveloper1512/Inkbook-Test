@@ -19,17 +19,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   // Forgot password state
-  const [view, setView] = useState("login"); // "login" | "forgot" | "forgot-sent" | "resend" | "resend-sent"
+  const [view, setView] = useState("login"); // "login" | "forgot" | "forgot-sent"
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState("");
-  const [devResetUrl, setDevResetUrl] = useState("");
-
-  // Resend activation state
-  const [resendEmail, setResendEmail] = useState("");
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendError, setResendError] = useState("");
-  const [devActivateUrl, setDevActivateUrl] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,26 +40,12 @@ export default function LoginPage() {
     e.preventDefault();
     setForgotError(""); setForgotLoading(true);
     try {
-      const res = await axios.post(`${API}/api/auth/forgot-password`, { email: forgotEmail }, { withCredentials: true });
-      setDevResetUrl(res.data?.reset_url || "");
+      await axios.post(`${API}/api/auth/forgot-password`, { email: forgotEmail }, { withCredentials: true });
       setView("forgot-sent");
     } catch (err) {
       const d = err.response?.data?.detail;
       setForgotError(typeof d === "string" ? d : "Fehler beim Senden. Bitte versuche es erneut.");
     } finally { setForgotLoading(false); }
-  };
-
-  const handleResend = async (e) => {
-    e.preventDefault();
-    setResendError(""); setResendLoading(true);
-    try {
-      const res = await axios.post(`${API}/api/auth/resend-activation`, { email: resendEmail }, { withCredentials: true });
-      setDevActivateUrl(res.data?.activate_url || "");
-      setView("resend-sent");
-    } catch (err) {
-      const d = err.response?.data?.detail;
-      setResendError(typeof d === "string" ? d : "Fehler. Bitte versuche es erneut.");
-    } finally { setResendLoading(false); }
   };
 
   const handleGoogleLogin = () => {
@@ -137,13 +116,6 @@ export default function LoginPage() {
                   {t("auth.googleLogin")}
                 </motion.button>
 
-                <p className="text-center text-xs text-zinc-400 font-inter mt-5">
-                  Anfrage als Gast gestellt?{" "}
-                  <button type="button" onClick={() => { setView("resend"); setResendEmail(email); setResendError(""); }}
-                    className="text-zinc-600 underline underline-offset-2 hover:text-zinc-900 transition-colors">
-                    Aktivierungsmail erneut anfordern
-                  </button>
-                </p>
               </motion.div>
             )}
 
@@ -204,97 +176,10 @@ export default function LoginPage() {
                   Falls ein Konto mit <strong className="text-zinc-700">{forgotEmail}</strong> existiert, hast du jetzt einen Reset-Link erhalten. Bitte auch den Spam-Ordner prüfen.
                 </p>
 
-                {/* Dev fallback: show direct link if email delivery is restricted */}
-                {devResetUrl && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5 mb-6 text-left">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2 font-inter">Kein E-Mail-Versand möglich</p>
-                    <p className="text-xs text-amber-600 font-inter mb-3 leading-relaxed">
-                      Die E-Mail konnte nicht zugestellt werden (Resend-Domain nicht verifiziert). Nutze diesen Link direkt:
-                    </p>
-                    <a
-                      href={devResetUrl}
-                      className="text-xs text-amber-800 font-inter font-medium underline break-all"
-                      data-testid="dev-reset-link"
-                    >
-                      {devResetUrl}
-                    </a>
-                  </div>
-                )}
                 <button
                   onClick={() => { setView("login"); setForgotEmail(""); }}
                   className="text-sm font-inter font-medium text-zinc-900 hover:underline"
                   data-testid="back-to-login-after-sent-btn"
-                >
-                  Zurück zur Anmeldung
-                </button>
-              </motion.div>
-            )}
-
-            {/* ── AKTIVIERUNGSMAIL ERNEUT SENDEN ── */}
-            {view === "resend" && (
-              <motion.div key="resend" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.22 }}>
-                <button onClick={() => setView("login")} className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-700 font-inter mb-8 transition-colors">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-                  Zurück zur Anmeldung
-                </button>
-
-                <h1 className="text-3xl font-playfair font-semibold text-zinc-900 mb-2">Aktivierungsmail</h1>
-                <p className="text-sm text-zinc-500 font-inter mb-8 leading-relaxed">
-                  Gib deine E-Mail-Adresse ein und wir senden dir einen neuen Aktivierungslink, mit dem du dein Passwort festlegen kannst.
-                </p>
-
-                {resendError && (
-                  <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm font-inter mb-5">{resendError}</div>
-                )}
-
-                <form onSubmit={handleResend} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold tracking-widest uppercase text-zinc-400 mb-2 font-inter">E-Mail-Adresse</label>
-                    <input
-                      type="email"
-                      value={resendEmail}
-                      onChange={e => setResendEmail(e.target.value)}
-                      required
-                      className="input-base w-full"
-                      placeholder="email@beispiel.de"
-                    />
-                  </div>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    type="submit"
-                    disabled={resendLoading}
-                    className="btn-primary w-full justify-center disabled:opacity-50"
-                  >
-                    {resendLoading ? "Sende Link..." : "Aktivierungsmail senden"}
-                  </motion.button>
-                </form>
-              </motion.div>
-            )}
-
-            {/* ── AKTIVIERUNGSMAIL GESENDET ── */}
-            {view === "resend-sent" && (
-              <motion.div key="resend-sent" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25 }} className="text-center py-4">
-                <div className="w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                    <polyline points="22,6 12,13 2,6"/>
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-playfair font-semibold text-zinc-900 mb-3">E-Mail gesendet</h2>
-                <p className="text-sm text-zinc-500 font-inter leading-relaxed mb-8 max-w-xs mx-auto">
-                  Falls ein Gast-Konto mit <strong className="text-zinc-700">{resendEmail}</strong> existiert, hast du jetzt einen neuen Aktivierungslink erhalten.
-                </p>
-
-                {devActivateUrl && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5 mb-6 text-left">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2 font-inter">Direktlink (kein E-Mail-Versand)</p>
-                    <a href={devActivateUrl} className="text-xs text-amber-800 font-inter font-medium underline break-all">{devActivateUrl}</a>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => { setView("login"); setResendEmail(""); }}
-                  className="text-sm font-inter font-medium text-zinc-900 hover:underline"
                 >
                   Zurück zur Anmeldung
                 </button>
