@@ -910,10 +910,10 @@ export default function MessagesPage() {
                                   data-testid="offer-time" />
                               </div>
                               <div>
-                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Dauer (Std.)</label>
-                                <input type="number" min="0.5" step="0.5" placeholder="2"
-                                  value={offerForm.offer_duration_min / 60}
-                                  onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: Math.round(parseFloat(e.target.value || 1) * 60) }))}
+                                <label className="block text-xs text-zinc-400 font-inter font-semibold uppercase tracking-wider mb-1">Dauer (Min.)</label>
+                                <input type="number" min="30" max="960" step="30" placeholder="120"
+                                  value={offerForm.offer_duration_min}
+                                  onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: parseInt(e.target.value) || 60 }))}
                                   className="w-full px-3 py-2 text-sm font-inter border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-400 bg-zinc-50"
                                   data-testid="offer-duration" />
                               </div>
