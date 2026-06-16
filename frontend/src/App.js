@@ -19,6 +19,7 @@ import MessagesPage from "./pages/MessagesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import AdminPage from "./pages/AdminPage";
 import ImpressumPage from "./pages/ImpressumPage";
+import VideoTemplate from "./components/video/VideoTemplate.js";
 import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
 import FAQPage from "./pages/FAQPage";
@@ -71,6 +72,7 @@ function AppRouter() {
         <Route path="/admin" element={
           <ProtectedRoute requiredRole="admin"><AdminPage /></ProtectedRoute>
         } />
+        <Route path="/video" element={<VideoTemplate />} />
         <Route path="*" element={<SearchPage />} />
       </Routes>
       <CookieBanner />

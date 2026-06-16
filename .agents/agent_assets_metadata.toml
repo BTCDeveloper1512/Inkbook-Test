@@ -6,3 +6,15 @@ id = "k4NOGDJfva4q9gZHM5jQI"
 uri = "file://inkbook_project.zip"
 type = "unspecified"
 title = "inkbook_project.zip"
+
+[[outputs]]
+id = "R_bWme_WrBSukr-PAg7eR"
+uri = "file://frontend/public/images/studio.jpg"
+type = "image"
+title = "tattoo studio interior modern dark"
+
+[[outputs]]
+id = "Se5COHsPbVXpBvqQroPvs"
+uri = "file://frontend/public/images/tattoo.jpg"
+type = "image"
+title = "tattoo close up black and white"
