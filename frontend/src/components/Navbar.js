@@ -20,7 +20,12 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [pushStatus, setPushStatus] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingRefunds, setPendingRefunds] = useState([]);
+  const [refundsOpen, setRefundsOpen] = useState(false);
+  const [refundingId, setRefundingId] = useState("");
   const pollRef = useRef(null);
+  const refundsPollRef = useRef(null);
+  const refundsRef = useRef(null);
 
   const toggleLang = () => i18n.changeLanguage(i18n.language === "de" ? "en" : "de");
   const handleLogout = async () => { await logout(); navigate("/"); setUserMenuOpen(false); };
@@ -42,6 +47,32 @@ export default function Navbar() {
     } catch {}
   };
 
+  const fetchPendingRefunds = async () => {
+    if (!user || user.role !== "studio_owner") return;
+    try {
+      const { data } = await axios.get(`${API}/studios/my/pending-refunds`, { withCredentials: true });
+      setPendingRefunds(data.bookings || []);
+    } catch {}
+  };
+
+  const handleRefundDeposit = async (bookingId) => {
+    setRefundingId(bookingId);
+    try {
+      await axios.post(`${API}/bookings/${bookingId}/refund-deposit`, {}, { withCredentials: true });
+      setPendingRefunds(prev => prev.filter(b => b.booking_id !== bookingId));
+    } catch (e) {
+      alert(e.response?.data?.detail || "Fehler bei der Rückzahlung");
+    } finally { setRefundingId(""); }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (refundsRef.current && !refundsRef.current.contains(e.target)) setRefundsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
     fetchUnreadCount();
@@ -49,6 +80,13 @@ export default function Navbar() {
     pollRef.current = setInterval(fetchUnreadCount, 8000);
     return () => clearInterval(pollRef.current);
   }, [user, location.pathname]);
+
+  useEffect(() => {
+    if (!user || user.role !== "studio_owner") { setPendingRefunds([]); return; }
+    fetchPendingRefunds();
+    refundsPollRef.current = setInterval(fetchPendingRefunds, 15000);
+    return () => clearInterval(refundsPollRef.current);
+  }, [user]);
 
   const isMessagesPage = location.pathname.startsWith("/messages");
   const countToShow = isMessagesPage ? 0 : unreadCount;
@@ -128,6 +166,80 @@ export default function Navbar() {
                   <Bell size={16} strokeWidth={1.5} />
                   {pushStatus === "active" && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />}
                 </button>
+
+                {/* ── Pending Refunds Bell (studio_owner only) ── */}
+                {user.role === "studio_owner" && (
+                  <div className="relative" ref={refundsRef}>
+                    <button
+                      onClick={() => setRefundsOpen(o => !o)}
+                      className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all relative"
+                      data-testid="refunds-bell-btn"
+                      title="Rückzahlungen"
+                    >
+                      <Bell size={16} strokeWidth={1.5} />
+                      {pendingRefunds.length > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none animate-pulse">
+                          {pendingRefunds.length > 9 ? "9+" : pendingRefunds.length}
+                        </span>
+                      )}
+                    </button>
+                    <AnimatePresence>
+                      {refundsOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-black/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden z-50"
+                          data-testid="refunds-dropdown"
+                        >
+                          <div className="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
+                            <span className="text-sm font-inter font-semibold text-zinc-900">Ausstehende Rückzahlungen</span>
+                            {pendingRefunds.length > 0 && (
+                              <span className="text-xs font-inter font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{pendingRefunds.length}</span>
+                            )}
+                          </div>
+                          <div className="max-h-80 overflow-y-auto">
+                            {pendingRefunds.length === 0 ? (
+                              <div className="py-8 flex flex-col items-center text-center px-4">
+                                <Bell size={22} className="text-zinc-200 mb-2" strokeWidth={1.5} />
+                                <p className="text-sm font-inter text-zinc-400">Keine ausstehenden Rückzahlungen</p>
+                              </div>
+                            ) : (
+                              pendingRefunds.map(b => {
+                                const deposit = parseFloat(b.offer_deposit_amount || b.deposit_amount || 0);
+                                return (
+                                  <div key={b.booking_id} className="px-4 py-3 border-b border-zinc-50 last:border-0">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-inter font-semibold text-zinc-900 truncate">{b.user_name}</p>
+                                        <p className="text-xs font-inter text-zinc-500 mt-0.5">
+                                          {b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
+                                          {b.start_time ? ` · ${b.start_time}` : ""}
+                                        </p>
+                                        {deposit > 0 && <p className="text-xs font-inter font-semibold text-emerald-700 mt-0.5">€&thinsp;{deposit.toFixed(2)} zurückzahlen</p>}
+                                      </div>
+                                      <button
+                                        onClick={() => handleRefundDeposit(b.booking_id)}
+                                        disabled={refundingId === b.booking_id}
+                                        className="flex-shrink-0 px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                        data-testid={`nav-refund-btn-${b.booking_id}`}
+                                      >
+                                        {refundingId === b.booking_id ? (
+                                          <span className="flex items-center gap-1"><span className="w-3 h-3 border border-white/50 border-t-transparent rounded-full animate-spin" />...</span>
+                                        ) : "Rückzahlen"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
 
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-sm font-inter" data-testid="user-menu-btn">

@@ -287,6 +287,44 @@ def guest_offer_email_html(
       {_email_footer(f"Du erhältst diese E-Mail weil du eine Anfrage bei {studio_name} auf StudioOS gestellt hast.")}
     </div>"""
 
+def customer_free_cancellation_refund_html(booking: dict) -> str:
+    """Email to customer: studio has processed their deposit refund (free-window cancellation)."""
+    deposit = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
+    deposit_str = f"€ {deposit:.2f}"
+    date_raw = booking.get("offer_date") or booking.get("date", "")
+    try:
+        date_fmt = datetime.strptime(date_raw, "%Y-%m-%d").strftime("%d.%m.%Y")
+    except Exception:
+        date_fmt = date_raw
+    time_str = booking.get("offer_time") or booking.get("start_time", "")
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:580px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+      {_email_header()}
+      <div style="padding:32px 32px 24px;">
+        <div style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 14px;margin-bottom:20px;">
+          <span style="font-size:12px;font-weight:700;color:#15803d;letter-spacing:0.05em;text-transform:uppercase;">Rückerstattung eingeleitet</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#111;letter-spacing:-0.4px;">Deine Anzahlung wird zurückgebucht</h2>
+        <p style="font-size:14px;color:#555;margin:0 0 24px;line-height:1.6;">
+          Du hast deinen Termin innerhalb der kostenlosen Stornierungsfrist abgesagt. Das Studio <strong style="color:#111;">{booking.get('studio_name', '')}</strong> hat die Rückerstattung deiner Anzahlung veranlasst.
+        </p>
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #f0f0f0;margin-bottom:24px;">
+          {_detail_row("Studio", booking.get('studio_name', ''), highlight=True)}
+          {_detail_row("Termin", f"{date_fmt}{(' um ' + time_str + ' Uhr') if time_str else ''}")}
+          {_detail_row("Rückerstattung", deposit_str)}
+          {_detail_row("Buchungs-ID", booking.get('booking_id', ''))}
+        </table>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+          <p style="font-size:13px;font-weight:700;color:#15803d;margin:0 0 6px;">💳 Rückerstattung läuft automatisch</p>
+          <p style="font-size:13px;color:#166534;margin:0;line-height:1.6;">
+            Der Betrag von <strong>{deposit_str}</strong> wird auf deine ursprüngliche Zahlungsmethode zurückgebucht.
+            Die Gutschrift erscheint in der Regel innerhalb von <strong>5–10 Werktagen</strong> auf deinem Kontoauszug.
+          </p>
+        </div>
+      </div>
+      {_email_footer(f"Du erhältst diese E-Mail weil du eine Buchung bei {booking.get('studio_name', '')} auf StudioOS hattest.")}
+    </div>"""
+
 def studio_cancelled_refund_html(booking: dict) -> str:
     deposit = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
     deposit_str = f"€ {deposit:.2f}"
@@ -1884,6 +1922,19 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
         update_fields["cancelled_by"] = "studio" if is_studio_owner else "customer"
         update_fields["cancelled_at"] = datetime.now(timezone.utc).isoformat()
         await db.slots.update_one({"slot_id": booking.get("slot_id")}, {"$set": {"is_booked": False}})
+        # Customer cancels within free window with paid deposit → flag for refund
+        if effective_status == "customer_cancelled" and booking.get("payment_status") == "paid" and studio:
+            cancel_hours = studio.get("cancellation_hours")
+            if cancel_hours:
+                apt_date = booking.get("date", "")
+                apt_time_str = booking.get("start_time", "12:00") or "12:00"
+                try:
+                    apt_dt = datetime.strptime(f"{apt_date} {apt_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+                    cutoff = apt_dt - timedelta(hours=cancel_hours)
+                    if datetime.now(timezone.utc) < cutoff:
+                        update_fields["refund_pending"] = True
+                except Exception:
+                    pass
     if effective_status == "confirmed" and booking.get("deposit_required") and studio:
         deadline_hours = studio.get("deposit_deadline_hours") or 0
         if deadline_hours > 0:
@@ -1915,6 +1966,16 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
             user_id=owner_id,
             title="Buchung storniert",
             body=f"{booking.get('user_name','Kunde')} hat den Termin am {booking.get('date','')} storniert",
+            url="/studio-dashboard"
+        ))
+
+    # Push studio owner about pending refund
+    if owner_id and update_fields.get("refund_pending"):
+        deposit = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
+        asyncio.create_task(send_push_notification(
+            user_id=owner_id,
+            title="⚠️ Rückzahlung ausstehend",
+            body=f"Anzahlung €{deposit:.0f} an {booking.get('user_name','Kunden')} zurückzahlen.",
             url="/studio-dashboard"
         ))
 
@@ -2475,6 +2536,96 @@ async def cancel_booking_with_refund(booking_id: str, current_user: dict = Depen
         ))
 
     return {"message": "Storniert und Rückerstattung eingeleitet", "refund_id": refund_id}
+
+
+@api_router.get("/studios/my/pending-refunds")
+async def get_pending_refunds(current_user: dict = Depends(get_current_user)):
+    """Returns bookings with a pending deposit refund for the studio owner."""
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id})
+    if not studio:
+        return {"count": 0, "bookings": []}
+    bookings = await db.bookings.find(
+        {"studio_id": studio["studio_id"], "refund_pending": True},
+        {"_id": 0}
+    ).to_list(50)
+    return {"count": len(bookings), "bookings": bookings}
+
+
+@api_router.post("/bookings/{booking_id}/refund-deposit")
+async def refund_deposit(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Studio refunds a deposit for a customer-cancelled booking within the free window."""
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if not booking.get("refund_pending"):
+        raise HTTPException(status_code=400, detail="Keine ausstehende Rückzahlung für diese Buchung")
+
+    txn = await db.payment_transactions.find_one({"booking_id": booking_id, "payment_status": "paid"})
+    refund_id = None
+
+    if txn and txn.get("stripe_payment_intent_id"):
+        pi_id = txn["stripe_payment_intent_id"]
+        try:
+            refund = await asyncio.to_thread(stripe_lib.Refund.create, payment_intent=pi_id)
+            refund_id = refund["id"]
+            await db.payment_transactions.update_one(
+                {"booking_id": booking_id, "payment_status": "paid"},
+                {"$set": {"refund_id": refund_id, "refund_status": "refunded",
+                          "refunded_at": datetime.now(timezone.utc).isoformat()}}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Rückerstattung fehlgeschlagen: {str(e)}")
+
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {
+            "refund_pending": False,
+            "refund_id": refund_id,
+            "refund_status": "refunded" if refund_id else "manual",
+            "payment_status": "refunded",
+        }}
+    )
+
+    customer_id = booking.get("user_id", "")
+    owner_id = studio.get("owner_id", "")
+    deposit = float(booking.get("offer_deposit_amount") or booking.get("deposit_amount") or 0)
+    deposit_str = f"€{deposit:.0f}" if deposit > 0 else ""
+
+    user_email = booking.get("user_email", "")
+    if user_email:
+        asyncio.create_task(send_email(
+            to=user_email,
+            subject=f"Anzahlung wird zurückgebucht – {booking.get('studio_name', 'StudioOS')}",
+            html=customer_free_cancellation_refund_html(booking)
+        ))
+
+    if customer_id and owner_id:
+        asyncio.create_task(_post_system_message(
+            customer_id=customer_id,
+            studio_owner_id=owner_id,
+            text=f"💚 Deine Anzahlung ({deposit_str}) wird zurückgebucht — du musst nichts tun.",
+            triggered_by_id=owner_id
+        ))
+
+    if customer_id:
+        asyncio.create_task(send_push_notification(
+            user_id=customer_id,
+            title="Anzahlung wird zurückgebucht",
+            body=f"Das Studio hat deine Anzahlung von {deposit_str} zurückgebucht.",
+            url="/dashboard"
+        ))
+
+    return {"message": "Rückerstattung eingeleitet", "refund_id": refund_id}
 
 
 @api_router.post("/bookings/{booking_id}/no-show")

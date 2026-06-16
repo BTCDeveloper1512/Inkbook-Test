@@ -154,6 +154,7 @@ export default function StudioDashboard() {
   const [offerLoading, setOfferLoading] = useState(false);
   const [refundModal, setRefundModal] = useState(null); // booking object with paid deposit
   const [refundLoading, setRefundLoading] = useState(false);
+  const [depositRefundLoading, setDepositRefundLoading] = useState("");
   const [pageAnalytics, setPageAnalytics] = useState(null);
 
   const fetchUnreadMessages = async () => {
@@ -312,6 +313,17 @@ export default function StudioDashboard() {
 
     const fname = `inkbook-monatsumsatz-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}.pdf`;
     doc.save(fname);
+  };
+
+  const handleRefundDeposit = async (bookingId) => {
+    setDepositRefundLoading(bookingId);
+    try {
+      await axios.post(`${API}/bookings/${bookingId}/refund-deposit`, {}, { withCredentials: true });
+      notify.success("Rückerstattung eingeleitet! Der Kunde erhält eine E-Mail-Bestätigung.");
+      fetchStats();
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Fehler bei der Rückzahlung");
+    } finally { setDepositRefundLoading(""); }
   };
 
   const handleCheckFinalPayment = async (bookingId) => {
@@ -1918,6 +1930,11 @@ export default function StudioDashboard() {
                                 <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
                               </span>
                             )}
+                            {b.refund_pending && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
+                                ⚠️ Rückzahlung ausstehend
+                              </span>
+                            )}
                             {b.status === "completed" && (b.revenue || 0) > 0 && (
                               <span className="text-sm font-playfair font-semibold text-emerald-600 text-center" data-testid={`revenue-display-${b.booking_id}`}>
                                 + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1959,6 +1976,21 @@ export default function StudioDashboard() {
                                 </motion.button>
                               )}
                             </>
+                          )}
+
+                          {/* Pending deposit refund */}
+                          {b.refund_pending && (
+                            <motion.button whileTap={{ scale: 0.97 }}
+                              onClick={() => handleRefundDeposit(b.booking_id)}
+                              disabled={depositRefundLoading === b.booking_id}
+                              className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg font-inter font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
+                              data-testid={`refund-deposit-btn-${b.booking_id}`}
+                            >
+                              {depositRefundLoading === b.booking_id
+                                ? <><div className="w-2.5 h-2.5 border border-white/50 border-t-transparent rounded-full animate-spin" />&nbsp;Wird gebucht…</>
+                                : "💳 Anzahlung zurückzahlen"
+                              }
+                            </motion.button>
                           )}
 
                           {/* Pending: offer button */}
