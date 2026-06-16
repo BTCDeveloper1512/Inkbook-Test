@@ -2375,11 +2375,29 @@ export default function StudioDashboard() {
         {/* Profile Edit Tab */}
         {activeTab === "profile" && editForm && (
           <><motion.form initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} onSubmit={handleSaveProfile} className="space-y-6">
-            {editSuccess && (
-              <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-3 rounded-2xl text-sm font-inter flex items-center gap-2" data-testid="profile-save-success">
-                <CheckCircle size={15} strokeWidth={1.5} /> Profil erfolgreich gespeichert!
+            {/* ── Header: Titel + Speichern-Button ── */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-playfair font-bold text-xl text-zinc-900">Profil</h2>
+                <p className="text-xs text-zinc-400 font-inter mt-0.5">Studio-Informationen und öffentliche Darstellung</p>
               </div>
-            )}
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                type="submit"
+                disabled={editLoading}
+                data-testid="save-profile-btn"
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-inter font-semibold transition-all disabled:opacity-50 ${editSuccess ? "bg-emerald-600 text-white" : "bg-zinc-900 text-white hover:bg-zinc-700"}`}
+              >
+                {editLoading ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Speichern…</>
+                ) : editSuccess ? (
+                  <><CheckCircle size={14} strokeWidth={2} /> Gespeichert!</>
+                ) : (
+                  <><Save size={14} strokeWidth={1.5} /> Profil speichern</>
+                )}
+              </motion.button>
+            </div>
 
             {/* ── Buchungslink ── */}
             {stats?.studio?.studio_id && (() => {
@@ -2662,9 +2680,6 @@ export default function StudioDashboard() {
               </div>
             </div>
 
-            <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} type="submit" disabled={editLoading} className="btn-primary flex items-center gap-2 disabled:opacity-50" data-testid="save-profile-btn">
-              <Save size={15} strokeWidth={1.5} /> {editLoading ? "Speichern..." : "Profil speichern"}
-            </motion.button>
           </motion.form>
 
           {/* ── Konto-Einstellungen ── */}
