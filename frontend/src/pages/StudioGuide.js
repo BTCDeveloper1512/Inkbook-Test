@@ -20,12 +20,12 @@ const SLIDES = [
     items: [
       { icon: '🔐', label: 'Registrierung & Profil', desc: 'Account anlegen, Studio-Profil vollständig einrichten' },
       { icon: '💳', label: 'Stripe Connect', desc: 'Zahlungsabwicklung aktivieren, Auszahlungen erhalten' },
-      { icon: '📅', label: 'Kalender & Kapazitäten', desc: 'Verfügbarkeiten verwalten, Sperrtage setzen' },
-      { icon: '📨', label: 'Buchungsanfragen', desc: 'Anfragen empfangen, prüfen und bearbeiten' },
-      { icon: '✉️', label: 'Angebote & Bestätigungen', desc: 'Individuelle Angebote erstellen und versenden' },
-      { icon: '💰', label: 'Zahlungen & Rückzahlungen', desc: 'Anzahlungen verwalten, Stornierungen abwickeln' },
-      { icon: '💬', label: 'Kundenkommunikation', desc: 'Nachrichten, Benachrichtigungen, Inbox' },
-      { icon: '📊', label: 'Analytics & Einnahmen', desc: 'Auslastung, Umsatz und Statistiken im Blick' },
+      { icon: '📅', label: 'Kalender & Kapazitäten', desc: 'Verfügbarkeiten verwalten, Tage sperren' },
+      { icon: '📨', label: 'Buchungsanfragen', desc: 'Drei verschiedene Anfrage-Typen verstehen und bearbeiten' },
+      { icon: '✉️', label: 'Angebote (15-Minuten-Fenster)', desc: 'Individuelle Angebote erstellen — Kunde hat 15 Minuten Zeit' },
+      { icon: '✅', label: 'Bestätigt & Session-Abschluss', desc: 'Depot, Restbetrag eintragen, Revenue-Tracking' },
+      { icon: '🔄', label: 'Stornierungen & Rückzahlungen', desc: 'Freies Fenster vor Termin, No-Show, automatische Rückzahlung' },
+      { icon: '📊', label: 'Analytics & Nachrichten', desc: 'Umsatz, Auslastung, Kundenkommunikation' },
     ]
   },
   {
@@ -51,7 +51,7 @@ const SLIDES = [
         type: 'warning',
         steps: [
           'Wähle unbedingt „Studio" als Account-Typ — ein Kunden-Account hat keinen Zugang zum Studio-Dashboard',
-          'Nutze eine E-Mail-Adresse, die du regelmäßig abrufst — darüber bekommst du Buchungsbenachrichtigungen',
+          'Nutze eine E-Mail-Adresse, die du regelmäßig abrufst — darüber bekommst du alle Buchungs-Benachrichtigungen',
           'Das Passwort muss mindestens 8 Zeichen haben',
         ]
       }
@@ -70,20 +70,28 @@ const SLIDES = [
         steps: [
           'Studio-Name: Dein offizieller Name (z. B. „Black Ink Studio Berlin")',
           'Beschreibung: Mindestens 3 Sätze über deinen Stil, deine Erfahrung und was dich besonders macht',
-          'Standort: Vollständige Adresse mit Stadt — wird für die Suche genutzt',
-          'Tattoo-Stile: Wähle alle Stile aus, die du anbietest (Fine Line, Blackwork, Realism, …)',
-          'Profilbild: Lade ein professionelles Logo oder Studio-Foto hoch (quadratisch, min. 400×400px)',
+          'Standort: Stadt und Adresse — wird für die Suchfilter genutzt',
+          'Tattoo-Stile: Wähle alle Stile, die du anbietest (Fine Line, Blackwork, Realism, …)',
+          'Profilbild / Logo: Quadratisch, min. 400×400px',
         ]
       },
       {
-        title: 'Empfohlen (steigert Anfragen)',
+        title: 'Zahlungs-Einstellungen (in den Studio-Einstellungen)',
         type: 'highlight',
         steps: [
-          'Portfolio-Fotos: Lade 5–10 deiner besten Arbeiten hoch — das ist das erste, was Kunden sehen',
-          'Stündlicher Grundpreis: Gibt Kunden eine Preisvorstellung (du kannst im Angebot abweichen)',
-          'Mindest-Anzahlung in %: Z. B. 20 % — wird bei Buchungsbestätigung automatisch fällig',
-          'Website / Instagram: Verlinkung erhöht Vertrauen',
-          'Freies Stornierungsfenster: Z. B. 48 Stunden — innerhalb dieser Zeit können Kunden kostenlos stornieren',
+          'Standard-Anzahlung (€): Dein Default-Betrag — du kannst ihn pro Angebot individuell überschreiben',
+          'Anzahlungs-Frist (Stunden): Wie lange hat der Kunde Zeit, die Anzahlung zu zahlen, bevor sie verfällt',
+          'Freies Stornierungsfenster (Stunden): Wieviele Stunden VOR dem Termin der Kunde kostenlos stornieren kann — z. B. 48 bedeutet: bis 48 Std. vor Termin → volle Rückzahlung',
+          'Portfolio-Fotos: 5–10 beste Arbeiten hochladen',
+          'Stündlicher Grundpreis: Gibt Kunden eine Preisvorstellung',
+        ]
+      },
+      {
+        title: 'Tipp',
+        type: 'tip',
+        steps: [
+          'Setze das Stornierungsfenster realistisch — zu kurze Fristen schrecken Kunden ab, zu lange erhöhen dein Risiko',
+          'Vervollständige dein Profil zu 100 % — unvollständige Profile werden in der Suche schlechter gerankt',
         ]
       }
     ]
@@ -94,27 +102,36 @@ const SLIDES = [
     step: 3,
     type: 'step',
     title: 'Stripe Connect einrichten',
-    intro: 'Stripe ist unser Zahlungspartner. Ohne aktives Stripe-Konto können Kunden keine Anzahlungen leisten — Buchungen sind dann nicht möglich.',
+    intro: 'Stripe ist unser Zahlungspartner. Ohne aktives Stripe-Konto können Kunden keine Anzahlungen leisten — das Angebot kann zwar erstellt werden, aber kein Kunde kann bezahlen.',
     sections: [
       {
         title: 'Einrichtung Schritt für Schritt',
         steps: [
-          'Gehe im Dashboard auf „Einstellungen" → „Zahlungen & Auszahlungen"',
+          'Gehe im Dashboard auf den Reiter „Zahlungen" oder klicke das Stripe-Banner oben',
           'Klicke auf „Mit Stripe verbinden"',
           'Du wirst zu Stripe weitergeleitet — erstelle dort ein Konto oder melde dich an',
-          'Fülle alle Pflichtfelder aus: Name, Adresse, Steuer-ID / USt-IdNr., Bankverbindung',
+          'Fülle alle Pflichtfelder aus: Name, Adresse, Steuer-ID / USt-IdNr., Bankverbindung (IBAN)',
           'Nach erfolgreicher Verifikation erscheint im Dashboard „✓ Stripe aktiv"',
         ]
       },
       {
-        title: 'Wichtige Infos zu Auszahlungen',
+        title: 'Gebühren & Auszahlungen',
         type: 'highlight',
         steps: [
-          'Anzahlungen werden sofort nach Zahlung des Kunden auf deinem Stripe-Konto gutgeschrieben',
-          'Auszahlungen auf dein Bankkonto erfolgen automatisch im 7-Tage-Rhythmus (Stripe-Standard)',
-          'StudioOS erhebt eine Plattformgebühr von 5 % — Stripe erhebt zusätzlich ~1,4 % + 0,25 €',
-          'Du siehst alle Transaktionen direkt im Stripe-Dashboard unter stripe.com',
-          'Rückzahlungen löst du im StudioOS-Dashboard aus — Stripe wickelt sie automatisch ab',
+          'StudioOS erhebt 5 % Plattformgebühr auf den Anzahlungsbetrag (wird automatisch einbehalten)',
+          'Stripe berechnet zusätzlich ~1,4 % + 0,25 € pro Transaktion (Stripe-Standard, EU-Karte)',
+          'Anzahlungen erscheinen sofort auf deinem Stripe-Konto nach Kundenzahlung',
+          'Auszahlungen auf dein Bankkonto erfolgen automatisch — den genauen Rhythmus siehst du in deinem Stripe-Dashboard (stripe.com)',
+          'Alle Transaktionen und Rechnungen findest du direkt im Stripe-Dashboard',
+        ]
+      },
+      {
+        title: 'Wichtig',
+        type: 'warning',
+        steps: [
+          'Ohne Stripe Connect können keine Anzahlungen angenommen werden',
+          'Die erste Auszahlung kann bis zu 14 Tage dauern (Stripe-Erstverifikation)',
+          'Rückzahlungen werden immer über Stripe abgewickelt — niemals manuell außerhalb des Systems!',
         ]
       }
     ]
@@ -125,32 +142,34 @@ const SLIDES = [
     step: 4,
     type: 'step',
     title: 'Kalender & Verfügbarkeiten',
-    intro: 'Der Kalender zeigt Kunden, an welchen Tagen dein Studio verfügbar ist. Du hast die volle Kontrolle — kein Termin wird ohne deine Bestätigung angelegt.',
+    intro: 'Der Kalender steuert, wann Kunden Buchungsanfragen stellen können. Du hast die volle Kontrolle — kein Termin wird ohne deine Bestätigung vergeben.',
     sections: [
       {
-        title: 'Kapazität pro Tag einstellen',
+        title: 'Kapazitätssystem',
         steps: [
-          'Gehe im Dashboard auf „Kalender"',
-          'Klicke auf einen Tag, um seine Kapazität zu setzen (z. B. 2 gleichzeitige Buchungen)',
-          'Grüne Tage = verfügbar, graue Tage = ausgebucht oder gesperrt',
-          'Du kannst ganze Wochen oder Monate auf einmal bearbeiten',
+          'Jeder Tag hat eine Maximalkapazität von 8 Punkten',
+          'Kleine Tattoos zählen 1–2 Punkte, große Sessions 4–8 Punkte',
+          'Wenn die Tagespunkte erschöpft sind, gilt der Tag automatisch als ausgebucht',
+          'Gehe im Dashboard auf „Kalender" → Ansicht „Kapazität" um freie Tage zu sehen',
+          'Grüne Tage = verfügbar, graue / rote Tage = ausgebucht oder gesperrt',
         ]
       },
       {
         title: 'Sperrtage setzen',
         steps: [
-          'Klicke auf „+ Sperrtag hinzufügen" im Kalender',
-          'Wähle Start- und Enddatum (z. B. Urlaub, Messe, Umbau)',
-          'Trage optional einen Grund ein — der wird dir intern angezeigt',
-          'Gesperrte Tage erscheinen für Kunden als „nicht verfügbar" in der Buchungsansicht',
+          'Klicke im Kalender auf einen Tag und wähle „Tag sperren"',
+          'Oder klicke auf „+ Sperrtag / Block hinzufügen" und wähle Start- und Enddatum',
+          'Optional: Grund eintragen (Urlaub, Messe, Umbau) — nur intern sichtbar',
+          'Gesperrte Tage erscheinen für Kunden als „nicht verfügbar"',
+          'Zum Entfernen: auf den Sperrtag klicken → „Blockierung aufheben"',
         ]
       },
       {
         title: 'Tipp',
         type: 'tip',
         steps: [
-          'Halte deinen Kalender immer aktuell — Kunden sehen nur wirklich freie Tage und werden nicht enttäuscht',
-          'Setze Puffertage nach intensiven Sessions, damit du nicht überlastet wirst',
+          'Halte den Kalender immer aktuell — veraltete Kalender senken dein Suchranking erheblich',
+          'Setze Puffertage nach langen Sessions, um Überlastung zu vermeiden',
         ]
       }
     ]
@@ -160,34 +179,34 @@ const SLIDES = [
     chapter: 'Anfragen',
     step: 5,
     type: 'step',
-    title: 'Buchungsanfragen empfangen',
-    intro: 'Sobald dein Profil vollständig ist und Stripe aktiv ist, können Kunden Anfragen schicken. Du wirst per E-Mail und im Dashboard benachrichtigt.',
+    title: 'Buchungsanfragen — 3 Typen',
+    intro: 'Es gibt drei verschiedene Wege, wie eine Buchungsanfrage bei dir landen kann. Alle erscheinen im Dashboard-Reiter „Buchungen".',
     sections: [
       {
-        title: 'Wo siehst du Anfragen?',
+        title: 'Typ 1 — Kapazitäts-Anfrage (häufigster Weg)',
         steps: [
-          'Im Dashboard unter „Buchungsanfragen" — dort erscheinen alle neuen Anfragen mit Status',
-          'Eine rote Zahl neben dem Glocken-Symbol zeigt neue, unbearbeitete Anfragen',
-          'Du bekommst außerdem sofort eine E-Mail mit allen Details der Anfrage',
+          'Kunde wählt auf deiner Profilseite Datum, Größe und Beschreibung',
+          'Status im Dashboard: „Neue Anfrage" (pending_studio_review)',
+          'Du siehst alle Details: Wunschtermin, Größe, Stil, Beschreibung, Referenzbilder',
+          'Deine Aktion: Angebot erstellen → „Angebot senden" klicken',
         ]
       },
       {
-        title: 'Was steht in einer Anfrage?',
+        title: 'Typ 2 — Gast-Inquiry (ohne Account)',
         steps: [
-          'Name und Kontaktdaten des Kunden',
-          'Gewünschter Stil, Größe und Körperstelle',
-          'Beschreibung und Referenzbilder (wenn vorhanden)',
-          'Wunschdatum oder Wunschzeitraum',
-          'Anmerkungen und Fragen des Kunden',
+          'Interessent füllt das Kontaktformular auf deiner Profilseite aus (kein Login nötig)',
+          'Erscheint im Dashboard unter „Anfragen" (separater Reiter)',
+          'Du kannst zunächst Nachrichten schreiben (Status: „kontaktiert")',
+          'Wenn ihr euch einig seid, erstellst du ein Angebot → System schickt dem Gast automatisch einen Aktivierungslink per E-Mail',
+          'Gast aktiviert Account, sieht das Angebot und bezahlt die Anzahlung',
         ]
       },
       {
-        title: 'Reaktionszeit',
-        type: 'warning',
+        title: 'Typ 3 — Direkte Slot-Buchung',
         steps: [
-          'Antworte innerhalb von 24 Stunden — das erhöht deine Sichtbarkeit in der Suche erheblich',
-          'Kunden, die keine Antwort bekommen, vergeben die Buchung an andere Studios',
-          'Du kannst Anfragen auch ablehnen — dafür gibt es den „Ablehnen"-Button mit optionaler Begründung',
+          'Kunde bucht direkt einen von dir angelegten Zeitslot',
+          'Status: „Ausstehend" (pending)',
+          'Du bestätigst oder lehnst ab wie bei Typ 1',
         ]
       }
     ]
@@ -197,36 +216,40 @@ const SLIDES = [
     chapter: 'Angebote',
     step: 6,
     type: 'step',
-    title: 'Individuelle Angebote erstellen',
-    intro: 'Auf jede Anfrage antwortest du mit einem maßgeschneiderten Angebot. Der Kunde sieht das Angebot und kann es annehmen oder ablehnen.',
+    title: 'Angebot erstellen — 15 Minuten Frist',
+    intro: 'Das Angebot ist deine Antwort auf eine Buchungsanfrage. Sobald du es sendest, hat der Kunde genau 15 Minuten Zeit, es anzunehmen — danach verfällt es automatisch.',
     sections: [
       {
         title: 'Angebot erstellen',
         steps: [
-          'Klicke in der Anfrage auf „Angebot erstellen"',
-          'Trage den Gesamtpreis ein (z. B. € 350 für die Session)',
-          'Wähle das konkrete Datum und die Uhrzeit für die Session',
-          'Schreibe eine persönliche Nachricht: Beschreibe kurz dein Konzept, Dauer, Besonderheiten',
-          'Lege die Anzahlung fest (z. B. 20 % = € 70 — wird beim Annehmen fällig)',
+          'Klicke in der Buchungsanfrage auf „Angebot erstellen" (Stift-Icon)',
+          'Wähle das konkrete Datum und die Uhrzeit',
+          'Trage die geplante Dauer in Minuten ein (z. B. 240 für 4 Stunden)',
+          'Gesamtpreis eingeben (z. B. € 350)',
+          'Anzahlung festlegen (z. B. € 70 — du kannst den Default-Wert aus deinen Einstellungen überschreiben)',
+          'Optionale Notiz an den Kunden (wird als Chat-Nachricht gesendet)',
           'Klicke auf „Angebot senden"',
         ]
       },
       {
-        title: 'Was passiert dann?',
+        title: '⚡ 15-Minuten-Deadline — sehr wichtig!',
+        type: 'warning',
         steps: [
-          'Der Kunde bekommt eine E-Mail und Benachrichtigung mit deinem Angebot',
-          'Er kann das Angebot annehmen und direkt die Anzahlung per Karte / Apple Pay / Google Pay bezahlen',
-          'Du wirst sofort benachrichtigt, sobald die Zahlung eingegangen ist',
-          'Die Buchung wechselt auf Status „Bestätigt" — sie erscheint nun in deinem Kalender',
+          'Sobald du das Angebot sendest, startet ein 15-Minuten-Countdown für den Kunden',
+          'Der Kunde bekommt sofort eine Push-Benachrichtigung und E-Mail: „15 Minuten Zeit!"',
+          'Nimmt der Kunde das Angebot nicht innerhalb von 15 Minuten an, verfällt es automatisch',
+          'Die Buchung geht zurück auf „Neue Anfrage" — du kannst ein neues Angebot senden',
+          'Tipp: Sende Angebote nur, wenn du den Termin wirklich sicher halten kannst',
         ]
       },
       {
-        title: 'Tipp zum Angebots-Text',
-        type: 'tip',
+        title: 'Nach dem Angebot',
+        type: 'highlight',
         steps: [
-          'Schreibe immer eine persönliche Nachricht — generische Angebote werden seltener angenommen',
-          'Erwähne konkret, was der Kunde für den Preis bekommt: Skizze, Session-Dauer, Anzahl der Farben, etc.',
-          'Wenn du den Wunschdatum nicht erfüllen kannst, schlage aktiv Alternativen vor',
+          'Kunde nimmt an → Status wechselt zu „Wartet auf Zahlung" (wenn Anzahlung > 0)',
+          'Kunde zahlt Anzahlung via Stripe (Karte, Apple Pay, Google Pay) → Status: „Bestätigt"',
+          'Du bekommst sofort eine Benachrichtigung über die erfolgreiche Zahlung',
+          'Die 5 % Plattformgebühr wird automatisch von der Anzahlung einbehalten',
         ]
       }
     ]
@@ -236,35 +259,37 @@ const SLIDES = [
     chapter: 'Buchungen',
     step: 7,
     type: 'step',
-    title: 'Bestätigte Buchungen verwalten',
-    intro: 'Nach Annahme des Angebots und Zahlung der Anzahlung gilt die Buchung als bestätigt. Ab hier ist sie verbindlich für beide Seiten.',
+    title: 'Bestätigte Buchungen & Session-Abschluss',
+    intro: 'Nach Anzahlungs-Eingang gilt die Buchung als bestätigt (Status: „Bestätigt"). Nach der Session trägst du den Restbetrag ein — so funktioniert dein Revenue-Tracking.',
     sections: [
       {
-        title: 'Was zeigt eine bestätigte Buchung?',
+        title: 'Was eine bestätigte Buchung zeigt',
         steps: [
-          'Kundendaten, Termin, Preis und Anzahlung',
-          'Der noch ausstehende Restbetrag (Gesamtpreis minus Anzahlung)',
-          'Die Storno-Frist — nach Ablauf greift die Anzahlungs-Einbehaltungsregel',
-          'Alle Nachrichten und Anhänge aus der Konversation',
+          'Kundendaten, Termin, Dauer und Gesamtpreis',
+          'Gezahlte Anzahlung und noch ausstehender Restbetrag (Gesamtpreis − Anzahlung)',
+          'Die Storno-Frist (wann das freie Stornierungsfenster endet)',
+          'Alle Nachrichten und Referenzbilder aus dem Chat',
         ]
       },
       {
-        title: 'Buchung selbst stornieren (als Studio)',
-        type: 'warning',
-        steps: [
-          'Klicke in der Buchung auf „Termin absagen"',
-          'Bei Studio-seitiger Stornierung wird die Anzahlung immer vollständig zurückgezahlt — keine Ausnahme',
-          'Der Kunde erhält automatisch eine E-Mail mit der Storno-Bestätigung',
-          'Storniere nur wenn absolut notwendig — häufige Studio-Stornierungen senken dein Ranking',
-        ]
-      },
-      {
-        title: 'Restbetrag bei der Session einziehen',
+        title: 'Session abschließen (nach dem Termin)',
         type: 'highlight',
         steps: [
-          'Den Restbetrag kassierst du direkt bei der Session (bar oder per eigener Lösung)',
-          'StudioOS kümmert sich nur um die Anzahlung — der Restbetrag ist deine Sache',
-          'Klicke nach der Session auf „Session abgeschlossen", um die Buchung zu archivieren',
+          'Klicke in der Buchung auf „Session abschließen" (Häkchen-Icon)',
+          'Trage den tatsächlich kassierten Betrag ein (Restbetrag oder individuell)',
+          'Wähle die Zahlungsart: Bar oder Stripe',
+          'Klicke auf „Bestätigen" — die Buchung wechselt zu Status „Abgeschlossen"',
+          'Der Betrag erscheint sofort in deiner Revenue-Übersicht (Heute, Monat, Gesamt)',
+        ]
+      },
+      {
+        title: 'No-Show — Kunde erscheint nicht',
+        type: 'warning',
+        steps: [
+          'Erscheint der Kunde nicht, klicke auf „No-Show markieren"',
+          'Status wechselt zu „Nicht erschienen" — die Anzahlung ist damit einbehalten',
+          'Du musst nichts weiter tun — das Geld ist bereits auf deinem Stripe-Konto',
+          'Der Kunde wird nicht automatisch benachrichtigt — du kannst ihm aber eine Nachricht schreiben',
         ]
       }
     ]
@@ -275,35 +300,37 @@ const SLIDES = [
     step: 8,
     type: 'step',
     title: 'Stornierungen & Rückzahlungen',
-    intro: 'Stornierungen sind Teil des Geschäfts. StudioOS regelt sie automatisch und fair — basierend auf dem Zeitpunkt der Stornierung.',
+    intro: 'Das freie Stornierungsfenster gilt relativ zum Termin — nicht zur Buchung. Storniert der Kunde früh genug VOR dem Termin, muss die Anzahlung zurückgezahlt werden.',
     sections: [
       {
-        title: 'Kunden-Stornierung im freien Zeitfenster',
+        title: 'Kunden-Stornierung — freies Fenster',
         steps: [
-          'Der Kunde storniert innerhalb des freien Stornierungsfensters (z. B. 48 Stunden nach Buchung)',
-          'Die Anzahlung muss vollständig zurückgezahlt werden',
-          'Du siehst im Dashboard unter dem Glocken-Symbol: „Rückzahlung ausstehend"',
-          'Klicke auf „💳 Anzahlung zurückzahlen" — die Rückzahlung läuft automatisch über Stripe',
-          'Der Kunde erhält das Geld innerhalb von 3–5 Werktagen zurück',
+          'Dein Stornierungsfenster ist in den Einstellungen als Stunden vor dem Termin definiert (z. B. 48)',
+          'Beispiel: Termin ist Fr 14:00 Uhr, Fenster = 48 Std. → Kostenlose Stornierung möglich bis Mi 14:00 Uhr',
+          'Storniert der Kunde innerhalb dieses Zeitraums: rote Glocke im Dashboard mit „Rückzahlung ausstehend"',
+          'Klicke auf „💳 Anzahlung zurückzahlen" — Stripe veranlasst die Rückbuchung automatisch',
+          'Kunde erhält das Geld in 3–5 Werktagen zurück (Stripe-Standard)',
         ]
       },
       {
-        title: 'Kunden-Stornierung NACH der Frist',
+        title: 'Kunden-Stornierung — NACH dem freien Fenster',
         type: 'highlight',
         steps: [
-          'Wenn der Kunde nach Ablauf des freien Fensters storniert, darfst du die Anzahlung behalten',
-          'Im Dashboard erscheint die Buchung mit Status „Storniert — Anzahlung einbehalten"',
-          'Du musst nichts tun — das Geld ist bereits auf deinem Stripe-Konto',
-          'Strikte Empfehlung: Klär dies vorab im Angebots-Text, damit keine Missverständnisse entstehen',
+          'Storniert der Kunde NACH Ablauf des Stornierungsfensters, darfst du die Anzahlung behalten',
+          'Status: „Storniert" — kein Rückzahlungs-Button erscheint',
+          'Das Geld ist bereits auf deinem Stripe-Konto',
+          'Empfehlung: Erwähne diese Regel explizit in deinem Angebots-Text, damit es keine Missverständnisse gibt',
         ]
       },
       {
-        title: 'Wichtig',
+        title: 'Studio storniert selbst',
         type: 'warning',
         steps: [
-          'Rückzahlungen müssen immer über StudioOS / Stripe abgewickelt werden — nicht manuell!',
-          'Ausstehende Rückzahlungen solltest du innerhalb von 24 Stunden bearbeiten',
-          'Bei Fragen oder Streitfällen wende dich an support@studioos.de — wir helfen schnell',
+          'Klicke in der Buchung auf „Termin absagen"',
+          'Bei studio-seitiger Stornierung wird die Anzahlung IMMER vollständig zurückgezahlt — automatisch über Stripe',
+          'Kein manueller Schritt nötig — das System erledigt alles',
+          'Der Kunde wird per E-Mail und Push-Benachrichtigung informiert',
+          'Häufige Studio-Stornierungen senken dein Ranking — bitte nur wenn wirklich nötig',
         ]
       }
     ]
@@ -314,33 +341,35 @@ const SLIDES = [
     step: 9,
     type: 'step',
     title: 'Nachrichten & Kundenkommunikation',
-    intro: 'Alle Kommunikation mit Kunden läuft über den StudioOS-Posteingang. Das hält alles übersichtlich und sicher.',
+    intro: 'Alle Kommunikation läuft über den StudioOS-Posteingang. So bleibt alles dokumentiert und an einem Ort.',
     sections: [
       {
-        title: 'Nachrichten-Funktionen',
+        title: 'So funktioniert der Chat',
         steps: [
-          'Gehe im Menü auf „Nachrichten" — hier siehst du alle Konversationen nach Buchung geordnet',
-          'Du kannst Text-Nachrichten, Fotos und Referenzbilder schicken',
+          'Gehe im Menü auf „Nachrichten" — alle Konversationen sind nach Buchung geordnet',
+          'Du kannst Text, Fotos und Referenzbilder schicken',
           'Kunden sehen deine Antworten in Echtzeit und werden per E-Mail benachrichtigt',
-          'Die rote Badge-Zahl neben dem Nachrichten-Icon zeigt ungelesene Nachrichten',
+          'Ungelesene Nachrichten zeigen eine rote Badge-Zahl neben dem Nachrichten-Icon',
+          'Automatische System-Nachrichten (Angebote, Bestätigungen, Stornierungen) erscheinen ebenfalls im Chat',
         ]
       },
       {
         title: 'Best Practices',
         type: 'highlight',
         steps: [
-          'Bestätige erhaltene Anfragen kurz: „Vielen Dank für deine Anfrage, ich melde mich bis [Datum]!"',
-          'Schicke dem Kunden vor der Session ruhig nochmals eine Bestätigung mit Treffpunkt und Adresse',
-          'Frage nach, falls Referenzbilder fehlen oder der Wunsch unklar ist — lieber einmal mehr fragen',
-          'Sei freundlich und professionell — Kunden bewerten auch die Kommunikation, nicht nur das Tattoo',
+          'Bestätige neue Anfragen mit einer kurzen Rückmeldung — auch wenn das Angebot noch nicht fertig ist',
+          'Schicke dem Kunden vor der Session nochmals Adresse, Parkhinweise und was er mitbringen soll',
+          'Frage aktiv nach fehlenden Referenzbildern — lieber einmal mehr fragen als überraschend sein',
+          'Beim Gast-Inquiry: kommuniziere über den Chat, bevor du das formale Angebot erstellst',
         ]
       },
       {
-        title: 'Benachrichtigungen einstellen',
+        title: 'Benachrichtigungen',
         type: 'tip',
         steps: [
-          'Unter „Einstellungen" → „Benachrichtigungen" kannst du E-Mail-Benachrichtigungen an- oder abschalten',
-          'Empfehlung: Lass alle Buchungs- und Nachrichten-Benachrichtigungen aktiv',
+          'Unter „Einstellungen" → „Benachrichtigungen" kannst du E-Mail-Alerts ein- und ausschalten',
+          'Empfehlung: alle Buchungs- und Nachrichten-Benachrichtigungen aktiv lassen',
+          'Push-Benachrichtigungen (Browser/Handy) werden automatisch angeboten — bitte erlauben',
         ]
       }
     ]
@@ -350,28 +379,27 @@ const SLIDES = [
     chapter: 'Analytics',
     step: 10,
     type: 'step',
-    title: 'Analytics & Einnahmen-Übersicht',
-    intro: 'Das Analytics-Dashboard gibt dir einen vollständigen Überblick über dein Geschäft — Umsatz, Auslastung, Stile und mehr.',
+    title: 'Analytics & Revenue-Übersicht',
+    intro: 'Das Analytics-Dashboard zeigt dir Umsatz, Auslastung und Buchungsstatistiken. Revenue wird nur aus abgeschlossenen Sessions gezählt.',
     sections: [
       {
-        title: 'Was du im Analytics-Dashboard siehst',
+        title: 'Was du siehst',
         steps: [
-          'Monats- und Jahresumsatz (Anzahlungen, die über StudioOS liefen)',
+          'Umsatz Heute / Diesen Monat / Gesamt (nur Status „Abgeschlossen")',
+          'Stripe-Gesamteinnahmen separat (nur Anzahlungen über Stripe)',
           'Anzahl bestätigter, ausstehender und stornierter Buchungen',
-          'Auslastungsrate: Wie viele deiner verfügbaren Tage sind ausgebucht?',
-          'Beliebteste Stile nach Buchungsanzahl',
-          'Durchschnittliche Antwortzeit auf Anfragen',
-          'Kundenbewertungen und Durchschnittsscore',
+          'Neue offene Anfragen (rote Badge-Zahl im Buchungs-Tab)',
+          'Auslastungsrate: wie viele deiner verfügbaren Tage sind gebucht',
         ]
       },
       {
-        title: 'Tipps zur Nutzung',
+        title: 'Tipp',
         type: 'tip',
         steps: [
-          'Überprüfe das Dashboard mindestens einmal pro Woche',
-          'Wenn die Auslastung niedrig ist, optimiere dein Profil: bessere Fotos, mehr Stile, aktueller Kalender',
-          'Wenn viele Anfragen kommen, aber wenige angenommen werden, überprüfe deine Angebots-Texte und Preise',
-          'Das Stripe-Dashboard (stripe.com) zeigt dir detaillierte Zahlungshistorie und Auszahlungen',
+          'Revenue steigt nur, wenn du Sessions über „Session abschließen" abschließt und den Betrag einträgst',
+          'Stripe-Einnahmen und Bar-Einnahmen werden getrennt in der Übersicht gezeigt',
+          'Überprüfe das Dashboard wöchentlich — niedrige Auslastung signalisiert Optimierungsbedarf im Profil',
+          'Detaillierte Zahlungshistorie und Auszahlungspläne findest du unter stripe.com',
         ]
       }
     ]
@@ -382,37 +410,46 @@ const SLIDES = [
     step: 11,
     type: 'step',
     title: 'Tipps für mehr Sichtbarkeit',
-    intro: 'Studios mit vollständigem Profil erhalten durchschnittlich 3× mehr Anfragen. Hier sind die wichtigsten Stellschrauben:',
+    intro: 'Studios mit vollständigem Profil und kurzer Reaktionszeit erhalten deutlich mehr Anfragen. Hier die wichtigsten Stellschrauben:',
     sections: [
       {
         title: 'Profil-Optimierung',
         steps: [
-          'Lade mindestens 8 hochwertige Portfolio-Fotos hoch (gute Beleuchtung, scharfer Fokus)',
-          'Schreibe eine Beschreibung mit mind. 150 Wörtern — erkläre, was dich von anderen unterscheidet',
-          'Füge alle Stile hinzu, die du beherrschst — auch Stile, die du selten machst',
+          'Lade mindestens 8 hochwertige Portfolio-Fotos hoch (scharfe Beleuchtung, guter Fokus)',
+          'Schreibe eine Beschreibung mit mindestens 150 Wörtern',
+          'Aktiviere alle Stile, die du beherrschst — auch seltener nachgefragte Stile steigern Sichtbarkeit',
           'Verknüpfe dein Instagram — viele Kunden schauen dort nochmals nach',
-          'Halte deinen Kalender immer aktuell — veraltete Kalender senken das Ranking',
+          'Halte Kalender und Kapazitäten aktuell — veraltet = schlechteres Ranking',
         ]
       },
       {
-        title: 'Reaktionszeit verbessern',
+        title: 'Reaktionszeit & Bewertungen',
         type: 'highlight',
         steps: [
-          'Die Reaktionszeit wird öffentlich auf deinem Profil angezeigt',
-          'Antworte immer innerhalb von 24 Stunden — auch wenn nur eine kurze Rückmeldung',
-          'Nutze das Nachrichtensystem für Rückfragen statt externe Wege (E-Mail, Instagram-DM)',
-          'Schalte E-Mail-Benachrichtigungen an, damit du keine Anfrage verpasst',
-        ]
-      },
-      {
-        title: 'Bewertungen',
-        type: 'tip',
-        steps: [
-          'Nach jeder abgeschlossenen Session werden Kunden automatisch um eine Bewertung gebeten',
-          'Hohe Bewertungen (4,8+) steigern deine Position in der Suchliste erheblich',
-          'Bitte Kunden nach der Session freundlich, eine ehrliche Bewertung zu hinterlassen',
+          'Deine durchschnittliche Reaktionszeit ist öffentlich sichtbar — antworte immer innerhalb von 24 Stunden',
+          'Nach jeder abgeschlossenen Session (Status „Abgeschlossen") werden Kunden automatisch zur Bewertung eingeladen',
+          'Bewertungen über 4,8 Sterne steigern dein Ranking erheblich',
+          'Bitte Kunden nach der Session freundlich um eine ehrliche Bewertung',
         ]
       }
+    ]
+  },
+  {
+    id: 'statusuebersicht',
+    chapter: 'Status-Glossar',
+    step: null,
+    type: 'statuses',
+    title: 'Alle Buchungs-Status im Überblick',
+    statuses: [
+      { status: 'Neue Anfrage', badge: '#f59e0b', desc: 'Kunde hat eine Kapazitäts-Anfrage gestellt — du musst ein Angebot erstellen' },
+      { status: 'Ausstehend', badge: '#f59e0b', desc: 'Direktbuchung eines Slots — du bestätigst oder lehnst ab' },
+      { status: 'Angebot gesendet', badge: '#8b5cf6', desc: 'Du hast ein Angebot gesendet — Kunde hat 15 Minuten Zeit zum Annehmen' },
+      { status: 'Wartet auf Zahlung', badge: '#3b82f6', desc: 'Kunde hat angenommen, Anzahlung noch nicht bezahlt' },
+      { status: 'Bestätigt', badge: '#22c55e', desc: 'Anzahlung eingegangen — Buchung ist verbindlich für beide Seiten' },
+      { status: 'Abgeschlossen', badge: '#6b7280', desc: 'Session abgehalten, Restbetrag eingetragen — zählt für Revenue' },
+      { status: 'Nicht erschienen', badge: '#6b7280', desc: 'Kunde ist nicht aufgetaucht — Anzahlung wird einbehalten' },
+      { status: 'Studio storniert', badge: '#ef4444', desc: 'Du hast storniert — Anzahlung wird automatisch zurückgezahlt' },
+      { status: 'Kunde storniert', badge: '#ef4444', desc: 'Kunde hat storniert — Rückzahlung abhängig vom Stornierungsfenster' },
     ]
   },
   {
@@ -423,36 +460,36 @@ const SLIDES = [
     title: 'Häufig gestellte Fragen',
     questions: [
       {
-        q: 'Kann ich als Studio mehrere Tätowierer im selben Account verwalten?',
-        a: 'Aktuell ist ein Account einem Studio zugeordnet. Wenn du mehrere Artists verwaltest, empfehlen wir, die Kapazität pro Tag entsprechend zu erhöhen. Eine Multi-Artist-Funktion ist in Planung.'
+        q: 'Warum sind es nur 15 Minuten zum Annehmen des Angebots?',
+        a: 'Das soll sicherstellen, dass Angebote zeitnah und verbindlich sind — der Termin ist reserviert, solange das Angebot offen ist. Nimmt der Kunde nicht innerhalb von 15 Minuten an, geht die Anfrage zurück auf "Neue Anfrage" und du kannst ein neues Angebot senden.'
       },
       {
-        q: 'Was passiert, wenn ein Kunde seine Anzahlung nicht bezahlt?',
-        a: 'Ohne Anzahlung wird die Buchung nicht bestätigt. Das Angebot läuft nach 72 Stunden automatisch ab. Du wirst benachrichtigt und kannst entscheiden, ob du das Angebot verlängerst oder neu vergibst.'
+        q: 'Was passiert, wenn ein Kunde die Anzahlung innerhalb der Frist nicht zahlt?',
+        a: 'Wenn du eine "Anzahlungs-Frist" in Stunden in deinen Einstellungen hinterlegt hast, wird die Buchung nach Ablauf dieser Frist automatisch storniert. Ohne eingestellte Frist bleibt die Buchung offen.'
       },
       {
-        q: 'Kann ich meinen Preis nach dem Angebot noch ändern?',
-        a: 'Sobald das Angebot angenommen und die Anzahlung bezahlt wurde, ist der Preis verbindlich. Vorher kannst du ein neues Angebot mit korrigiertem Preis senden.'
+        q: 'Kann ich den Preis nach dem Angebot noch ändern?',
+        a: 'Nein — sobald der Kunde das Angebot angenommen und die Anzahlung bezahlt hat, ist der Preis verbindlich. Vorher kannst du das Angebot zurückziehen und ein neues senden (solange noch innerhalb der 15 Minuten).'
       },
       {
-        q: 'Wie lange dauert eine Auszahlung auf mein Bankkonto?',
-        a: 'Stripe zahlt automatisch alle 7 Tage aus. Den genauen Auszahlungsplan siehst du in deinem Stripe-Dashboard unter stripe.com. Die erste Auszahlung kann bis zu 14 Tage dauern (Stripe-Verifikation).'
+        q: 'Was bedeutet "Kapazität 8 Punkte pro Tag" konkret?',
+        a: 'Du hast 8 Kapazitätspunkte pro Tag. Eine große Session (z. B. Full-Day) kann bis zu 8 Punkte kosten, kleine Flash-Tattoos nur 1–2. Du bestimmst selbst im Angebot, wie viele Punkte eine Session belegt. Wenn die 8 Punkte ausgeschöpft sind, gilt der Tag als ausgebucht.'
       },
       {
-        q: 'Was passiert bei einem Streit mit einem Kunden?',
-        a: 'Kontaktiere unseren Support unter support@studioos.de mit der Buchungs-ID. Wir prüfen den Fall und vermitteln. Bei eindeutigen Fällen greifen wir direkt ein.'
+        q: 'Wann muss ich eine Rückzahlung auslösen?',
+        a: 'Nur wenn: (a) der Kunde innerhalb seines freien Stornierungsfensters storniert UND (b) bereits eine Anzahlung gezahlt wurde. In diesem Fall erscheint eine rote Glocke im Dashboard. Du musst manuell auf "Anzahlung zurückzahlen" klicken. Bei studio-seitiger Stornierung läuft die Rückzahlung vollautomatisch.'
       },
       {
-        q: 'Kann ich mein Stornierungsfenster auf 0 Stunden setzen?',
-        a: 'Ja, du kannst das freie Stornierungsfenster auch auf 0 setzen — dann gilt sofort die Einbehaltungs-Regel. Wir empfehlen aber mindestens 24 Stunden, da das das Vertrauen der Kunden erhöht.'
+        q: 'Was passiert beim Gast-Inquiry, wenn der Gast den Aktivierungslink nicht öffnet?',
+        a: 'Ohne Account-Aktivierung kann der Gast das Angebot nicht annehmen und keine Anzahlung zahlen. Du kannst ihm über die E-Mail-Adresse im Inquiry erneut schreiben oder den Support kontaktieren.'
       },
       {
-        q: 'Wie bekomme ich eine Rechnung für die Plattformgebühren?',
-        a: 'Stripe stellt automatisch monatliche Rechnungen aus. Du findest sie in deinem Stripe-Dashboard unter „Billing". Wende dich bei buchhalterischen Fragen an support@studioos.de.'
+        q: 'Zählt die Anzahlung als Revenue in meiner Übersicht?',
+        a: 'Nein — Revenue wird nur durch den "Session abschließen"-Schritt erfasst. Du trägst dort den Restbetrag ein, den du bei der Session kassiert hast. Anzahlungen sind bereits auf deinem Stripe-Konto, werden aber separat als "Stripe-Einnahmen" gezeigt.'
       },
       {
-        q: 'Gibt es eine mobile App?',
-        a: 'StudioOS ist als Progressive Web App (PWA) optimiert — du kannst es auf deinem Smartphone als App installieren (Browser → „Zum Startbildschirm hinzufügen"). Eine native iOS/Android-App ist in Entwicklung.'
+        q: 'Wie bekomme ich Rechnungen für die Plattformgebühr?',
+        a: 'Die 5 % Plattformgebühr wird direkt bei jeder Anzahlung einbehalten. Stripe stellt automatisch monatliche Kontoauszüge aus. Für buchhalterische Fragen wende dich an support@studioos.de.'
       },
     ]
   },
@@ -523,10 +560,8 @@ function SlideContent({ slide }) {
         <p className="text-sm" style={{ color: '#52525b' }}>{slide.meta}</p>
         <div className="mt-16 flex items-center gap-2" style={{ color: '#52525b' }}>
           <span className="text-sm">Weiter mit</span>
-          <div className="flex gap-1 items-center">
-            <kbd className="px-2 py-1 rounded text-xs border" style={{ borderColor: '#27272a', background: '#18181b', color: '#71717a' }}>→</kbd>
-            <span className="text-xs" style={{ color: '#52525b' }}>oder Klick</span>
-          </div>
+          <kbd className="px-2 py-1 rounded text-xs border" style={{ borderColor: '#27272a', background: '#18181b', color: '#71717a' }}>→</kbd>
+          <span className="text-xs" style={{ color: '#52525b' }}>oder Klick</span>
         </div>
       </div>
     );
@@ -559,13 +594,12 @@ function SlideContent({ slide }) {
   }
 
   if (slide.type === 'step') {
+    const cols = slide.sections.length >= 3 ? 'grid-cols-3' : slide.sections.length === 2 ? 'grid-cols-2' : 'grid-cols-1';
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 mb-4">
           {slide.step && (
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-black shrink-0 bg-white"
-            >
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-black shrink-0 bg-white">
               {slide.step}
             </div>
           )}
@@ -576,14 +610,14 @@ function SlideContent({ slide }) {
         </h2>
         <p className="text-base mb-8 leading-relaxed" style={{ color: '#71717a' }}>{slide.intro}</p>
 
-        <div className={`grid gap-6 flex-1 ${slide.sections.length >= 3 ? 'grid-cols-3' : slide.sections.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`grid gap-6 flex-1 ${cols}`}>
           {slide.sections.map((section, si) => (
             <div
               key={si}
               className="rounded-xl border p-5 flex flex-col"
               style={{ background: '#18181b', borderColor: '#27272a' }}
             >
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <span className="font-semibold text-white text-sm">{section.title}</span>
                 {section.type && <Tag type={section.type} />}
               </div>
@@ -592,11 +626,7 @@ function SlideContent({ slide }) {
                   <li key={idx} className="flex items-start gap-2.5">
                     <div
                       className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-                      style={{
-                        background: section.type === 'warning' ? '#27272a' : '#27272a',
-                        color: section.type === 'warning' ? '#e4e4e7' : '#71717a',
-                        border: '1px solid #3f3f46'
-                      }}
+                      style={{ background: '#27272a', color: '#71717a', border: '1px solid #3f3f46' }}
                     >
                       {idx + 1}
                     </div>
@@ -611,11 +641,37 @@ function SlideContent({ slide }) {
     );
   }
 
+  if (slide.type === 'statuses') {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: '#52525b' }}>{slide.chapter}</div>
+        <h2 className="text-3xl font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+          {slide.title}
+        </h2>
+        <div className="grid grid-cols-3 gap-3 flex-1">
+          {slide.statuses.map((s, i) => (
+            <div
+              key={i}
+              className="rounded-xl border p-4 flex flex-col gap-2"
+              style={{ background: '#18181b', borderColor: '#27272a' }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.badge }} />
+                <span className="font-semibold text-white text-sm">{s.status}</span>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: '#71717a' }}>{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (slide.type === 'faq') {
     return (
       <div className="flex flex-col h-full">
         <div className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: '#52525b' }}>FAQ</div>
-        <h2 className="text-3xl font-black text-white mb-8" style={{ fontFamily: '"Playfair Display", serif' }}>
+        <h2 className="text-3xl font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
           {slide.title}
         </h2>
         <div className="grid grid-cols-2 gap-4 flex-1 overflow-y-auto">
