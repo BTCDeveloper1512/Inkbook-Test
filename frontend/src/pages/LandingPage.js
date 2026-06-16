@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
 import { ArrowRight, CalendarCheck, MessageCircle, Search } from "lucide-react";
 import axios from "axios";
 import SplashScreen from "../components/SplashScreen";
 import { StudioOSMark } from "../components/StudioOSLogo";
-import GuestBookingModal from "../components/GuestBookingModal";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const F = { inter: "'Inter',sans-serif", play: "'Playfair Display',serif" };
 
-/* ─── Fade-up helper ─── */
+/* ─── Fade-up scroll helper ─── */
 function FadeUp({ children, delay = 0, className = "" }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
@@ -30,7 +29,6 @@ function NotebookFrame({ children, width = 500 }) {
   const sh = Math.round(sw * 0.63);
   return (
     <div style={{ width: sw, flexShrink: 0, position: "relative" }}>
-      {/* lid */}
       <div style={{
         width: sw, height: sh,
         borderRadius: "12px 12px 0 0",
@@ -44,9 +42,7 @@ function NotebookFrame({ children, width = 500 }) {
           {children}
         </div>
       </div>
-      {/* hinge line */}
       <div style={{ height: 4, background: "linear-gradient(to bottom,#111,#222)", width: sw }} />
-      {/* base */}
       <div style={{
         width: sw + 48, height: 20, marginLeft: -24,
         background: "linear-gradient(to bottom,#d4d4d4,#b8b8b8)",
@@ -60,19 +56,16 @@ function NotebookFrame({ children, width = 500 }) {
   );
 }
 
-/* ─── Notebook screen content: studio search results ─── */
-function NotebookContent({ studio }) {
-  const name = studio?.name || "Dark Ink Studio";
-  const city = studio?.city || "Berlin";
-  const studioId = studio?.studio_id || null;
-  const fakeStudios = [
-    { name, city, rating: "4.9", style: "Fine Line · Realism", active: true, studioId },
-    { name: "Sacred Needles", city: "Hamburg", rating: "4.8", style: "Traditional · Neo Trad", active: false, studioId: null },
-    { name: "Noir Collective", city: "München", rating: "4.7", style: "Blackwork · Dotwork", active: false, studioId: null },
+/* ─── Notebook screen: studio search ─── */
+function NotebookContent() {
+  const studios = [
+    { name: "Dark Ink Studio",  city: "Berlin",  rating: "4.9", style: "Fine Line · Realism",   active: true },
+    { name: "Sacred Needles",   city: "Hamburg", rating: "4.8", style: "Traditional · Neo Trad", active: false },
+    { name: "Noir Collective",  city: "München", rating: "4.7", style: "Blackwork · Dotwork",    active: false },
   ];
   return (
     <div style={{ width: "100%", height: "100%", background: "#fafafa", fontFamily: F.inter, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Nav bar */}
+      {/* Nav */}
       <div style={{ padding: "8px 14px", borderBottom: "1px solid #ececec", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{ width: 14, height: 14, borderRadius: 4, background: "#09090b", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
@@ -93,21 +86,22 @@ function NotebookContent({ studio }) {
         </div>
         <div style={{ display: "flex", gap: 5, paddingBottom: 8 }}>
           {["Alle Stile","Fine Line","Realism","Traditional"].map((t, i) => (
-            <div key={i} style={{ padding: "2px 8px", borderRadius: 20, fontSize: 7, fontWeight: 600, background: i === 0 ? "#09090b" : "#f4f4f5", color: i === 0 ? "#fff" : "#71717a", border: i === 0 ? "none" : "1px solid #e4e4e7" }}>{t}</div>
+            <div key={i} style={{ padding: "2px 8px", borderRadius: 20, fontSize: 7, fontWeight: 600, background: i===0 ? "#09090b" : "#f4f4f5", color: i===0 ? "#fff" : "#71717a", border: i===0 ? "none" : "1px solid #e4e4e7" }}>{t}</div>
           ))}
         </div>
       </div>
       {/* Studio cards */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
-        {fakeStudios.map((s, i) => (
+        {studios.map((s, i) => (
           <div key={i} style={{
-            background: "#fff", borderRadius: 10, border: s.active ? "1.5px solid #09090b" : "1px solid #ececec",
+            background: "#fff", borderRadius: 10,
+            border: s.active ? "1.5px solid #09090b" : "1px solid #ececec",
             boxShadow: s.active ? "0 0 0 3px rgba(9,9,11,0.06)" : "0 1px 4px rgba(0,0,0,0.04)",
             overflow: "hidden", display: "flex",
           }}>
-            <div style={{ width: 56, background: `hsl(0,0%,${82 + i * 4}%)`, flexShrink: 0 }} />
+            <div style={{ width: 56, background: `hsl(0,0%,${82+i*4}%)`, flexShrink: 0 }} />
             <div style={{ flex: 1, padding: "8px 10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>{s.name}</div>
                 <div style={{ fontSize: 8, fontWeight: 700, color: "#18181b" }}>★ {s.rating}</div>
               </div>
@@ -123,73 +117,109 @@ function NotebookContent({ studio }) {
   );
 }
 
-/* ─── Phone mockup — interactive, links to real booking flow ─── */
-function PhoneMockup({ studio, onBook }) {
-  const name = studio?.name || "Dark Ink Studio";
-  const today = new Date();
-  const days = ["So","Mo","Di","Mi","Do","Fr","Sa"];
-  const weekDays = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return [days[d.getDay()], d.getDate().toString()];
-  });
-  const slots = [["10:00",false],["11:30",true],["13:00",false],["14:30",false],["16:00",false],["17:30",false]];
+/* ─── Phone mockup: capacity calendar ─── */
+// June 2026: starts Monday. Dots: past=grey, green/amber/red for future.
+const CAL_DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+// grid: null = empty pad, number = day
+const CAL_GRID = [
+  [1,2,3,4,5,6,7],
+  [8,9,10,11,12,13,14],
+  [15,16,17,18,19,20,21],
+  [22,23,24,25,26,27,28],
+  [29,30,null,null,null,null,null],
+];
+const TODAY = 16; // today is June 16
+const SELECTED = 22;
+const DOT_MAP = {
+  // past: grey
+  1:"#d4d4d8",2:"#d4d4d8",3:"#d4d4d8",4:"#d4d4d8",5:"#d4d4d8",
+  6:"#d4d4d8",7:"#d4d4d8",8:"#d4d4d8",9:"#d4d4d8",10:"#d4d4d8",
+  11:"#d4d4d8",12:"#d4d4d8",13:"#d4d4d8",14:"#d4d4d8",15:"#d4d4d8",16:"#d4d4d8",
+  // future: availability dots
+  17:"#22c55e", 18:"#22c55e", 19:"#f59e0b", 20:"#22c55e",
+  21:"#22c55e", 22:"#f59e0b", 23:"#ef4444", 24:"#22c55e",
+  25:"#ef4444", 26:"#f59e0b", 27:"#22c55e", 28:"#22c55e",
+  29:"#22c55e", 30:"#f59e0b",
+};
 
+function PhoneMockup() {
   return (
     <div style={{
-      width: 200, height: 370, borderRadius: 28, background: "#09090b",
+      width: 200, height: 390, borderRadius: 28, background: "#09090b",
       boxShadow: "0 32px 64px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.1)",
       overflow: "hidden", position: "relative", flexShrink: 0, fontFamily: F.inter,
     }}>
       {/* notch */}
       <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 52, height: 4, borderRadius: 3, background: "rgba(255,255,255,0.1)" }} />
-      <div style={{ padding: "26px 12px 12px", height: "100%", display: "flex", flexDirection: "column", gap: 9, boxSizing: "border-box" }}>
+      <div style={{ padding: "26px 12px 12px", height: "100%", display: "flex", flexDirection: "column", gap: 8, boxSizing: "border-box" }}>
+
+        {/* Studio header */}
         <div>
-          <div style={{ fontSize: 6, color: "rgba(255,255,255,0.3)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 2 }}>Termin buchen</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "white", fontFamily: F.play, letterSpacing: "-0.01em" }}>{name}</div>
+          <div style={{ fontSize: 6, color: "rgba(255,255,255,0.3)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 2 }}>Termin anfragen</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "white", fontFamily: F.play, letterSpacing: "-0.01em" }}>Dark Ink Studio</div>
+          <div style={{ fontSize: 7, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>Berlin · Kein Account nötig</div>
         </div>
-        {/* days */}
-        <div style={{ display: "flex", gap: 3 }}>
-          {weekDays.map(([d,n], i) => (
-            <div key={i} style={{ flex: 1, padding: "4px 2px", borderRadius: 7, textAlign: "center", background: i===2 ? "white" : "rgba(255,255,255,0.05)", border: `1px solid ${i===2 ? "white" : "rgba(255,255,255,0.07)"}` }}>
-              <div style={{ fontSize: 5.5, color: i===2 ? "#71717a" : "rgba(255,255,255,0.3)" }}>{d}</div>
-              <div style={{ fontSize: 8, fontWeight: 700, color: i===2 ? "#18181b" : "rgba(255,255,255,0.7)", marginTop: 1 }}>{n}</div>
+
+        {/* Calendar block */}
+        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", padding: "8px 7px" }}>
+          {/* Month header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <div style={{ fontSize: 6, color: "rgba(255,255,255,0.28)", letterSpacing: "0.08em", textTransform: "uppercase" }}>‹</div>
+            <div style={{ fontSize: 8, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.04em" }}>Juni 2026</div>
+            <div style={{ fontSize: 6, color: "rgba(255,255,255,0.28)", letterSpacing: "0.08em", textTransform: "uppercase" }}>›</div>
+          </div>
+          {/* Day headers */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, marginBottom: 3 }}>
+            {CAL_DAYS.map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 5.5, color: "rgba(255,255,255,0.25)", fontWeight: 600 }}>{d}</div>
+            ))}
+          </div>
+          {/* Calendar rows */}
+          {CAL_GRID.map((week, wi) => (
+            <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, marginBottom: 1 }}>
+              {week.map((day, di) => {
+                if (!day) return <div key={di} />;
+                const isPast = day <= TODAY;
+                const isSel = day === SELECTED;
+                const dot = DOT_MAP[day];
+                return (
+                  <div key={di} style={{
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    padding: "3px 1px",
+                    borderRadius: 5,
+                    background: isSel ? "white" : "transparent",
+                  }}>
+                    <span style={{ fontSize: 7, fontWeight: isSel ? 700 : 500, color: isSel ? "#18181b" : isPast ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.8)", lineHeight: 1 }}>{day}</span>
+                    {dot && <div style={{ width: 3, height: 3, borderRadius: "50%", background: isSel ? "#18181b" : dot, marginTop: 1 }} />}
+                  </div>
+                );
+              })}
             </div>
           ))}
-        </div>
-        {/* slots */}
-        <div>
-          <div style={{ fontSize: 6, color: "rgba(255,255,255,0.28)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 5 }}>Verfügbare Zeiten</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
-            {slots.map(([t, sel], i) => (
-              <div key={i} style={{ padding: "6px 2px", borderRadius: 7, textAlign: "center", background: sel ? "white" : "rgba(255,255,255,0.04)", border: `1px solid ${sel ? "white" : "rgba(255,255,255,0.06)"}` }}>
-                <div style={{ fontSize: 7, fontWeight: 600, color: sel ? "#18181b" : "rgba(255,255,255,0.75)" }}>{t}</div>
+          {/* Legend */}
+          <div style={{ display: "flex", gap: 6, marginTop: 5, justifyContent: "center" }}>
+            {[["#22c55e","Frei"],["#f59e0b","Begrenzt"],["#ef4444","Voll"]].map(([c,l]) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <div style={{ width: 4, height: 4, borderRadius: "50%", background: c }} />
+                <span style={{ fontSize: 5.5, color: "rgba(255,255,255,0.3)" }}>{l}</span>
               </div>
             ))}
           </div>
         </div>
-        {/* artist row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "rgba(255,255,255,0.05)", borderRadius: 9, border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.12)", flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ height: 4, width: 48, background: "rgba(255,255,255,0.22)", borderRadius: 3 }} />
-            <div style={{ height: 3.5, width: 32, background: "rgba(255,255,255,0.09)", borderRadius: 3, marginTop: 3 }} />
-          </div>
-          <div style={{ fontSize: 7, color: "rgba(255,255,255,0.35)" }}>★ 4.9</div>
+
+        {/* Selected date */}
+        <div style={{ padding: "6px 8px", background: "rgba(255,255,255,0.05)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize: 6, color: "rgba(255,255,255,0.3)", marginBottom: 1 }}>Gewählter Termin</div>
+          <div style={{ fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>Montag, 22. Juni 2026</div>
         </div>
-        {/* CTA — triggers real booking modal */}
-        <button
-          onClick={onBook}
-          style={{
-            marginTop: "auto", padding: "10px 0", background: "white", borderRadius: 10,
-            textAlign: "center", border: "none", cursor: "pointer", width: "100%",
-            transition: "transform 0.15s, opacity 0.15s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; e.currentTarget.style.transform = "scale(0.98)"; }}
-          onMouseLeave={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "scale(1)"; }}
-        >
-          <span style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>Jetzt buchen →</span>
-        </button>
+
+        {/* CTA */}
+        <Link to="/search" style={{
+          marginTop: "auto", padding: "10px 0", background: "white", borderRadius: 10,
+          textAlign: "center", textDecoration: "none", display: "block",
+        }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>Studio finden →</span>
+        </Link>
       </div>
     </div>
   );
@@ -197,9 +227,9 @@ function PhoneMockup({ studio, onBook }) {
 
 /* ─── Features ─── */
 const features = [
-  { icon: Search,         label: "Entdecken", title: "Finde dein Studio",        desc: "Hunderte kuratierter Studios. Echte Bewertungen, klare Preise, Stile filtern." },
-  { icon: CalendarCheck,  label: "Buchen",    title: "Termin in Sekunden",       desc: "Echtzeit-Slots, kein Telefonieren. Ein Klick und der Termin ist deiner." },
-  { icon: MessageCircle,  label: "Chatten",   title: "Direkt kommunizieren",     desc: "Schreib dem Studio, teile Referenzbilder — alles an einem Ort." },
+  { icon: Search,        label: "Entdecken", title: "Finde dein Studio",      desc: "Hunderte kuratierter Studios. Echte Bewertungen, klare Preise, Stile filtern." },
+  { icon: CalendarCheck, label: "Buchen",    title: "Termin in Sekunden",     desc: "Echtzeit-Kapazitätskalender, kein Telefonieren. Ein Klick und der Termin ist deiner." },
+  { icon: MessageCircle, label: "Chatten",   title: "Direkt kommunizieren",   desc: "Schreib dem Studio, teile Referenzbilder — alles an einem Ort." },
 ];
 
 /* ─── Newsletter ─── */
@@ -241,22 +271,13 @@ function NewsletterSection() {
    Main Page
 ══════════════════════════════════════════════════════ */
 export default function LandingPage() {
-  const [studio, setStudio] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-
-  useEffect(() => {
-    axios.get(`${API}/studios?limit=1`)
-      .then(r => { if (r.data && r.data[0]) setStudio(r.data[0]); })
-      .catch(() => {});
-  }, []);
-
   return (
     <>
       <SplashScreen />
 
       <div className="bg-white min-h-screen font-inter">
 
-        {/* ── HERO ────────────────────────────────────────── */}
+        {/* ── HERO ─────────────────────────────────────── */}
         <section className="relative overflow-hidden pt-24 pb-20 px-6">
           <div className="absolute inset-0 pointer-events-none" style={{
             backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.038) 1px, transparent 1px)",
@@ -266,7 +287,7 @@ export default function LandingPage() {
           <div className="max-w-6xl mx-auto relative">
             <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
 
-              {/* ── Left: copy ── */}
+              {/* Left: copy */}
               <div className="flex-1 max-w-lg">
                 <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.08 }}
                   className="text-[10px] tracking-[.28em] uppercase text-zinc-400 mb-5 font-inter">
@@ -278,8 +299,8 @@ export default function LandingPage() {
                 </motion.h1>
                 <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.26 }}
                   className="text-base text-zinc-500 leading-relaxed mb-8 font-inter">
-                  Finde kuratierte Studios, buche direkt und kommuniziere im integrierten
-                  Chat — alles ohne Umwege.
+                  Finde kuratierte Studios, buche per Kapazitätskalender und
+                  kommuniziere im integrierten Chat — alles ohne Umwege.
                 </motion.p>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.34 }}
                   className="flex flex-col sm:flex-row gap-3 mb-5">
@@ -288,10 +309,10 @@ export default function LandingPage() {
                     Studio finden
                     <ArrowRight size={14} strokeWidth={2} className="transition-transform duration-300 group-hover:translate-x-1" />
                   </Link>
-                  <button onClick={() => setShowModal(true)}
+                  <Link to="/register?role=studio"
                     className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 transition-all font-inter">
-                    Demo — Termin buchen
-                  </button>
+                    Als Studio registrieren
+                  </Link>
                 </motion.div>
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.44 }}
                   className="text-xs text-zinc-400 font-inter">
@@ -299,7 +320,7 @@ export default function LandingPage() {
                 </motion.p>
               </div>
 
-              {/* ── Right: Notebook + Phone ── */}
+              {/* Right: Notebook + Phone */}
               <motion.div
                 initial={{ opacity: 0, y: 28 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -308,7 +329,7 @@ export default function LandingPage() {
                 style={{ flexShrink: 0 }}
               >
                 <NotebookFrame width={460}>
-                  <NotebookContent studio={studio} />
+                  <NotebookContent />
                 </NotebookFrame>
 
                 {/* Phone overlapping bottom-left */}
@@ -317,21 +338,20 @@ export default function LandingPage() {
                   transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
                   style={{
                     position: "absolute",
-                    bottom: -20,
-                    left: -48,
+                    bottom: -24,
+                    left: -52,
                     zIndex: 10,
-                    filter: "drop-shadow(0 24px 40px rgba(0,0,0,0.18))",
+                    filter: "drop-shadow(0 24px 40px rgba(0,0,0,0.2))",
                   }}
                 >
-                  <PhoneMockup studio={studio} onBook={() => setShowModal(true)} />
+                  <PhoneMockup />
                 </motion.div>
               </motion.div>
-
             </div>
           </div>
         </section>
 
-        {/* ── STATS ───────────────────────────────────────── */}
+        {/* ── STATS ───────────────────────────────────── */}
         <FadeUp className="border-y border-zinc-100">
           <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-3 divide-x divide-zinc-100">
             {[["500+","Studios"],["10k+","Buchungen"],["4.9 ★","Bewertung"]].map(([v, l]) => (
@@ -343,7 +363,7 @@ export default function LandingPage() {
           </div>
         </FadeUp>
 
-        {/* ── FEATURES ────────────────────────────────────── */}
+        {/* ── FEATURES ────────────────────────────────── */}
         <section className="max-w-6xl mx-auto px-6 py-20">
           <FadeUp className="text-center mb-12">
             <p className="text-[10px] tracking-[.28em] uppercase text-zinc-400 mb-3 font-inter">Wie es funktioniert</p>
@@ -365,7 +385,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── STUDIO CTA BAND ─────────────────────────────── */}
+        {/* ── STUDIO CTA ──────────────────────────────── */}
         <FadeUp>
           <div className="mx-4 sm:mx-6 mb-20 rounded-2xl bg-zinc-950 overflow-hidden">
             <div className="max-w-6xl mx-auto px-8 py-12 flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -384,7 +404,7 @@ export default function LandingPage() {
           </div>
         </FadeUp>
 
-        {/* ── FOOTER ──────────────────────────────────────── */}
+        {/* ── FOOTER ──────────────────────────────────── */}
         <footer className="border-t border-zinc-100 bg-white">
           <div className="max-w-6xl mx-auto px-6 py-12">
             <div className="mb-10 pb-10 border-b border-zinc-100">
@@ -399,9 +419,9 @@ export default function LandingPage() {
                 <p className="text-xs text-zinc-400 font-inter leading-relaxed">Die Tattoo-Buchungsplattform für Deutschland.</p>
               </div>
               {[
-                { heading: "Produkt",      links: [{ to: "/search", l: "Studios finden" }, { to: "/register", l: "Registrieren" }, { to: "/faq", l: "FAQ" }] },
-                { heading: "Unternehmen",  links: [{ to: "/ueber-uns", l: "Über uns" }, { to: "/faq", l: "Support" }] },
-                { heading: "Rechtliches",  links: [{ to: "/impressum", l: "Impressum" }, { to: "/datenschutz", l: "Datenschutz" }, { to: "/agb", l: "AGB" }] },
+                { heading: "Produkt",     links: [{ to: "/search", l: "Studios finden" }, { to: "/register", l: "Registrieren" }, { to: "/faq", l: "FAQ" }] },
+                { heading: "Unternehmen", links: [{ to: "/ueber-uns", l: "Über uns" }, { to: "/faq", l: "Support" }] },
+                { heading: "Rechtliches", links: [{ to: "/impressum", l: "Impressum" }, { to: "/datenschutz", l: "Datenschutz" }, { to: "/agb", l: "AGB" }] },
               ].map(({ heading, links }) => (
                 <div key={heading}>
                   <p className="text-[10px] tracking-widest uppercase text-zinc-400 mb-4 font-inter">{heading}</p>
@@ -420,11 +440,6 @@ export default function LandingPage() {
           </div>
         </footer>
       </div>
-
-      {/* ── Real booking modal ─────────────────────────── */}
-      {showModal && studio && (
-        <GuestBookingModal studio={studio} onClose={() => setShowModal(false)} />
-      )}
     </>
   );
 }
