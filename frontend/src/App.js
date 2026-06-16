@@ -20,6 +20,7 @@ import SubscriptionPage from "./pages/SubscriptionPage";
 import AdminPage from "./pages/AdminPage";
 import ImpressumPage from "./pages/ImpressumPage";
 import VideoTemplate from "./components/video/VideoTemplate.js";
+import StudioGuide from "./pages/StudioGuide";
 import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
 import FAQPage from "./pages/FAQPage";
@@ -73,6 +74,7 @@ function AppRouter() {
           <ProtectedRoute requiredRole="admin"><AdminPage /></ProtectedRoute>
         } />
         <Route path="/video" element={<VideoTemplate />} />
+        <Route path="/guide" element={<StudioGuide />} />
         <Route path="*" element={<SearchPage />} />
       </Routes>
       <CookieBanner />
