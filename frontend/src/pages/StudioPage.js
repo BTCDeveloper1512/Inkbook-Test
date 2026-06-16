@@ -1051,8 +1051,8 @@ export default function StudioPage() {
                   </div>
                 )}
 
-                {/* Step 3: Calendar (shown after size selected) */}
-                {sizeCategory && (
+                {/* Step 3: Calendar (shown after size + artist selected, or only one artist) */}
+                {sizeCategory && (artists.length <= 1 || selectedCapArtist) && (
                   <div className="mb-5">
                     <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum
                       {selectedCapArtist && (() => { const a = artists.find(x => x.artist_id === selectedCapArtist); return a ? <span className="ml-1 font-normal normal-case tracking-normal text-zinc-400">– {a.name}</span> : null; })()}
