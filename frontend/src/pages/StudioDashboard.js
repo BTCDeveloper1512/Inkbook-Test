@@ -1150,6 +1150,12 @@ export default function StudioDashboard() {
                       <div>
                         <p className="font-inter font-semibold text-sm text-white">{b.user_name}</p>
                         <p className="text-xs text-white/50 font-inter mt-0.5">{b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                        {(b.size_category || b.body_part) && (
+                          <p className="text-[11px] text-white/40 font-inter mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            {b.size_category && <span className="bg-white/10 px-1.5 py-0.5 rounded-full">{b.size_category}</span>}
+                            {b.body_part && <span className="bg-white/10 px-1.5 py-0.5 rounded-full">{b.body_part}</span>}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
@@ -1192,6 +1198,12 @@ export default function StudioDashboard() {
                       <div className="pl-1.5">
                         <p className="font-inter font-semibold text-sm text-zinc-900">{b.user_name}</p>
                         <p className="text-xs text-zinc-500 font-inter mt-0.5 group-hover:text-zinc-700 transition-colors">{b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} · {b.start_time} – {b.end_time} · {b.booking_type === "video_consultation" ? "Videoberatung" : b.booking_type === "consultation" ? "Beratung" : "Tattoo"}</p>
+                        {(b.size_category || b.body_part) && (
+                          <p className="text-[11px] text-zinc-400 font-inter mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            {b.size_category && <span className="bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">{b.size_category}</span>}
+                            {b.body_part && <span className="bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">{b.body_part}</span>}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         {b.status === "pending" && b.deposit_required && b.payment_status !== "paid"
@@ -2146,6 +2158,12 @@ export default function StudioDashboard() {
                               <span className="text-zinc-500 font-medium">Wunschzeit:</span>{" "}
                               {b.preferred_time_from || "?"} – {b.preferred_time_to || "?"}
                             </p>
+                          )}
+                          {(b.size_category || b.body_part) && (
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              {b.size_category && <span className="text-[11px] font-inter bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{b.size_category}</span>}
+                              {b.body_part && <span className="text-[11px] font-inter bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{b.body_part}</span>}
+                            </div>
                           )}
                           {b.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{b.notes}"</p>}
                           {b.reference_images?.length > 0 && (
