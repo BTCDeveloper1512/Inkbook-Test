@@ -26,6 +26,35 @@ function FadeUp({ children, delay = 0, className = "" }) {
   );
 }
 
+const SCREENS = process.env.PUBLIC_URL + "/screenshots";
+
+/* ────────────────────────────────────────────────────────────
+   Screenshot inside browser frame — crops with CSS
+   cropRatio = how much of the original image HEIGHT to show
+   e.g. 0.52 shows the top 52%, hiding cookie-banner at ~69%
+──────────────────────────────────────────────────────────── */
+function ScreenshotFrame({ src, alt = "", cropRatio = 0.52, dark = false }) {
+  // Use padding-bottom trick for responsive crop at any width
+  // aspect ratio of cropped region = 1 / (nativeAspect * cropRatio)
+  // native aspect of our screenshots = 720/1280 = 0.5625
+  const paddingBottom = `${0.5625 * cropRatio * 100}%`;
+  return (
+    <BrowserFrame dark={dark}>
+      <div style={{ position: "relative", width: "100%", paddingBottom, overflow: "hidden" }}>
+        <img
+          src={src}
+          alt={alt}
+          style={{
+            position: "absolute", top: 0, left: 0,
+            width: "100%", height: "auto",
+            display: "block",
+          }}
+        />
+      </div>
+    </BrowserFrame>
+  );
+}
+
 /* ────────────────────────────────────────────────────────────
    Browser / MacBook frame wrapper
 ──────────────────────────────────────────────────────────── */
@@ -523,7 +552,7 @@ export default function LandingPage() {
               </motion.p>
             </div>
 
-            {/* Hero mockup — full-width browser */}
+            {/* Hero mockup — full-width real screenshot */}
             <motion.div
               initial={{ opacity: 0, y: 36 }}
               animate={{ opacity: 1, y: 0 }}
@@ -533,7 +562,11 @@ export default function LandingPage() {
               {/* Soft gradient fade at bottom so it flows into next section */}
               <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none z-10"
                 style={{ background: "linear-gradient(to bottom, transparent, #fff)" }} />
-              <SearchMockup />
+              <ScreenshotFrame
+                src={SCREENS + "/screen-search.jpg"}
+                alt="StudioOS Suche"
+                cropRatio={0.52}
+              />
             </motion.div>
           </div>
         </section>
