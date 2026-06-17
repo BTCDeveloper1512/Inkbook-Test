@@ -184,7 +184,8 @@ function ReviewReminderPopup({ booking, onReview, onDismiss }) {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 120, opacity: 0 }}
       transition={{ type: "spring", stiffness: 340, damping: 32 }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm z-40 px-4"
+      className="fixed left-1/2 -translate-x-1/2 w-full max-w-sm z-40 px-4"
+      style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}
       data-testid="review-reminder-popup"
     >
       <div className="bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] border border-black/[0.06] overflow-hidden">

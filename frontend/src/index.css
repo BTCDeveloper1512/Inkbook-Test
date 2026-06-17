@@ -52,6 +52,56 @@
   }
 }
 
+/* ── PWA & Mobile global resets ────────────────────────────────────────── */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Remove 300ms tap delay on all interactive elements */
+a, button, [role="button"], label, select, input, textarea {
+  touch-action: manipulation;
+}
+
+/* Prevent iOS zoom on input focus — font-size must be ≥ 16px */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Momentum scrolling on iOS */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-auto,
+.overflow-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbars on mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+}
+
+/* Safe-area utilities for notch / home indicator */
+.pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+.pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
+.pr-safe  { padding-right:  env(safe-area-inset-right,  0px); }
+.mb-safe  { margin-bottom:  env(safe-area-inset-bottom, 0px); }
+/* ── end PWA resets ────────────────────────────────────────────────────── */
+
 body, * {
   font-family: 'Cooper Hewitt', 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 300;

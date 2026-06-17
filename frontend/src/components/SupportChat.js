@@ -755,7 +755,8 @@ export default function SupportChat() {
       {/* Toggle Button */}
       <button
         onClick={() => { setOpen(o => !o); if (!open) setView("home"); }}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-zinc-900 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.28)] hover:bg-zinc-800 hover:shadow-[0_12px_40px_rgba(0,0,0,0.32)] transition-all duration-200 group"
+        className="fixed right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-zinc-900 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.28)] hover:bg-zinc-800 hover:shadow-[0_12px_40px_rgba(0,0,0,0.32)] transition-all duration-200 group"
+        style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}
         data-testid="support-chat-toggle"
         aria-label="Support öffnen"
       >
@@ -775,8 +776,8 @@ export default function SupportChat() {
       {/* Chat Panel */}
       {open && (
         <div
-          className="fixed bottom-20 right-6 z-50 w-80 bg-white rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.18)] border border-zinc-100 overflow-hidden flex flex-col"
-          style={{ height: 480 }}
+          className="fixed right-6 z-50 w-[calc(100vw-3rem)] sm:w-80 bg-white rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.18)] border border-zinc-100 overflow-hidden flex flex-col"
+          style={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))", height: "min(480px, calc(100dvh - 10rem))" }}
           data-testid="support-chat-panel"
         >
           {view === "home" && (

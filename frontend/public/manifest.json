@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "short_name": "StudioOS",
   "name": "StudioOS – Tattoo Studio Management",
   "description": "Das Studio Operating System für Tattoo-Studios und ihre Kunden",
@@ -32,12 +33,44 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "screenshots/screen-booking.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Termin buchen"
+    },
+    {
+      "src": "screenshots/screen-search.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Studios entdecken"
+    },
+    {
+      "src": "screenshots/screen-messages.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Nachrichten"
+    },
+    {
+      "src": "screenshots/desktop.jpg",
+      "sizes": "1280x800",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Studio-Dashboard"
+    }
+  ],
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "theme_color": "#090909",
   "background_color": "#090909",
   "orientation": "portrait-primary",
   "categories": ["lifestyle", "health"],
   "lang": "de",
-  "scope": "/"
+  "scope": "/",
+  "prefer_related_applications": false
 }
