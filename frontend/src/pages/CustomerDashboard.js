@@ -509,12 +509,41 @@ export default function CustomerDashboard() {
                       <h1 className="font-playfair font-bold text-white" style={{ fontSize: "clamp(26px, 4vw, 36px)" }}>
                         Hallo, {user?.name?.split(" ")[0]}
                       </h1>
-                      <motion.span
-                        initial={{ opacity: 0, rotate: -30, scale: 0.5 }}
-                        animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.4 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.35, type: "spring", stiffness: 260, damping: 15 }}
-                        className="text-2xl select-none"
-                      >👋</motion.span>
+                        className="select-none"
+                        style={{ display: "inline-flex", alignItems: "center" }}
+                      >
+                        <motion.svg
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 3.5, repeat: Infinity, ease: "linear" }}
+                          width="32" height="32" viewBox="0 0 32 32" fill="none"
+                          style={{ display: "block" }}
+                        >
+                          {/* Body */}
+                          <rect x="10" y="3" width="12" height="8" rx="3" fill="white" fillOpacity="0.9"/>
+                          {/* Left coil */}
+                          <circle cx="12.5" cy="8" r="2.5" fill="none" stroke="white" strokeWidth="1.4" strokeOpacity="0.6"/>
+                          <circle cx="12.5" cy="8" r="1" fill="white" fillOpacity="0.8"/>
+                          {/* Right coil */}
+                          <circle cx="19.5" cy="8" r="2.5" fill="none" stroke="white" strokeWidth="1.4" strokeOpacity="0.6"/>
+                          <circle cx="19.5" cy="8" r="1" fill="white" fillOpacity="0.8"/>
+                          {/* Connector bar */}
+                          <rect x="9" y="10.5" width="14" height="2" rx="1" fill="white" fillOpacity="0.5"/>
+                          {/* Grip */}
+                          <rect x="11" y="12.5" width="10" height="11" rx="2.5" fill="white" fillOpacity="0.85"/>
+                          {/* Grip ridges */}
+                          <line x1="11.5" y1="15" x2="20.5" y2="15" stroke="rgba(0,0,0,0.15)" strokeWidth="0.8"/>
+                          <line x1="11.5" y1="17.5" x2="20.5" y2="17.5" stroke="rgba(0,0,0,0.15)" strokeWidth="0.8"/>
+                          <line x1="11.5" y1="20" x2="20.5" y2="20" stroke="rgba(0,0,0,0.15)" strokeWidth="0.8"/>
+                          {/* Needle tube */}
+                          <rect x="14.5" y="23.5" width="3" height="5" rx="1.5" fill="white" fillOpacity="0.7"/>
+                          {/* Needle tip */}
+                          <circle cx="16" cy="30" r="1" fill="white" fillOpacity="0.9"/>
+                        </motion.svg>
+                      </motion.div>
                     </div>
                   </div>
                   <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 260, damping: 18 }}>
