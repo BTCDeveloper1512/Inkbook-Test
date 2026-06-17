@@ -141,9 +141,9 @@ const STATIC_FAQS = [
     items: [
       { q: "Wie buche ich einen Tattoo-Termin?", a: "Öffne die Profilseite eines Studios, wähle deine Tattoo-Größe (Mini bis XL) und optional eine Körperstelle. Danach siehst du verfügbare Tage im Kalender – wähle einen Slot und fülle das Buchungsformular aus. Das Studio bestätigt deinen Termin und du erhältst eine Bestätigungsmail." },
       { q: "Was bedeuten die Tattoo-Größen Mini, Small, Medium, Large und XL?", a: "Die Größen helfen dem Studio bei der Zeitplanung: Mini (Schriftzug, Symbol), Small (ca. 5 cm), Medium (ca. 10 cm), Large (z.B. Unterarm), XL (Rücken, Sleeve). Je nach Größe kann ein Tag unterschiedlich viele Buchungen aufnehmen." },
-      { q: "Kann ich einen Termin absagen?", a: "Ja. Du kannst eine Buchung jederzeit in deinem Dashboard unter 'Meine Termine' stornieren. Das Studio wird automatisch benachrichtigt." },
-      { q: "Kann ich vor der Buchung eine Videoberatung anfragen?", a: "Ja. Viele Studios bieten Videoberatungen an. Wähle auf der Studio-Profilseite einfach 'Videoberatung' als Buchungstyp – so könnt ihr vorab über Motiv, Größe und Platzierung sprechen." },
-      { q: "Wie kontaktiere ich ein Studio direkt?", a: "Über die Nachrichtenfunktion auf der Studio-Profilseite kannst du dem Studio direkt schreiben. Alle deine Konversationen findest du im Dashboard unter 'Nachrichten'." },
+      { q: "Muss ich eine Anzahlung leisten?", a: "Das hängt vom Studio ab. Viele Studios verlangen eine Anzahlung zur Absicherung des Termins. Falls eine Anzahlung fällig ist, erhältst du nach der Bestätigung einen Zahlungslink direkt im Dashboard. Die Buchung gilt erst als vollständig gesichert, wenn die Anzahlung bezahlt wurde." },
+      { q: "Kann ich einen Termin absagen?", a: "Ja. Du kannst eine Buchung in deinem Dashboard unter 'Meine Termine' stornieren. Bitte beachte: Bereits geleistete Anzahlungen können je nach Stornierungsbedingungen des Studios einbehalten werden. Stornierungs­bedingungen werden vom jeweiligen Studio festgelegt." },
+      { q: "Kann ich ein Studio direkt kontaktieren?", a: "Du kannst einem Studio erst dann eine Nachricht schreiben, wenn du einen bestätigten Termin bei ihnen hast. Die Nachrichtenfunktion steht dir dann im Dashboard unter 'Nachrichten' zur Verfügung." },
       { q: "Ist StudioOS für Kunden kostenlos?", a: "Ja, vollständig kostenlos. Suchen, Vergleichen, Buchen und Nachrichten senden ist für Kunden ohne jede Gebühr möglich." },
     ],
   },
