@@ -1774,7 +1774,7 @@ export default function StudioDashboard() {
                               { label: "Mini",   pts: 1, desc: "Schriftzug, Symbol" },
                               { label: "Small",  pts: 2, desc: "ca. 5 cm" },
                               { label: "Medium", pts: 3, desc: "ca. 10 cm" },
-                              { label: "Lage",   pts: 5, desc: "z.B. Unterarm" },
+                              { label: "Large",  pts: 5, desc: "z.B. Unterarm" },
                               { label: "XL",     pts: 8, desc: "Rücken, Sleeve" },
                             ].map(({ label, pts, desc }) => (
                               <div key={label} className="flex flex-col items-center text-center gap-0.5">
