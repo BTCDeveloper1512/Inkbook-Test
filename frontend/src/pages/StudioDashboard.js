@@ -1766,6 +1766,28 @@ export default function StudioDashboard() {
                             </button>
                           )}
                         </div>
+
+                        {/* Größen-Referenz */}
+                        <div className="mt-2 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5">
+                          <div className="grid grid-cols-5 gap-1 mb-2">
+                            {[
+                              { label: "Mini",   pts: 1, desc: "Schriftzug, Symbol" },
+                              { label: "Small",  pts: 2, desc: "ca. 5 cm" },
+                              { label: "Medium", pts: 3, desc: "ca. 10 cm" },
+                              { label: "Lage",   pts: 5, desc: "z.B. Unterarm" },
+                              { label: "XL",     pts: 8, desc: "Rücken, Sleeve" },
+                            ].map(({ label, pts, desc }) => (
+                              <div key={label} className="flex flex-col items-center text-center gap-0.5">
+                                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide leading-none">{label}</span>
+                                <span className="text-base font-bold text-zinc-800 leading-none">{pts}</span>
+                                <span className="text-[9px] text-zinc-400 leading-tight">{desc}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-zinc-400 leading-snug border-t border-zinc-200 pt-2">
+                            Du kannst deine Kapazität frei anpassen — arbeitest du schneller, erhöhe den Wert, damit dein Kalender für Kunden mehr Verfügbarkeit zeigt. <span className="text-zinc-500 font-medium">8 Punkte ist der Standard.</span>
+                          </p>
+                        </div>
                       </div>
 
                       {/* ── SECONDARY: Verfügbarkeit einschränken (optional) ── */}
