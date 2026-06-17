@@ -1888,7 +1888,7 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     asyncio.create_task(_post_system_message(
         customer_id=user_id,
         studio_owner_id=owner_id,
-        text=f"📩 Neue Anfrage eingegangen: {data.size_category.capitalize()}-Tattoo am {data.date}{time_hint}. Das Studio meldet sich bald mit einem Angebot.",
+        text=f"📩 Anfrage gesendet: {data.size_category.capitalize()}-Tattoo am {data.date}{time_hint}. Das Studio meldet sich in Kürze mit einem Angebot.",
         triggered_by_id=user_id
     ))
 
@@ -2086,7 +2086,7 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
 
     # System chat message for cancellations
     if customer_id and owner_id and is_cancellation:
-        msg = "❌ Termin vom Studio abgesagt." if effective_status == "studio_cancelled" else "❌ Termin vom Kunden abgesagt."
+        msg = "❌ Termin wurde vom Studio storniert." if effective_status == "studio_cancelled" else "❌ Termin wurde storniert."
         cancel_triggered_by = owner_id if effective_status == "studio_cancelled" else customer_id
         asyncio.create_task(_post_system_message(customer_id=customer_id, studio_owner_id=owner_id, text=msg, triggered_by_id=cancel_triggered_by))
 
@@ -2502,7 +2502,7 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
     asyncio.create_task(_post_system_message(
         customer_id=customer_id,
         studio_owner_id=owner_id,
-        text=f"📋 Angebot erstellt: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} gesamt · {deposit_str} Anzahlung – bitte innerhalb von {offer_deadline_label} annehmen.",
+        text=f"📋 Neues Angebot: {date_fmt} um {offer.offer_time} Uhr · {offer.offer_duration_min} Min. · €{offer.offer_total_price:.0f} Gesamtpreis{(' · ' + deposit_str + ' Anzahlung') if deposit_str else ''} – bitte bis {offer_deadline_label} annehmen.",
         triggered_by_id=owner_id
     ))
     asyncio.create_task(send_push_notification(
@@ -2682,7 +2682,7 @@ async def cancel_booking_with_refund(booking_id: str, current_user: dict = Depen
         asyncio.create_task(_post_system_message(
             customer_id=customer_id,
             studio_owner_id=owner_id,
-            text=f"❌ Termin vom Studio storniert. Die Anzahlung ({deposit_str}) wird automatisch auf deine ursprüngliche Zahlungsmethode zurückgebucht — du musst nichts tun.",
+            text=f"❌ Termin wurde vom Studio storniert. Die Anzahlung ({deposit_str}) wird automatisch zurückerstattet.",
             triggered_by_id=owner_id
         ))
 
@@ -2780,7 +2780,7 @@ async def refund_deposit(booking_id: str, current_user: dict = Depends(get_curre
         asyncio.create_task(_post_system_message(
             customer_id=customer_id,
             studio_owner_id=owner_id,
-            text=f"💚 Deine Anzahlung ({deposit_str}) wird zurückgebucht — du musst nichts tun.",
+            text=f"💚 Anzahlung ({deposit_str}) wird zurückerstattet – kein weiteres Handeln erforderlich.",
             triggered_by_id=owner_id
         ))
 
@@ -2820,7 +2820,7 @@ async def mark_no_show(booking_id: str, current_user: dict = Depends(get_current
     asyncio.create_task(_post_system_message(
         customer_id=customer_id,
         studio_owner_id=owner_id,
-        text="⚠️ Nicht erschienen: Kunde ist nicht zum Termin gekommen. Die Anzahlung wurde einbehalten.",
+        text="⚠️ Termin verpasst: Kunde ist nicht erschienen. Die Anzahlung wurde einbehalten.",
         triggered_by_id=owner_id
     ))
 
@@ -2833,8 +2833,6 @@ async def get_unread_count_post(current_user: dict = Depends(get_current_user)):
     count = await db.messages.count_documents({
         "recipient_id": user_id, "read": False,
         "is_broadcast": {"$ne": True},
-        "sender_id": {"$ne": "inkbook_system"},
-        "is_system": {"$ne": True}
     })
     return {"count": count, "unread_count": count}
 
@@ -2844,8 +2842,6 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
     count = await db.messages.count_documents({
         "recipient_id": user_id, "read": False,
         "is_broadcast": {"$ne": True},
-        "sender_id": {"$ne": "inkbook_system"},
-        "is_system": {"$ne": True}
     })
     return {"count": count, "unread_count": count}
 

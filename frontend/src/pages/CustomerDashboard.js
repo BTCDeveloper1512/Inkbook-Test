@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, MessageSquare, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart } from "lucide-react";
+import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart } from "lucide-react";
 import StudioCard from "../components/StudioCard";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -601,81 +601,6 @@ export default function CustomerDashboard() {
           })}
         </motion.div>
 
-
-        {/* Nachrichten Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}
-          className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] mb-6 overflow-hidden"
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-50">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
-                <MessageSquare size={13} className="text-white" strokeWidth={1.5} />
-              </div>
-              <span className="font-inter font-semibold text-sm text-zinc-900">Nachrichten</span>
-              {unreadCount > 0 && (
-                <span className="text-[10px] font-inter font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">
-                  {unreadCount} neu
-                </span>
-              )}
-            </div>
-            <Link to="/messages" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-900 font-inter transition-colors">
-              Alle <ChevronRight size={12} strokeWidth={2} />
-            </Link>
-          </div>
-
-          {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center mb-3">
-                <MessageSquare size={18} className="text-zinc-300" strokeWidth={1.5} />
-              </div>
-              <p className="text-sm text-zinc-400 font-inter">Noch keine Nachrichten</p>
-              <p className="text-xs text-zinc-300 font-inter mt-1">Studio-Antworten erscheinen hier</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-zinc-50">
-              {conversations.map((conv, i) => {
-                const name = conv.other_name || "Studio";
-                const isSystem = conv.is_broadcast_conv || conv.other_user_id === "inkbook_system";
-                const preview = conv.last_message
-                  ? (conv.last_message.length > 55 ? conv.last_message.slice(0, 55) + "…" : conv.last_message)
-                  : "Nachricht";
-                const isUnread = (conv.unread_count || 0) > 0;
-                const timeStr = conv.last_message_at
-                  ? new Date(conv.last_message_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })
-                  : "";
-                const initial = name.charAt(0).toUpperCase();
-                const avatarBg = isSystem
-                  ? "bg-zinc-900"
-                  : ["bg-violet-100", "bg-rose-100", "bg-sky-100", "bg-amber-100", "bg-emerald-100"][i % 5];
-                const avatarText = isSystem
-                  ? "text-white"
-                  : ["text-violet-600", "text-rose-600", "text-sky-600", "text-amber-600", "text-emerald-600"][i % 5];
-                return (
-                  <Link key={conv.conv_id || i} to={`/messages?with=${conv.other_user_id}`}
-                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-50 transition-colors group">
-                    <div className={`w-9 h-9 ${avatarBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                      <span className={`text-sm font-inter font-bold ${avatarText}`}>{initial}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <p className={`text-sm font-inter truncate ${isUnread ? "font-semibold text-zinc-900" : "font-medium text-zinc-600"}`}>
-                          {name}
-                        </p>
-                        <span className="text-[10px] text-zinc-300 font-inter flex-shrink-0">{timeStr}</span>
-                      </div>
-                      <p className={`text-xs font-inter truncate ${isUnread ? "text-zinc-500" : "text-zinc-400"}`}>{preview}</p>
-                    </div>
-                    {isUnread
-                      ? <div className="w-2.5 h-2.5 bg-zinc-900 rounded-full flex-shrink-0" />
-                      : <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
-                    }
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </motion.div>
 
         {/* Bookings Tabs */}
         <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit max-w-full overflow-x-auto">
