@@ -40,7 +40,7 @@ export function Scene5() {
         <h1
           className="font-black tracking-tighter leading-none text-white"
           style={{
-            fontFamily: '"Playfair Display", Georgia, serif',
+            fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
             fontSize: '11vw'
           }}
         >

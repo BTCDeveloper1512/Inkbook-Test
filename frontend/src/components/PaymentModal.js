@@ -208,7 +208,7 @@ export default function PaymentModal({ session, onClose, onSuccess }) {
       colorBackground: "#fafafa",
       colorText: "#18181b",
       colorDanger: "#ef4444",
-      fontFamily: "Inter, system-ui, sans-serif",
+      fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
       borderRadius: "12px",
       spacingUnit: "4px",
     },

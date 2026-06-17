@@ -33,22 +33,22 @@ function StudioCard({ studio, onShowSlots }) {
       )}
       <div style={{ padding: "10px 12px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "Inter,sans-serif", color: "#111", lineHeight: 1.3 }}>{studio.name}</p>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#111", lineHeight: 1.3 }}>{studio.name}</p>
           {studio.avg_rating > 0 && (
-            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, color: "#f59e0b", fontFamily: "Inter,sans-serif", flexShrink: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, color: "#f59e0b", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", flexShrink: 0 }}>
               <Star size={10} fill="#f59e0b" strokeWidth={0} />{studio.avg_rating.toFixed(1)}
             </span>
           )}
         </div>
         {studio.city && (
-          <p style={{ margin: "3px 0 0", fontSize: 11, color: "#666", fontFamily: "Inter,sans-serif", display: "flex", alignItems: "center", gap: 3 }}>
+          <p style={{ margin: "3px 0 0", fontSize: 11, color: "#666", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", display: "flex", alignItems: "center", gap: 3 }}>
             <MapPin size={9} strokeWidth={1.5} />{studio.city}
           </p>
         )}
         {studio.booking_types?.length > 0 && (
           <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
             {studio.booking_types.map(t => (
-              <span key={t} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#f4f4f5", color: "#666", fontFamily: "Inter,sans-serif" }}>
+              <span key={t} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#f4f4f5", color: "#666", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
                 {BOOKING_TYPE_LABELS[t] || t}
               </span>
             ))}
@@ -57,7 +57,7 @@ function StudioCard({ studio, onShowSlots }) {
         <button style={{
           width: "100%", marginTop: 8, padding: "7px 0", borderRadius: 10, border: "none",
           background: "#111", color: "#fff", fontSize: 12, fontWeight: 600,
-          fontFamily: "Inter,sans-serif", cursor: "pointer",
+          fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
         }}>
           <Calendar size={11} strokeWidth={2} /> Freie Termine anzeigen
@@ -79,19 +79,19 @@ function SlotCard({ slot, studioId, studioName, onBook }) {
     }} data-testid="agent-slot-card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 600, fontFamily: "Inter,sans-serif", color: "#111" }}>{dayStr}</p>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#666", fontFamily: "Inter,sans-serif", display: "flex", alignItems: "center", gap: 3 }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 600, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#111" }}>{dayStr}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#666", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", display: "flex", alignItems: "center", gap: 3 }}>
             <Clock size={9} strokeWidth={1.5} />{slot.start_time} – {slot.end_time}
           </p>
         </div>
-        <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", fontFamily: "Inter,sans-serif" }}>Frei</span>
+        <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>Frei</span>
       </div>
       <select
         value={bookingType}
         onChange={e => setBookingType(e.target.value)}
         style={{
           width: "100%", padding: "5px 8px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.1)",
-          fontSize: 11, fontFamily: "Inter,sans-serif", color: "#333", background: "#f9f9f9",
+          fontSize: 11, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#333", background: "#f9f9f9",
           marginBottom: 8, cursor: "pointer",
         }}
       >
@@ -104,7 +104,7 @@ function SlotCard({ slot, studioId, studioName, onBook }) {
         style={{
           width: "100%", padding: "7px 0", borderRadius: 10, border: "none",
           background: "#111", color: "#fff", fontSize: 12, fontWeight: 600,
-          fontFamily: "Inter,sans-serif", cursor: "pointer",
+          fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", cursor: "pointer",
         }}
         data-testid="agent-book-slot-btn"
       >
@@ -126,11 +126,11 @@ function BookingConfirmationCard({ booking }) {
           <CheckCircle size={16} strokeWidth={2} style={{ color: "#fff" }} />
         </div>
         <div>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "Inter,sans-serif", color: "#15803d" }}>Buchung erstellt!</p>
-          <p style={{ margin: 0, fontSize: 10, color: "#16a34a", fontFamily: "Inter,sans-serif" }}>Ausstehend – Studio muss bestätigen</p>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#15803d" }}>Buchung erstellt!</p>
+          <p style={{ margin: 0, fontSize: 10, color: "#16a34a", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>Ausstehend – Studio muss bestätigen</p>
         </div>
       </div>
-      <div style={{ fontSize: 11, fontFamily: "Inter,sans-serif", color: "#166534", lineHeight: 1.6 }}>
+      <div style={{ fontSize: 11, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#166534", lineHeight: 1.6 }}>
         <p style={{ margin: "2px 0" }}><strong>Studio:</strong> {booking.studio_name}</p>
         <p style={{ margin: "2px 0" }}><strong>Datum:</strong> {dayStr}</p>
         <p style={{ margin: "2px 0" }}><strong>Zeit:</strong> {booking.start_time} – {booking.end_time}</p>
@@ -139,7 +139,7 @@ function BookingConfirmationCard({ booking }) {
       <a href="/dashboard" style={{
         display: "block", marginTop: 10, textAlign: "center", padding: "7px 0",
         borderRadius: 10, background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 600,
-        fontFamily: "Inter,sans-serif", textDecoration: "none",
+        fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", textDecoration: "none",
       }}>Im Dashboard anzeigen</a>
     </div>
   );
@@ -222,8 +222,8 @@ function AIChat({ onBack }) {
           <Sparkles size={14} strokeWidth={1.5} style={{ color: "rgba(255,255,255,0.85)" }} />
         </div>
         <div>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, fontFamily: "Inter,sans-serif", color: "#111" }}>Ink – KI-Assistent</p>
-          <p style={{ margin: 0, fontSize: 10, color: "#16a34a", fontFamily: "Inter,sans-serif" }}>● Online</p>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#111" }}>Ink – KI-Assistent</p>
+          <p style={{ margin: 0, fontSize: 10, color: "#16a34a", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>● Online</p>
         </div>
       </div>
 
@@ -241,7 +241,7 @@ function AIChat({ onBack }) {
               borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
               background: msg.role === "user" ? "#111" : "#f4f4f5",
               color: msg.role === "user" ? "#fff" : "#111",
-              fontSize: 12, fontFamily: "Inter,sans-serif", lineHeight: 1.5,
+              fontSize: 12, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", lineHeight: 1.5,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}
               dangerouslySetInnerHTML={{
@@ -266,7 +266,7 @@ function AIChat({ onBack }) {
               }
               if (tr.tool === "get_slots") {
                 if (!tr.slots?.length) {
-                  return <p style={{ fontSize: 11, color: "#999", fontFamily: "Inter,sans-serif", marginTop: 4, maxWidth: "88%" }}>Leider keine freien Termine im nächsten Monat gefunden.</p>;
+                  return <p style={{ fontSize: 11, color: "#999", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", marginTop: 4, maxWidth: "88%" }}>Leider keine freien Termine im nächsten Monat gefunden.</p>;
                 }
                 return (
                   <div style={{ width: "88%", marginTop: 6 }}>
@@ -308,7 +308,7 @@ function AIChat({ onBack }) {
               style={{
                 padding: "5px 10px", borderRadius: 20,
                 border: "1px solid rgba(0,0,0,0.1)", background: "#fff",
-                fontSize: 11, fontFamily: "Inter,sans-serif", color: "#444",
+                fontSize: 11, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "#444",
                 cursor: "pointer", transition: "background 0.15s",
               }}
               onMouseEnter={e => e.currentTarget.style.background = "#f4f4f5"}
@@ -330,7 +330,7 @@ function AIChat({ onBack }) {
           placeholder="Frag mich alles über Studios & Buchungen..."
           style={{
             flex: 1, background: "#f4f4f5", border: "none", borderRadius: 20,
-            padding: "8px 14px", fontSize: 12, fontFamily: "Inter,sans-serif",
+            padding: "8px 14px", fontSize: 12, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
             outline: "none", color: "#111",
           }}
           data-testid="agent-chat-input"

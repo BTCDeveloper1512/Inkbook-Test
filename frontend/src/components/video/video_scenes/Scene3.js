@@ -73,7 +73,7 @@ export function Scene3() {
         <motion.h2
           className="font-black leading-tight mb-8 text-white"
           style={{
-            fontFamily: '"Playfair Display", Georgia, serif',
+            fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
             fontSize: '3.8vw',
             lineHeight: 1.1
           }}
@@ -112,7 +112,7 @@ export function Scene3() {
           transition={{ duration: 0.8, type: 'spring', bounce: 0.2 }}
         >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[1vw] font-bold text-white" style={{ fontFamily: '"Playfair Display", serif' }}>Oktober 2024</span>
+            <span className="text-[1vw] font-bold text-white" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>Oktober 2024</span>
             <div className="flex gap-3 text-[0.68vw]" style={{ color: '#71717a' }}>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full inline-block bg-white" /> Bestätigt
@@ -214,7 +214,7 @@ export function Scene3() {
           <div className="text-[0.72vw] uppercase tracking-wider mb-2" style={{ color: '#52525b' }}>Monatseinnahmen</div>
           <motion.div
             className="text-[3vw] font-black text-white leading-none mb-1"
-            style={{ fontFamily: '"Playfair Display", serif' }}
+            style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}
             animate={{ opacity: phase >= 4 ? 1 : 0.3 }}
             transition={{ duration: 0.6 }}
           >

@@ -97,10 +97,10 @@ export default function PWAInstallBanner() {
             style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0 }}
           />
           <div style={{ flex: 1 }}>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, fontFamily: "Inter, sans-serif", color: "rgba(255,255,255,0.92)" }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", color: "rgba(255,255,255,0.92)" }}>
               StudioOS installieren
             </p>
-            <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "Inter, sans-serif", marginTop: 2 }}>
+            <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", marginTop: 2 }}>
               Zum Home-Bildschirm hinzufügen
             </p>
           </div>
@@ -126,7 +126,7 @@ export default function PWAInstallBanner() {
             style={{
               width: "100%", padding: "11px 0", borderRadius: 12, border: "none",
               background: "rgba(255,255,255,0.95)", cursor: "pointer",
-              fontSize: 14, fontWeight: 600, fontFamily: "Inter, sans-serif",
+              fontSize: 14, fontWeight: 600, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
               color: "#090909",
             }}
           >
@@ -145,7 +145,7 @@ export default function PWAInstallBanner() {
                 style={{
                   width: "100%", padding: "11px 0", borderRadius: 12, border: "none",
                   background: "rgba(255,255,255,0.95)", cursor: "pointer",
-                  fontSize: 14, fontWeight: 600, fontFamily: "Inter, sans-serif",
+                  fontSize: 14, fontWeight: 600, fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
                   color: "#090909",
                 }}
               >
@@ -171,7 +171,7 @@ export default function PWAInstallBanner() {
                     }}>
                       {step.icon}
                     </div>
-                    <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.75)", fontFamily: "Inter, sans-serif", lineHeight: 1.4 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.75)", fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", lineHeight: 1.4 }}>
                       {step.text}
                     </p>
                   </div>

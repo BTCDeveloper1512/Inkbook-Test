@@ -88,7 +88,7 @@ export function Scene2() {
         <motion.h2
           className="font-black leading-tight mb-8 text-white"
           style={{
-            fontFamily: '"Playfair Display", Georgia, serif',
+            fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif",
             fontSize: '3.8vw',
             lineHeight: 1.1
           }}
@@ -131,7 +131,7 @@ export function Scene2() {
                   </span>
                 ))}
               </div>
-              <div className="text-[1.2vw] font-bold text-white" style={{ fontFamily: '"Playfair Display", serif' }}>
+              <div className="text-[1.2vw] font-bold text-white" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
                 Black Ink Studio
               </div>
               <div className="text-[0.8vw] mt-1" style={{ color: '#71717a' }}>Berlin · ★ 4.9</div>

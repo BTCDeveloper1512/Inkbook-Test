@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@100;200;300;400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/cooper-hewitt@4.5.3/300.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/cooper-hewitt@4.5.3/400.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/cooper-hewitt@4.5.3/700.css');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,21 +47,24 @@
     --color-zinc-800: #27272a;
     --color-zinc-400: #a1a1aa;
 
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'Inter', sans-serif;
+    --font-display: 'Cooper Hewitt', 'Barlow', sans-serif;
+    --font-body:    'Cooper Hewitt', 'Barlow', sans-serif;
   }
 }
 
-body {
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-  font-family: var(--font-body);
-  margin: 0;
-  padding: 0;
+body, * {
+  font-family: 'Cooper Hewitt', 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
+  font-family: 'Cooper Hewitt', 'Barlow', sans-serif;
+  font-weight: 300;
+}
+
+input, textarea, select, button {
+  font-family: 'Cooper Hewitt', 'Barlow', sans-serif;
+  font-weight: 300;
 }
 
 

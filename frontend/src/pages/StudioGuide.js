@@ -551,7 +551,7 @@ function SlideContent({ slide }) {
         </div>
         <h1
           className="font-black tracking-tighter leading-none text-white mb-4"
-          style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: 'clamp(3rem, 8vw, 7rem)' }}
+          style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", fontSize: 'clamp(3rem, 8vw, 7rem)' }}
         >
           Studio<em>OS</em>
         </h1>
@@ -571,7 +571,7 @@ function SlideContent({ slide }) {
     return (
       <div className="flex flex-col h-full">
         <div className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: '#52525b' }}>Inhalt</div>
-        <h2 className="text-3xl font-black text-white mb-10" style={{ fontFamily: '"Playfair Display", serif' }}>
+        <h2 className="text-3xl font-black text-white mb-10" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
           {slide.title}
         </h2>
         <div className="grid grid-cols-2 gap-4 flex-1">
@@ -605,7 +605,7 @@ function SlideContent({ slide }) {
           )}
           <div className="text-xs uppercase tracking-[0.2em]" style={{ color: '#52525b' }}>{slide.chapter}</div>
         </div>
-        <h2 className="text-3xl font-black text-white mb-4" style={{ fontFamily: '"Playfair Display", serif' }}>
+        <h2 className="text-3xl font-black text-white mb-4" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
           {slide.title}
         </h2>
         <p className="text-base mb-8 leading-relaxed" style={{ color: '#71717a' }}>{slide.intro}</p>
@@ -645,7 +645,7 @@ function SlideContent({ slide }) {
     return (
       <div className="flex flex-col h-full">
         <div className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: '#52525b' }}>{slide.chapter}</div>
-        <h2 className="text-3xl font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+        <h2 className="text-3xl font-black text-white mb-6" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
           {slide.title}
         </h2>
         <div className="grid grid-cols-3 gap-3 flex-1">
@@ -671,7 +671,7 @@ function SlideContent({ slide }) {
     return (
       <div className="flex flex-col h-full">
         <div className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: '#52525b' }}>FAQ</div>
-        <h2 className="text-3xl font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+        <h2 className="text-3xl font-black text-white mb-6" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
           {slide.title}
         </h2>
         <div className="grid grid-cols-2 gap-4 flex-1 overflow-y-auto">
@@ -696,7 +696,7 @@ function SlideContent({ slide }) {
         <div className="text-sm uppercase tracking-[0.25em] mb-4" style={{ color: '#52525b' }}>Fertig</div>
         <h1
           className="font-black tracking-tighter leading-none text-white mb-3"
-          style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
+          style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
         >
           {slide.title}
         </h1>
@@ -748,7 +748,7 @@ export default function StudioGuide() {
   return (
     <div
       className="fixed inset-0 flex flex-col select-none"
-      style={{ background: '#09090b', fontFamily: 'Inter, system-ui, sans-serif' }}
+      style={{ background: '#09090b', fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}
     >
       {/* Grid bg */}
       <div
@@ -766,7 +766,7 @@ export default function StudioGuide() {
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-10 pt-8 pb-4">
         <div className="flex items-center gap-3">
-          <span className="font-black text-white" style={{ fontFamily: '"Playfair Display", serif', fontSize: '1.1rem' }}>
+          <span className="font-black text-white" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", fontSize: '1.1rem' }}>
             Studio<em>OS</em>
           </span>
           <span className="text-xs" style={{ color: '#52525b' }}>Handbuch</span>

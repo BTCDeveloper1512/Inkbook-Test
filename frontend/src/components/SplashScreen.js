@@ -51,12 +51,12 @@ export default function SplashScreen({ onDone }) {
             className="mt-5 flex items-baseline gap-1"
           >
             <span
-              style={{ fontFamily: "'Playfair Display', serif", fontWeight: 400, fontSize: 28, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.02em" }}
+              style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", fontWeight: 400, fontSize: 28, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.02em" }}
             >
               Studio
             </span>
             <span
-              style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 28, color: "white", letterSpacing: "-0.02em" }}
+              style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", fontWeight: 700, fontSize: 28, color: "white", letterSpacing: "-0.02em" }}
             >
               OS
             </span>
@@ -67,7 +67,7 @@ export default function SplashScreen({ onDone }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.85 }}
-            style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.28)", letterSpacing: "0.18em", textTransform: "uppercase", marginTop: 10 }}
+            style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.28)", letterSpacing: "0.18em", textTransform: "uppercase", marginTop: 10 }}
           >
             The Studio Operating System
           </motion.p>

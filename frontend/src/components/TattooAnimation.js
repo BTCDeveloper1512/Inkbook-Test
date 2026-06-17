@@ -178,7 +178,7 @@ export default function TattooAnimation() {
           <text
             x="200" y="260"
             textAnchor="middle"
-            fontFamily="-apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'Helvetica Neue', sans-serif"
+            fontFamily="-apple-system, BlinkMacSystemFont, 'Cooper Hewitt', 'Barlow', sans-serif, 'SF Pro Text', 'Helvetica Neue', sans-serif"
             fontSize="16"
             fontWeight="300"
             letterSpacing="0.22em"
@@ -194,7 +194,7 @@ export default function TattooAnimation() {
           <text
             x="200" y="305"
             textAnchor="middle"
-            fontFamily="'Playfair Display', Georgia, 'Times New Roman', serif"
+            fontFamily="'Cooper Hewitt', 'Barlow', sans-serif"
             fontSize="52"
             fontWeight="700"
             letterSpacing="-0.02em"

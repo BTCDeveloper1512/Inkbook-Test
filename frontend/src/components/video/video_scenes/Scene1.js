@@ -42,7 +42,7 @@ export function Scene1() {
       <div className="overflow-hidden">
         <motion.h1
           className="text-[13vw] font-black tracking-tighter leading-none text-white"
-          style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
+          style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}
           initial={{ y: '110%' }}
           animate={{ y: phase >= 1 ? '0%' : '110%' }}
           transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}

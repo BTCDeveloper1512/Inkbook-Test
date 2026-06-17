@@ -45,7 +45,7 @@ export function Scene4() {
           transition={{ duration: 1.2, type: 'spring', bounce: 0.15 }}
         >
           <div className="text-[0.72vw] uppercase tracking-[0.2em] mb-4" style={{ color: '#52525b' }}>Kunde</div>
-          <div className="text-[2.2vw] font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+          <div className="text-[2.2vw] font-black text-white mb-6" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
             Einfach buchen
           </div>
           <div className="space-y-3">
@@ -115,7 +115,7 @@ export function Scene4() {
           transition={{ duration: 1.2, type: 'spring', bounce: 0.15 }}
         >
           <div className="text-[0.72vw] uppercase tracking-[0.2em] mb-4" style={{ color: '#52525b' }}>Studio</div>
-          <div className="text-[2.2vw] font-black text-white mb-6" style={{ fontFamily: '"Playfair Display", serif' }}>
+          <div className="text-[2.2vw] font-black text-white mb-6" style={{ fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}>
             Professionell verwalten
           </div>
           <div className="space-y-3">

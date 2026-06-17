@@ -20,7 +20,7 @@ export default function VideoTemplate() {
   return (
     <div
       className="relative w-full h-screen overflow-hidden text-white"
-      style={{ background: '#09090b', fontFamily: 'Inter, system-ui, sans-serif' }}
+      style={{ background: '#09090b', fontFamily: "'Cooper Hewitt', 'Barlow', sans-serif" }}
     >
       {/* Subtle grid background */}
       <div
