@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -78,6 +78,7 @@ export default function StudioDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [betaBannerOpen, setBetaBannerOpen] = useState(true);
   // Calendar blocks (manual studio blocking)
   const [calBlocks, setCalBlocks] = useState([]);
   const [calCapData, setCalCapData] = useState({});
@@ -950,6 +951,22 @@ export default function StudioDashboard() {
                 </button>
               ))}
             </nav>
+
+            {/* Beta-Hinweis Sidebar */}
+            <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 rounded-md bg-violet-100 flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={11} className="text-violet-600" />
+                </div>
+                <span className="text-[10px] font-inter font-bold text-violet-700 tracking-wide uppercase">Beta</span>
+              </div>
+              <p className="text-xs font-inter text-zinc-600 leading-relaxed mb-2">
+                Du nutzt StudioOS in der <strong>Beta-Phase</strong> — kostenlos und ohne Einschränkungen.
+              </p>
+              <p className="text-xs font-inter text-zinc-500 leading-relaxed">
+                Weitere Features wie erweiterte Analytics, priorisiertes Listing und mehr kommen bald — dann mit optionalem Abo-Modell.
+              </p>
+            </div>
           </aside>
 
           {/* ── Main content ── */}
@@ -979,6 +996,35 @@ export default function StudioDashboard() {
                 </button>
               ))}
             </div>
+
+        {/* Beta Banner — mobile + oben im Hauptbereich */}
+        <AnimatePresence>
+          {betaBannerOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="mb-5 rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-violet-50 px-5 py-4 flex items-start justify-between gap-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Sparkles size={14} className="text-violet-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-inter font-bold text-violet-700">Beta-Version</span>
+                    <span className="text-[10px] font-inter px-2 py-0.5 rounded-full bg-violet-100 text-violet-600 font-semibold">Kostenlos</span>
+                  </div>
+                  <p className="text-xs font-inter text-zinc-600 leading-relaxed">
+                    Du nutzt StudioOS in der Beta-Phase — alle aktuellen Features sind <strong>kostenlos</strong>. Erweiterte Features wie Analytics, priorisiertes Listing und mehr kommen bald mit einem optionalen Abo-Modell.
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setBetaBannerOpen(false)} className="text-zinc-300 hover:text-zinc-500 transition-colors flex-shrink-0 mt-0.5">
+                <X size={16} strokeWidth={2} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
