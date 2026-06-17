@@ -224,6 +224,12 @@ export default function MessagesPage() {
     if (!activeConv?.other_id) return;
 
     fetchMessages(activeConv.other_id);
+    // Mark messages from this sender as read in the backend
+    axios.post(`${API}/messages/${activeConv.other_id}/mark-read`, {}, { withCredentials: true }).catch(() => {});
+    // Also zero out unread_count locally so the sidebar bold/badge disappears immediately
+    setConversations(prev => prev.map(c =>
+      c.other_user_id === activeConv.other_id ? { ...c, unread_count: 0 } : c
+    ));
     // Reset scroll state when opening a different conversation
     userScrolledUp.current = false;
     // Fetch broadcast ratings when opening StudioOS system conversation
