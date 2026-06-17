@@ -1622,32 +1622,56 @@ export default function StudioDashboard() {
                         : isPast ? "bg-zinc-200" : "bg-emerald-400";
                     const blockType = block?.block_type;
                     const hasBg = !!block && !isSelected;
+                    const blockLabel = block ? (BLOCK_TYPES.find(t => t.id === blockType)?.label || blockType) : null;
+                    const tooltipLines = !isPast && !isSelected ? (() => {
+                      if (block) {
+                        const lines = [blockLabel];
+                        if (block.note) lines.push(block.note);
+                        if (capDay) lines.push(`${capDay.used}/${capDay.effective_cap} Punkte`);
+                        return lines;
+                      }
+                      if (isAfterCutoff) return ["Nicht buchbar für Kunden", "Liegt nach deinem Sichtbarkeits-Limit"];
+                      if (capDay?.status === "vacation") return ["Urlaub / geschlossen"];
+                      if (capDay?.status === "full") return [`Ausgebucht`, `${capDay.used}/${capDay.effective_cap} Punkte belegt`];
+                      if (capDay) return [`${capDay.used}/${capDay.effective_cap} Punkte belegt`];
+                      return null;
+                    })() : null;
                     return (
-                      <button
-                        key={iso}
-                        onClick={() => openDay(iso)}
-                        className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-sm font-inter
-                          ${isPast ? "opacity-40 cursor-default" : "hover:scale-105 cursor-pointer"}
-                          ${isSelected
-                            ? "bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-1"
-                            : hasBg
-                              ? `${bgCls[blockType]} border`
-                              : isToday
-                                ? "bg-zinc-800 text-white"
-                                : isAfterCutoff
-                                  ? "bg-zinc-50 border border-dashed border-zinc-300"
-                                  : "hover:bg-zinc-50 border border-transparent"}
-                        `}
-                        disabled={isPast}
-                        title={isSelected ? "Ausgewählt – klicken zum Abwählen" : block ? `${BLOCK_TYPES.find(t=>t.id===blockType)?.label || blockType}${block.note ? ` – ${block.note}` : ""}${capDay ? ` · ${capDay.used}/${capDay.effective_cap} Punkte` : ""}` : isAfterCutoff ? "Nach Sichtbarkeits-Limit (für Kunden nicht buchbar)" : capDay ? `${capDay.used}/${capDay.effective_cap} Punkte belegt` : "Klicken zum Auswählen"}
-                      >
-                        <span className={`text-xs font-semibold leading-none ${isSelected ? "text-white" : hasBg ? textCls[blockType] : isToday ? "text-white" : isAfterCutoff ? "text-zinc-400" : "text-zinc-700"}`}>{day}</span>
-                        {!isPast && !isAfterCutoff && capDay && !["full","vacation"].includes(capDay.status) && (
-                          <span className={`text-[8px] font-inter leading-none mt-0.5 ${isSelected ? "text-white/70" : isToday && !hasBg ? "text-white/70" : hasBg ? textCls[blockType] + " opacity-70" : "text-zinc-400"}`}>{capDay.used}/{capDay.effective_cap}</span>
+                      <div key={iso} className="relative group">
+                        <button
+                          onClick={() => openDay(iso)}
+                          className={`relative w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all text-sm font-inter
+                            ${isPast ? "opacity-40 cursor-default" : "hover:scale-105 cursor-pointer"}
+                            ${isSelected
+                              ? "bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-1"
+                              : hasBg
+                                ? `${bgCls[blockType]} border`
+                                : isToday
+                                  ? "bg-zinc-800 text-white"
+                                  : isAfterCutoff
+                                    ? "bg-zinc-50 border border-dashed border-zinc-300"
+                                    : "hover:bg-zinc-50 border border-transparent"}
+                          `}
+                          disabled={isPast}
+                        >
+                          <span className={`text-xs font-semibold leading-none ${isSelected ? "text-white" : hasBg ? textCls[blockType] : isToday ? "text-white" : isAfterCutoff ? "text-zinc-400" : "text-zinc-700"}`}>{day}</span>
+                          {!isPast && !isAfterCutoff && capDay && !["full","vacation"].includes(capDay.status) && (
+                            <span className={`text-[8px] font-inter leading-none mt-0.5 ${isSelected ? "text-white/70" : isToday && !hasBg ? "text-white/70" : hasBg ? textCls[blockType] + " opacity-70" : "text-zinc-400"}`}>{capDay.used}/{capDay.effective_cap}</span>
+                          )}
+                          {!isPast && !isAfterCutoff && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? "bg-white/60" : isToday && !hasBg ? "bg-white/60" : dotColor}`} />}
+                          {!isPast && isAfterCutoff && <span className="text-[8px] mt-0.5 text-zinc-400 font-inter leading-none">bald</span>}
+                        </button>
+                        {tooltipLines && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 ease-out w-max max-w-[160px]">
+                            <div className="bg-zinc-900 text-white text-[10px] font-inter rounded-xl px-3 py-2 shadow-xl leading-snug text-center whitespace-normal">
+                              {tooltipLines.map((line, li) => (
+                                <p key={li} className={li > 0 ? "opacity-60 mt-0.5" : "font-semibold"}>{line}</p>
+                              ))}
+                            </div>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-zinc-900" />
+                          </div>
                         )}
-                        {!isPast && !isAfterCutoff && <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? "bg-white/60" : isToday && !hasBg ? "bg-white/60" : dotColor}`} />}
-                        {!isPast && isAfterCutoff && <span className="text-[8px] mt-0.5 text-zinc-400 font-inter leading-none">bald</span>}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
