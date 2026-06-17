@@ -156,7 +156,7 @@ const STATIC_FAQS = [
       { q: "Wie bestätige oder lehne ich eine Buchungsanfrage ab?", a: "Neue Anfragen erscheinen im Dashboard als 'Ausstehend'. Klicke auf die Buchung und wähle 'Bestätigen' oder 'Stornieren'. Der Kunde wird automatisch per E-Mail benachrichtigt." },
       { q: "Kann ich eine Anzahlung von Kunden verlangen?", a: "Ja. Bei jeder Buchung kannst du einen Anzahlungsbetrag festlegen. Der Kunde bezahlt sicher über Stripe direkt im Dashboard – du siehst den Status in Echtzeit." },
       { q: "Wie kommuniziere ich mit Kunden?", a: "Über die integrierte Nachrichtenfunktion kannst du direkt mit Kunden chatten. Neue Nachrichten werden in der Navigation angezeigt. Alle Konversationen findest du unter 'Nachrichten'." },
-      { q: "Was kostet StudioOS für Studios?", a: "Die aktuellen Preise findest du auf unserer Preisseite. Für Fragen zum Abonnement kannst du uns jederzeit über den Support kontaktieren." },
+      { q: "Was kostet StudioOS für Studios?", a: "In der aktuellen Beta ist StudioOS für Studios weitgehend kostenlos. Wir behalten lediglich eine kleine Provision bei erfolgreich abgewickelten Anzahlungen ein – nur wenn Geld fließt, verdienen wir mit. Bald kommen neue Funktionen: Dann hast du die Möglichkeit, zwischen einem kostenlosen Basis-Zugang und einem Abo-Modell mit erweiterten Features zu wählen." },
     ],
   },
 ];
