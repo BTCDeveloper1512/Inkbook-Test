@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Star, Heart } from "lucide-react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { notify } from "./InkNotify";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -33,6 +34,11 @@ export default function StudioCard({ studio, index = 0, favorited = false, onTog
         await axios.delete(`${API}/favorites/${studio.studio_id}`, { withCredentials: true });
       }
       if (onToggleFavorite) onToggleFavorite(studio.studio_id, newSaved);
+      if (newSaved) {
+        notify.success("Gespeichert! Deine Favoriten findest du im Dashboard unter \"Favoriten\".");
+      } else {
+        notify.info("Studio aus deinen Favoriten entfernt.");
+      }
     } catch {
       setSaved(!newSaved);
     } finally {
