@@ -28,6 +28,47 @@ function FadeUp({ children, delay = 0, className = "" }) {
 }
 
 /* ────────────────────────────────────────────────────────────
+   Simple screenshot wrapper
+──────────────────────────────────────────────────────────── */
+function ScreenshotFrame({ src, alt = "", dark = false, cropBottom = 0 }) {
+  return (
+    <div style={{
+      borderRadius: 14,
+      overflow: "hidden",
+      boxShadow: dark
+        ? "0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)"
+        : "0 32px 72px rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.06)",
+    }}>
+      {/* Chrome bar */}
+      <div style={{
+        height: 36,
+        background: dark ? "#1c1c1e" : "#f4f4f5",
+        borderBottom: `1px solid ${dark ? "rgba(255,255,255,0.07)" : "#e4e4e7"}`,
+        display: "flex", alignItems: "center", padding: "0 14px", gap: 10, flexShrink: 0,
+      }}>
+        <div style={{ display: "flex", gap: 5 }}>
+          {["#ff5f57","#febc2e","#28c840"].map(c => (
+            <div key={c} style={{ width: 9, height: 9, borderRadius: "50%", background: c }} />
+          ))}
+        </div>
+        <div style={{
+          flex: 1, height: 19, borderRadius: 5,
+          background: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ fontSize: 9, color: dark ? "rgba(255,255,255,0.25)" : "#a1a1aa", fontFamily: "'Inter',sans-serif" }}>
+            app.studio-os.de
+          </span>
+        </div>
+      </div>
+      <div style={{ overflow: "hidden", maxHeight: cropBottom ? `calc(100% - ${cropBottom}px)` : undefined }}>
+        <img src={src} alt={alt} style={{ width: "100%", display: "block", objectFit: "cover" }} />
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
    Browser / MacBook frame wrapper
 ──────────────────────────────────────────────────────────── */
 function BrowserFrame({ children, dark = false }) {
@@ -144,9 +185,9 @@ function SearchMockup() {
   }, []);
 
   const studios = [
-    { name:"Noir Tattoo Berlin", city:"Berlin",    styles:["Fine Line","Realism"],    rating:"4.9", rev:82,  price:"EE",  col:"#27272a", verified:true  },
-    { name:"Sacred Needles",     city:"Hamburg",   styles:["Traditional","Neo Trad"], rating:"4.8", rev:56,  price:"EEE", col:"#52525b", verified:true  },
-    { name:"Blut & Tinte",       city:"Frankfurt", styles:["Blackwork","Dotwork"],    rating:"4.7", rev:41,  price:"EE",  col:"#71717a", verified:false },
+    { name:"JohannINK",          city:"Wardenburg", styles:["Fine Line","Realism"],    rating:"5.0", rev:1,   price:"EEE", photo:"https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=400&h=300&fit=crop&q=80", verified:true  },
+    { name:"Sacred Needles",     city:"Hamburg",    styles:["Traditional","Neo Trad"], rating:"4.8", rev:56,  price:"EEE", col:"#52525b", verified:true  },
+    { name:"Blut & Tinte",       city:"Frankfurt",  styles:["Blackwork","Dotwork"],    rating:"4.7", rev:41,  price:"EE",  col:"#71717a", verified:false },
   ];
 
   return (
@@ -200,7 +241,8 @@ function SearchMockup() {
                 transition={{ duration: 0.38, ease: [0.22,1,0.36,1] }}
                 style={{ background: "#fff", borderRadius: 13, border: i === 0 ? `1.5px solid ${Z[950]}` : `1px solid ${Z[200]}`, boxShadow: i === 0 ? "0 2px 14px rgba(9,9,11,0.08)" : "0 1px 5px rgba(0,0,0,0.04)", display: "flex", overflow: "hidden" }}
               >
-                <div style={{ width: 58, flexShrink: 0, background: `linear-gradient(150deg, ${s.col} 0%, ${Z[400]} 100%)`, position: "relative" }}>
+                <div style={{ width: 58, flexShrink: 0, position: "relative", overflow: "hidden", background: s.photo ? "transparent" : `linear-gradient(150deg, ${s.col} 0%, ${Z[400]} 100%)` }}>
+                  {s.photo && <img src={s.photo} alt={s.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
                   {i === 0 && (
                     <div style={{ position: "absolute", top: 5, left: 4, background: "rgba(9,9,11,0.82)", borderRadius: 4, padding: "1.5px 4px" }}>
                       <span style={{ fontSize: 5.5, color: "#fff", fontFamily: F.inter, fontWeight: 700 }}>Verifiziert</span>
@@ -934,7 +976,7 @@ export default function LandingPage() {
                 </Link>
               </FadeUp>
               <FadeUp delay={0.12}>
-                <BookingMockup />
+                <ScreenshotFrame src="/screens/mockup-buchung.png" alt="Buchungsformular" />
               </FadeUp>
             </div>
           </div>
@@ -1011,7 +1053,7 @@ export default function LandingPage() {
                 </Link>
               </FadeUp>
               <FadeUp delay={0.12}>
-                <DashboardMockup />
+                <ScreenshotFrame src="/screens/mockup-dashboard.png" alt="Studio Dashboard" dark />
               </FadeUp>
             </div>
           </div>
