@@ -1,10 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, Search, CalendarCheck, MessageCircle,
   Shield, Zap, Star, CheckCircle, BarChart2, Clock,
-  Send, MapPin, ChevronRight, Inbox
+  Send, MapPin, ChevronRight, Inbox, SlidersHorizontal,
+  ChevronDown, TrendingUp, Calendar
 } from "lucide-react";
 import axios from "axios";
 import SplashScreen from "../components/SplashScreen";
@@ -23,35 +24,6 @@ function FadeUp({ children, delay = 0, className = "" }) {
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >{children}</motion.div>
-  );
-}
-
-const SCREENS = process.env.PUBLIC_URL + "/screenshots";
-
-/* ────────────────────────────────────────────────────────────
-   Screenshot inside browser frame — crops with CSS
-   cropRatio = how much of the original image HEIGHT to show
-   e.g. 0.52 shows the top 52%, hiding cookie-banner at ~69%
-──────────────────────────────────────────────────────────── */
-function ScreenshotFrame({ src, alt = "", cropRatio = 0.52, dark = false }) {
-  // Use padding-bottom trick for responsive crop at any width
-  // aspect ratio of cropped region = 1 / (nativeAspect * cropRatio)
-  // native aspect of our screenshots = 720/1280 = 0.5625
-  const paddingBottom = `${0.5625 * cropRatio * 100}%`;
-  return (
-    <BrowserFrame dark={dark}>
-      <div style={{ position: "relative", width: "100%", paddingBottom, overflow: "hidden" }}>
-        <img
-          src={src}
-          alt={alt}
-          style={{
-            position: "absolute", top: 0, left: 0,
-            width: "100%", height: "auto",
-            display: "block",
-          }}
-        />
-      </div>
-    </BrowserFrame>
   );
 }
 
@@ -100,71 +72,178 @@ function BrowserFrame({ children, dark = false }) {
   );
 }
 
+
+/* ─── Shared zinc palette for all mockups ─── */
+const Z = {
+  950:"#09090b", 900:"#18181b", 800:"#27272a", 700:"#3f3f46", 600:"#52525b",
+  500:"#71717a", 400:"#a1a1aa", 300:"#d4d4d8", 200:"#e4e4e7", 100:"#f4f4f5", 50:"#fafafa",
+};
+
+/* Mini navbar — matches the real Navbar component exactly */
+function MNav({ dark = false }) {
+  const bg    = dark ? Z[950] : "#fff";
+  const bd    = dark ? "rgba(255,255,255,0.06)" : "#f0f0f0";
+  const fg    = dark ? "rgba(255,255,255,0.45)" : Z[500];
+  const brand = dark ? "#fff" : Z[950];
+  return (
+    <div style={{ background: bg, borderBottom: `1px solid ${bd}`, height: 34, display: "flex", alignItems: "center", padding: "0 12px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
+        <div style={{ width: 15, height: 15, borderRadius: 4, background: brand, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 9, height: 9, borderRadius: 2, background: dark ? Z[950] : "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 4, height: 4, borderRadius: 1, background: brand }} />
+          </div>
+        </div>
+        <span style={{ fontSize: 9, fontWeight: 700, color: brand, fontFamily: F.play }}>StudioOS</span>
+      </div>
+      <span style={{ fontSize: 7.5, color: fg, fontFamily: F.inter, marginRight: 10 }}>Studios finden</span>
+      <div style={{ display: "flex", gap: 4 }}>
+        <span style={{ fontSize: 7, color: fg, fontFamily: F.inter }}>Anmelden</span>
+        <div style={{ background: brand, borderRadius: 20, padding: "2px 7px" }}>
+          <span style={{ fontSize: 6.5, fontWeight: 700, color: dark ? Z[950] : "#fff", fontFamily: F.inter }}>Als Studio</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ────────────────────────────────────────────────────────────
    MOCKUP 1 — Search / Discover
 ──────────────────────────────────────────────────────────── */
+const SEARCH_QUERIES = ["Fine Line in Berlin...", "Realism Hamburg...", "Blackwork Frankfurt..."];
+
 function SearchMockup() {
+  const [query, setQuery] = useState("");
+  const [shown, setShown] = useState(0);
+  const qIdx  = useRef(0);
+  const cIdx  = useRef(0);
+  const fwd   = useRef(true);
+  const timer = useRef(null);
+
+  useEffect(() => {
+    function tick() {
+      const q = SEARCH_QUERIES[qIdx.current];
+      if (fwd.current) {
+        cIdx.current = Math.min(cIdx.current + 1, q.length);
+        setQuery(q.slice(0, cIdx.current));
+        timer.current = setTimeout(tick, cIdx.current === q.length ? 1500 : 50 + Math.random() * 35);
+        if (cIdx.current === q.length) fwd.current = false;
+      } else {
+        cIdx.current = Math.max(cIdx.current - 1, 0);
+        setQuery(q.slice(0, cIdx.current));
+        timer.current = setTimeout(tick, cIdx.current === 0 ? 300 : 26);
+        if (cIdx.current === 0) { fwd.current = true; qIdx.current = (qIdx.current + 1) % SEARCH_QUERIES.length; }
+      }
+    }
+    timer.current = setTimeout(tick, 900);
+    return () => clearTimeout(timer.current);
+  }, []);
+
+  useEffect(() => {
+    const ts = [350, 640, 920].map((d, i) => setTimeout(() => setShown(i + 1), d));
+    return () => ts.forEach(clearTimeout);
+  }, []);
+
   const studios = [
-    { name: "Dark Ink Studio", city: "Berlin", style: "Fine Line · Realism", rating: "4.9", reviews: 82, color: "#d4d4d8" },
-    { name: "Sacred Needles",  city: "Hamburg", style: "Traditional · Neo Trad", rating: "4.8", reviews: 56, color: "#a1a1aa" },
-    { name: "Noir Collective", city: "Muenchen", style: "Blackwork · Dotwork", rating: "4.7", reviews: 41, color: "#71717a" },
+    { name:"Noir Tattoo Berlin", city:"Berlin",    styles:["Fine Line","Realism"],    rating:"4.9", rev:82,  price:"EE",  col:"#27272a", verified:true  },
+    { name:"Sacred Needles",     city:"Hamburg",   styles:["Traditional","Neo Trad"], rating:"4.8", rev:56,  price:"EEE", col:"#52525b", verified:true  },
+    { name:"Blut & Tinte",       city:"Frankfurt", styles:["Blackwork","Dotwork"],    rating:"4.7", rev:41,  price:"EE",  col:"#71717a", verified:false },
   ];
+
   return (
     <BrowserFrame>
-      <div style={{ background: "#fafafa", minHeight: 380 }}>
-        {/* Top bar */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "10px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f4f4f5", borderRadius: 10, padding: "6px 12px", marginBottom: 10 }}>
-            <Search size={11} color="#a1a1aa" />
-            <span style={{ fontSize: 10, color: "#71717a", flex: 1 }}>Tattoo Studio in Berlin suchen…</span>
-            <div style={{ padding: "3px 10px", borderRadius: 6, background: "#09090b" }}>
-              <span style={{ fontSize: 8, color: "#fff", fontWeight: 600 }}>Suchen</span>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 5 }}>
-            {["Alle Stile", "Fine Line", "Realism", "Traditional", "Blackwork"].map((t, i) => (
-              <div key={t} style={{
-                padding: "3px 9px", borderRadius: 20, fontSize: 8, fontWeight: 600,
-                background: i === 0 ? "#09090b" : "#f4f4f5",
-                color: i === 0 ? "#fff" : "#71717a",
-                border: i === 0 ? "none" : "1px solid #e4e4e7",
-              }}>{t}</div>
-            ))}
-          </div>
-        </div>
-        {/* Results */}
-        <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-            <span style={{ fontSize: 9, color: "#a1a1aa" }}>3 Studios gefunden</span>
-            <span style={{ fontSize: 9, color: "#09090b", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
-              <MapPin size={9} />Berlin
+      <div style={{ background: Z[50] }}>
+        <MNav />
+        <div style={{ background: "#fff", padding: "14px 16px 12px", borderBottom: `1px solid ${Z[100]}` }}>
+          <p style={{ fontSize: 6.5, letterSpacing: "0.22em", textTransform: "uppercase", color: Z[400], fontFamily: F.inter, marginBottom: 5 }}>Tattoo Studios Entdecken</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: Z[950], fontFamily: F.play, lineHeight: 1.1, marginBottom: 10 }}>Dein perfektes<br/>Studio.</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: `1.5px solid ${Z[950]}`, borderRadius: 10, padding: "7px 12px", background: "#fff", boxShadow: "0 0 0 3px rgba(9,9,11,0.06)", marginBottom: 8 }}>
+            <Search size={11} color={Z[950]} strokeWidth={2} />
+            <span style={{ fontSize: 9, color: query ? Z[900] : Z[400], flex: 1, fontFamily: F.inter }}>
+              {query || "Studioname, Stil oder Stadt..."}
+              {query && (
+                <motion.span
+                  animate={{ opacity: [1, 0, 1] }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "steps(1)" }}
+                  style={{ display: "inline-block", width: 1.5, height: 11, background: Z[900], marginLeft: 1, verticalAlign: "text-bottom" }}
+                />
+              )}
             </span>
           </div>
-          {studios.map((s, i) => (
-            <div key={s.name} style={{
-              background: "#fff",
-              borderRadius: 12,
-              border: i === 0 ? "1.5px solid #09090b" : "1px solid #ececec",
-              boxShadow: i === 0 ? "0 0 0 3px rgba(9,9,11,0.05)" : "0 1px 4px rgba(0,0,0,0.04)",
-              display: "flex",
-              overflow: "hidden",
-            }}>
-              <div style={{ width: 64, background: `linear-gradient(160deg, ${s.color}, #888)`, flexShrink: 0 }} />
-              <div style={{ flex: 1, padding: "9px 11px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#18181b" }}>{s.name}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>&#9733; {s.rating}</span>
-                </div>
-                <div style={{ fontSize: 8, color: "#71717a", marginBottom: 5 }}>{s.city} &middot; {s.style}</div>
-                <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                  <div style={{ padding: "3px 9px", borderRadius: 6, background: i === 0 ? "#09090b" : "#f4f4f5", display: "inline-block" }}>
-                    <span style={{ fontSize: 7.5, fontWeight: 600, color: i === 0 ? "#fff" : "#71717a" }}>Termin buchen</span>
-                  </div>
-                  <span style={{ fontSize: 7.5, color: "#a1a1aa" }}>{s.reviews} Bewertungen</span>
-                </div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {["Stadt","Stil","Preis","Bewertung","Verfugbarkeit"].map(label => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 3, padding: "3.5px 9px", borderRadius: 20, border: `1px solid ${Z[200]}`, background: "#fff" }}>
+                <span style={{ fontSize: 7.5, color: Z[600], fontFamily: F.inter, fontWeight: 500 }}>{label}</span>
+                <ChevronDown size={8} color={Z[400]} strokeWidth={2} />
               </div>
+            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "3.5px 9px", borderRadius: 20, border: `1px solid ${Z[200]}`, background: "#fff" }}>
+              <SlidersHorizontal size={8} color={Z[600]} strokeWidth={2} />
+              <span style={{ fontSize: 7.5, color: Z[600], fontFamily: F.inter, fontWeight: 500 }}>Alle Filter</span>
             </div>
-          ))}
+          </div>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <p style={{ fontSize: 8, color: Z[500], fontFamily: F.inter }}>
+              <strong style={{ color: Z[900], fontWeight: 700 }}>3</strong> Studios gefunden
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <MapPin size={8} color={Z[400]} strokeWidth={1.5} />
+              <span style={{ fontSize: 7.5, color: Z[400], fontFamily: F.inter }}>Deutschland</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {studios.map((s, i) => (
+              <motion.div key={s.name}
+                initial={{ opacity: 0, y: 10 }}
+                animate={shown > i ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+                transition={{ duration: 0.38, ease: [0.22,1,0.36,1] }}
+                style={{ background: "#fff", borderRadius: 13, border: i === 0 ? `1.5px solid ${Z[950]}` : `1px solid ${Z[200]}`, boxShadow: i === 0 ? "0 2px 14px rgba(9,9,11,0.08)" : "0 1px 5px rgba(0,0,0,0.04)", display: "flex", overflow: "hidden" }}
+              >
+                <div style={{ width: 58, flexShrink: 0, background: `linear-gradient(150deg, ${s.col} 0%, ${Z[400]} 100%)`, position: "relative" }}>
+                  {i === 0 && (
+                    <div style={{ position: "absolute", top: 5, left: 4, background: "rgba(9,9,11,0.82)", borderRadius: 4, padding: "1.5px 4px" }}>
+                      <span style={{ fontSize: 5.5, color: "#fff", fontFamily: F.inter, fontWeight: 700 }}>Verifiziert</span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: 1, padding: "8px 10px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 2 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: Z[900], fontFamily: F.play, lineHeight: 1.2 }}>{s.name}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginLeft: 4 }}>
+                      <Star size={8} color="#f59e0b" fill="#f59e0b" />
+                      <span style={{ fontSize: 8, fontWeight: 700, color: Z[900], fontFamily: F.inter }}>{s.rating}</span>
+                      <span style={{ fontSize: 7, color: Z[400], fontFamily: F.inter }}>· {s.rev}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <MapPin size={7} color={Z[400]} strokeWidth={1.5} />
+                      <span style={{ fontSize: 7.5, color: Z[500], fontFamily: F.inter }}>{s.city}</span>
+                    </div>
+                    <span style={{ color: Z[300], fontSize: 9 }}>·</span>
+                    <span style={{ fontSize: 7.5, color: Z[500], fontFamily: F.inter }}>{s.price}</span>
+                    {s.verified && (
+                      <><span style={{ color: Z[300], fontSize: 9 }}>·</span>
+                        <CheckCircle size={7} color="#3b82f6" fill="#3b82f6" />
+                        <span style={{ fontSize: 7, color: "#3b82f6", fontFamily: F.inter }}>Verifiziert</span>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {s.styles.map(st => (
+                        <span key={st} style={{ fontSize: 6.5, padding: "1.5px 6px", borderRadius: 20, background: Z[100], color: Z[600], fontFamily: F.inter, fontWeight: 500, border: `1px solid ${Z[200]}` }}>{st}</span>
+                      ))}
+                    </div>
+                    <div style={{ padding: "3px 8px", borderRadius: 7, background: i === 0 ? Z[950] : Z[100], flexShrink: 0 }}>
+                      <span style={{ fontSize: 7, fontWeight: 600, color: i === 0 ? "#fff" : Z[600], fontFamily: F.inter }}>Termin anfragen</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </BrowserFrame>
@@ -172,92 +251,182 @@ function SearchMockup() {
 }
 
 /* ────────────────────────────────────────────────────────────
-   MOCKUP 2 — Booking / Calendar
+   MOCKUP 2 — Studio Profile + Booking sidebar
 ──────────────────────────────────────────────────────────── */
-const CAL_DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
-const CAL_WEEKS = [[1,2,3,4,5,6,7],[8,9,10,11,12,13,14],[15,16,17,18,19,20,21],[22,23,24,25,26,27,28],[29,30,null,null,null,null,null]];
-const DOT = {17:"#22c55e",18:"#22c55e",19:"#f59e0b",20:"#22c55e",21:"#22c55e",22:"#f59e0b",23:"#ef4444",24:"#22c55e",25:"#ef4444",26:"#f59e0b",27:"#22c55e",28:"#22c55e",29:"#22c55e",30:"#f59e0b"};
-const SEL = 22;
+const CAL_WEEKS_DATA = [
+  [null,null,1,2,3,4,5],
+  [6,7,8,9,10,11,12],
+  [13,14,15,16,17,18,19],
+  [20,21,22,23,24,25,26],
+  [27,28,29,30,null,null,null],
+];
+const DAY_AV  = {2:"t",3:"t",4:"t",5:"t",6:"t",7:"t",8:"t",9:"t",10:"t",11:"t",12:"y",13:"y",14:"t",15:"t",16:"r",17:"r",18:"t",19:"t",20:"t",21:"y",22:"t",23:"t",24:"t",25:"t",26:"y",27:"t",28:"t",29:"t",30:"y"};
+const AV_COL  = { t:"#2dd4bf", y:"#facc15", r:"#fb7185" };
+const CAL_HDR = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+const SEL_CYC = [22,24,18,27,20];
 
 function BookingMockup() {
+  const [selDay,  setSelDay]  = useState(22);
+  const [sizeIdx, setSizeIdx] = useState(2);
+  const sizes = ["Mini","Small","Medium","Large","XL"];
+  const weekdays = ["Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di"];
+
+  useEffect(() => {
+    let i = 0;
+    const iv = setInterval(() => { i = (i + 1) % SEL_CYC.length; setSelDay(SEL_CYC[i]); }, 1800);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    let si = 2;
+    const iv = setInterval(() => { si = (si + 1) % 5; setSizeIdx(si); }, 2200);
+    return () => clearInterval(iv);
+  }, []);
+
+  const STUDIO_TABS   = ["Uber uns","Artists","Fotos","Bewertungen"];
+  const STUDIO_STYLES = ["Fine Line","Realism","Blackwork","Minimalist"];
+
   return (
     <BrowserFrame>
-      <div style={{ background: "#fafafa", display: "flex", minHeight: 380 }}>
-        {/* Left: studio header + calendar */}
-        <div style={{ flex: 1.2, borderRight: "1px solid #f0f0f0", display: "flex", flexDirection: "column" }}>
-          <div style={{ background: "#fff", padding: "12px 14px", borderBottom: "1px solid #f0f0f0" }}>
-            <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "#18181b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: "#fff", fontSize: 12, fontWeight: 700, fontFamily: F.play }}>D</span>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#18181b" }}>Dark Ink Studio</div>
-                <div style={{ fontSize: 8, color: "#71717a" }}>Berlin &middot; Fine Line · Realism</div>
-              </div>
-              <div style={{ marginLeft: "auto", fontSize: 8, fontWeight: 700, color: "#18181b" }}>&#9733; 4.9</div>
+      <div style={{ background: Z[50] }}>
+        <MNav />
+        <div style={{ background: "#fff", padding: "10px 14px 0", borderBottom: `1px solid ${Z[100]}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 4, height: 70, marginBottom: 10, overflow: "hidden", borderRadius: 8 }}>
+            <div style={{ background: `linear-gradient(140deg, ${Z[800]}, ${Z[500]})` }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ flex: 1, background: `linear-gradient(140deg, ${Z[600]}, ${Z[400]})` }} />
+              <div style={{ flex: 1, background: `linear-gradient(140deg, ${Z[700]}, ${Z[500]})` }} />
             </div>
           </div>
-          <div style={{ padding: "10px 14px", flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-              <span style={{ fontSize: 8, color: "#71717a" }}>&#8249;</span>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>Juni 2026</span>
-              <span style={{ fontSize: 8, color: "#71717a" }}>&#8250;</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, marginBottom: 3 }}>
-              {CAL_DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 6.5, color: "#a1a1aa", fontWeight: 600 }}>{d}</div>)}
-            </div>
-            {CAL_WEEKS.map((wk, wi) => (
-              <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 1, marginBottom: 1.5 }}>
-                {wk.map((day, di) => {
-                  if (!day) return <div key={di} />;
-                  const isPast = day <= 16;
-                  const isSel = day === SEL;
-                  return (
-                    <div key={di} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "3px 1px", borderRadius: 5, background: isSel ? "#09090b" : "transparent" }}>
-                      <span style={{ fontSize: 8, fontWeight: isSel ? 700 : 400, color: isSel ? "#fff" : isPast ? "#d4d4d8" : "#18181b", lineHeight: 1 }}>{day}</span>
-                      {DOT[day] && <div style={{ width: 3, height: 3, borderRadius: "50%", background: isSel ? "#fff" : DOT[day], marginTop: 1 }} />}
-                    </div>
-                  );
-                })}
+          <p style={{ fontSize: 14, fontWeight: 700, color: Z[950], fontFamily: F.play, lineHeight: 1.1, marginBottom: 3 }}>Noir Tattoo Berlin</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 5 }}>
+            <Star size={8} color="#f59e0b" fill="#f59e0b" />
+            <span style={{ fontSize: 8, fontWeight: 700, color: Z[900], fontFamily: F.inter }}>4.9</span>
+            <span style={{ fontSize: 7, color: Z[400], fontFamily: F.inter }}>· 82 Bew.</span>
+            <span style={{ color: Z[300] }}>·</span>
+            <CheckCircle size={7} color="#3b82f6" fill="#3b82f6" />
+            <span style={{ fontSize: 7, color: "#3b82f6", fontFamily: F.inter }}>Verifiziert</span>
+            <span style={{ color: Z[300] }}>·</span>
+            <MapPin size={7} color={Z[400]} strokeWidth={1.5} />
+            <span style={{ fontSize: 7, color: Z[500], fontFamily: F.inter }}>Berlin Mitte</span>
+          </div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+            {STUDIO_STYLES.map(s => (
+              <span key={s} style={{ fontSize: 6.5, padding: "2px 7px", borderRadius: 20, background: Z[50], border: `1px solid ${Z[200]}`, color: Z[600], fontFamily: F.inter }}>{s}</span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 2 }}>
+            {STUDIO_TABS.map((t, i) => (
+              <div key={t} style={{ padding: "4px 9px", borderRadius: "8px 8px 0 0", background: i === 0 ? Z[950] : "transparent" }}>
+                <span style={{ fontSize: 7.5, fontWeight: 500, color: i === 0 ? "#fff" : Z[500], fontFamily: F.inter }}>{t}</span>
               </div>
             ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 7, justifyContent: "center" }}>
-              {[["#22c55e","Frei"],["#f59e0b","Begrenzt"],["#ef4444","Voll"]].map(([c,l]) => (
-                <div key={l} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: c }} />
-                  <span style={{ fontSize: 6.5, color: "#a1a1aa" }}>{l}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 144px", gap: 8, padding: "10px 14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${Z[100]}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "8px 10px" }}>
+              <p style={{ fontSize: 7, color: Z[600], fontFamily: F.inter, lineHeight: 1.55 }}>
+                Willkommen bei Noir Tattoo Berlin. Wir spezialisieren uns auf Fine Line, Realism und Blackwork. Unser Team schafft Kunstwerke, die ein Leben lang halten.
+              </p>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${Z[100]}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "8px 10px" }}>
+              <p style={{ fontSize: 6.5, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: F.inter, fontWeight: 600, marginBottom: 6 }}>Stile</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {["Fine Line","Realism","Blackwork","Dotwork","Minimalist","Geometric"].map(s => (
+                  <span key={s} style={{ fontSize: 6.5, padding: "2px 7px", borderRadius: 20, background: Z[50], border: `1px solid ${Z[200]}`, color: Z[600], fontFamily: F.inter }}>{s}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${Z[100]}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "8px 10px" }}>
+              <p style={{ fontSize: 6.5, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: F.inter, fontWeight: 600, marginBottom: 6 }}>Kontakt</p>
+              {["Rosenthaler Str. 12, Berlin","Di-Sa · 10:00 - 19:00","noirinktattoo.de"].map(val => (
+                <div key={val} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                  <MapPin size={7} color={Z[400]} strokeWidth={1.5} />
+                  <span style={{ fontSize: 7, color: Z[600], fontFamily: F.inter }}>{val}</span>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-        {/* Right: booking form */}
-        <div style={{ flex: 1, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 9 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#18181b" }}>Termin anfragen</div>
-          <div style={{ padding: "7px 10px", background: "#f4f4f5", borderRadius: 8 }}>
-            <div style={{ fontSize: 7, color: "#71717a", marginBottom: 1 }}>Gewaehlter Termin</div>
-            <div style={{ fontSize: 9, fontWeight: 600, color: "#18181b" }}>Mo, 22. Juni 2026</div>
-          </div>
-          {[
-            { label: "Motiv / Stil", placeholder: "Fine Line, Blume, Unterarm…" },
-            { label: "Groesse", placeholder: "ca. 10x8 cm" },
-          ].map(({ label, placeholder }) => (
-            <div key={label}>
-              <div style={{ fontSize: 7.5, fontWeight: 600, color: "#52525b", marginBottom: 3 }}>{label}</div>
-              <div style={{ padding: "5px 8px", borderRadius: 7, border: "1px solid #e4e4e7", background: "#fff" }}>
-                <span style={{ fontSize: 8, color: "#a1a1aa" }}>{placeholder}</span>
+
+          <div style={{ background: "#fff", borderRadius: 12, border: `1px solid ${Z[200]}`, boxShadow: "0 4px 16px rgba(0,0,0,0.06)", padding: "8px", display: "flex", flexDirection: "column", gap: 6 }}>
+            <p style={{ fontSize: 9, fontWeight: 700, color: Z[950], fontFamily: F.play }}>Termin anfragen</p>
+            <div>
+              <p style={{ fontSize: 5.5, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: F.inter, fontWeight: 600, marginBottom: 4 }}>Grosse</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                {sizes.map((s, i) => (
+                  <motion.div key={s}
+                    animate={i === sizeIdx ? { scale: 1.08 } : { scale: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                    style={{ padding: "2px 5px", borderRadius: 6, background: i === sizeIdx ? Z[950] : Z[50], border: `1px solid ${i === sizeIdx ? Z[950] : Z[200]}` }}
+                  >
+                    <span style={{ fontSize: 6, fontWeight: i === sizeIdx ? 700 : 400, color: i === sizeIdx ? "#fff" : Z[600], fontFamily: F.inter }}>{s}</span>
+                  </motion.div>
+                ))}
               </div>
             </div>
-          ))}
-          <div>
-            <div style={{ fontSize: 7.5, fontWeight: 600, color: "#52525b", marginBottom: 3 }}>Anzahlung</div>
-            <div style={{ padding: "5px 8px", borderRadius: 7, border: "1px solid #e4e4e7", background: "#fff", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 8, color: "#18181b", fontWeight: 600 }}>EUR 50,00</span>
-              <span style={{ fontSize: 7, color: "#22c55e", fontWeight: 600 }}>Stripe gesichert</span>
+            <div>
+              <p style={{ fontSize: 5.5, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: F.inter, fontWeight: 600, marginBottom: 4 }}>Wunschdatum</p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={{ fontSize: 6.5, color: Z[400] }}>&#8249;</span>
+                <span style={{ fontSize: 7, fontWeight: 600, color: Z[900], fontFamily: F.inter }}>Juni 2026</span>
+                <span style={{ fontSize: 6.5, color: Z[400] }}>&#8250;</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 2 }}>
+                {CAL_HDR.map(d => (
+                  <div key={d} style={{ textAlign: "center", fontSize: 5, color: Z[400], fontWeight: 600, paddingBottom: 2 }}>{d}</div>
+                ))}
+              </div>
+              {CAL_WEEKS_DATA.map((wk, wi) => (
+                <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 1 }}>
+                  {wk.map((day, di) => {
+                    if (!day) return <div key={di} />;
+                    const isSel = day === selDay;
+                    const av    = DAY_AV[day];
+                    return (
+                      <motion.div key={di}
+                        animate={isSel ? { scale: 1.18 } : { scale: 1 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "2px 0", borderRadius: 5, background: isSel ? Z[950] : "transparent" }}
+                      >
+                        <span style={{ fontSize: 6.5, color: isSel ? "#fff" : Z[700], fontWeight: isSel ? 700 : 400, lineHeight: 1 }}>{day}</span>
+                        {av && <div style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: isSel ? "#fff" : AV_COL[av], marginTop: 1 }} />}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 5, justifyContent: "center", marginTop: 3 }}>
+                {[["#2dd4bf","Frei"],["#facc15","Begrenzt"],["#fb7185","Voll"]].map(([c,l]) => (
+                  <div key={l} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <div style={{ width: 4, height: 4, borderRadius: "50%", background: c }} />
+                    <span style={{ fontSize: 5.5, color: Z[400], fontFamily: F.inter }}>{l}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          <div style={{ marginTop: "auto", padding: "9px 0", background: "#09090b", borderRadius: 9, textAlign: "center" }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>Anfrage absenden</span>
+            <AnimatePresence mode="wait">
+              <motion.div key={selDay}
+                initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                style={{ padding: "4px 6px", borderRadius: 7, background: "#f0fdf4", border: "1px solid #bbf7d0" }}
+              >
+                <p style={{ fontSize: 6.5, fontWeight: 600, color: "#15803d", fontFamily: F.inter }}>
+                  {weekdays[(selDay - 1) % 7]}, {selDay}. Juni 2026
+                </p>
+                <p style={{ fontSize: 5.5, color: "#16a34a", fontFamily: F.inter }}>Gut verfugbar</p>
+              </motion.div>
+            </AnimatePresence>
+            <div style={{ padding: "4px 6px", borderRadius: 7, border: `1px solid ${Z[200]}`, background: Z[50], height: 24 }}>
+              <span style={{ fontSize: 6.5, color: Z[400], fontFamily: F.inter }}>Motiv beschreiben...</span>
+            </div>
+            <div style={{ padding: "4px 6px", borderRadius: 7, border: `1px solid ${Z[200]}`, background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 7, fontWeight: 600, color: Z[900], fontFamily: F.inter }}>EUR 50</span>
+              <span style={{ fontSize: 6, color: "#22c55e", fontWeight: 600, fontFamily: F.inter }}>Stripe</span>
+            </div>
+            <div style={{ padding: "7px 0", background: Z[950], borderRadius: 9, textAlign: "center" }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: "#fff", fontFamily: F.inter }}>Anfrage absenden</span>
+            </div>
           </div>
         </div>
       </div>
@@ -268,90 +437,186 @@ function BookingMockup() {
 /* ────────────────────────────────────────────────────────────
    MOCKUP 3 — Messages / Chat
 ──────────────────────────────────────────────────────────── */
+function TypingDot({ delay }) {
+  return (
+    <motion.div
+      style={{ width: 4, height: 4, borderRadius: "50%", background: Z[400] }}
+      animate={{ y: [0,-4,0] }}
+      transition={{ duration: 0.65, repeat: Infinity, delay, ease: "easeInOut" }}
+    />
+  );
+}
+
 function ChatMockup() {
-  const msgs = [
-    { from: "studio", text: "Hallo! Dein Motiv klingt super, ich hatte mir das genauso vorgestellt." },
-    { from: "me", text: "Perfekt! Kannst du mir noch sagen wie lang die Session ungefaehr dauert?" },
-    { from: "studio", text: "Ca. 2,5 Stunden. Ich schicke dir gleich ein Angebot." },
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function run() {
+      while (active) {
+        await new Promise(r => setTimeout(r, 1800)); if (!active) break; setPhase(1);
+        await new Promise(r => setTimeout(r, 1800)); if (!active) break; setPhase(2);
+        await new Promise(r => setTimeout(r, 1600)); if (!active) break; setPhase(3);
+        await new Promise(r => setTimeout(r, 3500)); if (!active) break; setPhase(0);
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    run();
+    return () => { active = false; };
+  }, []);
+
+  const avBg = (name) => {
+    const cs = ["#7c3aed","#0369a1","#0f766e","#b45309","#be185d","#1d4ed8"];
+    let h = 0; for (const c of name) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
+    return cs[Math.abs(h) % cs.length];
+  };
+
+  const baseMsgs = [
+    { from:"studio", text:"Hallo! Dein Motiv klingt super, sehr gute Wahl." },
+    { from:"me",     text:"Wie lang dauert die Session ungefahr?" },
+    { from:"studio", text:"Ca. 2,5 Stunden. Ich schicke dir gleich einen Terminvorschlag." },
   ];
+  const extraMsg = { from:"studio", text:"Schau mal, ich habe einen Termin fur dich!" };
+
+  const AvatarBubble = ({ name, sz = 18 }) => (
+    <div style={{ width: sz, height: sz, borderRadius: "50%", background: avBg(name), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <span style={{ fontSize: sz * 0.37, fontWeight: 700, color: "#fff", fontFamily: F.inter }}>{name.split(" ").slice(0,2).map(w=>w[0]).join("")}</span>
+    </div>
+  );
+
   return (
     <BrowserFrame>
-      <div style={{ display: "flex", minHeight: 380, background: "#fff" }}>
-        {/* Sidebar */}
-        <div style={{ width: 160, borderRight: "1px solid #f0f0f0", background: "#fafafa", display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "10px 12px", borderBottom: "1px solid #f0f0f0" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#18181b" }}>Nachrichten</span>
+      <div style={{ display: "flex", height: 420, background: "#fff" }}>
+        <div style={{ width: 152, borderRight: `1px solid ${Z[100]}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+          <div style={{ padding: "9px 12px", borderBottom: `1px solid ${Z[100]}` }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: Z[900], fontFamily: F.play }}>Nachrichten</span>
           </div>
           {[
-            { name: "Dark Ink Studio", preview: "Ich schicke dir gleich…", time: "12:34", unread: true },
-            { name: "Sacred Needles",  preview: "Termin bestaetigt!",     time: "Di",    unread: false },
-          ].map((c, i) => (
-            <div key={c.name} style={{
-              padding: "8px 12px",
-              background: i === 0 ? "#fff" : "transparent",
-              borderBottom: "1px solid #f4f4f5",
-              cursor: "default",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: i === 0 ? 700 : 500, color: "#18181b" }}>{c.name}</span>
-                <span style={{ fontSize: 7.5, color: "#a1a1aa" }}>{c.time}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 8, color: "#71717a", flex: 1 }}>{c.preview}</span>
-                {c.unread && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />}
+            { name:"Noir Tattoo Berlin", preview:"Ich schicke dir gleich...", time:"12:34", unread:1, active:true  },
+            { name:"Sacred Needles",     preview:"Termin bestatigt!",         time:"Di",   unread:0, active:false },
+          ].map(c => (
+            <div key={c.name} style={{ padding: "8px 10px", borderBottom: `1px solid ${Z[50]}`, background: c.active ? Z[100] : "#fff" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <div style={{ position: "relative" }}>
+                  <AvatarBubble name={c.name} sz={28} />
+                  {c.active && <span style={{ position:"absolute", bottom:-1, right:-1, width:8, height:8, borderRadius:"50%", background:"#22c55e", border:"1.5px solid #fff" }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 1 }}>
+                    <span style={{ fontSize: 8, fontWeight: c.unread ? 700 : 600, color: Z[900], fontFamily: F.inter, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth: 68 }}>{c.name}</span>
+                    <span style={{ fontSize: 7, color: Z[400], fontFamily: F.inter, flexShrink: 0 }}>{c.time}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 7.5, color: c.unread ? Z[600] : Z[400], fontFamily: F.inter, fontWeight: c.unread ? 500 : 400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth: 72 }}>{c.preview}</span>
+                    {c.unread > 0 && (
+                      <span style={{ minWidth:14, height:14, padding:"0 3px", borderRadius:7, background:"#22c55e", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <span style={{ fontSize:7, color:"#fff", fontWeight:700, fontFamily: F.inter }}>{c.unread}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
         </div>
-        {/* Chat area */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "9px 14px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 8, background: "#18181b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, fontFamily: F.play }}>D</span>
+
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(249,249,249,1)" }}>
+          <div style={{ padding: "8px 12px", background: "#fff", borderBottom: `1px solid ${Z[100]}`, display: "flex", alignItems: "center", gap: 7, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", flexShrink: 0 }}>
+            <div style={{ position: "relative" }}>
+              <AvatarBubble name="Noir Tattoo Berlin" sz={28} />
+              <span style={{ position:"absolute", bottom:0, right:0, width:8, height:8, borderRadius:"50%", background:"#22c55e", border:"1.5px solid #fff" }} />
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#18181b" }}>Dark Ink Studio</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} />
-                <span style={{ fontSize: 7, color: "#22c55e" }}>Online</span>
-              </div>
+              <p style={{ fontSize: 9, fontWeight: 600, color: Z[900], fontFamily: F.inter, lineHeight: 1 }}>Noir Tattoo Berlin</p>
+              <AnimatePresence mode="wait">
+                {phase === 1 ? (
+                  <motion.p key="typing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    style={{ fontSize: 7, color: "#22c55e", fontFamily: F.inter, fontWeight: 500 }}>tippt...</motion.p>
+                ) : (
+                  <motion.div key="online" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} />
+                    <span style={{ fontSize: 7, color: "#22c55e", fontFamily: F.inter }}>Online</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
-          <div style={{ flex: 1, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
-            {msgs.map((m, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: m.from === "me" ? "flex-end" : "flex-start" }}>
-                <div style={{
-                  maxWidth: "70%", padding: "6px 9px", borderRadius: m.from === "me" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                  background: m.from === "me" ? "#09090b" : "#f4f4f5",
-                  color: m.from === "me" ? "#fff" : "#18181b",
-                  fontSize: 8, lineHeight: 1.5,
-                }}>
-                  {m.text}
+
+          <div style={{ flex: 1, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 5, overflow: "hidden" }}>
+            {baseMsgs.map((m, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08, duration: 0.25 }}
+                style={{ display: "flex", justifyContent: m.from === "me" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 5 }}>
+                {m.from !== "me" && <AvatarBubble name="NT" sz={18} />}
+                <div style={{ maxWidth: "70%", padding: "6px 9px", borderRadius: m.from === "me" ? "12px 12px 2px 12px" : "12px 12px 12px 2px", background: m.from === "me" ? Z[950] : "#fff", border: m.from === "me" ? "none" : `1px solid ${Z[100]}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                  <p style={{ fontSize: 8, color: m.from === "me" ? "#fff" : Z[900], fontFamily: F.inter, lineHeight: 1.5, margin: 0 }}>{m.text}</p>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 3, marginTop: 2, alignItems: "center" }}>
+                    <span style={{ fontSize: 6.5, color: m.from === "me" ? "rgba(255,255,255,0.38)" : Z[400], fontFamily: F.inter }}>12:3{i}</span>
+                    {m.from === "me" && <CheckCircle size={8} color="rgba(255,255,255,0.38)" />}
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
-            {/* Offer card */}
-            <div style={{ border: "1.5px solid #09090b", borderRadius: 10, padding: "8px 10px", background: "#fafafa", marginTop: 4 }}>
-              <div style={{ fontSize: 7.5, color: "#71717a", marginBottom: 3 }}>Angebot von Dark Ink Studio</div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ fontSize: 8.5, fontWeight: 700, color: "#18181b" }}>Montag, 22. Juni · 14:00 Uhr</span>
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <div style={{ flex: 1, padding: "4px 8px", borderRadius: 7, background: "#09090b", textAlign: "center" }}>
-                  <span style={{ fontSize: 8, fontWeight: 600, color: "#fff" }}>Annehmen</span>
-                </div>
-                <div style={{ flex: 1, padding: "4px 8px", borderRadius: 7, border: "1px solid #e4e4e7", textAlign: "center" }}>
-                  <span style={{ fontSize: 8, fontWeight: 600, color: "#71717a" }}>Ablehnen</span>
-                </div>
-              </div>
-            </div>
+
+            <AnimatePresence>
+              {phase >= 2 && (
+                <motion.div key="extra" initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }}
+                  style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
+                  <AvatarBubble name="NT" sz={18} />
+                  <div style={{ maxWidth: "70%", padding: "6px 9px", borderRadius: "12px 12px 12px 2px", background: "#fff", border: `1px solid ${Z[100]}`, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                    <p style={{ fontSize: 8, color: Z[900], fontFamily: F.inter, lineHeight: 1.5, margin: 0 }}>{extraMsg.text}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {phase === 1 && (
+                <motion.div key="dots" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
+                  <AvatarBubble name="NT" sz={18} />
+                  <div style={{ display: "flex", gap: 3, padding: "7px 10px", background: "#fff", borderRadius: "12px 12px 12px 2px", border: `1px solid ${Z[100]}` }}>
+                    <TypingDot delay={0} /><TypingDot delay={0.15} /><TypingDot delay={0.3} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {phase >= 3 && (
+                <motion.div key="slot" initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.32, ease: [0.22,1,0.36,1] }}
+                  style={{ marginLeft: 23 }}>
+                  <div style={{ width: 185, borderRadius: 12, overflow: "hidden", border: `1px solid ${Z[100]}`, background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+                    <div style={{ padding: "7px 10px", borderBottom: `1px solid ${Z[100]}`, display: "flex", alignItems: "center", gap: 7 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: Z[100], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Calendar size={11} color={Z[600]} strokeWidth={1.5} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 8, fontWeight: 600, color: Z[900], fontFamily: F.inter, lineHeight: 1 }}>Terminvorschlag</p>
+                        <p style={{ fontSize: 7, color: Z[400], fontFamily: F.inter }}>Mittwoch, 22. Juni 2026</p>
+                      </div>
+                    </div>
+                    <div style={{ padding: "7px 10px 4px" }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: Z[900], fontFamily: F.inter, marginBottom: 1 }}>14:00 - 16:30</p>
+                      <p style={{ fontSize: 7, color: Z[500], fontFamily: F.inter, marginBottom: 6 }}>Tattoo-Session</p>
+                      <div style={{ padding: "5px 0", background: Z[950], borderRadius: 8, textAlign: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: "#fff", fontFamily: F.inter }}>Jetzt buchen</span>
+                      </div>
+                      <p style={{ fontSize: 6.5, color: Z[400], fontFamily: F.inter }}>12:36</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <div style={{ padding: "8px 12px", borderTop: "1px solid #f0f0f0", display: "flex", gap: 7, alignItems: "center" }}>
-            <div style={{ flex: 1, padding: "5px 10px", borderRadius: 20, background: "#f4f4f5", fontSize: 8, color: "#a1a1aa" }}>
-              Nachricht schreiben…
+
+          <div style={{ padding: "7px 10px", borderTop: `1px solid ${Z[100]}`, display: "flex", gap: 6, alignItems: "center", background: "#fff", flexShrink: 0 }}>
+            <div style={{ flex: 1, padding: "5px 10px", borderRadius: 20, background: Z[100], fontSize: 8, color: Z[400], fontFamily: F.inter }}>
+              Nachricht schreiben...
             </div>
-            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#09090b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Send size={10} color="#fff" />
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: Z[950], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Send size={10} color="#fff" strokeWidth={2} />
             </div>
           </div>
         </div>
@@ -364,100 +629,170 @@ function ChatMockup() {
    MOCKUP 4 — Studio Dashboard
 ──────────────────────────────────────────────────────────── */
 function DashboardMockup() {
-  const bookings = [
-    { name: "Lena M.",   date: "22. Juni",  style: "Fine Line",    status: "confirmed", amount: "EUR 50" },
-    { name: "Jonas K.",  date: "24. Juni",  style: "Realism",      status: "pending",   amount: "EUR 80" },
-    { name: "Sara B.",   date: "27. Juni",  style: "Blackwork",    status: "confirmed", amount: "EUR 60" },
+  const targets = [12, 3, 8, 24];
+  const [counts, setCounts] = useState([0, 0, 0, 0]);
+
+  useEffect(() => {
+    const start = Date.now();
+    const dur   = 1100;
+    let raf;
+    const frame = () => {
+      const p = Math.min((Date.now() - start) / dur, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      setCounts(targets.map(t => Math.round(t * e)));
+      if (p < 1) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const navItems = [
+    { icon: BarChart2,     label:"Ubersicht",   active:true,  badge:0 },
+    { icon: Inbox,         label:"Anfragen",    active:false, badge:2 },
+    { icon: CalendarCheck, label:"Kalender",    active:false, badge:0 },
+    { icon: MessageCircle, label:"Nachrichten", active:false, badge:0 },
+    { icon: Clock,         label:"Rechnungen",  active:false, badge:0 },
   ];
-  const statusStyle = {
-    confirmed: { bg: "#dcfce7", color: "#16a34a", label: "Bestaetigt" },
-    pending:   { bg: "#fef9c3", color: "#a16207", label: "Ausstehend" },
+  const stats = [
+    { label:"Buchungen",     icon:Calendar    },
+    { label:"Ausstehend",    icon:Clock       },
+    { label:"Bestatigt",     icon:CheckCircle },
+    { label:"Abgeschlossen", icon:TrendingUp  },
+  ];
+  const bookings = [
+    { name:"Lena M.",  date:"22. Juni", style:"Fine Line", status:"confirmed", amount:"EUR 50" },
+    { name:"Jonas K.", date:"24. Juni", style:"Realism",   status:"pending",   amount:"EUR 80" },
+    { name:"Sara B.",  date:"27. Juni", style:"Blackwork", status:"confirmed", amount:"EUR 60" },
+  ];
+  const stSt = {
+    confirmed:{ bg:"#dcfce7", color:"#16a34a", label:"Bestatigt" },
+    pending:  { bg:"#fef9c3", color:"#a16207", label:"Ausstehend" },
   };
+  const avColors = ["#7c3aed","#0369a1","#0f766e"];
+
   return (
     <BrowserFrame dark>
-      <div style={{ display: "flex", minHeight: 380, background: "#09090b" }}>
-        {/* Sidebar */}
-        <div style={{ width: 130, borderRight: "1px solid rgba(255,255,255,0.06)", padding: "10px 0", display: "flex", flexDirection: "column", gap: 1 }}>
-          <div style={{ padding: "4px 14px 10px", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 5, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: "#09090b" }} />
+      <div style={{ display: "flex", minHeight: 400, background: Z[50] }}>
+        <div style={{ width: 118, flexShrink: 0, padding: "8px 6px", display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ borderRadius: 12, background: Z[950], padding: "8px", position: "relative", overflow: "hidden" }}>
+            <motion.div
+              style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)", pointerEvents: "none" }}
+              animate={{ x: ["-100%","200%"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 3 }}
+            />
+            <p style={{ fontSize: 5.5, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)", fontFamily: F.inter, marginBottom: 3 }}>Studio Dashboard</p>
+            <p style={{ fontSize: 9.5, fontWeight: 700, color: "#fff", fontFamily: F.play, lineHeight: 1.1, marginBottom: 1 }}>Noir Tattoo<br/>Berlin</p>
+            <p style={{ fontSize: 6, color: "rgba(255,255,255,0.4)", fontFamily: F.inter, marginBottom: 5 }}>● Verifiziert</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+              {[["12","Buchungen"],["3","Ausstehend"]].map(([v,l]) => (
+                <div key={l} style={{ borderRadius: 7, padding: 4, background: "rgba(255,255,255,0.07)" }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: F.play, lineHeight: 1 }}>{v}</p>
+                  <p style={{ fontSize: 5.5, color: "rgba(255,255,255,0.35)", fontFamily: F.inter, marginTop: 1 }}>{l}</p>
+                </div>
+              ))}
             </div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: F.play }}>StudioOS</span>
           </div>
-          {[
-            { icon: BarChart2,     label: "Uebersicht",   active: true },
-            { icon: Inbox,         label: "Anfragen",     active: false, badge: 2 },
-            { icon: CalendarCheck, label: "Kalender",     active: false },
-            { icon: MessageCircle, label: "Nachrichten",  active: false },
-          ].map(({ icon: Icon, label, active, badge }) => (
-            <div key={label} style={{
-              display: "flex", alignItems: "center", gap: 7,
-              padding: "5px 14px", borderRadius: 0,
-              background: active ? "rgba(255,255,255,0.07)" : "transparent",
-              borderLeft: active ? "2px solid #fff" : "2px solid transparent",
-            }}>
-              <Icon size={11} color={active ? "#fff" : "rgba(255,255,255,0.35)"} strokeWidth={1.5} />
-              <span style={{ fontSize: 8.5, color: active ? "#fff" : "rgba(255,255,255,0.4)", fontWeight: active ? 600 : 400 }}>{label}</span>
-              {badge && <div style={{ marginLeft: "auto", width: 14, height: 14, borderRadius: "50%", background: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 7, color: "#fff", fontWeight: 700 }}>{badge}</span>
-              </div>}
-            </div>
-          ))}
-        </div>
-        {/* Main */}
-        <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: F.play, marginBottom: 1 }}>Uebersicht</div>
-            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)" }}>Juni 2026</div>
-          </div>
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            {[
-              { label: "Anfragen",    value: "12", trend: "+3" },
-              { label: "Bestaetigt", value: "8",  trend: "+1" },
-              { label: "Einnahmen",  value: "EUR 640", trend: "+EUR 80" },
-            ].map(({ label, value, trend }) => (
-              <div key={label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <div style={{ fontSize: 7, color: "rgba(255,255,255,0.35)", marginBottom: 3 }}>{label}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{value}</div>
-                <div style={{ fontSize: 7, color: "#22c55e" }}>{trend} diese Woche</div>
+          <div style={{ borderRadius: 12, background: "#fff", border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: 4 }}>
+            {navItems.map(({ icon: Icon, label, active, badge }) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 6px", borderRadius: 8, background: active ? Z[950] : "transparent", marginBottom: 1 }}>
+                <Icon size={10} color={active ? "#fff" : Z[400]} strokeWidth={1.5} />
+                <span style={{ flex: 1, fontSize: 7, fontWeight: 500, color: active ? "#fff" : Z[500], fontFamily: F.inter }}>{label}</span>
+                {badge > 0 && (
+                  <span style={{ minWidth:14, height:14, borderRadius:7, background: active ? "rgba(255,255,255,0.2)" : Z[950], display:"flex", alignItems:"center", justifyContent:"center", padding:"0 3px" }}>
+                    <span style={{ fontSize: 6.5, color: "#fff", fontWeight: 700 }}>{badge}</span>
+                  </span>
+                )}
               </div>
             ))}
           </div>
-          {/* Bookings */}
-          <div>
-            <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 7, textTransform: "uppercase", letterSpacing: "0.12em" }}>Naechste Termine</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {bookings.map((b) => {
-                const st = statusStyle[b.status];
-                return (
-                  <div key={b.name} style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    background: "rgba(255,255,255,0.04)",
-                    borderRadius: 9, padding: "6px 10px",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 8, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{b.name[0]}</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: "#fff" }}>{b.name}</div>
-                      <div style={{ fontSize: 7.5, color: "rgba(255,255,255,0.35)" }}>{b.date} &middot; {b.style}</div>
-                    </div>
-                    <div style={{ padding: "2px 7px", borderRadius: 6, background: st.bg }}>
-                      <span style={{ fontSize: 7, fontWeight: 600, color: st.color }}>{st.label}</span>
-                    </div>
-                    <span style={{ fontSize: 8.5, fontWeight: 600, color: "#fff" }}>{b.amount}</span>
-                  </div>
-                );
-              })}
+          <div style={{ borderRadius: 12, border: "1px solid #ede9fe", background: "linear-gradient(135deg,#f5f3ff,#fff)", padding: "6px 7px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+              <div style={{ width: 14, height: 14, borderRadius: 4, background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Star size={7} color="#7c3aed" strokeWidth={2} />
+              </div>
+              <span style={{ fontSize: 6, fontWeight: 700, color: "#6d28d9", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: F.inter }}>Beta</span>
             </div>
+            <p style={{ fontSize: 6.5, color: Z[600], fontFamily: F.inter, lineHeight: 1.45 }}>Alle Features kostenlos in der Beta-Phase.</p>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, padding: "10px 10px", overflow: "hidden" }}>
+          <div style={{ marginBottom: 8 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: Z[950], fontFamily: F.play, marginBottom: 1 }}>Ubersicht</p>
+            <p style={{ fontSize: 7.5, color: Z[400], fontFamily: F.inter }}>Juni 2026</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 8 }}>
+            {stats.map(({ label, icon: Icon }, idx) => (
+              <div key={label} style={{ background: "#fff", borderRadius: 10, border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "6px 8px" }}>
+                <Icon size={10} color={Z[400]} strokeWidth={1.5} style={{ marginBottom: 4 }} />
+                <p style={{ fontSize: 14, fontWeight: 700, color: Z[900], fontFamily: F.play, lineHeight: 1 }}>{counts[idx]}</p>
+                <p style={{ fontSize: 6.5, color: Z[500], fontFamily: F.inter, marginTop: 2 }}>{label}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: Z[950], borderRadius: 12, padding: "8px 10px", marginBottom: 8, position: "relative", overflow: "hidden" }}>
+            <motion.div
+              style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)", pointerEvents: "none" }}
+              animate={{ x: ["-100%","200%"] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "linear", repeatDelay: 4 }}
+            />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 6, background: Z[800], display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <TrendingUp size={9} color="#fff" strokeWidth={1.5} />
+                </div>
+                <span style={{ fontSize: 7.5, fontWeight: 600, color: "#fff", fontFamily: F.inter }}>Umsatz & Zahlungen</span>
+              </div>
+              <span style={{ fontSize: 6, color: "rgba(255,255,255,0.3)", fontFamily: F.inter, background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 20 }}>Live</span>
+            </div>
+            <p style={{ fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: F.play, textAlign: "center", marginBottom: 1 }}>Euro 3.480,00</p>
+            <p style={{ fontSize: 6.5, color: "rgba(255,255,255,0.28)", fontFamily: F.inter, textAlign: "center", marginBottom: 6 }}>abgeschlossene Termine</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
+              {[["Bar","1.200"],["Stripe","2.280"],["Gesamt","3.480"]].map(([l,v], i) => (
+                <div key={l} style={{ borderRadius: 8, padding: "5px 6px", background: i === 2 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)" }}>
+                  <p style={{ fontSize: 5.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", fontFamily: F.inter, fontWeight: 600, marginBottom: 2 }}>{l}</p>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: F.play }}>Euro {v}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: "#fff", borderRadius: 10, border: "1px solid rgba(0,0,0,0.04)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+            <div style={{ padding: "6px 10px", borderBottom: `1px solid ${Z[100]}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 7.5, fontWeight: 600, color: Z[900], fontFamily: F.inter }}>Heutige Termine</span>
+              <span style={{ fontSize: 6.5, color: Z[400], fontFamily: F.inter }}>3 Buchungen</span>
+            </div>
+            {bookings.map((b, i) => {
+              const st = stSt[b.status];
+              return (
+                <motion.div key={b.name}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.18 + i * 0.1, duration: 0.3, ease: [0.22,1,0.36,1] }}
+                  style={{ padding: "5px 10px", borderBottom: i < 2 ? `1px solid ${Z[50]}` : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: avColors[i], display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 6.5, fontWeight: 700, color: "#fff", fontFamily: F.inter }}>{b.name[0]}</span>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 7.5, fontWeight: 600, color: Z[900], fontFamily: F.inter }}>{b.name}</p>
+                      <p style={{ fontSize: 6.5, color: Z[400], fontFamily: F.inter }}>{b.date} · {b.style}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ fontSize: 7, fontWeight: 700, color: Z[900], fontFamily: F.inter }}>{b.amount}</span>
+                    <span style={{ fontSize: 6.5, padding: "2px 5px", borderRadius: 20, background: st.bg, color: st.color, fontFamily: F.inter, fontWeight: 600 }}>{st.label}</span>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>
     </BrowserFrame>
   );
 }
+
 
 /* ────────────────────────────────────────────────────────────
    Newsletter
@@ -552,21 +887,16 @@ export default function LandingPage() {
               </motion.p>
             </div>
 
-            {/* Hero mockup — full-width real screenshot */}
+            {/* Hero mockup — animated search UI */}
             <motion.div
               initial={{ opacity: 0, y: 36 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.9, delay: 0.38, ease: [0.22, 1, 0.36, 1] }}
               className="relative"
             >
-              {/* Soft gradient fade at bottom so it flows into next section */}
               <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none z-10"
                 style={{ background: "linear-gradient(to bottom, transparent, #fff)" }} />
-              <ScreenshotFrame
-                src={SCREENS + "/screen-search.jpg"}
-                alt="StudioOS Suche"
-                cropRatio={0.52}
-              />
+              <SearchMockup />
             </motion.div>
           </div>
         </section>
