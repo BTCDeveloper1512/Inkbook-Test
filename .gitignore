@@ -4,6 +4,9 @@
 .idea/
 .vscode/
 
+# Expo
+mobile/.expo/
+
 # Dependencies
 node_modules/
 /node_modules
