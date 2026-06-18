@@ -1,28 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useColors } from '@/hooks/useColors';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  pending:               { label: 'Ausstehend',           bg: '#fffbeb', text: '#d97706' },
-  pending_studio_review: { label: 'Neue Anfrage',         bg: '#fffbeb', text: '#d97706' },
-  under_review:          { label: 'In Prüfung',           bg: '#eff6ff', text: '#2563eb' },
-  offer_sent:            { label: 'Angebot wartet',       bg: '#f5f3ff', text: '#7c3aed' },
-  waiting_for_deposit:   { label: 'Anzahlung fällig',     bg: '#fff7ed', text: '#c2410c' },
-  deposit_pending:       { label: 'Zahlung läuft',        bg: '#fff7ed', text: '#c2410c' },
-  confirmed:             { label: 'Bestätigt',            bg: '#f0fdf4', text: '#16a34a' },
-  cancelled:             { label: 'Storniert',            bg: '#fef2f2', text: '#dc2626' },
-  customer_cancelled:    { label: 'Von dir storniert',    bg: '#fef2f2', text: '#dc2626' },
-  studio_cancelled:      { label: 'Vom Studio storniert', bg: '#fef2f2', text: '#dc2626' },
-  completed:             { label: 'Abgeschlossen',        bg: '#f4f4f5', text: '#71717a' },
-  no_show:               { label: 'Nicht erschienen',     bg: '#f4f4f5', text: '#71717a' },
+  pending:               { label: 'Ausstehend',           bg: '#FFF3E0', text: '#FF9500' },
+  pending_studio_review: { label: 'Neue Anfrage',         bg: '#FFF3E0', text: '#FF9500' },
+  under_review:          { label: 'In Prüfung',           bg: '#EFF6FF', text: '#007AFF' },
+  offer_sent:            { label: 'Angebot',              bg: '#F5EEFA', text: '#AF52DE' },
+  waiting_for_deposit:   { label: 'Anzahlung fällig',     bg: '#FFF3E0', text: '#FF9500' },
+  deposit_pending:       { label: 'Zahlung läuft',        bg: '#FFF3E0', text: '#FF9500' },
+  confirmed:             { label: 'Bestätigt',            bg: '#E8F8ED', text: '#34C759' },
+  cancelled:             { label: 'Storniert',            bg: '#FFECEB', text: '#FF3B30' },
+  customer_cancelled:    { label: 'Storniert',            bg: '#FFECEB', text: '#FF3B30' },
+  studio_cancelled:      { label: 'Abgelehnt',            bg: '#FFECEB', text: '#FF3B30' },
+  completed:             { label: 'Abgeschlossen',        bg: '#F2F2F7', text: '#8E8E93' },
+  no_show:               { label: 'Nicht erschienen',     bg: '#F2F2F7', text: '#8E8E93' },
 };
 
-interface StatusBadgeProps {
-  status: string;
-}
-
-export function StatusBadge({ status }: StatusBadgeProps) {
-  const cfg = STATUS_CONFIG[status] || { label: status, bg: '#f4f4f5', text: '#71717a' };
+export function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status] || { label: status, bg: '#F2F2F7', text: '#8E8E93' };
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
       <Text style={[styles.label, { color: cfg.text }]}>{cfg.label}</Text>
@@ -31,16 +26,6 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.2,
-  },
+  badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start' },
+  label: { fontSize: 12, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.1 },
 });

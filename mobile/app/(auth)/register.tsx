@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
+  Platform, TouchableOpacity,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/Input';
@@ -31,23 +26,13 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
 
   const handleRegister = async () => {
-    if (!name || !email || !password) {
-      setError('Bitte alle Felder ausfüllen.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Passwort muss mindestens 8 Zeichen haben.');
-      return;
-    }
+    if (!name || !email || !password) { setError('Bitte alle Felder ausfüllen.'); return; }
+    if (password.length < 8) { setError('Passwort muss mindestens 8 Zeichen haben.'); return; }
     setError('');
     setLoading(true);
     try {
-      const user = await register(email, password, name, role);
-      if (user.role === 'studio_owner') {
-        router.replace('/(tabs)/bookings');
-      } else {
-        router.replace('/(tabs)');
-      }
+      await register(email, password, name, role);
+      router.replace('/(tabs)');
     } catch (e: any) {
       setError(e.message || 'Registrierung fehlgeschlagen');
     } finally {
@@ -56,57 +41,53 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.root, { backgroundColor: colors.groupedBackground }]}
         contentContainerStyle={{
-          paddingTop: insets.top + 48,
+          paddingTop: insets.top + 60,
           paddingBottom: insets.bottom + 40,
           paddingHorizontal: 24,
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.logoRow}>
-          <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.logoText, { color: colors.foreground }]}>Studio<Text style={{ fontFamily: 'Inter_700Bold' }}>OS</Text></Text>
+        {/* Logo */}
+        <View style={styles.logoWrap}>
+          <View style={[styles.logoBg, { backgroundColor: colors.label }]}>
+            <Text style={styles.logoLetter}>S</Text>
+          </View>
+          <Text style={[styles.logoText, { color: colors.label }]}>
+            Studio<Text style={{ fontFamily: 'Inter_700Bold' }}>OS</Text>
+          </Text>
         </View>
 
-        <Text style={[styles.heading, { color: colors.foreground }]}>Konto erstellen</Text>
-        <Text style={[styles.subheading, { color: colors.muted }]}>
+        <Text style={[styles.heading, { color: colors.label }]}>Konto erstellen</Text>
+        <Text style={[styles.sub, { color: colors.secondaryLabel }]}>
           Bereits registriert?{' '}
-          <Link href="/(auth)/login" style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+          <Link href="/(auth)/login" style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}>
             Anmelden
           </Link>
         </Text>
 
-        <View style={[styles.roleRow, { marginTop: 28 }]}>
-          {[
-            { r: 'customer' as Role, label: 'Als Kunde', icon: 'user' },
-            { r: 'studio_owner' as Role, label: 'Als Studio', icon: 'scissors' },
-          ].map(opt => (
+        {/* Role selector */}
+        <View style={styles.roleRow}>
+          {([
+            { r: 'customer' as Role, label: 'Als Kunde', icon: 'person-outline' as const },
+            { r: 'studio_owner' as Role, label: 'Als Studio', icon: 'cut-outline' as const },
+          ]).map(opt => (
             <TouchableOpacity
               key={opt.r}
               onPress={() => setRole(opt.r)}
               style={[
                 styles.roleBtn,
                 {
-                  borderColor: role === opt.r ? colors.primary : colors.border,
                   backgroundColor: role === opt.r ? colors.primary : colors.surface,
+                  borderColor: role === opt.r ? colors.primary : colors.opaqueSeparator,
                 },
               ]}
             >
-              <Feather
-                name={opt.icon as any}
-                size={18}
-                color={role === opt.r ? '#fff' : colors.muted}
-              />
-              <Text style={[
-                styles.roleBtnText,
-                { color: role === opt.r ? '#fff' : colors.foreground },
-              ]}>
+              <Ionicons name={opt.icon} size={18} color={role === opt.r ? '#fff' : colors.secondaryLabel} />
+              <Text style={[styles.roleBtnText, { color: role === opt.r ? '#fff' : colors.label }]}>
                 {opt.label}
               </Text>
             </TouchableOpacity>
@@ -115,18 +96,22 @@ export default function RegisterScreen() {
 
         {!!error && (
           <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
+            <Ionicons name="warning-outline" size={15} color={colors.error} />
             <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
         )}
 
-        <View style={{ marginTop: 24, gap: 16 }}>
+        <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
           <Input label="Name" value={name} onChangeText={setName} placeholder="Dein Name" autoCapitalize="words" />
+          <View style={{ height: 12 }} />
           <Input label="E-Mail" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="email@beispiel.de" />
+          <View style={{ height: 12 }} />
           <Input label="Passwort" value={password} onChangeText={setPassword} isPassword placeholder="Mindestens 8 Zeichen" />
-          <Button title="Registrieren" onPress={handleRegister} loading={loading} fullWidth size="lg" style={{ marginTop: 4 }} />
         </View>
 
-        <Text style={[styles.legal, { color: colors.muted }]}>
+        <Button title="Registrieren" onPress={handleRegister} loading={loading} fullWidth size="lg" style={{ marginTop: 16 }} />
+
+        <Text style={[styles.legal, { color: colors.tertiaryLabel }]}>
           Mit der Registrierung stimmst du unserer Datenschutzerklärung und den AGB zu.
         </Text>
       </ScrollView>
@@ -135,25 +120,21 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logoDot: { width: 28, height: 28, borderRadius: 8 },
-  logoText: { fontSize: 20, fontFamily: 'Inter_500Medium', letterSpacing: -0.5 },
-  heading: { fontSize: 32, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, marginBottom: 6 },
-  subheading: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
-  roleRow: { flexDirection: 'row', gap: 10 },
+  root: { flex: 1 },
+  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 48 },
+  logoBg: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  logoLetter: { color: '#fff', fontSize: 18, fontFamily: 'Inter_700Bold' },
+  logoText: { fontSize: 22, fontFamily: 'Inter_400Regular', letterSpacing: -0.5 },
+  heading: { fontSize: 30, fontFamily: 'Inter_700Bold', letterSpacing: -0.6, marginBottom: 6 },
+  sub: { fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 21, marginBottom: 24 },
+  roleRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   roleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1,
   },
-  roleBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  errorBox: { marginTop: 16, padding: 12, borderRadius: 10 },
-  errorText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  legal: { fontSize: 11, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 24, lineHeight: 16 },
+  roleBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
+  errorText: { fontSize: 14, fontFamily: 'Inter_400Regular', flex: 1 },
+  formCard: { borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
+  legal: { fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 24, lineHeight: 17 },
 });

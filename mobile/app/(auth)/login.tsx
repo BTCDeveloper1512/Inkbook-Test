@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
-  Alert,
+  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
+  Platform, TouchableOpacity,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { apiPost } from '@/lib/api';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -26,26 +21,18 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   const [forgotView, setForgotView] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Bitte E-Mail und Passwort eingeben.');
-      return;
-    }
+    if (!email || !password) { setError('Bitte E-Mail und Passwort eingeben.'); return; }
     setError('');
     setLoading(true);
     try {
-      const user = await login(email, password);
-      if (user.role === 'studio_owner') {
-        router.replace('/(tabs)/bookings');
-      } else {
-        router.replace('/(tabs)');
-      }
+      await login(email, password);
+      router.replace('/(tabs)');
     } catch (e: any) {
       setError(e.message || 'Anmeldung fehlgeschlagen');
     } finally {
@@ -58,26 +45,28 @@ export default function LoginScreen() {
     setForgotLoading(true);
     try {
       await apiPost('/auth/forgot-password', { email: forgotEmail });
-      setForgotSent(true);
-    } catch {
-      setForgotSent(true);
-    } finally {
-      setForgotLoading(false);
-    }
+    } catch {}
+    setForgotSent(true);
+    setForgotLoading(false);
   };
 
   if (forgotSent) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 60 }]}>
-        <View style={styles.centeredBox}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.primary }]}>
-            <Text style={{ color: '#fff', fontSize: 28 }}>✉</Text>
+      <View style={[styles.root, { backgroundColor: colors.groupedBackground, paddingTop: insets.top + 60 }]}>
+        <View style={styles.center}>
+          <View style={[styles.iconBox, { backgroundColor: colors.primary }]}>
+            <Ionicons name="mail" size={32} color="#fff" />
           </View>
-          <Text style={[styles.heading, { color: colors.foreground }]}>E-Mail gesendet</Text>
-          <Text style={[styles.subheading, { color: colors.muted }]}>
-            Falls ein Konto mit {forgotEmail} existiert, hast du jetzt einen Reset-Link erhalten.
+          <Text style={[styles.heading, { color: colors.label }]}>Link gesendet</Text>
+          <Text style={[styles.sub, { color: colors.secondaryLabel }]}>
+            Falls ein Konto mit dieser E-Mail existiert, erhältst du einen Reset-Link.
           </Text>
-          <Button title="Zurück zur Anmeldung" onPress={() => { setForgotView(false); setForgotSent(false); }} fullWidth style={{ marginTop: 24 }} />
+          <Button
+            title="Zurück zur Anmeldung"
+            onPress={() => { setForgotView(false); setForgotSent(false); }}
+            fullWidth
+            style={{ marginTop: 28 }}
+          />
         </View>
       </View>
     );
@@ -85,37 +74,23 @@ export default function LoginScreen() {
 
   if (forgotView) {
     return (
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
-          style={[styles.container, { backgroundColor: colors.background }]}
-          contentContainerStyle={{ paddingTop: insets.top + 48, paddingBottom: insets.bottom + 40, paddingHorizontal: 24 }}
+          style={[styles.root, { backgroundColor: colors.groupedBackground }]}
+          contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40, paddingHorizontal: 24 }}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity onPress={() => setForgotView(false)} style={styles.backBtn}>
-            <Text style={[styles.backText, { color: colors.muted }]}>← Zurück</Text>
+          <TouchableOpacity onPress={() => setForgotView(false)} style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={[styles.backText, { color: colors.primary }]}>Anmelden</Text>
           </TouchableOpacity>
-          <Text style={[styles.heading, { color: colors.foreground }]}>Passwort vergessen?</Text>
-          <Text style={[styles.subheading, { color: colors.muted }]}>
-            Gib deine E-Mail-Adresse ein und wir senden dir einen Reset-Link.
+          <Text style={[styles.heading, { color: colors.label }]}>Passwort vergessen?</Text>
+          <Text style={[styles.sub, { color: colors.secondaryLabel }]}>
+            Gib deine E-Mail ein. Wir schicken dir einen Reset-Link.
           </Text>
-          <View style={{ marginTop: 32 }}>
-            <Input
-              label="E-Mail"
-              value={forgotEmail}
-              onChangeText={setForgotEmail}
-              keyboardType="email-address"
-              placeholder="email@beispiel.de"
-            />
-            <Button
-              title={forgotLoading ? 'Sende...' : 'Reset-Link senden'}
-              onPress={handleForgot}
-              loading={forgotLoading}
-              fullWidth
-              style={{ marginTop: 20 }}
-            />
+          <View style={{ marginTop: 28, gap: 12 }}>
+            <Input label="E-Mail" value={forgotEmail} onChangeText={setForgotEmail} keyboardType="email-address" placeholder="email@beispiel.de" />
+            <Button title="Reset-Link senden" onPress={handleForgot} loading={forgotLoading} fullWidth size="lg" style={{ marginTop: 4 }} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -123,39 +98,38 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{
-          paddingTop: insets.top + 48,
-          paddingBottom: insets.bottom + 40,
-          paddingHorizontal: 24,
-        }}
+        style={[styles.root, { backgroundColor: colors.groupedBackground }]}
+        contentContainerStyle={{ paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40, paddingHorizontal: 24 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.logoRow}>
-          <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.logoText, { color: colors.foreground }]}>Studio<Text style={{ fontFamily: 'Inter_700Bold' }}>OS</Text></Text>
+        {/* Logo */}
+        <View style={styles.logoWrap}>
+          <View style={[styles.logoBg, { backgroundColor: colors.label }]}>
+            <Text style={styles.logoLetter}>S</Text>
+          </View>
+          <Text style={[styles.logoText, { color: colors.label }]}>
+            Studio<Text style={{ fontFamily: 'Inter_700Bold' }}>OS</Text>
+          </Text>
         </View>
 
-        <Text style={[styles.heading, { color: colors.foreground }]}>Anmelden</Text>
-        <Text style={[styles.subheading, { color: colors.muted }]}>
+        <Text style={[styles.heading, { color: colors.label }]}>Willkommen zurück</Text>
+        <Text style={[styles.sub, { color: colors.secondaryLabel }]}>
           Noch kein Konto?{' '}
-          <Link href="/(auth)/register" style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+          <Link href="/(auth)/register" style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}>
             Registrieren
           </Link>
         </Text>
 
         {!!error && (
           <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
+            <Ionicons name="warning-outline" size={15} color={colors.error} />
             <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
         )}
 
-        <View style={{ marginTop: 32, gap: 16 }}>
+        <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
           <Input
             label="E-Mail"
             value={email}
@@ -163,41 +137,39 @@ export default function LoginScreen() {
             keyboardType="email-address"
             placeholder="email@beispiel.de"
           />
+          <View style={{ height: 12 }} />
           <Input
             label="Passwort"
             value={password}
             onChangeText={setPassword}
             isPassword
-            placeholder="••••••••"
+            placeholder="Passwort eingeben"
           />
-          <TouchableOpacity onPress={() => { setForgotView(true); setForgotEmail(email); }}>
-            <Text style={[styles.forgotLink, { color: colors.muted }]}>Passwort vergessen?</Text>
+          <TouchableOpacity onPress={() => { setForgotView(true); setForgotEmail(email); }} style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+            <Text style={[styles.forgotLink, { color: colors.primary }]}>Passwort vergessen?</Text>
           </TouchableOpacity>
-          <Button
-            title="Anmelden"
-            onPress={handleLogin}
-            loading={loading}
-            fullWidth
-            size="lg"
-          />
         </View>
+
+        <Button title="Anmelden" onPress={handleLogin} loading={loading} fullWidth size="lg" style={{ marginTop: 16 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logoDot: { width: 28, height: 28, borderRadius: 8 },
-  logoText: { fontSize: 20, fontFamily: 'Inter_500Medium', letterSpacing: -0.5 },
-  heading: { fontSize: 32, fontFamily: 'Inter_700Bold', letterSpacing: -0.8, marginBottom: 6 },
-  subheading: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
-  errorBox: { marginTop: 16, padding: 12, borderRadius: 10 },
-  errorText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  forgotLink: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'right', marginTop: -4 },
-  backBtn: { marginBottom: 28 },
-  backText: { fontSize: 14, fontFamily: 'Inter_400Regular' },
-  centeredBox: { flex: 1, alignItems: 'center', paddingHorizontal: 24 },
-  iconCircle: { width: 72, height: 72, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', paddingHorizontal: 32 },
+  logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 48 },
+  logoBg: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  logoLetter: { color: '#fff', fontSize: 18, fontFamily: 'Inter_700Bold' },
+  logoText: { fontSize: 22, fontFamily: 'Inter_400Regular', letterSpacing: -0.5 },
+  heading: { fontSize: 30, fontFamily: 'Inter_700Bold', letterSpacing: -0.6, marginBottom: 6 },
+  sub: { fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 21, marginBottom: 24 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
+  errorText: { fontSize: 14, fontFamily: 'Inter_400Regular', flex: 1 },
+  formCard: { borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
+  forgotLink: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  iconBox: { width: 72, height: 72, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 28 },
+  backText: { fontSize: 17, fontFamily: 'Inter_400Regular' },
 });
