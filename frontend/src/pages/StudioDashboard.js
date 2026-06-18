@@ -3419,9 +3419,25 @@ export default function StudioDashboard() {
                 )}
 
                 {stripeConnectError && (
-                  <p className="text-xs text-red-500 font-inter text-center mt-2">
-                    {stripeConnectError === "not_enabled" ? "Stripe Connect ist nicht aktiviert." : stripeConnectError}
-                  </p>
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    {stripeConnectError === "not_enabled" ? (
+                      <div className="text-xs font-inter text-amber-800 leading-relaxed space-y-1">
+                        <p className="font-semibold">Stripe Connect noch nicht aktiviert</p>
+                        <p>Aktiviere Stripe Connect einmalig in deinem Stripe-Dashboard:</p>
+                        <a
+                          href="https://dashboard.stripe.com/connect"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-amber-900 font-semibold underline hover:no-underline"
+                        >
+                          dashboard.stripe.com/connect →
+                        </a>
+                        <p className="text-amber-600 mt-1">Danach hier erneut versuchen.</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-red-600 font-inter">{stripeConnectError}</p>
+                    )}
+                  </div>
                 )}
 
                 {/* Fee note */}
