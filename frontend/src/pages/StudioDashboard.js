@@ -201,6 +201,20 @@ export default function StudioDashboard() {
     return () => { clearInterval(pollInterval); clearInterval(msgInterval); clearInterval(tickInterval); };
   }, []);
 
+  // Handle returning from Stripe onboarding (?stripe=done)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const stripeParam = params.get("stripe");
+    if (stripeParam === "done") {
+      // Refresh connect status — might now be complete
+      fetchConnectStatus().then(() => {
+        notify.success("Stripe-Onboarding abgeschlossen! Prüfe den Status unten.");
+      });
+      // Clean URL
+      navigate("/studio-dashboard", { replace: true });
+    }
+  }, []); // eslint-disable-line
+
   useEffect(() => { calArtistIdRef.current   = calArtistId;   }, [calArtistId]);
   useEffect(() => { calBlockYearRef.current  = calBlockYear;  }, [calBlockYear]);
   useEffect(() => { calBlockMonthRef.current = calBlockMonth; }, [calBlockMonth]);

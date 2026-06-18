@@ -1,0 +1,282 @@
+## Stripe integration task
+
+### Objective
+Implement this Stripe integration using the blueprint below. The blueprint describes the required API operations, parameters, and sequencing. Adapt the implementation to your architecture, data models, and tech stack.
+
+### How to use the resources
+- Treat the blueprint as the source of truth for required API operations and parameters.
+- Prefer reusing outputs from earlier steps as inputs to later ones (e.g., use the created customer ID when creating a subscription).
+- Persist and retrieve required Stripe resource identifiers in your datastore (e.g., customer_id, subscription_id) and associate them with existing domain models.
+- Do NOT use chapter numbers as names in your code. Name all functions, routes, CLI commands, variables, and files after the domain action they perform (e.g., `create_account`, `/create-checkout-session`, `onboard`) rather than the step they came from (e.g., avoid `chapter1`, `step2`, `/chapter1/create-account`).
+- Template variables like ${node...} represent outputs from earlier steps that should be used as inputs to later ones. For example, ${node.createProduct.createProductRequest:default_price} refers to the default_price field from the response of the createProductRequest fixture within the createProduct node.
+- If connected to the Stripe MCP server, use tool calls as much as possible to create dependent resources (such as products and prices) if they don't exist already.
+- Do not guess as to what the required Stripe API version should be. Leave the API version argument empty when initializing the Stripe client unless the blueprint specifies otherwise.
+- When populating .env files or constructing commands for the CLI, use environment variable placeholders for API keys (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY) and instruct the user to obtain them from the Stripe Dashboard.
+
+---
+
+### Resources
+
+#### Blueprints (authoritative "what to call")
+<blueprints-json>
+[
+  {
+    "title": "Integrierte Zahlungen und Abonnements mit Accounts v2",
+    "steps": [
+      {
+        "key": "create-account-chapter",
+        "title": "Erstellung und Onboarding eines verbundenen Kontos",
+        "description": "Ermöglichen Sie Verkäuferinnen und Verkäufern (verbundene Konten) auf Ihrer Plattform die Annahme von Kundenzahlungen.",
+        "nodes": [
+          {
+            "type": "apiRequests",
+            "key": "create-account",
+            "title": "Konto erstellen",
+            "description": "Erstellen Sie ein verbundenes Konto zur Annahme von Kundenzahlungen als <LinkMerchant>Händler/in</LinkMerchant> und konfigurieren Sie es auch als <LinkCustomer>Kunde/Kundin</LinkCustomer>, damit Sie Abonnementgebühren berechnen können.",
+            "requests": [
+              {
+                "key": "create-account-request",
+                "path": "/v2/core/accounts",
+                "method": "post",
+                "params": {
+                  "display_name": "Test account",
+                  "contact_email": "testaccount@example.com",
+                  "configuration": {
+                    "merchant": {
+                      "simulate_accept_tos_obo": true
+                    }
+                  },
+                  "include": [
+                    "configuration.merchant",
+                    "configuration.recipient",
+                    "identity",
+                    "defaults",
+                    "configuration.customer"
+                  ],
+                  "identity": {
+                    "country": "${env:connectedAccountCountry}",
+                    "business_details": {
+                      "phone": "0000000000"
+                    }
+                  },
+                  "dashboard": "full",
+                  "defaults": {
+                    "responsibilities": {
+                      "losses_collector": "stripe",
+                      "fees_collector": "stripe"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "apiRequests",
+            "key": "create-account-link",
+            "title": "Konto-Link erstellen",
+            "description": "Erstellen Sie in Ihrer eigentlichen Integration einen Link zum Konto, um KYC-Informationen von Ihrem verbundenen Konto zu erfassen, wodurch ein von <LinkHosted>Stripe gehosteter Onboarding-Ablauf</LinkHosted> dargestellt wird. Alternativ können Sie <LinkEmbedded>eingebettetes Onboarding</LinkEmbedded> verwenden, um die Onboarding-Komponente in Ihre Anwendung zu integrieren, oder <LinkApi>API Onboarding</LinkApi>, um eine benutzerdefinierte Onboarding-Nutzeroberfläche mit den APIs von Stripe zu erstellen.",
+            "requests": [
+              {
+                "key": "create-account-link-request",
+                "path": "/v2/core/account_links",
+                "method": "post",
+                "params": {
+                  "account": "${node.create-account-chapter.create-account.create-account-request:id}",
+                  "use_case": {
+                    "type": "account_onboarding",
+                    "account_onboarding": {
+                      "configurations": [
+                        "merchant",
+                        "customer"
+                      ],
+                      "refresh_url": "https://dashboard.stripe.com/workbench/blueprints/learn-accounts-v2/create-account-chapter?confirmation-redirect=create-account-link",
+                      "return_url": "https://dashboard.stripe.com/workbench/blueprints/learn-accounts-v2/create-account-chapter?confirmation-redirect=create-account-link"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "uiComponent",
+            "key": "onboard-account",
+            "title": "Datenerfassung für KYC abschließen",
+            "description": "Ihr verbundenes Konto kann den generierten Link des Kontos verwenden, um die Erfassung der KYC-Daten abzuschließen. Dieser Knoten ist in diesem Beispiel nicht erforderlich, wird aber in Ihrer tatsächlichen Implementierung erforderlich sein."
+          },
+          {
+            "type": "asyncHandler",
+            "key": "wait-for-account-onboard",
+            "title": "Warten, bis das Onboarding des Kontos abgeschlossen ist",
+            "events": [
+              {
+                "eventType": "v2.core.account[configuration.merchant].capability_status_updated",
+                "eventPayloadType": "thin"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "accept-embedded-payments-chapter",
+        "title": "Integrierte Zahlungen annehmen",
+        "description": "Erzeugen Sie eine Abbuchung direkt auf dem verbundenen Konto und überweisen Sie die Gebühr umgehend an Ihre Plattform.",
+        "nodes": [
+          {
+            "type": "apiRequests",
+            "key": "create-checkout-session",
+            "title": "Checkout-Schnittstelle erstellen",
+            "description": "Erstellen Sie eine Checkout-Sitzung für das verbundene Konto, um Zahlungen zu akzeptieren. Der/die Kunde/Kundin des verbundenen Kontos wird zu einem <LinkHosted>von Stripe gehosteten vorgefertigten Zahlungsformular</LinkHosted> weitergeleitet, das für die Konvertierung optimiert ist. Alternativ können Sie auch <LinkEmbedded>ein vorgefertigtes Zahlungsformular einbetten</LinkEmbedded> oder die API verwenden, um eine <LinkApi>individuellere Checkout-Erfahrung</LinkApi> zu schaffen.",
+            "requests": [
+              {
+                "key": "create-checkout-session-request",
+                "path": "/v1/checkout/sessions",
+                "method": "post",
+                "params": {
+                  "success_url": "https://dashboard.stripe.com/workbench/blueprints/learn-accounts-v2/accept-embedded-payments-chapter?confirmation-redirect=create-checkout-session",
+                  "line_items": [
+                    {
+                      "price_data": {
+                        "currency": "${env:currency}",
+                        "product_data": {
+                          "name": "Cookie"
+                        },
+                        "unit_amount": 100000
+                      },
+                      "quantity": 1
+                    }
+                  ],
+                  "mode": "payment",
+                  "payment_method_types": [
+                    "card"
+                  ],
+                  "payment_intent_data": {
+                    "application_fee_amount": 123
+                  }
+                },
+                "requestOptions": {
+                  "headers": {
+                    "Stripe-Account": "${node.create-account-chapter.create-account.create-account-request:id}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "uiComponent",
+            "key": "complete-checkout",
+            "title": "Zahlung akzeptieren",
+            "description": "Die Kundin oder der Kunde des verbundenen Kontos kann dann eine Zahlung auf der Checkout-Oberfläche veranlassen. Bitte klicken Sie auf den untenstehenden Link und geben Sie die <Link>Testkartendaten</Link> mit der Kartennummer 4000 0000 0000 0077 ein, um eine erfolgreiche Zahlung durchzuführen. Geben Sie ein gültiges zukünftiges Datum (wie 31/12) und eine dreistellige Prüfziffer an.",
+            "link": "${node.accept-embedded-payments-chapter.create-checkout-session.create-checkout-session-request:url}"
+          },
+          {
+            "type": "asyncHandler",
+            "key": "wait-for-checkout",
+            "title": "Bestätigen, dass die Zahlung abgeschlossen ist",
+            "events": [
+              {
+                "eventType": "checkout.session.completed",
+                "eventPayloadType": "snapshot"
+              }
+            ],
+            "expectedNumberOfEvents": 1
+          }
+        ]
+      },
+      {
+        "key": "create-subscription-chapter",
+        "title": "Zahlung für Abonnements abbuchen",
+        "description": "Berechnen Sie Ihren verbundenen Konten Abonnementgebühren.",
+        "nodes": [
+          {
+            "type": "apiRequests",
+            "key": "create-product",
+            "title": "Einen Abonnementplan einrichten",
+            "description": "Erstellen Sie ein <Link>Produkt</Link>, um den Betrag und das Intervall für Abonnements zu konfigurieren.",
+            "requests": [
+              {
+                "key": "create-product-request",
+                "path": "/v1/products",
+                "method": "post",
+                "params": {
+                  "name": "Platform subscription",
+                  "default_price_data": {
+                    "currency": "${env:currency}",
+                    "recurring": {
+                      "interval": "month"
+                    },
+                    "unit_amount": 1000
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "apiRequests",
+            "key": "create-setup-intent",
+            "title": "Standard-Zahlungsmethode für das Konto anhängen",
+            "description": "Erstellen Sie eine <Link>SetupIntent</Link>, um eine Zahlungsmethode für das Konto anzuhängen. Wir verwenden das Guthaben des Kontos, um die Abonnementgebühren zu bezahlen.",
+            "requests": [
+              {
+                "key": "create-payment-method-request",
+                "path": "/v1/setup_intents",
+                "method": "post",
+                "params": {
+                  "payment_method_types": [
+                    "stripe_balance"
+                  ],
+                  "confirm": true,
+                  "customer_account": "${node.create-account-chapter.create-account.create-account-request:id}",
+                  "usage": "off_session",
+                  "payment_method_data": {
+                    "type": "stripe_balance"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "apiRequests",
+            "key": "create-subscription",
+            "title": "Zahlung für das Abonnement abbuchen",
+            "description": "Buchen Sie die Zahlung für das Abonnement ab und ziehen Sie die Transaktionsgebühren direkt vom Guthaben des Kontos ab.",
+            "requests": [
+              {
+                "key": "create-subscription-request",
+                "path": "/v1/subscriptions",
+                "method": "post",
+                "params": {
+                  "customer_account": "${node.create-account-chapter.create-account.create-account-request:id}",
+                  "default_payment_method": "${node.create-subscription-chapter.create-setup-intent.create-payment-method-request:payment_method}",
+                  "items": [
+                    {
+                      "price": "${node.create-subscription-chapter.create-product.create-product-request:default_price}",
+                      "quantity": 1
+                    }
+                  ],
+                  "payment_settings": {
+                    "payment_method_types": [
+                      "stripe_balance"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "asyncHandler",
+            "key": "wait-for-subscription",
+            "title": "Überprüfen Sie, ob das Abonnement erfolgreich war",
+            "events": [
+              {
+                "eventType": "invoice.payment_succeeded",
+                "eventPayloadType": "snapshot"
+              }
+            ],
+            "expectedNumberOfEvents": 1
+          }
+        ]
+      }
+    ]
+  }
+]
+</blueprints-json>

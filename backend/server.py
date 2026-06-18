@@ -3192,24 +3192,30 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
     import stripe as stripe_lib
     stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 
+    frontend_url = _get_frontend_url()
+    return_url = f"{frontend_url}/studio-dashboard?stripe=done"
+    refresh_url = f"{frontend_url}/studio-dashboard?stripe=setup"
+
     # If already has a connect account, just create a new onboarding link
     existing_account_id = studio.get("stripe_connect_account_id")
     if existing_account_id:
-        account = await asyncio.to_thread(stripe_lib.Account.retrieve, existing_account_id)
-        # If already fully onboarded, return status
-        if account.get("details_submitted"):
-            return {
-                "status": "complete",
-                "account_id": existing_account_id,
-                "onboarding_url": None
-            }
-        # Otherwise create a fresh account link
-        origin = str(request.base_url).rstrip("/")
+        try:
+            account = await asyncio.to_thread(stripe_lib.Account.retrieve, existing_account_id)
+            # If already fully onboarded, return status
+            if account.get("details_submitted") and account.get("charges_enabled"):
+                await db.studios.update_one(
+                    {"studio_id": studio["studio_id"]},
+                    {"$set": {"stripe_connect_status": "complete"}}
+                )
+                return {"status": "complete", "account_id": existing_account_id, "onboarding_url": None}
+        except Exception:
+            pass
+        # Create a fresh account link for pending onboarding
         account_link = await asyncio.to_thread(
             stripe_lib.AccountLink.create,
             account=existing_account_id,
-            refresh_url=f"{origin}/api/stripe/connect/refresh",
-            return_url=f"{origin}/api/stripe/connect/return",
+            refresh_url=refresh_url,
+            return_url=return_url,
             type="account_onboarding",
         )
         return {"status": "pending", "account_id": existing_account_id, "onboarding_url": account_link["url"]}
@@ -3229,10 +3235,7 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
     except Exception as stripe_err:
         err_msg = str(stripe_err)
         if "signed up for Connect" in err_msg or "connect" in err_msg.lower():
-            raise HTTPException(
-                status_code=402,
-                detail="STRIPE_CONNECT_NOT_ENABLED"
-            )
+            raise HTTPException(status_code=402, detail="STRIPE_CONNECT_NOT_ENABLED")
         raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {err_msg}")
 
     account_id = account["id"]
@@ -3243,12 +3246,11 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
         {"$set": {"stripe_connect_account_id": account_id, "stripe_connect_status": "pending"}}
     )
 
-    origin = str(request.base_url).rstrip("/")
     account_link = await asyncio.to_thread(
         stripe_lib.AccountLink.create,
         account=account_id,
-        refresh_url=f"{origin}/api/stripe/connect/refresh",
-        return_url=f"{origin}/api/stripe/connect/return",
+        refresh_url=refresh_url,
+        return_url=return_url,
         type="account_onboarding",
     )
     return {"status": "pending", "account_id": account_id, "onboarding_url": account_link["url"]}
