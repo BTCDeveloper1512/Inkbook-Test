@@ -24,14 +24,6 @@ args = "Start application"
 task = "workflow.run"
 args = "Backend API"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Expo Mobile"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Expo Preview Proxy"
-
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -55,32 +47,6 @@ outputType = "console"
 task = "shell.exec"
 args = "cd backend && uvicorn server:app --host localhost --port 8000"
 waitForPort = 8000
-
-[[workflows.workflow]]
-name = "Expo Mobile"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-isCanvasWorkflow = true
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd mobile && npm install --legacy-peer-deps --silent && EXPO_PUBLIC_API_URL=https://90cbaa4c-83f2-48cc-8b6a-12a058981075-00-2g32bywufcl16-76yz87r2.riker.replit.dev npx expo start --web --port 8081"
-waitForPort = 8081
-
-[[workflows.workflow]]
-name = "Expo Preview Proxy"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node /home/runner/workspace/mobile/proxy.mjs"
-waitForPort = 8099
-
-[workflows.workflow.metadata]
-outputType = "console"
-isCanvasWorkflow = true
 
 [[ports]]
 localPort = 5000

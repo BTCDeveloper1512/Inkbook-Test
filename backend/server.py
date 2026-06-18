@@ -422,12 +422,9 @@ api_router = APIRouter(prefix="/api")
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 _replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
-_replit_expo_domain = os.environ.get("REPLIT_EXPO_DEV_DOMAIN", "")
-_default_origins = "http://localhost:3000,http://localhost:5000,http://localhost:8080"
+_default_origins = "http://localhost:3000,http://localhost:5000"
 if _replit_domain:
     _default_origins += f",https://{_replit_domain}"
-if _replit_expo_domain:
-    _default_origins += f",https://{_replit_expo_domain}"
 
 def _get_frontend_url() -> str:
     explicit = os.environ.get("FRONTEND_URL", "")
