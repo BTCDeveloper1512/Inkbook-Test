@@ -123,16 +123,28 @@ webpackConfig.devServer = (devServerConfig) => {
       proxyReq.end();
     };
 
-    // Expo host-based proxy: if Host matches *.expo.riker.replit.dev, forward to Expo web app
+    // Expo host-based proxy: if Host matches *.expo.riker.replit.dev, route:
+    //   /api/*  → backend (port 8000) — same-site cookie handling for web auth
+    //   everything else → Expo Metro (port 8080)
     const expoProxyMw = (req, res, next) => {
       const host = req.headers.host || "";
       if (!host.includes(".expo.riker.replit.dev")) return next();
+
+      const isApi = req.url.startsWith("/api");
+      const targetPort = isApi ? 8000 : 8081;
+      const targetHost = isApi ? "localhost:8000" : "localhost:8081";
+
+      // Strip Origin/Referer so Expo's CorsMiddleware (which only allows localhost) doesn't block Metro requests
+      const forwardHeaders = { ...req.headers, host: targetHost };
+      delete forwardHeaders["origin"];
+      delete forwardHeaders["referer"];
+
       const opts = {
         hostname: "localhost",
-        port: 8080,
+        port: targetPort,
         path: req.url,
         method: req.method,
-        headers: { ...req.headers, host: "localhost:8080" },
+        headers: forwardHeaders,
       };
       const proxyReq = http.request(opts, (proxyRes) => {
         const h = { ...proxyRes.headers };

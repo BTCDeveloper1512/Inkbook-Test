@@ -4,7 +4,9 @@ import Constants from 'expo-constants';
 
 const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 export const API_BASE = DEFAULT_API_URL;
-export const API_URL = `${API_BASE}/api`;
+// On web the app is served through the craco proxy which routes /api/* to the backend.
+// Using a relative URL keeps the request same-site so SameSite=Lax cookies work correctly.
+export const API_URL = Platform.OS === 'web' ? '/api' : `${API_BASE}/api`;
 
 async function getToken(): Promise<string | null> {
   try {
