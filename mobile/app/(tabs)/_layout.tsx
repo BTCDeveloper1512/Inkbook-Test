@@ -1,13 +1,10 @@
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
-import { useAuth } from '@/context/AuthContext';
 import { Platform } from 'react-native';
 
 export default function TabLayout() {
   const colors = useColors();
-  const { user } = useAuth();
-  const isStudio = user?.role === 'studio_owner';
 
   return (
     <Tabs
@@ -32,9 +29,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: isStudio ? 'Dashboard' : 'Suche',
+          title: 'Suche',
           tabBarIcon: ({ color, size }) => (
-            <Feather name={isStudio ? 'grid' : 'search'} size={size} color={color} />
+            <Feather name="search" size={size} color={color} />
           ),
         }}
       />

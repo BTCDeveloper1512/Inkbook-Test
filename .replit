@@ -58,10 +58,12 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd mobile && EXPO_PUBLIC_API_URL=https://90cbaa4c-83f2-48cc-8b6a-12a058981075-00-2g32bywufcl16-76yz87r2.riker.replit.dev npx expo start --port 8081"
+args = "cd mobile && npm install --legacy-peer-deps --silent && EXPO_PUBLIC_API_URL=https://90cbaa4c-83f2-48cc-8b6a-12a058981075-00-2g32bywufcl16-76yz87r2.riker.replit.dev npx expo start --web --port 8080"
+waitForPort = 8080
 
 [workflows.workflow.metadata]
 outputType = "console"
+isCanvasWorkflow = true
 
 [[ports]]
 localPort = 5000
@@ -83,6 +85,10 @@ externalPort = 3002
 localPort = 8000
 externalPort = 8000
 exposeLocalhost = true
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
 
 [[ports]]
 localPort = 8081

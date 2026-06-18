@@ -15,9 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
-import { useAuth } from '@/context/AuthContext';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { StatusBadge } from '@/components/StatusBadge';
 import { apiGet } from '@/lib/api';
 
 interface Studio {
@@ -158,90 +156,7 @@ function CustomerSearch() {
   );
 }
 
-function StudioOverview() {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const { data: bookingData = [], isLoading, refetch, isRefetching } = useQuery<any[]>({
-    queryKey: ['/bookings'],
-  });
-
-  if (isLoading) return <LoadingScreen />;
-
-  const pending = bookingData.filter((b: any) => ['pending_studio_review', 'pending', 'under_review'].includes(b.status));
-  const confirmed = bookingData.filter((b: any) => b.status === 'confirmed');
-  const totalRevenue = bookingData
-    .filter((b: any) => b.status === 'completed')
-    .reduce((sum: number, b: any) => sum + (b.revenue || 0), 0);
-
-  return (
-    <FlatList
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={{
-        paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 16),
-        paddingBottom: 32,
-      }}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-      data={pending.slice(0, 5)}
-      keyExtractor={item => item.booking_id}
-      ListHeaderComponent={
-        <View style={{ paddingHorizontal: 20 }}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            Mein Studio
-          </Text>
-          <Text style={[styles.subTitle, { color: colors.muted }]}>
-            Dashboard
-          </Text>
-
-          <View style={styles.statsGrid}>
-            {[
-              { label: 'Offene Anfragen', value: pending.length, color: '#d97706' },
-              { label: 'Bestätigt', value: confirmed.length, color: '#16a34a' },
-              { label: 'Umsatz', value: `€ ${totalRevenue.toFixed(0)}`, color: colors.foreground },
-            ].map(stat => (
-              <View key={stat.label} style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>{stat.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {pending.length > 0 && (
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Neue Anfragen
-            </Text>
-          )}
-        </View>
-      }
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={[styles.bookingRow, { backgroundColor: colors.card, borderColor: colors.border, marginHorizontal: 20 }]}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/bookings')}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.bookingUser, { color: colors.foreground }]}>{item.user_name || 'Kunde'}</Text>
-            <Text style={[styles.bookingDate, { color: colors.muted }]}>
-              {item.offer_date || item.date || '—'} {item.start_time ? `· ${item.start_time}` : ''}
-            </Text>
-          </View>
-          <StatusBadge status={item.status} />
-        </TouchableOpacity>
-      )}
-      ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-      ListEmptyComponent={
-        <View style={[styles.empty, { marginTop: 32 }]}>
-          <Feather name="calendar" size={40} color={colors.border} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Keine offenen Anfragen</Text>
-          <Text style={[styles.emptyText, { color: colors.muted }]}>Neue Buchungen erscheinen hier</Text>
-        </View>
-      }
-    />
-  );
-}
-
 export default function HomeTab() {
-  const { user } = useAuth();
-  if (user?.role === 'studio_owner') return <StudioOverview />;
   return <CustomerSearch />;
 }
 
