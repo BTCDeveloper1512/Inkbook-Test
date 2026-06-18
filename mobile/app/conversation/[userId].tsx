@@ -100,7 +100,9 @@ export default function ConversationScreen() {
   const handleSend = async () => {
     const content = text.trim();
     if (!content || sending) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     setText('');
     setSending(true);
     const tempMsg: Message = {
