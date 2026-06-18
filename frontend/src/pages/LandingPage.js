@@ -460,31 +460,45 @@ function AppMockup() {
 ═══════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const [done, setDone] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
   if (!done) return <SplashScreen onDone={() => setDone(true)} />;
 
+  const px = isMobile ? "20px" : "44px";
+
   return (
-    <div style={{ fontFamily: FONT, background: C.bg, overflowX: "hidden", color: C.ink }}>
+    <div style={{ fontFamily: FONT, background: C.bg, overflowX: "hidden", color: C.ink, maxWidth: "100vw" }}>
 
       {/* ── Navigation ───────────────────────────────── */}
       <nav style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
-        height: 56, padding: "0 44px",
+        height: 56, padding: `0 ${px}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px) saturate(180%)",
+        background: "rgba(255,255,255,0.92)", backdropFilter: "blur(20px) saturate(180%)",
         borderBottom: `1px solid ${C.line}`,
+        paddingTop: "env(safe-area-inset-top, 0px)",
       }}>
         <span style={{ fontSize: 17, fontWeight: 300, color: C.ink, letterSpacing: "-0.03em", fontFamily: FONT }}>
           Studio<span style={{ opacity: 0.32 }}>OS</span>
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          <Link to="/search"    style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Studios finden</Link>
-          <Link to="/ueber-uns" style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Über uns</Link>
-          <Link to="/login"     style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Anmelden</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 32 }}>
+          {!isMobile && <>
+            <Link to="/search"    style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Studios finden</Link>
+            <Link to="/ueber-uns" style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Über uns</Link>
+            <Link to="/login"     style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Anmelden</Link>
+          </>}
+          {isMobile && <Link to="/login" style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Login</Link>}
           <Link to="/register?role=studio" style={{
             fontSize: 13, fontWeight: 400, color: C.btnTxt, background: C.button,
-            padding: "8px 20px", borderRadius: 100, textDecoration: "none", fontFamily: FONT,
+            padding: isMobile ? "7px 14px" : "8px 20px", borderRadius: 100, textDecoration: "none", fontFamily: FONT,
+            whiteSpace: "nowrap",
           }}>
-            Als Studio starten
+            {isMobile ? "Starten" : "Als Studio starten"}
           </Link>
         </div>
       </nav>
@@ -492,69 +506,80 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════
           SEKTION 1 — HERO
       ══════════════════════════════════════════════ */}
-      <section style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 92, overflow: "hidden", position: "relative" }}>
+      <section style={{ minHeight: "100dvh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: isMobile ? 80 : 92, overflow: "hidden", position: "relative" }}>
 
-        {/* Sehr subtiler Hintergrundverlauf */}
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 55% at 50% 90%, rgba(0,0,0,0.03), transparent)", pointerEvents: "none" }} />
 
-        {/* Text */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          style={{ textAlign: "center", maxWidth: 800, padding: "0 24px", position: "relative", zIndex: 2 }}
+          style={{ textAlign: "center", maxWidth: 800, padding: `0 ${px}`, position: "relative", zIndex: 2, width: "100%" }}
         >
           <motion.p
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-            style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: 22, fontFamily: FONT }}
+            style={{ fontSize: 11, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: isMobile ? 16 : 22, fontFamily: FONT }}
           >
             Das Studio-Betriebssystem
           </motion.p>
 
-          <h1 style={{ fontSize: "clamp(44px, 7vw, 86px)", fontWeight: 300, color: C.ink, lineHeight: 1.0, letterSpacing: "-0.04em", marginBottom: 22, fontFamily: FONT }}>
+          <h1 style={{ fontSize: isMobile ? "clamp(38px, 11vw, 58px)" : "clamp(44px, 7vw, 86px)", fontWeight: 300, color: C.ink, lineHeight: 1.0, letterSpacing: "-0.04em", marginBottom: isMobile ? 16 : 22, fontFamily: FONT }}>
             Tattoo-Buchungen.<br />
             <span style={{ color: "rgba(29,29,31,0.22)" }}>Endlich digital.</span>
           </h1>
 
-          <p style={{ fontSize: "clamp(15px, 1.6vw, 18px)", color: C.mid, maxWidth: 480, margin: "0 auto 36px", lineHeight: 1.65, fontWeight: 300, fontFamily: FONT }}>
+          <p style={{ fontSize: isMobile ? 15 : "clamp(15px, 1.6vw, 18px)", color: C.mid, maxWidth: 480, margin: `0 auto ${isMobile ? 28 : 36}px`, lineHeight: 1.65, fontWeight: 300, fontFamily: FONT }}>
             Kunden buchen per Echtzeit-Kalender, zahlen per Stripe —
             kein WhatsApp-Chaos, keine verpassten Anfragen.
           </p>
 
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "14px 28px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
               Studio finden <ArrowRight size={15} strokeWidth={1.5} />
             </Link>
-            <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "14px 28px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-              Als Studio registrieren
+            <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
+              {isMobile ? "Studio registrieren" : "Als Studio registrieren"}
             </Link>
           </div>
-          <p style={{ fontSize: 12, color: C.faint, marginTop: 18, fontFamily: FONT, fontWeight: 300 }}>Kostenlos · Keine Kreditkarte erforderlich</p>
+          <p style={{ fontSize: 12, color: C.faint, marginTop: 16, fontFamily: FONT, fontWeight: 300 }}>Kostenlos · Keine Kreditkarte erforderlich</p>
         </motion.div>
 
-        {/* MacBook */}
-        <motion.div
-          initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          style={{ marginTop: 44, position: "relative", zIndex: 1 }}
-        >
-          <MacBook />
-        </motion.div>
+        {/* MacBook — skaliert auf Mobile */}
+        {!isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            style={{ marginTop: 44, position: "relative", zIndex: 1 }}
+          >
+            <MacBook />
+          </motion.div>
+        )}
+        {isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            style={{ marginTop: 36, width: "100%", overflow: "hidden", display: "flex", justifyContent: "center" }}
+          >
+            <div style={{ transform: "scale(0.62)", transformOrigin: "center top", marginBottom: -136 }}>
+              <MacBook />
+            </div>
+          </motion.div>
+        )}
       </section>
 
       {/* ══════════════════════════════════════════════
           SEKTION 2 — STATS (Apple-Grau)
       ══════════════════════════════════════════════ */}
-      <section style={{ background: C.gray, padding: "72px 44px", borderTop: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 0 }}>
+      <section style={{ background: C.gray, padding: isMobile ? "48px 20px" : "72px 44px", borderTop: `1px solid ${C.line}` }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: isMobile ? 32 : 0 }}>
           {[
             ["500+","Buchungen / Monat","und wachsend"],
             ["< 60 s","von Suche bis Buchung","vollständig digital"],
             ["100 %","sichere Zahlung","via Stripe, automatisch"],
           ].map(([num, title, sub], i) => (
             <FadeIn key={i} delay={i * 0.1}>
-              <div style={{ padding: "0 40px", borderRight: i < 2 ? `1px solid ${C.line}` : "none" }}>
-                <p style={{ fontSize: "clamp(38px,5vw,60px)", fontWeight: 300, color: C.ink, fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 8 }}>{num}</p>
+              <div style={{ padding: isMobile ? "0" : "0 40px", borderRight: (!isMobile && i < 2) ? `1px solid ${C.line}` : "none", borderBottom: (isMobile && i < 2) ? `1px solid ${C.line}` : "none", paddingBottom: (isMobile && i < 2) ? 32 : 0 }}>
+                <p style={{ fontSize: isMobile ? "clamp(36px,10vw,52px)" : "clamp(38px,5vw,60px)", fontWeight: 300, color: C.ink, fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 8 }}>{num}</p>
                 <p style={{ fontSize: 15, fontWeight: 300, color: C.ink, fontFamily: FONT, marginBottom: 4 }}>{title}</p>
                 <p style={{ fontSize: 13, fontWeight: 300, color: C.faint, fontFamily: FONT }}>{sub}</p>
               </div>
@@ -566,8 +591,8 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════
           SEKTION 3 — MOCKUP + TEXT (Weiß)
       ══════════════════════════════════════════════ */}
-      <section style={{ background: C.bg, padding: "110px 44px 130px", borderTop: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+      <section style={{ background: C.bg, padding: isMobile ? "64px 20px 72px" : "110px 44px 130px", borderTop: `1px solid ${C.line}` }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 40 : 80, alignItems: "center" }}>
           <FadeIn>
             <p style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: 20, fontFamily: FONT }}>Für Studios & Kunden</p>
             <h2 style={{ fontSize: "clamp(34px, 4vw, 56px)", fontWeight: 300, color: C.ink, lineHeight: 1.05, letterSpacing: "-0.04em", marginBottom: 22, fontFamily: FONT }}>
@@ -604,25 +629,27 @@ export default function LandingPage() {
             </div>
           </FadeIn>
 
-          <FadeIn delay={0.14}>
-            <AppMockup />
-          </FadeIn>
+          {!isMobile && (
+            <FadeIn delay={0.14}>
+              <AppMockup />
+            </FadeIn>
+          )}
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════
           SEKTION 4 — FEATURES (Apple-Grau)
       ══════════════════════════════════════════════ */}
-      <section style={{ background: C.gray, padding: "100px 44px", borderTop: `1px solid ${C.line}` }}>
+      <section style={{ background: C.gray, padding: isMobile ? "56px 20px" : "100px 44px", borderTop: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-          <FadeIn style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 64px" }}>
+          <FadeIn style={{ textAlign: "center", maxWidth: 640, margin: isMobile ? "0 auto 40px" : "0 auto 64px" }}>
             <p style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: 18, fontFamily: FONT }}>Warum StudioOS</p>
             <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 300, color: C.ink, lineHeight: 1.05, letterSpacing: "-0.04em", fontFamily: FONT }}>
               Alles was dein Studio braucht
             </h2>
           </FadeIn>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: isMobile ? 14 : 20 }}>
             {[
               [Zap,       "Sofort-Buchung",  "Kunden buchen direkt — ohne DM oder Telefonanfragen. Dein Kalender füllt sich automatisch."],
               [Shield,    "Sichere Zahlung", "Anzahlungen über Stripe schützen vor No-Shows. Automatisch, rechtssicher, simpel."],
@@ -645,32 +672,29 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════
           SEKTION 5 — EDITORIAL CTA (Weiß, nicht-standard)
       ══════════════════════════════════════════════ */}
-      <section style={{ background: C.bg, padding: "120px 44px 100px", borderTop: `1px solid ${C.line}` }}>
+      <section style={{ background: C.bg, padding: isMobile ? "64px 20px 72px" : "120px 44px 100px", borderTop: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-
-          {/* Großer Display-Text — wie ein Magazin-Spread */}
           <FadeIn>
             <h2 style={{
-              fontSize: "clamp(56px, 10vw, 140px)", fontWeight: 300,
+              fontSize: isMobile ? "clamp(44px, 12vw, 72px)" : "clamp(56px, 10vw, 140px)", fontWeight: 300,
               color: C.ink, letterSpacing: "-0.05em", lineHeight: 0.92,
-              fontFamily: FONT, marginBottom: 48,
+              fontFamily: FONT, marginBottom: isMobile ? 32 : 48,
             }}>
               Bereit, dein<br/>
               <span style={{ color: "rgba(29,29,31,0.18)" }}>Studio zu starten?</span>
             </h2>
           </FadeIn>
 
-          {/* Horizontale Trennlinie + CTA daneben */}
           <FadeIn delay={0.12}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24, paddingTop: 36, borderTop: `1px solid ${C.line}` }}>
-              <p style={{ fontSize: 17, fontWeight: 300, color: C.mid, fontFamily: FONT, maxWidth: 440, lineHeight: 1.6 }}>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", gap: isMobile ? 20 : 24, paddingTop: 36, borderTop: `1px solid ${C.line}` }}>
+              <p style={{ fontSize: isMobile ? 15 : 17, fontWeight: 300, color: C.mid, fontFamily: FONT, maxWidth: 440, lineHeight: 1.6 }}>
                 Registriere dein Studio kostenlos, richte deinen Kalender ein und nimm in wenigen Minuten Buchungen entgegen.
               </p>
-              <div style={{ display: "flex", gap: 12, flexShrink: 0 }}>
-                <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "16px 32px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 15, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-                  Jetzt registrieren <ArrowRight size={16} strokeWidth={1.5} />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 24px" : "16px 32px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: isMobile ? 14 : 15, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
+                  Jetzt registrieren <ArrowRight size={15} strokeWidth={1.5} />
                 </Link>
-                <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "16px 32px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: 15, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
+                <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 24px" : "16px 32px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: isMobile ? 14 : 15, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
                   Studios ansehen
                 </Link>
               </div>
@@ -682,24 +706,25 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════
           FOOTER — Editorial, nicht-standard
       ══════════════════════════════════════════════ */}
-      <footer style={{ background: C.gray, borderTop: `1px solid ${C.line}`, padding: "80px 44px 44px" }}>
+      <footer style={{ background: C.gray, borderTop: `1px solid ${C.line}`, padding: isMobile ? "48px 20px 36px" : "80px 44px 44px" }}>
         <div style={{ maxWidth: 1120, margin: "0 auto" }}>
 
           {/* Riesiger Logo-Text */}
           <FadeIn>
-            <p style={{ fontSize: "clamp(52px, 11vw, 144px)", fontWeight: 300, color: C.ink, letterSpacing: "-0.06em", lineHeight: 0.88, fontFamily: FONT, marginBottom: 56 }}>
+            <p style={{ fontSize: isMobile ? "clamp(44px, 14vw, 80px)" : "clamp(52px, 11vw, 144px)", fontWeight: 300, color: C.ink, letterSpacing: "-0.06em", lineHeight: 0.88, fontFamily: FONT, marginBottom: isMobile ? 36 : 56 }}>
               Studio<span style={{ opacity: 0.18 }}>OS</span>
             </p>
           </FadeIn>
 
-          {/* Links — 4-spaltig, luftig */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 40, marginBottom: 64, paddingTop: 40, borderTop: `1px solid ${C.line}` }}>
-            {/* Tagline-Spalte */}
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 300, color: C.mid, fontFamily: FONT, lineHeight: 1.7, maxWidth: 260 }}>
-                Das Betriebssystem für moderne Tattoo-Studios — von der Buchung bis zur Bezahlung.
-              </p>
-            </div>
+          {/* Links */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "2fr 1fr 1fr 1fr", gap: isMobile ? 28 : 40, marginBottom: isMobile ? 40 : 64, paddingTop: 32, borderTop: `1px solid ${C.line}` }}>
+            {!isMobile && (
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 300, color: C.mid, fontFamily: FONT, lineHeight: 1.7, maxWidth: 260 }}>
+                  Das Betriebssystem für moderne Tattoo-Studios — von der Buchung bis zur Bezahlung.
+                </p>
+              </div>
+            )}
 
             {[
               ["Plattform", [["Studios finden","/search"],["Als Studio starten","/register?role=studio"],["Anmelden","/login"],["FAQ","/faq"]]],
@@ -707,11 +732,11 @@ export default function LandingPage() {
               ["Rechtliches", [["Impressum","/impressum"],["Datenschutz","/datenschutz"],["AGB","/agb"]]],
             ].map(([heading, links]) => (
               <div key={heading}>
-                <p style={{ fontSize: 10, fontWeight: 400, letterSpacing: "0.2em", textTransform: "uppercase", color: C.faint, marginBottom: 16, fontFamily: FONT }}>
+                <p style={{ fontSize: 10, fontWeight: 400, letterSpacing: "0.2em", textTransform: "uppercase", color: C.faint, marginBottom: 14, fontFamily: FONT }}>
                   {heading}
                 </p>
                 {links.map(([l, h]) => (
-                  <Link key={l} to={h} style={{ display: "block", fontSize: 14, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT, marginBottom: 10, letterSpacing: "-0.01em" }}>
+                  <Link key={l} to={h} style={{ display: "block", fontSize: isMobile ? 13 : 14, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT, marginBottom: 9, letterSpacing: "-0.01em" }}>
                     {l}
                   </Link>
                 ))}

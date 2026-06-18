@@ -107,7 +107,7 @@ export default function CookieBanner() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[9999] p-4 sm:p-6"
+      className="fixed bottom-0 left-0 right-0 z-[9999] p-4 sm:p-6 pb-safe"
       data-testid="cookie-banner"
     >
       <div className="max-w-3xl mx-auto bg-white border border-zinc-200 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12)] overflow-hidden">
