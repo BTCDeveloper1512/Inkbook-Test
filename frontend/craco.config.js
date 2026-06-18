@@ -123,6 +123,31 @@ webpackConfig.devServer = (devServerConfig) => {
       proxyReq.end();
     };
 
+    // Expo host-based proxy: if Host matches *.expo.riker.replit.dev, forward to Expo web app
+    const expoProxyMw = (req, res, next) => {
+      const host = req.headers.host || "";
+      if (!host.includes(".expo.riker.replit.dev")) return next();
+      const opts = {
+        hostname: "localhost",
+        port: 8080,
+        path: req.url,
+        method: req.method,
+        headers: { ...req.headers, host: "localhost:8080" },
+      };
+      const proxyReq = http.request(opts, (proxyRes) => {
+        const h = { ...proxyRes.headers };
+        delete h["x-frame-options"];
+        delete h["content-security-policy"];
+        res.writeHead(proxyRes.statusCode, h);
+        proxyRes.pipe(res, { end: true });
+      });
+      proxyReq.on("error", (err) => {
+        if (!res.headersSent) { res.writeHead(502); res.end("Expo proxy error: " + err.message); }
+      });
+      req.pipe(proxyReq, { end: true });
+    };
+    middlewares.unshift({ name: "expo-proxy", middleware: expoProxyMw });
+
     const apiProxyMw = (req, res, next) => {
       if (!req.url.startsWith("/api")) return next();
 
