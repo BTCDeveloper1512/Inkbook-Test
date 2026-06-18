@@ -28,7 +28,12 @@ export default function RegisterPage() {
       if (window.posthog) {
         window.posthog.capture("user_registered", { role: user.role });
       }
-      navigate(user.role === "studio_owner" ? "/studio-dashboard" : "/dashboard");
+      if (user.role === "studio_owner") {
+        localStorage.removeItem("inkbook_deposit_popup_dismissed");
+        navigate("/studio-dashboard?stripe=setup");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       const d = err.response?.data?.detail;
       setError(typeof d === "string" ? d : "Registrierung fehlgeschlagen");

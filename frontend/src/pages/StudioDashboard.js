@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { notify } from "../components/InkNotify";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -75,6 +75,8 @@ function DepositCountdown({ deadlineAt }) {
 export default function StudioDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isNewRegistration = new URLSearchParams(location.search).get("stripe") === "setup";
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
@@ -162,6 +164,7 @@ export default function StudioDashboard() {
   const [expandedInquiry, setExpandedInquiry] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showDepositPopup, setShowDepositPopup] = useState(false);
+  const [stripeWindowOpened, setStripeWindowOpened] = useState(false);
   const [offerModal, setOfferModal] = useState(null);
   const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
   const [offerLoading, setOfferLoading] = useState(false);
@@ -474,12 +477,13 @@ export default function StudioDashboard() {
   }, []);
 
   const fetchConnectStatus = async () => {
+    const isNew = new URLSearchParams(window.location.search).get("stripe") === "setup";
     try {
       const { data } = await axios.get(`${API}/stripe/connect/status`, { withCredentials: true });
       setConnectStatus(data);
       const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
       if (!dismissed && data?.status !== "complete") {
-        setTimeout(() => setShowDepositPopup(true), 800);
+        setTimeout(() => setShowDepositPopup(true), isNew ? 0 : 800);
       }
     } catch (e) {
       // 404 = kein Stripe-Account → definitiv nicht verbunden → Popup zeigen
@@ -487,7 +491,7 @@ export default function StudioDashboard() {
       if (status === 404 || status === undefined) {
         setConnectStatus(null);
         const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
-        if (!dismissed) setTimeout(() => setShowDepositPopup(true), 800);
+        if (!dismissed) setTimeout(() => setShowDepositPopup(true), isNew ? 0 : 800);
       }
     }
   };
@@ -536,6 +540,7 @@ export default function StudioDashboard() {
       const { data } = await axios.post(`${API}/stripe/connect/create`, {}, { withCredentials: true });
       if (data.onboarding_url) {
         window.open(data.onboarding_url, "_blank", "noopener,noreferrer");
+        setStripeWindowOpened(true);
         setTimeout(() => fetchConnectStatus(), 3000);
       } else if (data.status === "complete") {
         fetchConnectStatus();
@@ -1824,7 +1829,13 @@ export default function StudioDashboard() {
                             {BLOCK_TYPES.map(bt => (
                               <button
                                 key={bt.id}
-                                onClick={() => setCalBlockPickType(bt.id)}
+                                onClick={() => {
+                                  setCalBlockPickType(bt.id);
+                                  if (bt.id === "small_only") setCalBlockPickCap("2");
+                                  else if (bt.id === "limited") setCalBlockPickCap("3");
+                                  else if (bt.id === "full" || bt.id === "vacation") setCalBlockPickCap("");
+                                  else if (bt.id === "available") setCalBlockPickCap("");
+                                }}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${calBlockPickType === bt.id ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 hover:border-zinc-200"}`}
                               >
                                 <span className={`w-3 h-3 rounded-full flex-shrink-0 ${dotCls[bt.id]}`} />
@@ -3349,7 +3360,6 @@ export default function StudioDashboard() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => dismissDepositPopup(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -3357,27 +3367,20 @@ export default function StudioDashboard() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 24 }}
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-              onClick={e => e.stopPropagation()}
             >
               {/* Header strip */}
               <div className="bg-zinc-900 px-6 pt-6 pb-5 relative">
-                <button
-                  onClick={() => dismissDepositPopup(true)}
-                  className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                >
-                  <X size={13} strokeWidth={2.5} className="text-white" />
-                </button>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
                     <CreditCard size={20} className="text-white" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-0.5">Empfehlung</p>
-                    <h2 className="font-playfair font-semibold text-white text-lg leading-tight">Weniger No-Shows</h2>
+                    <p className="text-[10px] font-inter font-semibold tracking-widest uppercase text-white/40 mb-0.5">Einrichtung erforderlich</p>
+                    <h2 className="font-playfair font-semibold text-white text-lg leading-tight">Stripe Konto verbinden</h2>
                   </div>
                 </div>
                 <p className="text-sm text-white/70 font-inter leading-relaxed">
-                  Studios mit Anzahlung haben <strong className="text-white">bis zu 80 % weniger Ausfälle</strong> — Kunden, die bereits bezahlt haben, erscheinen verlässlich zum Termin.
+                  Um Anzahlungen zu empfangen, musst du einmalig dein Stripe-Konto verbinden. Das geht <strong className="text-white">in wenigen Minuten</strong>.
                 </p>
               </div>
 
@@ -3399,25 +3402,27 @@ export default function StudioDashboard() {
                 {/* CTA buttons */}
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    dismissDepositPopup(true);
-                    setActiveTab("profile");
-                    setTimeout(() => {
-                      const el = document.getElementById("stripe-connect-section");
-                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }, 300);
-                  }}
-                  className="btn-primary w-full justify-center mb-2.5"
+                  onClick={handleConnectStripe}
+                  disabled={connectLoading}
+                  className="btn-primary w-full justify-center mb-2.5 disabled:opacity-60"
                 >
-                  Jetzt Stripe verbinden & einrichten
+                  {connectLoading ? "Wird geöffnet…" : stripeWindowOpened ? "Stripe erneut öffnen" : "Jetzt Stripe einrichten →"}
                 </motion.button>
 
-                <button
-                  onClick={() => dismissDepositPopup(true)}
-                  className="w-full py-2.5 text-sm font-inter text-zinc-400 hover:text-zinc-700 transition-colors"
-                >
-                  Später in den Einstellungen erledigen
-                </button>
+                {stripeWindowOpened && (
+                  <button
+                    onClick={() => { localStorage.setItem("inkbook_deposit_popup_dismissed", "1"); setShowDepositPopup(false); }}
+                    className="w-full py-2.5 text-sm font-inter text-zinc-400 hover:text-zinc-700 transition-colors"
+                  >
+                    Fenster geöffnet — später fortfahren
+                  </button>
+                )}
+
+                {stripeConnectError && (
+                  <p className="text-xs text-red-500 font-inter text-center mt-2">
+                    {stripeConnectError === "not_enabled" ? "Stripe Connect ist nicht aktiviert." : stripeConnectError}
+                  </p>
+                )}
 
                 {/* Fee note */}
                 <p className="text-center text-[10px] text-zinc-300 font-inter mt-3 leading-relaxed">
