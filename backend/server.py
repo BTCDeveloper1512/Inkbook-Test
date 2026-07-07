@@ -3199,8 +3199,10 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
     # If already has a connect account, just create a new onboarding link
     existing_account_id = studio.get("stripe_connect_account_id")
     if existing_account_id:
+        account_valid = False
         try:
             account = await asyncio.to_thread(stripe_lib.Account.retrieve, existing_account_id)
+            account_valid = True
             # If already fully onboarded, return status
             if account.get("details_submitted") and account.get("charges_enabled"):
                 await db.studios.update_one(
@@ -3209,16 +3211,31 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
                 )
                 return {"status": "complete", "account_id": existing_account_id, "onboarding_url": None}
         except Exception:
-            pass
-        # Create a fresh account link for pending onboarding
-        account_link = await asyncio.to_thread(
-            stripe_lib.AccountLink.create,
-            account=existing_account_id,
-            refresh_url=refresh_url,
-            return_url=return_url,
-            type="account_onboarding",
-        )
-        return {"status": "pending", "account_id": existing_account_id, "onboarding_url": account_link["url"]}
+            # Account not accessible with current key (e.g. live account ID used with test key)
+            # Clear the stored account ID so a new one gets created below
+            await db.studios.update_one(
+                {"studio_id": studio["studio_id"]},
+                {"$unset": {"stripe_connect_account_id": "", "stripe_connect_status": ""}}
+            )
+            existing_account_id = None
+
+        if account_valid and existing_account_id:
+            # Create a fresh account link for pending onboarding
+            try:
+                account_link = await asyncio.to_thread(
+                    stripe_lib.AccountLink.create,
+                    account=existing_account_id,
+                    refresh_url=refresh_url,
+                    return_url=return_url,
+                    type="account_onboarding",
+                )
+                return {"status": "pending", "account_id": existing_account_id, "onboarding_url": account_link["url"]}
+            except Exception as link_err:
+                # Account link failed — clear and create fresh
+                await db.studios.update_one(
+                    {"studio_id": studio["studio_id"]},
+                    {"$unset": {"stripe_connect_account_id": "", "stripe_connect_status": ""}}
+                )
 
     # Create a fresh Express account
     studio_email = studio.get("email") or current_user.get("email", "")
