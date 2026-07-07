@@ -3226,8 +3226,8 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
         account = await asyncio.to_thread(
             stripe_lib.Account.create,
             controller={
-                "losses": {"payments": "stripe"},
-                "fees": {"payer": "account"},
+                "losses": {"payments": "application"},
+                "fees": {"payer": "application"},
                 "stripe_dashboard": {"type": "express"},
                 "requirement_collection": "stripe",
             },
