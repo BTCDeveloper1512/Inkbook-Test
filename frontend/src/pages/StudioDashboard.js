@@ -164,7 +164,7 @@ export default function StudioDashboard() {
   const [expandedInquiry, setExpandedInquiry] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showDepositPopup, setShowDepositPopup] = useState(false);
-  const [stripeWindowOpened, setStripeWindowOpened] = useState(false);
+  const [stripeWindowOpened, setStripeWindowOpened] = useState(() => !!localStorage.getItem("inkbook_stripe_window_opened"));
   const [offerModal, setOfferModal] = useState(null);
   const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
   const [offerLoading, setOfferLoading] = useState(false);
@@ -498,6 +498,8 @@ export default function StudioDashboard() {
       if (data?.status === "complete") {
         // Onboarding done — close popup and mark dismissed so it never reappears
         localStorage.setItem("inkbook_deposit_popup_dismissed", "1");
+        localStorage.removeItem("inkbook_stripe_window_opened");
+        setStripeWindowOpened(false);
         setShowDepositPopup(false);
       } else {
         const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
@@ -560,6 +562,7 @@ export default function StudioDashboard() {
       const { data } = await axios.post(`${API}/stripe/connect/create`, {}, { withCredentials: true });
       if (data.onboarding_url) {
         window.open(data.onboarding_url, "_blank", "noopener,noreferrer");
+        localStorage.setItem("inkbook_stripe_window_opened", "1");
         setStripeWindowOpened(true);
         setTimeout(() => fetchConnectStatus(), 3000);
       } else if (data.status === "complete") {
@@ -3429,14 +3432,12 @@ export default function StudioDashboard() {
                   {connectLoading ? "Wird geöffnet…" : stripeWindowOpened ? "Stripe erneut öffnen" : "Jetzt Stripe einrichten →"}
                 </motion.button>
 
-                {stripeWindowOpened && (
-                  <button
-                    onClick={() => { localStorage.setItem("inkbook_deposit_popup_dismissed", "1"); setShowDepositPopup(false); }}
-                    className="w-full py-2.5 text-sm font-inter text-zinc-400 hover:text-zinc-700 transition-colors"
-                  >
-                    Fenster geöffnet — später fortfahren
-                  </button>
-                )}
+                <button
+                  onClick={() => { localStorage.setItem("inkbook_deposit_popup_dismissed", "1"); localStorage.removeItem("inkbook_stripe_window_opened"); setShowDepositPopup(false); }}
+                  className="w-full py-2.5 text-sm font-inter text-zinc-400 hover:text-zinc-700 transition-colors"
+                >
+                  {stripeWindowOpened ? "Fenster geöffnet — später fortfahren" : "Jetzt nicht — später einrichten"}
+                </button>
 
                 {stripeConnectError && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">

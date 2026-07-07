@@ -3311,9 +3311,16 @@ async def get_connect_status(current_user: dict = Depends(get_current_user)):
             "payouts_enabled": payouts_enabled,
         }
     except Exception:
-        # Stripe API unavailable or invalid account ID — return stored status from DB
         stored_status = studio.get("stripe_connect_status", "pending")
-        return {"status": stored_status, "account_id": account_id}
+        if stored_status == "complete":
+            # Previously verified as complete — trust stored status (e.g. live account checked with test key)
+            return {"status": "complete", "account_id": account_id}
+        # Account unreachable and never completed — clear it so a fresh one can be created
+        await db.studios.update_one(
+            {"owner_id": owner_id},
+            {"$unset": {"stripe_connect_account_id": "", "stripe_connect_status": ""}}
+        )
+        return {"status": "not_connected", "account_id": None}
 
 
 @api_router.get("/stripe/connect/return")
