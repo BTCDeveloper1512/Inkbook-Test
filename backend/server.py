@@ -3234,8 +3234,10 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
         )
     except Exception as stripe_err:
         err_msg = str(stripe_err)
-        if "signed up for Connect" in err_msg or "connect" in err_msg.lower():
-            raise HTTPException(status_code=402, detail="STRIPE_CONNECT_NOT_ENABLED")
+        if "signed up for Connect" in err_msg:
+            sk = os.environ.get("STRIPE_SECRET_KEY", "")
+            mode = "test" if sk.startswith("sk_test_") else "live"
+            raise HTTPException(status_code=402, detail=f"STRIPE_CONNECT_NOT_ENABLED:{mode}")
         raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {err_msg}")
 
     account_id = account["id"]
