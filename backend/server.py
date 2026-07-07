@@ -3225,11 +3225,15 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
     try:
         account = await asyncio.to_thread(
             stripe_lib.Account.create,
-            type="express",
+            controller={
+                "losses": {"payments": "stripe"},
+                "fees": {"payer": "account"},
+                "stripe_dashboard": {"type": "express"},
+                "requirement_collection": "stripe",
+            },
             country="DE",
             email=studio_email if studio_email else None,
             capabilities={"transfers": {"requested": True}, "card_payments": {"requested": True}},
-            business_type="individual",
             metadata={"studio_id": studio["studio_id"], "owner_id": owner_id},
         )
     except Exception as stripe_err:
