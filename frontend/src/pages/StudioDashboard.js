@@ -206,12 +206,26 @@ export default function StudioDashboard() {
     const params = new URLSearchParams(location.search);
     const stripeParam = params.get("stripe");
     if (stripeParam === "done") {
-      // Refresh connect status — might now be complete
-      fetchConnectStatus().then(() => {
-        notify.success("Stripe-Onboarding abgeschlossen! Prüfe den Status unten.");
-      });
-      // Clean URL
       navigate("/studio-dashboard", { replace: true });
+      notify.success("Stripe-Onboarding abgeschlossen! Status wird geprüft…");
+      // Stripe takes a moment to enable charges — retry up to 5× every 2 s
+      let attempts = 0;
+      const checkUntilComplete = async () => {
+        try {
+          const { data } = await axios.get(`${API}/stripe/connect/status`, { withCredentials: true });
+          if (data?.status === "complete") {
+            localStorage.setItem("inkbook_deposit_popup_dismissed", "1");
+            localStorage.removeItem("inkbook_stripe_window_opened");
+            setStripeWindowOpened(false);
+            setConnectStatus(data);
+            setShowDepositPopup(false);
+            return;
+          }
+        } catch {}
+        attempts++;
+        if (attempts < 5) setTimeout(checkUntilComplete, 2000);
+      };
+      setTimeout(checkUntilComplete, 1000);
     }
   }, []); // eslint-disable-line
 

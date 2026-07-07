@@ -3283,8 +3283,8 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
 async def get_connect_status(current_user: dict = Depends(get_current_user)):
     """Return the Stripe Connect status for the studio owned by the current user."""
     owner_id = current_user.get("id") or current_user.get("user_id")
-    studio = await db.studios.find_one({"owner_id": owner_id}, {"_id": 0, "stripe_connect_account_id": 1, "stripe_connect_status": 1})
-    if not studio:
+    studio = await db.studios.find_one({"owner_id": owner_id}, {"_id": 0, "owner_id": 1, "stripe_connect_account_id": 1, "stripe_connect_status": 1})
+    if studio is None:
         raise HTTPException(status_code=404, detail="Kein Studio gefunden")
 
     account_id = studio.get("stripe_connect_account_id")
