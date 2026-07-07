@@ -495,9 +495,15 @@ export default function StudioDashboard() {
     try {
       const { data } = await axios.get(`${API}/stripe/connect/status`, { withCredentials: true });
       setConnectStatus(data);
-      const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
-      if (!dismissed && data?.status !== "complete") {
-        setTimeout(() => setShowDepositPopup(true), isNew ? 0 : 800);
+      if (data?.status === "complete") {
+        // Onboarding done — close popup and mark dismissed so it never reappears
+        localStorage.setItem("inkbook_deposit_popup_dismissed", "1");
+        setShowDepositPopup(false);
+      } else {
+        const dismissed = localStorage.getItem("inkbook_deposit_popup_dismissed");
+        if (!dismissed) {
+          setTimeout(() => setShowDepositPopup(true), isNew ? 0 : 800);
+        }
       }
     } catch (e) {
       // 404 = kein Stripe-Account → definitiv nicht verbunden → Popup zeigen
