@@ -1,0 +1,308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StudioOS Database Schema",
+  "description": "All collections and their data models. Base API URL: https://<deployed-domain>/api",
+  "version": "1.0.0",
+
+  "collections": {
+
+    "users": {
+      "description": "Registered user accounts (customers and studio owners)",
+      "primaryKey": "_id",
+      "fields": {
+        "_id":           { "type": "string", "description": "MongoDB ObjectId (string)" },
+        "email":         { "type": "string", "format": "email" },
+        "password_hash": { "type": "string", "description": "Bcrypt hash — never exposed via API" },
+        "name":          { "type": "string" },
+        "role":          { "type": "string", "enum": ["customer", "studio_owner", "admin"] },
+        "avatar":        { "type": "string", "description": "URL to profile image or empty string" },
+        "auth_provider": { "type": "string", "enum": ["email", "google"] },
+        "created_at":    { "type": "string", "format": "date-time" },
+        "last_seen":     { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "role"]
+    },
+
+    "studios": {
+      "description": "Tattoo studio profiles",
+      "primaryKey": "studio_id",
+      "fields": {
+        "studio_id":               { "type": "string", "example": "studio_fe27560f7248" },
+        "owner_id":                { "type": "string", "description": "users._id of the owner" },
+        "owner_name":              { "type": "string" },
+        "name":                    { "type": "string" },
+        "description":             { "type": "string" },
+        "address":                 { "type": "string" },
+        "city":                    { "type": "string" },
+        "country":                 { "type": "string", "example": "DE" },
+        "phone":                   { "type": "string" },
+        "email":                   { "type": "string" },
+        "website":                 { "type": "string" },
+        "styles":                  { "type": "array", "items": { "type": "string" }, "description": "e.g. ['Fine Line','Realism','Minimalist']" },
+        "price_range":             { "type": "string", "enum": ["budget", "medium", "premium"] },
+        "images":                  { "type": "array", "items": { "type": "string" }, "description": "Array of image URLs" },
+        "logo_image":              { "type": "string", "description": "URL or null" },
+        "banner_image":            { "type": "string", "description": "URL or null" },
+        "avg_rating":              { "type": "number", "minimum": 0, "maximum": 5 },
+        "review_count":            { "type": "integer" },
+        "is_verified":             { "type": "boolean" },
+        "is_active":               { "type": "boolean" },
+        "created_at":              { "type": "string", "format": "date-time" },
+        "bank_holder":             { "type": "string", "description": "Bank account holder name" },
+        "bank_iban":               { "type": "string" },
+        "deposit_required":        { "type": "boolean" },
+        "deposit_amount":          { "type": "number", "description": "Fixed deposit in EUR" },
+        "deposit_deadline_hours":  { "type": "integer", "description": "Hours customer has to pay deposit" },
+        "cancellation_hours":      { "type": "integer", "description": "Minimum notice hours for cancellation" },
+        "day_capacity":            { "type": "integer", "description": "Max capacity points per day" },
+        "slots_visible_until":     { "type": "string", "format": "date", "description": "Availability visible until this date" },
+        "stripe_connect_account_id": { "type": "string", "description": "Stripe Express account ID or null" },
+        "stripe_connect_status":   { "type": "string", "enum": ["not_connected", "pending", "complete"] }
+      },
+      "required": ["studio_id", "owner_id", "name", "city", "country"]
+    },
+
+    "artists": {
+      "description": "Artists/tattooers belonging to a studio",
+      "primaryKey": "artist_id",
+      "fields": {
+        "artist_id":        { "type": "string", "example": "artist_43700692c3ef" },
+        "studio_id":        { "type": "string" },
+        "name":             { "type": "string" },
+        "bio":              { "type": "string" },
+        "styles":           { "type": "array", "items": { "type": "string" } },
+        "experience_years": { "type": "integer" },
+        "instagram":        { "type": "string", "example": "@artist.ink" },
+        "portfolio_images": { "type": "array", "items": { "type": "string" }, "description": "Array of image URLs" },
+        "profile_image":    { "type": "string", "description": "URL or null" },
+        "banner_image":     { "type": "string", "description": "URL or null" },
+        "created_at":       { "type": "string", "format": "date-time" }
+      },
+      "required": ["artist_id", "studio_id", "name"]
+    },
+
+    "bookings": {
+      "description": "Booking requests and confirmed appointments",
+      "primaryKey": "booking_id",
+      "fields": {
+        "booking_id":         { "type": "string", "example": "book_d7067c5a1315" },
+        "user_id":            { "type": "string", "description": "users._id of the customer" },
+        "user_name":          { "type": "string" },
+        "user_email":         { "type": "string" },
+        "studio_id":          { "type": "string" },
+        "studio_name":        { "type": "string" },
+        "artist_id":          { "type": "string", "description": "artists.artist_id or null" },
+        "artist_name":        { "type": "string", "description": "Denormalized artist name" },
+        "slot_id":            { "type": "string", "description": "slots.slot_id or null" },
+        "date":               { "type": "string", "format": "date", "description": "YYYY-MM-DD" },
+        "start_time":         { "type": "string", "example": "10:00", "description": "HH:MM" },
+        "end_time":           { "type": "string", "description": "HH:MM or null" },
+        "booking_type":       { "type": "string", "enum": ["tattoo", "consultation", "full_day", "video_consultation"] },
+        "size_category":      { "type": "string", "enum": ["small", "medium", "large", "extra_large"] },
+        "body_part":          { "type": "string", "example": "Rücken" },
+        "capacity_cost":      { "type": "integer", "description": "Capacity points used (1–5)" },
+        "notes":              { "type": "string" },
+        "reference_images":   { "type": "array", "items": { "type": "string" }, "description": "Array of image URLs" },
+        "preferred_time_from":{ "type": "string", "example": "10:00" },
+        "preferred_time_to":  { "type": "string", "example": "16:00" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "offer_sent", "confirmed", "completed", "cancelled", "rejected", "expired"],
+          "description": "pending=new inquiry, offer_sent=studio made offer, confirmed=customer accepted+paid, completed=done, cancelled/rejected/expired"
+        },
+        "payment_status":     { "type": "string", "enum": ["unpaid", "pending", "paid", "refunded", "partially_refunded"] },
+        "deposit_required":   { "type": "boolean" },
+        "deposit_amount":     { "type": "number", "description": "EUR" },
+        "deposit_deadline_at":{ "type": "string", "format": "date-time", "description": "Pay-by deadline or null" },
+        "offer_date":         { "type": "string", "format": "date" },
+        "offer_time":         { "type": "string", "example": "10:00" },
+        "offer_duration_min": { "type": "integer", "description": "Session length in minutes" },
+        "offer_total_price":  { "type": "number", "description": "Total session price in EUR" },
+        "offer_deposit_amount":{ "type": "number" },
+        "offer_notes":        { "type": "string" },
+        "offer_created_at":   { "type": "string", "format": "date-time" },
+        "offer_accepted_at":  { "type": "string", "format": "date-time" },
+        "platform_fee_pct":   { "type": "number", "description": "Platform fee percentage (5%)" },
+        "platform_fee_amount":{ "type": "number", "description": "Platform fee in EUR cents (Stripe)" },
+        "revenue":            { "type": "number", "description": "Studio revenue after platform fee, EUR" },
+        "created_at":         { "type": "string", "format": "date-time" },
+        "completed_at":       { "type": "string", "format": "date-time" }
+      },
+      "required": ["booking_id", "user_id", "studio_id", "date", "booking_type", "status"]
+    },
+
+    "messages": {
+      "description": "Chat messages between customers and studio owners",
+      "primaryKey": "message_id",
+      "fields": {
+        "message_id":      { "type": "string", "example": "msg_19a7c0a77d8e" },
+        "conv_id":         { "type": "string", "description": "conversations.conv_id" },
+        "sender_id":       { "type": "string", "description": "users._id or 'inkbook_system'" },
+        "sender_name":     { "type": "string" },
+        "recipient_id":    { "type": "string", "description": "users._id" },
+        "content":         { "type": "string" },
+        "image_url":       { "type": "string", "description": "Attached image URL or null" },
+        "slot_offer":      { "type": "object", "description": "Embedded slot offer object or null" },
+        "is_system":       { "type": "boolean", "description": "True for automated system messages" },
+        "read":            { "type": "boolean" },
+        "triggered_by_id": { "type": "string", "description": "users._id who triggered system message" },
+        "created_at":      { "type": "string", "format": "date-time" }
+      },
+      "required": ["message_id", "sender_id", "recipient_id", "content", "created_at"]
+    },
+
+    "conversations": {
+      "description": "Chat threads between two users",
+      "primaryKey": "conv_id",
+      "fields": {
+        "conv_id":          { "type": "string", "description": "Format: conv_{user1_id}_{user2_id}", "example": "conv_abc123_def456" },
+        "participants":     { "type": "array", "items": { "type": "string" }, "description": "Array of two users._id" },
+        "last_message":     { "type": "string" },
+        "last_message_at":  { "type": "string", "format": "date-time" },
+        "last_sender_id":   { "type": "string" }
+      },
+      "required": ["conv_id", "participants"]
+    },
+
+    "payment_transactions": {
+      "description": "Stripe payment records for deposits",
+      "primaryKey": "transaction_id",
+      "fields": {
+        "transaction_id":          { "type": "string", "example": "txn_0e080f1ebebe" },
+        "booking_id":              { "type": "string" },
+        "user_id":                 { "type": "string" },
+        "session_id":              { "type": "string", "description": "Internal pay session ID" },
+        "stripe_payment_intent_id":{ "type": "string", "description": "Stripe pi_... ID" },
+        "amount":                  { "type": "number", "description": "Amount in EUR" },
+        "currency":                { "type": "string", "example": "eur" },
+        "payment_status":          { "type": "string", "enum": ["pending", "paid", "failed", "refunded"] },
+        "studio_name":             { "type": "string" },
+        "platform_fee_amount":     { "type": "number", "description": "Platform fee in EUR cents" },
+        "platform_fee_percent":    { "type": "number" },
+        "created_at":              { "type": "string", "format": "date-time" },
+        "paid_at":                 { "type": "string", "format": "date-time", "description": "Null until payment confirmed" }
+      },
+      "required": ["transaction_id", "booking_id", "user_id", "amount", "currency", "payment_status"]
+    },
+
+    "calendar_blocks": {
+      "description": "Studio availability blocks (full days)",
+      "primaryKey": "block_id",
+      "fields": {
+        "block_id":   { "type": "string", "example": "blk_42fd2db1132b" },
+        "studio_id":  { "type": "string" },
+        "artist_id":  { "type": "string", "description": "artists.artist_id or null for whole-studio block" },
+        "date":       { "type": "string", "format": "date", "description": "YYYY-MM-DD" },
+        "block_type": {
+          "type": "string",
+          "enum": ["available", "limited", "small_only", "full", "vacation"],
+          "description": "available=open, limited=3 capacity pts, small_only=2 pts, full=blocked, vacation=closed"
+        },
+        "note":       { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["block_id", "studio_id", "date", "block_type"]
+    },
+
+    "invoices": {
+      "description": "PDF-ready invoice records for completed deposits",
+      "primaryKey": "invoice_id",
+      "fields": {
+        "invoice_id":     { "type": "string", "example": "inv_5775c5dfa3e9" },
+        "invoice_number": { "type": "string", "example": "INK-2026-0001" },
+        "booking_id":     { "type": "string" },
+        "studio_id":      { "type": "string" },
+        "studio_name":    { "type": "string" },
+        "user_id":        { "type": "string" },
+        "user_name":      { "type": "string" },
+        "user_email":     { "type": "string" },
+        "amount":         { "type": "number", "description": "EUR" },
+        "payment_method": { "type": "string", "enum": ["stripe", "cash", "bank_transfer"] },
+        "payment_type":   { "type": "string", "enum": ["deposit", "full"] },
+        "booking_date":   { "type": "string", "format": "date" },
+        "booking_time":   { "type": "string", "example": "10:00" },
+        "booking_type":   { "type": "string" },
+        "created_at":     { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoice_id", "invoice_number", "booking_id", "user_id", "amount"]
+    },
+
+    "reviews": {
+      "description": "Customer reviews for studios (currently unused)",
+      "primaryKey": "review_id",
+      "fields": {
+        "review_id":  { "type": "string" },
+        "studio_id":  { "type": "string" },
+        "user_id":    { "type": "string" },
+        "rating":     { "type": "integer", "minimum": 1, "maximum": 5 },
+        "text":       { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+
+  "enums": {
+    "booking_status":  ["pending", "offer_sent", "confirmed", "completed", "cancelled", "rejected", "expired"],
+    "payment_status":  ["unpaid", "pending", "paid", "refunded", "partially_refunded"],
+    "booking_type":    ["tattoo", "consultation", "full_day", "video_consultation"],
+    "size_category":   ["small", "medium", "large", "extra_large"],
+    "block_type":      ["available", "limited", "small_only", "full", "vacation"],
+    "user_role":       ["customer", "studio_owner", "admin"],
+    "price_range":     ["budget", "medium", "premium"],
+    "stripe_status":   ["not_connected", "pending", "complete"]
+  },
+
+  "api_endpoints": {
+    "auth": {
+      "POST /auth/register":  "Register new user",
+      "POST /auth/login":     "Login, returns session cookie",
+      "POST /auth/logout":    "Logout",
+      "GET  /auth/me":        "Get current logged-in user"
+    },
+    "studios": {
+      "GET  /studios":                          "List all active studios",
+      "GET  /studios/{studio_id}":              "Get studio by ID",
+      "GET  /studios/my":                       "Get own studio (studio_owner only)",
+      "POST /studios":                          "Create studio (studio_owner only)",
+      "PUT  /studios/{studio_id}":              "Update studio",
+      "GET  /studios/{studio_id}/artists":      "List artists of a studio",
+      "GET  /studios/{studio_id}/calendar-blocks": "Get calendar blocks",
+      "GET  /studios/{studio_id}/capacity-calendar?year=&month=": "Monthly capacity overview"
+    },
+    "bookings": {
+      "POST /bookings":                   "Create booking inquiry (customer)",
+      "GET  /bookings/my":                "Get customer's own bookings",
+      "GET  /studios/my/bookings":        "Get studio's incoming bookings (studio_owner)",
+      "POST /bookings/{id}/offer":        "Studio sends offer",
+      "POST /bookings/{id}/accept":       "Customer accepts offer",
+      "POST /bookings/{id}/cancel":       "Cancel booking",
+      "POST /bookings/{id}/complete":     "Mark as completed (studio_owner)"
+    },
+    "messages": {
+      "GET  /messages":                          "Get conversations list",
+      "GET  /messages/{conv_id}":                "Get messages in conversation",
+      "POST /messages":                          "Send message",
+      "POST /messages/{conv_id}/read":           "Mark messages as read",
+      "GET  /messages/unread-count":             "Get unread message count"
+    },
+    "payments": {
+      "POST /payments/create-checkout":     "Create Stripe checkout session for deposit",
+      "GET  /payments/session/{session_id}": "Get payment session status"
+    },
+    "stripe_connect": {
+      "POST /stripe/connect/create":  "Create/get Stripe Connect onboarding URL",
+      "GET  /stripe/connect/status":  "Get studio's Stripe Connect status"
+    },
+    "dashboard": {
+      "GET  /dashboard/stats":  "Studio dashboard stats (bookings, revenue, etc.)"
+    }
+  },
+
+  "notes": {
+    "authentication": "Session-based via HTTP-only cookies. Send requests with credentials (withCredentials: true / .allowsCookies = true in iOS URLSession).",
+    "dates": "All dates are ISO 8601. Times are HH:MM strings (Europe/Berlin timezone assumed).",
+    "currency": "All monetary amounts in EUR. Stripe amounts in EUR cents.",
+    "ids": "All IDs are random hex strings. _id is MongoDB ObjectId as string.",
+    "images": "Images are stored as base64 data URLs or external URLs in the database."
+  }
+}

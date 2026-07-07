@@ -18,3 +18,9 @@ id = "Se5COHsPbVXpBvqQroPvs"
 uri = "file://frontend/public/images/tattoo.jpg"
 type = "image"
 title = "tattoo close up black and white"
+
+[[outputs]]
+id = "IwTrIP8J63nG28D-UdTN-"
+uri = "file://backend/schema.json"
+type = "unspecified"
+title = "StudioOS API Schema"
