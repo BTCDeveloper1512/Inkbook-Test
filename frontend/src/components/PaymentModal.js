@@ -160,11 +160,24 @@ function StripeForm({ session, onSuccess, onClose }) {
               </div>
             </div>
 
+            {/* Test Mode Banner */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-200 px-2 py-0.5 rounded-full">Testmodus</span>
+                <span className="text-xs text-amber-700 font-inter font-medium">Echte Zahlungen sind deaktiviert</span>
+              </div>
+              <p className="text-[11px] text-amber-700 font-inter">
+                Testkarte: <span className="font-mono font-bold">4242 4242 4242 4242</span>
+                &nbsp;· Ablauf: <span className="font-mono font-bold">12/34</span>
+                &nbsp;· CVC: <span className="font-mono font-bold">123</span>
+              </p>
+            </div>
+
             {/* Stripe Payment Element — handles Apple Pay, Google Pay, Card, etc. */}
             <PaymentElement
               options={{
                 layout: "tabs",
-                wallets: { applePay: "auto", googlePay: "auto" },
+                wallets: { applePay: "never", googlePay: "never" },
               }}
             />
 

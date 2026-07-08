@@ -2249,6 +2249,19 @@ async def get_my_invoices(current_user: dict = Depends(get_current_user)):
     return {"invoices": invoices}
 
 
+def _get_stripe_test_key() -> str:
+    """Return the Stripe secret key — raises 503 if a live key is configured (test-only mode)."""
+    import stripe as stripe_lib
+    key = os.environ.get("STRIPE_SECRET_KEY", "")
+    if key and not key.startswith("sk_test_"):
+        raise HTTPException(
+            status_code=503,
+            detail="Stripe ist im Test-Modus. Live-Zahlungen sind aktuell deaktiviert."
+        )
+    stripe_lib.api_key = key
+    return key
+
+
 @api_router.post("/bookings/{booking_id}/send-final-payment")
 async def send_final_payment_link(booking_id: str, request: Request, current_user: dict = Depends(get_current_user)):
     """Studio creates a Stripe Checkout Session and emails the payment link to the customer."""
@@ -2273,7 +2286,7 @@ async def send_final_payment_link(booking_id: str, request: Request, current_use
     session_id = f"fin_{uuid.uuid4().hex[:16]}"
 
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
     connect_account_id = studio.get("stripe_connect_account_id")
     connect_status = studio.get("stripe_connect_status")
     use_connect = bool(connect_account_id and connect_status == "complete")
@@ -2383,7 +2396,7 @@ async def check_final_payment(booking_id: str, current_user: dict = Depends(get_
         return {"status": "no_stripe_session"}
 
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
 
     try:
         cs = await asyncio.to_thread(stripe_lib.checkout.Session.retrieve, cs_id)
@@ -2627,7 +2640,7 @@ async def accept_booking_offer(booking_id: str, current_user: dict = Depends(get
 async def cancel_booking_with_refund(booking_id: str, current_user: dict = Depends(get_current_user)):
     """Studio cancels a paid booking and issues a Stripe refund automatically."""
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
 
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
@@ -2723,7 +2736,7 @@ async def get_pending_refunds(current_user: dict = Depends(get_current_user)):
 async def refund_deposit(booking_id: str, current_user: dict = Depends(get_current_user)):
     """Studio refunds a deposit for a customer-cancelled booking within the free window."""
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
 
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
@@ -3190,7 +3203,7 @@ async def create_connect_account(request: Request, current_user: dict = Depends(
 
     stripe = get_stripe_client()
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
 
     frontend_url = _get_frontend_url()
     return_url = f"{frontend_url}/studio-dashboard?stripe=done"
@@ -3292,7 +3305,7 @@ async def get_connect_status(current_user: dict = Depends(get_current_user)):
         return {"status": "not_connected", "account_id": None}
 
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
     try:
         account = await asyncio.to_thread(stripe_lib.Account.retrieve, account_id)
         details_submitted = account.get("details_submitted", False)
@@ -3339,7 +3352,7 @@ async def connect_refresh(request: Request):
 async def stripe_connect_webhook(request: Request):
     """Handle Stripe Connect account.updated webhooks to sync status."""
     import stripe as stripe_lib
-    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    _get_stripe_test_key()
     payload = await request.body()
     try:
         event = stripe_lib.Event.construct_from(json.loads(payload), stripe_lib.api_key)
