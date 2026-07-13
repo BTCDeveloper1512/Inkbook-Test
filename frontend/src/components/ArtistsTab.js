@@ -185,7 +185,7 @@ export default function ArtistsTab({ studioId }) {
                   <input
                     type="text" value={form.instagram}
                     onChange={e => setForm({...form, instagram: e.target.value})}
-                    className="input-base w-full pl-8"
+                    className="input-base w-full !pl-8"
                     placeholder="username"
                     data-testid="artist-instagram-input"
                   />

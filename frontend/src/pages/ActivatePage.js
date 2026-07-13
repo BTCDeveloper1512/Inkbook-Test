@@ -80,7 +80,7 @@ export default function ActivatePage() {
                   type={showPw ? "text" : "password"} value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Mindestens 8 Zeichen" required
-                  className="input-base w-full pl-9 pr-10"
+                  className="input-base w-full !pl-9 pr-10"
                 />
                 <button type="button" onClick={() => setShowPw(s => !s)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors">
@@ -97,7 +97,7 @@ export default function ActivatePage() {
                   type={showPw ? "text" : "password"} value={confirm}
                   onChange={e => setConfirm(e.target.value)}
                   placeholder="Passwort wiederholen" required
-                  className="input-base w-full pl-9"
+                  className="input-base w-full !pl-9"
                 />
               </div>
             </div>

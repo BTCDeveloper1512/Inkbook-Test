@@ -322,7 +322,7 @@ export default function GuestBookingModal({ studio, onClose }) {
                   <div className="relative">
                     <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" strokeWidth={1.5} />
                     <input type="text" value={form.name} onChange={e => update("name", e.target.value)}
-                      placeholder="Max Mustermann" required className="input-base w-full pl-9"
+                      placeholder="Max Mustermann" required className="input-base w-full !pl-9"
                       data-testid="guest-name-input" />
                   </div>
                 </div>
@@ -333,7 +333,7 @@ export default function GuestBookingModal({ studio, onClose }) {
                   <div className="relative">
                     <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" strokeWidth={1.5} />
                     <input type="email" value={form.email} onChange={e => update("email", e.target.value)}
-                      placeholder="deine@email.de" required className="input-base w-full pl-9"
+                      placeholder="deine@email.de" required className="input-base w-full !pl-9"
                       data-testid="guest-email-input" />
                   </div>
                   <p className="text-[11px] text-zinc-400 font-inter mt-1">Wir senden dir Updates per E-Mail — kein Spam.</p>

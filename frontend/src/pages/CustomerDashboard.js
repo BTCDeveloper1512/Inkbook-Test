@@ -871,7 +871,7 @@ export default function CustomerDashboard() {
 
                         <p className="text-sm text-zinc-500 font-inter">
                           {booking.offer_time
-                            ? `${booking.offer_time} Uhr · ${booking.offer_duration_min || 120} min`
+                            ? `${booking.offer_time} Uhr · ${((booking.offer_duration_min || 120) / 60).toLocaleString('de-DE')} Std.`
                             : booking.start_time
                             ? `${booking.start_time} – ${booking.end_time}`
                             : "Anfrage wird geprüft"}

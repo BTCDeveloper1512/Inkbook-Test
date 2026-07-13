@@ -3602,10 +3602,10 @@ export default function StudioDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Minuten)</label>
-                  <input type="number" min="30" max="960" step="30" placeholder="120"
-                    value={offerForm.offer_duration_min}
-                    onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: parseInt(e.target.value) || 60 }))}
+                  <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Stunden)</label>
+                  <input type="number" min="0.5" max="16" step="0.5" placeholder="2"
+                    value={offerForm.offer_duration_min / 60}
+                    onChange={e => setOfferForm(f => ({ ...f, offer_duration_min: Math.round((parseFloat(e.target.value) || 1) * 60) }))}
                     className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-500 transition-colors" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
