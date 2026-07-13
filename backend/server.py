@@ -1774,6 +1774,9 @@ async def create_calendar_block(studio_id: str, data: CalendarBlockCreate, curre
         block_doc["custom_capacity"] = int(data.custom_capacity)
     await db.calendar_blocks.insert_one(block_doc)
     block_doc.pop("_id", None)
+    # Notify waitlist if the studio explicitly forced a day to "available"
+    if data.block_type == "available" and data.date:
+        asyncio.create_task(_notify_waitlist(studio_id, data.date))
     return block_doc
 
 @api_router.delete("/studios/{studio_id}/calendar-blocks/{block_id}")
@@ -1782,7 +1785,12 @@ async def delete_calendar_block(studio_id: str, block_id: str, current_user: dic
     owner_id = current_user.get("id") or current_user.get("user_id")
     if not studio or studio.get("owner_id") != owner_id:
         raise HTTPException(status_code=403, detail="Not authorized")
+    # Fetch the block before deleting so we can get its date for waitlist notification
+    block = await db.calendar_blocks.find_one({"block_id": block_id, "studio_id": studio_id})
     await db.calendar_blocks.delete_one({"block_id": block_id, "studio_id": studio_id})
+    # Notify waitlist when a block is removed (capacity freed up)
+    if block and block.get("date") and block.get("block_type") != "available":
+        asyncio.create_task(_notify_waitlist(studio_id, block["date"]))
     return {"message": "Block gelöscht"}
 
 # ─── Bookings ─────────────────────────────────────────────────────────────────
