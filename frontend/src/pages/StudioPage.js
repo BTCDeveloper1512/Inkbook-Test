@@ -1059,11 +1059,19 @@ export default function StudioPage() {
                     <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-3 flex items-center gap-1.5"><Calendar size={11} strokeWidth={1.5} /> Wunschdatum
                       {selectedCapArtist && (() => { const a = artists.find(x => x.artist_id === selectedCapArtist); return a ? <span className="ml-1 font-normal normal-case tracking-normal text-zinc-400">– {a.name}</span> : null; })()}
                     </p>
-                    <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-                      {[{color:"bg-teal-400",label:"Verfügbar"},{color:"bg-yellow-400",label:"Begrenzt"},{color:"bg-indigo-400",label:"Nur klein"},{color:"bg-rose-400",label:"Blockiert"},{color:"bg-violet-400",label:"Urlaub"}].map(l => (
+                    <div className="flex items-center gap-x-3 gap-y-1 mb-3 flex-wrap">
+                      {[
+                        {color:"bg-teal-400",  text:"text-teal-600",  label:"XL frei"},
+                        {color:"bg-green-400", text:"text-green-600", label:"Large"},
+                        {color:"bg-yellow-400",text:"text-yellow-600",label:"Medium"},
+                        {color:"bg-amber-400", text:"text-amber-600", label:"Small"},
+                        {color:"bg-orange-400",text:"text-orange-500",label:"Mini"},
+                        {color:"bg-rose-400",  text:"text-rose-500",  label:"Ausgebucht"},
+                        {color:"bg-violet-400",text:"text-violet-500",label:"Urlaub"},
+                      ].map(l => (
                         <div key={l.label} className="flex items-center gap-1">
                           <span className={`w-2 h-2 rounded-full ${l.color}`} />
-                          <span className="text-[10px] text-zinc-400 font-inter">{l.label}</span>
+                          <span className={`text-[10px] font-inter font-medium ${l.text}`}>{l.label}</span>
                         </div>
                       ))}
                     </div>
@@ -1088,24 +1096,17 @@ export default function StudioPage() {
                         const isVacation = !isPast && capDay && capDay.status === "vacation";
                         const isNotAvailableYet = !isPast && calVisibleUntil && iso > calVisibleUntil;
                         const canFit = !isPast && !isVacation && !isNotAvailableYet && remaining >= cost;
-                        // Dot = largest size that still fits: XL(8)→teal, Large(5)→green, Medium(3)→yellow, Small(2)→amber, Mini(1)→orange, full→rose
-                        const dotColor = isSelected
-                          ? "bg-white/60"
-                          : isVacation
-                            ? "bg-violet-400"
-                            : isNotAvailableYet
-                              ? "bg-zinc-300"
-                              : remaining >= 8
-                                ? "bg-teal-400"
-                                : remaining >= 5
-                                  ? "bg-green-400"
-                                  : remaining >= 3
-                                    ? "bg-yellow-400"
-                                    : remaining >= 2
-                                      ? "bg-amber-400"
-                                      : remaining >= 1
-                                        ? "bg-orange-400"
-                                        : "bg-rose-400";
+                        // Dot/number colour = largest size that still fits: XL(8)→teal, Large(5)→green, Medium(3)→yellow, Small(2)→amber, Mini(1)→orange, full→rose
+                        const capColor = isVacation ? { dot: "bg-violet-400", num: "text-violet-500" }
+                          : isNotAvailableYet ? { dot: "bg-zinc-300", num: "text-zinc-400" }
+                          : remaining >= 8 ? { dot: "bg-teal-400",   num: "text-teal-600"   }
+                          : remaining >= 5 ? { dot: "bg-green-400",  num: "text-green-600"  }
+                          : remaining >= 3 ? { dot: "bg-yellow-400", num: "text-yellow-600" }
+                          : remaining >= 2 ? { dot: "bg-amber-400",  num: "text-amber-600"  }
+                          : remaining >= 1 ? { dot: "bg-orange-400", num: "text-orange-500" }
+                          :                  { dot: "bg-rose-400",   num: "text-rose-500"   };
+                        const dotColor = isSelected ? "bg-white/60" : capColor.dot;
+                        const numColor = isSelected ? "" : isPast ? "text-zinc-300" : capColor.num;
                         const noteTitle = isNotAvailableYet ? "Bald verfügbar" : isVacation ? "Urlaub / geschlossen" : (capDay?.note || null);
                         return (
                           <div key={iso} className="relative group">
@@ -1114,7 +1115,7 @@ export default function StudioPage() {
                               className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || isVacation || isNotAvailableYet ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isNotAvailableYet ? "bg-zinc-50 border border-dashed border-zinc-200" : ""} ${isSelected && canFit ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isSelected && !canFit ? "bg-rose-100 text-rose-700 ring-2 ring-rose-300" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""} ${!isSelected && !isPast && !canFit && !isVacation && !isNotAvailableYet ? "text-rose-400" : ""}`}
                               data-testid={`date-btn-${iso}`}
                             >
-                              <span>{day.getDate()}</span>
+                              <span className={numColor}>{day.getDate()}</span>
                               {!isPast && !isNotAvailableYet && <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-colors ${dotColor}`} />}
                               {!isPast && isNotAvailableYet && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-inter text-zinc-400 leading-none">bald</span>}
                             </button>
@@ -1129,23 +1130,6 @@ export default function StudioPage() {
                           </div>
                         );
                       })}
-                    </div>
-                    {/* Dot legend */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 px-0.5">
-                      {[
-                        { color: "bg-teal-400",   label: "XL frei" },
-                        { color: "bg-green-400",  label: "Large" },
-                        { color: "bg-yellow-400", label: "Medium" },
-                        { color: "bg-amber-400",  label: "Small" },
-                        { color: "bg-orange-400", label: "Mini" },
-                        { color: "bg-rose-400",   label: "Ausgebucht" },
-                        { color: "bg-violet-400", label: "Urlaub" },
-                      ].map(({ color, label }) => (
-                        <span key={label} className="flex items-center gap-1 text-[10px] text-zinc-400 font-inter">
-                          <span className={`w-2 h-2 rounded-full ${color}`} />
-                          {label}
-                        </span>
-                      ))}
                     </div>
                   </div>
                 )}

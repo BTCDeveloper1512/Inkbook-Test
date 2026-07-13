@@ -121,10 +121,19 @@ function CapacityCalendar({ studioId, artistId, selectedDate, onSelectDate }) {
             const dotColor = isSel ? "bg-white/70"
               : isVacation ? "bg-violet-400"
               : isNotAvailYet ? "bg-zinc-300"
-              : !canFit ? "bg-rose-400"
-              : remaining >= 5 ? "bg-teal-400"
+              : remaining >= 8 ? "bg-teal-400"
+              : remaining >= 5 ? "bg-green-400"
               : remaining >= 3 ? "bg-yellow-400"
-              : "bg-indigo-400";
+              : remaining >= 2 ? "bg-amber-400"
+              : remaining >= 1 ? "bg-orange-400"
+              : "bg-rose-400";
+            const numColor = isVacation ? "text-violet-400"
+              : remaining >= 8 ? "text-teal-600"
+              : remaining >= 5 ? "text-green-600"
+              : remaining >= 3 ? "text-yellow-600"
+              : remaining >= 2 ? "text-amber-600"
+              : remaining >= 1 ? "text-orange-500"
+              : "text-rose-500";
 
             const btnCls = [
               "relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-inter font-medium transition-all",
@@ -142,7 +151,7 @@ function CapacityCalendar({ studioId, artistId, selectedDate, onSelectDate }) {
                 className={btnCls}
                 title={isVacation ? "Urlaub / geschlossen" : isNotAvailYet ? "Noch nicht buchbar" : capDay?.note || undefined}
               >
-                <span>{day.getDate()}</span>
+                <span className={!isSel && !isPast ? numColor : ""}>{day.getDate()}</span>
                 {!isPast && !isNotAvailYet && (
                   <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${dotColor}`} />
                 )}
@@ -155,12 +164,21 @@ function CapacityCalendar({ studioId, artistId, selectedDate, onSelectDate }) {
         </div>
       )}
 
-      <div className="flex items-center gap-3 flex-wrap mt-3 pt-2.5 border-t border-zinc-200">
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Verfügbar</span></div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Begrenzt</span></div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Fast voll</span></div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Ausgebucht</span></div>
-        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" /><span className="text-[10px] font-inter text-zinc-500">Urlaub</span></div>
+      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-3 pt-2.5 border-t border-zinc-200">
+        {[
+          {dot:"bg-teal-400",  num:"text-teal-600",  label:"XL frei"},
+          {dot:"bg-green-400", num:"text-green-600", label:"Large"},
+          {dot:"bg-yellow-400",num:"text-yellow-600",label:"Medium"},
+          {dot:"bg-amber-400", num:"text-amber-600", label:"Small"},
+          {dot:"bg-orange-400",num:"text-orange-500",label:"Mini"},
+          {dot:"bg-rose-400",  num:"text-rose-500",  label:"Ausgebucht"},
+          {dot:"bg-violet-400",num:"text-violet-500",label:"Urlaub"},
+        ].map(l => (
+          <div key={l.label} className="flex items-center gap-1">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${l.dot}`} />
+            <span className={`text-[10px] font-inter font-medium ${l.num}`}>{l.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
