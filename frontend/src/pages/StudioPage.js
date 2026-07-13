@@ -1088,19 +1088,24 @@ export default function StudioPage() {
                         const isVacation = !isPast && capDay && capDay.status === "vacation";
                         const isNotAvailableYet = !isPast && calVisibleUntil && iso > calVisibleUntil;
                         const canFit = !isPast && !isVacation && !isNotAvailableYet && remaining >= cost;
+                        // Dot = largest size that still fits: XL(8)→teal, Large(5)→green, Medium(3)→yellow, Small(2)→amber, Mini(1)→orange, full→rose
                         const dotColor = isSelected
                           ? "bg-white/60"
                           : isVacation
                             ? "bg-violet-400"
                             : isNotAvailableYet
                               ? "bg-zinc-300"
-                              : !canFit
-                                ? "bg-rose-400"
+                              : remaining >= 8
+                                ? "bg-teal-400"
                                 : remaining >= 5
-                                  ? "bg-teal-400"
+                                  ? "bg-green-400"
                                   : remaining >= 3
                                     ? "bg-yellow-400"
-                                    : "bg-indigo-400";
+                                    : remaining >= 2
+                                      ? "bg-amber-400"
+                                      : remaining >= 1
+                                        ? "bg-orange-400"
+                                        : "bg-rose-400";
                         const noteTitle = isNotAvailableYet ? "Bald verfügbar" : isVacation ? "Urlaub / geschlossen" : (capDay?.note || null);
                         return (
                           <div key={iso} className="relative group">
@@ -1125,6 +1130,23 @@ export default function StudioPage() {
                         );
                       })}
                     </div>
+                    {/* Dot legend */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 px-0.5">
+                      {[
+                        { color: "bg-teal-400",   label: "XL frei" },
+                        { color: "bg-green-400",  label: "Large" },
+                        { color: "bg-yellow-400", label: "Medium" },
+                        { color: "bg-amber-400",  label: "Small" },
+                        { color: "bg-orange-400", label: "Mini" },
+                        { color: "bg-rose-400",   label: "Ausgebucht" },
+                        { color: "bg-violet-400", label: "Urlaub" },
+                      ].map(({ color, label }) => (
+                        <span key={label} className="flex items-center gap-1 text-[10px] text-zinc-400 font-inter">
+                          <span className={`w-2 h-2 rounded-full ${color}`} />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -1134,6 +1156,8 @@ export default function StudioPage() {
                     const capDay = capacityData[selectedDate];
                     const remaining = capDay ? capDay.remaining : DAY_CAPACITY;
                     const isVacDay = capDay && capDay.status === "vacation";
+                    const selCostCheck = SIZE_COST[sizeCategory] || 1;
+                    if (!isVacDay && remaining < selCostCheck) return null; // day full — hide info, show waitlist below
                     let bg = "bg-emerald-50 border-emerald-100 text-emerald-800";
                     let msg = "Dieser Tag ist gut verfügbar – auch große Tattoos möglich.";
                     let hint = "";
@@ -1162,9 +1186,15 @@ export default function StudioPage() {
                   })()}
                 </AnimatePresence>
 
-                {/* Step 4: Time preference + Notes + ref images */}
+                {/* Step 4: Time preference + Notes + ref images — hidden when day is full */}
                 <AnimatePresence>
-                  {selectedDate && sizeCategory && (
+                  {selectedDate && sizeCategory && (() => {
+                    const capDayCheck = capacityData[selectedDate];
+                    const remCheck = capDayCheck ? capDayCheck.remaining : DAY_CAPACITY;
+                    const isVacCheck = capDayCheck && capDayCheck.status === "vacation";
+                    if (!isVacCheck && remCheck < (SIZE_COST[sizeCategory] || 1)) return null;
+                    return true;
+                  })() && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                       <div className="mb-4">
                         <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2 flex items-center gap-1.5">
@@ -1215,20 +1245,35 @@ export default function StudioPage() {
                   )}
                 </AnimatePresence>
 
-                {studio?.deposit_required && selectedDate && (
+                {studio?.deposit_required && selectedDate && (() => {
+                  const capDayDep = capacityData[selectedDate];
+                  const remDep = capDayDep ? capDayDep.remaining : DAY_CAPACITY;
+                  const isVacDep = capDayDep && capDayDep.status === "vacation";
+                  return isVacDep || remDep >= (SIZE_COST[sizeCategory] || 1);
+                })() && (
                   <div className="text-xs text-zinc-400 font-inter mb-3 flex items-center gap-1.5">
                     <span>Das Studio legt die Anzahlung im Angebot fest.</span>
                   </div>
                 )}
 
-                {selectedDate && offerDeadlineLabel && (
+                {selectedDate && offerDeadlineLabel && (() => {
+                  const capDayOffer = capacityData[selectedDate];
+                  const remOffer = capDayOffer ? capDayOffer.remaining : DAY_CAPACITY;
+                  const isVacOffer = capDayOffer && capDayOffer.status === "vacation";
+                  return isVacOffer || remOffer >= (SIZE_COST[sizeCategory] || 1);
+                })() && (
                   <div className="text-xs font-inter mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                     <span className="text-amber-600 flex-shrink-0 mt-0.5">⏳</span>
                     <span className="text-amber-800">Nach Angebotseingang hast du <strong>{offerDeadlineLabel}</strong> Zeit, um das Angebot anzunehmen und die Anzahlung zu leisten.</span>
                   </div>
                 )}
 
-                {studio?.cancellation_hours && (
+                {studio?.cancellation_hours && (() => {
+                  const capDayCan = capacityData[selectedDate];
+                  const remCan = capDayCan ? capDayCan.remaining : DAY_CAPACITY;
+                  const isVacCan = capDayCan && capDayCan.status === "vacation";
+                  return !selectedDate || isVacCan || remCan >= (SIZE_COST[sizeCategory] || 1);
+                })() && (
                   <div className="text-xs text-zinc-500 font-inter mb-4 flex items-start gap-2 bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2.5">
                     <Info size={11} className="text-zinc-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
                     <span><strong className="text-zinc-700">Stornierungsbedingung:</strong> Kostenlose Stornierung bis {studio.cancellation_hours >= 24 ? `${studio.cancellation_hours / 24} Tag${studio.cancellation_hours >= 48 ? "e" : ""}` : `${studio.cancellation_hours} Stunden`} vor dem Termin. Danach wird die Anzahlung einbehalten.</span>
@@ -1451,7 +1496,7 @@ export default function StudioPage() {
             })()}
             prefillMonth={`${calMonth.year}-${String(calMonth.month + 1).padStart(2, "0")}`}
             onClose={() => setShowWaitlistModal(false)}
-            onSuccess={() => notify("Du stehst auf der Warteliste! Wir benachrichtigen dich per E-Mail.", "success")}
+            onSuccess={() => notify.success("Du stehst auf der Warteliste! Wir benachrichtigen dich per E-Mail.")}
           />
         )}
       </AnimatePresence>

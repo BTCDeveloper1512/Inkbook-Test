@@ -45,7 +45,7 @@ export default function WaitlistModal({ studio, prefillDate, prefillMonth, onClo
 
   const handleSubmit = async () => {
     if (!sizeCategory) {
-      notify("Bitte wähle eine Größe aus.", "error"); return;
+      notify.error("Bitte wähle eine Größe aus."); return;
     }
     setLoading(true);
     try {
@@ -61,7 +61,7 @@ export default function WaitlistModal({ studio, prefillDate, prefillMonth, onClo
       setTimeout(() => { onSuccess?.(); onClose(); }, 2200);
     } catch (err) {
       const msg = err?.response?.data?.detail || "Fehler beim Eintragen.";
-      notify(msg, "error");
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
