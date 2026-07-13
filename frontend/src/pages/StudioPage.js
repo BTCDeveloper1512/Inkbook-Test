@@ -7,7 +7,8 @@ import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import GuestBookingModal from "../components/GuestBookingModal";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag, Info } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag, Info, Bell } from "lucide-react";
+import WaitlistModal from "../components/WaitlistModal";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
 import CircularGallery from "../components/CircularGallery/CircularGallery";
@@ -414,6 +415,7 @@ export default function StudioPage() {
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [lightbox, setLightbox] = useState(null); // { imgs: [], idx: 0 }
   const [showGuestModal, setShowGuestModal] = useState(false);
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   // Review reporting
   const [reportingReviewId, setReportingReviewId] = useState(null);
   const [reportReason, setReportReason] = useState("");
@@ -1102,9 +1104,9 @@ export default function StudioPage() {
                         const noteTitle = isNotAvailableYet ? "Bald verfügbar" : isVacation ? "Urlaub / geschlossen" : (capDay?.note || null);
                         return (
                           <div key={iso} className="relative group">
-                            <button disabled={isPast || !canFit || isVacation || isNotAvailableYet}
+                            <button disabled={isPast || isVacation || isNotAvailableYet}
                               onClick={() => { setSelectedDate(iso); setBookingSuccess(null); }}
-                              className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || !canFit || isVacation || isNotAvailableYet ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isNotAvailableYet ? "bg-zinc-50 border border-dashed border-zinc-200" : ""} ${isSelected ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""}`}
+                              className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-inter font-medium transition-all ${isPast || isVacation || isNotAvailableYet ? "text-zinc-300 cursor-not-allowed" : "hover:bg-zinc-100"} ${isVacation ? "bg-violet-50" : ""} ${isNotAvailableYet ? "bg-zinc-50 border border-dashed border-zinc-200" : ""} ${isSelected && canFit ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm" : ""} ${isSelected && !canFit ? "bg-rose-100 text-rose-700 ring-2 ring-rose-300" : ""} ${isToday && !isSelected ? "ring-2 ring-zinc-900 ring-offset-1 text-zinc-900 font-bold" : ""} ${!isSelected && !isPast && canFit && !isToday ? "text-zinc-700" : ""} ${!isSelected && !isPast && !canFit && !isVacation && !isNotAvailableYet ? "text-rose-400" : ""}`}
                               data-testid={`date-btn-${iso}`}
                             >
                               <span>{day.getDate()}</span>
@@ -1233,21 +1235,43 @@ export default function StudioPage() {
                   </div>
                 )}
 
-                {bookingSuccess ? (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
-                    <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
-                    <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">Anfrage gesendet!</p>
-                    <p className="text-xs text-emerald-600 font-inter mb-1">Das Studio erstellt dein Angebot – du hast dann <strong>{offerDeadlineLabel}</strong> Zeit zum Annehmen.</p>
-                    <p className="text-xs text-zinc-400 font-inter">ID: {bookingSuccess.booking_id}</p>
-                    <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">Zum Dashboard</button>
-                  </motion.div>
-                ) : (
-                  <motion.button whileTap={{ scale: 0.97 }} onClick={handleCapacityBook}
-                    disabled={!selectedDate || !sizeCategory || bookingLoading}
-                    className="btn-primary w-full justify-center disabled:opacity-40" data-testid="confirm-booking-btn">
-                    {bookingLoading ? t("common.loading") : "Termin anfragen"}
-                  </motion.button>
-                )}
+                {(() => {
+                  const selCapDay = capacityData[selectedDate];
+                  const selRemaining = selCapDay ? selCapDay.remaining : DAY_CAPACITY;
+                  const selCost = SIZE_COST[sizeCategory] || 1;
+                  const dayFull = selectedDate && sizeCategory && selRemaining < selCost && !(selCapDay?.status === "vacation");
+                  if (bookingSuccess) return (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
+                      <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />
+                      <p className="text-emerald-800 font-inter font-semibold text-sm mb-1">Anfrage gesendet!</p>
+                      <p className="text-xs text-emerald-600 font-inter mb-1">Das Studio erstellt dein Angebot – du hast dann <strong>{offerDeadlineLabel}</strong> Zeit zum Annehmen.</p>
+                      <p className="text-xs text-zinc-400 font-inter">ID: {bookingSuccess.booking_id}</p>
+                      <button onClick={() => navigate("/dashboard")} className="mt-3 w-full py-2 bg-zinc-900 text-white text-xs font-inter rounded-xl hover:bg-zinc-700 transition-colors">Zum Dashboard</button>
+                    </motion.div>
+                  );
+                  if (dayFull) return (
+                    <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3">
+                      <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center">
+                        <p className="text-rose-700 font-inter font-semibold text-sm mb-1">Dieser Tag ist ausgebucht</p>
+                        <p className="text-xs text-rose-500 font-inter">Für deine gewählte Größe ist an diesem Tag keine Kapazität mehr frei.</p>
+                      </div>
+                      <motion.button whileTap={{ scale: 0.97 }}
+                        onClick={() => { if (!user) { setShowGuestModal(true); return; } setShowWaitlistModal(true); }}
+                        className="w-full py-3 rounded-xl border-2 border-zinc-900 text-zinc-900 text-sm font-inter font-semibold flex items-center justify-center gap-2 hover:bg-zinc-900 hover:text-white transition-all">
+                        <Bell size={15} strokeWidth={1.5} />
+                        Auf Warteliste setzen
+                      </motion.button>
+                      <p className="text-center text-[10px] text-zinc-400 font-inter">Du bekommst sofort eine E-Mail wenn Kapazität frei wird</p>
+                    </motion.div>
+                  );
+                  return (
+                    <motion.button whileTap={{ scale: 0.97 }} onClick={handleCapacityBook}
+                      disabled={!selectedDate || !sizeCategory || bookingLoading}
+                      className="btn-primary w-full justify-center disabled:opacity-40" data-testid="confirm-booking-btn">
+                      {bookingLoading ? t("common.loading") : "Termin anfragen"}
+                    </motion.button>
+                  );
+                })()}
               </>) : (<>
                 {/* ── CONSULTATION SLOT FLOW ── */}
                 <div className="mb-5">
@@ -1413,6 +1437,24 @@ export default function StudioPage() {
       {showGuestModal && studio && (
         <GuestBookingModal studio={studio} onClose={() => setShowGuestModal(false)} />
       )}
+
+      {/* Waitlist Modal */}
+      <AnimatePresence>
+        {showWaitlistModal && studio && (
+          <WaitlistModal
+            studio={studio}
+            prefillDate={(() => {
+              const selCapDay = capacityData[selectedDate];
+              const selRemaining = selCapDay ? selCapDay.remaining : DAY_CAPACITY;
+              const selCost = SIZE_COST[sizeCategory] || 1;
+              return selectedDate && selRemaining < selCost ? selectedDate : null;
+            })()}
+            prefillMonth={`${calMonth.year}-${String(calMonth.month + 1).padStart(2, "0")}`}
+            onClose={() => setShowWaitlistModal(false)}
+            onSuccess={() => notify("Du stehst auf der Warteliste! Wir benachrichtigen dich per E-Mail.", "success")}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

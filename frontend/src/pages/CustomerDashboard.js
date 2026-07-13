@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart } from "lucide-react";
+import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart, Bell } from "lucide-react";
 import StudioCard from "../components/StudioCard";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -256,6 +256,8 @@ export default function CustomerDashboard() {
   const [acceptingOffer, setAcceptingOffer] = useState("");
   const [favoriteStudios, setFavoriteStudios] = useState([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [waitlistEntries, setWaitlistEntries] = useState([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
 
   const fetchReviewedIds = async () => {
     try {
@@ -303,11 +305,31 @@ export default function CustomerDashboard() {
     }
   };
 
+  const fetchWaitlist = async () => {
+    setWaitlistLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/waitlist/my`, { withCredentials: true });
+      setWaitlistEntries(data?.entries || []);
+    } catch {
+      setWaitlistEntries([]);
+    } finally {
+      setWaitlistLoading(false);
+    }
+  };
+
+  const cancelWaitlistEntry = async (waitlistId) => {
+    try {
+      await axios.delete(`${API}/waitlist/${waitlistId}`, { withCredentials: true });
+      setWaitlistEntries(prev => prev.filter(e => e.waitlist_id !== waitlistId));
+    } catch {}
+  };
+
   useEffect(() => {
     fetchStats();
     fetchMessages();
     fetchReviewedIds();
     fetchFavorites();
+    fetchWaitlist();
     const pollInterval = setInterval(fetchStats, 8000);
     const msgInterval = setInterval(fetchMessages, 15000);
     const tickInterval = setInterval(() => setTick(t => t + 1), 60000);
@@ -638,9 +660,10 @@ export default function CustomerDashboard() {
             { id: "today", label: `Heutige Termine (${todayBookings.length})` },
             { id: "upcoming", label: `${t("dashboard.upcoming")} (${upcoming.length})` },
             { id: "past", label: `${t("dashboard.past")} (${past.length})` },
-            { id: "favorites", label: `Favoriten (${favoriteStudios.length})` }
+            { id: "favorites", label: `Favoriten (${favoriteStudios.length})` },
+            { id: "waitlist", label: `Warteliste (${waitlistEntries.length})` }
           ].map(tab => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "favorites") fetchFavorites(); }}
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "favorites") fetchFavorites(); if (tab.id === "waitlist") fetchWaitlist(); }}
               className={`flex-shrink-0 px-5 py-2 rounded-xl text-sm font-inter font-medium transition-all ${activeTab === tab.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
               data-testid={`${tab.id}-tab`}
             >
@@ -704,8 +727,60 @@ export default function CustomerDashboard() {
           </div>
         )}
 
+        {/* Waitlist Tab Content */}
+        {activeTab === "waitlist" && (
+          <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+            {waitlistLoading ? (
+              <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-zinc-100 rounded-2xl animate-pulse" />)}</div>
+            ) : waitlistEntries.length === 0 ? (
+              <div className="py-16 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mb-5">
+                  <Bell size={26} className="text-zinc-300" strokeWidth={1.5} />
+                </div>
+                <h3 className="font-playfair text-xl text-zinc-900 mb-1.5">Keine Wartelisten-Einträge</h3>
+                <p className="text-zinc-400 font-inter text-sm text-center max-w-xs">
+                  Wenn ein Wunschtermin ausgebucht ist, kannst du dich auf die Warteliste setzen und wirst benachrichtigt.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="font-playfair font-bold text-lg text-zinc-900 mb-4">Deine Wartelisten-Einträge</h3>
+                {waitlistEntries.map(entry => {
+                  const sizeLabel = { mini: "Mini", small: "Small", medium: "Medium", large: "Large", xl: "XL" }[entry.size_category] || entry.size_category;
+                  const dateLabel = entry.date
+                    ? new Date(entry.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
+                    : (() => { try { const [y,m] = entry.month.split("-"); return new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"}); } catch { return entry.month; } })();
+                  return (
+                    <div key={entry.waitlist_id} className={`rounded-2xl border p-4 flex items-start justify-between gap-4 ${entry.status === "notified" ? "bg-violet-50 border-violet-200" : "bg-zinc-50 border-zinc-200"}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-inter font-semibold text-sm text-zinc-900">{entry.studio_name}</span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${entry.status === "notified" ? "bg-violet-200 text-violet-800" : "bg-emerald-100 text-emerald-700"}`}>
+                            {entry.status === "notified" ? "Benachrichtigt" : "Wartet"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-xs font-inter text-zinc-600">📅 {entry.date ? "Am" : "Im"} {dateLabel}</span>
+                          <span className="text-xs font-inter text-zinc-600">📐 {sizeLabel}</span>
+                        </div>
+                        {entry.notes && <p className="text-xs text-zinc-400 font-inter mt-1 italic">"{entry.notes}"</p>}
+                      </div>
+                      {entry.status === "active" && (
+                        <button onClick={() => cancelWaitlistEntry(entry.waitlist_id)}
+                          className="flex-shrink-0 text-xs text-zinc-400 hover:text-red-500 font-inter transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
+                          Abmelden
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Bookings List */}
-        {activeTab !== "favorites" && (
+        {activeTab !== "favorites" && activeTab !== "waitlist" && (
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
           <AnimatePresence mode="wait">
             {(activeTab === "today" ? todayBookings : activeTab === "upcoming" ? upcoming : past).length === 0 ? (

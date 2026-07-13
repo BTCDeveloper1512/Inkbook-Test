@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -80,6 +80,8 @@ export default function StudioDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [studioWaitlist, setStudioWaitlist] = useState([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [betaBannerOpen, setBetaBannerOpen] = useState(true);
   // Calendar blocks (manual studio blocking)
   const [calBlocks, setCalBlocks] = useState([]);
@@ -248,6 +250,13 @@ export default function StudioDashboard() {
 
   useEffect(() => {
     if (activeTab === "invoices") fetchInvoices();
+    if (activeTab === "waitlist") {
+      setWaitlistLoading(true);
+      axios.get(`${API}/studios/my/waitlist`, { withCredentials: true })
+        .then(r => setStudioWaitlist(r.data?.entries || []))
+        .catch(() => setStudioWaitlist([]))
+        .finally(() => setWaitlistLoading(false));
+    }
   }, [activeTab]); // eslint-disable-line
 
   const fetchSubscription = async () => {
@@ -973,6 +982,7 @@ export default function StudioDashboard() {
                 { id: "bookings",  icon: <BookOpen      size={15} strokeWidth={1.5} />, label: "Buchungen",    badge: activeBookings.filter(b => ["pending","pending_studio_review","under_review"].includes(b.status)).length },
                 { id: "inquiries", icon: <Inbox         size={15} strokeWidth={1.5} />, label: "Anfragen",     badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "kalender",  icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Kalender",     badge: 0 },
+                { id: "waitlist",  icon: <Bell          size={15} strokeWidth={1.5} />, label: "Warteliste",   badge: studioWaitlist.filter(e => e.status === "active").length },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
                 { id: "invoices",  icon: <Receipt       size={15} strokeWidth={1.5} />, label: "Rechnungen",   badge: 0 },
                 { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
@@ -2732,6 +2742,61 @@ export default function StudioDashboard() {
             </motion.div>
           );
         })()}
+
+        {/* Waitlist Tab */}
+        {activeTab === "waitlist" && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="font-playfair font-bold text-xl text-zinc-900">Warteliste</h2>
+                <p className="text-xs text-zinc-400 font-inter mt-0.5">Kunden die auf einen freien Platz warten</p>
+              </div>
+              <span className="text-xs font-inter font-semibold px-3 py-1.5 rounded-full bg-violet-100 text-violet-700">
+                {studioWaitlist.filter(e => e.status === "active").length} aktiv
+              </span>
+            </div>
+
+            {waitlistLoading ? (
+              <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-zinc-100 rounded-2xl animate-pulse" />)}</div>
+            ) : studioWaitlist.length === 0 ? (
+              <div className="bg-white border border-zinc-100 rounded-2xl p-10 text-center shadow-sm">
+                <Bell size={28} className="text-zinc-300 mx-auto mb-3" strokeWidth={1.5} />
+                <p className="font-inter font-semibold text-zinc-600 text-sm">Keine Wartelisten-Einträge</p>
+                <p className="text-xs text-zinc-400 font-inter mt-1">Kunden können sich eintragen, wenn ein Tag ausgebucht ist.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {studioWaitlist.map(entry => {
+                  const sizeLabel = { mini: "Mini", small: "Small", medium: "Medium", large: "Large", xl: "XL" }[entry.size_category] || entry.size_category;
+                  const dateLabel = entry.date
+                    ? new Date(entry.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })
+                    : (() => { try { const [y,m] = entry.month.split("-"); return new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"}); } catch { return entry.month; } })();
+                  return (
+                    <div key={entry.waitlist_id} className={`bg-white rounded-2xl border shadow-sm p-4 flex items-start justify-between gap-4 ${entry.status === "notified" ? "border-violet-200" : "border-zinc-100"}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-inter font-semibold text-sm text-zinc-900">{entry.user_name}</span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${entry.status === "notified" ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"}`}>
+                            {entry.status === "notified" ? "Benachrichtigt" : "Wartet"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 font-inter">{entry.user_email}</p>
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                          <span className="text-xs font-inter text-zinc-600">📅 {entry.date ? "Am" : "Im"} {dateLabel}</span>
+                          <span className="text-xs font-inter text-zinc-600">📐 {sizeLabel}</span>
+                          {entry.notes && <span className="text-xs font-inter text-zinc-400 truncate max-w-[180px]">"{entry.notes}"</span>}
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-zinc-400 font-inter whitespace-nowrap mt-1">
+                        {new Date(entry.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* Artists Tab */}
         {activeTab === "artists" && stats?.studio && (

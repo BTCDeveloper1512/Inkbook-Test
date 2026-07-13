@@ -2090,7 +2090,176 @@ async def update_booking_status(booking_id: str, status: str, current_user: dict
         cancel_triggered_by = owner_id if effective_status == "studio_cancelled" else customer_id
         asyncio.create_task(_post_system_message(customer_id=customer_id, studio_owner_id=owner_id, text=msg, triggered_by_id=cancel_triggered_by))
 
+    # Notify waitlist customers when a booking is cancelled
+    if is_cancellation:
+        asyncio.create_task(_notify_waitlist(booking.get("studio_id", ""), booking.get("date", "")))
+
     return {"message": "Booking updated"}
+
+
+# ─── Waitlist ─────────────────────────────────────────────────────────────────
+
+def _waitlist_email_html(user_name: str, studio_name: str, date: str, studio_id: str, size_label: str, frontend_url: str) -> str:
+    fmt_date = date
+    try:
+        fmt_date = datetime.strptime(date, "%Y-%m-%d").strftime("%d. %B %Y")
+    except Exception:
+        pass
+    studio_url = f"{frontend_url}/studios/{studio_id}?book=true"
+    return f"""<div style="background:#fff;max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;border-radius:12px;overflow:hidden;border:1px solid #e5e5e5;">
+      {_email_header()}
+      <div style="padding:32px;">
+        <span style="display:inline-block;font-size:11px;font-weight:700;color:#059669;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;">🎉 Kapazität freigegeben</span>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#111;letter-spacing:-0.4px;">Ein Platz ist frei geworden!</h2>
+        <p style="font-size:14px;color:#555;margin:0 0 24px;line-height:1.6;">
+          Hey {user_name}, gute Neuigkeiten! Bei <strong style="color:#111;">{studio_name}</strong> ist am
+          <strong style="color:#111;">{fmt_date}</strong> Kapazität für <strong style="color:#111;">{size_label}</strong>
+          freigegeben worden — du stehst auf der Warteliste.
+        </p>
+        <div style="background:#f4f4f4;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #111;">
+          <p style="margin:0;font-size:13px;color:#555;line-height:1.5;">⚡ Termine vergehen schnell — buche direkt, bevor jemand anderes zugreift.</p>
+        </div>
+        <a href="{studio_url}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:600;">Jetzt buchen →</a>
+        <p style="font-size:12px;color:#aaa;margin:20px 0 0;">Du kannst dich jederzeit in deinem Dashboard von der Warteliste austragen.</p>
+      </div>
+      {_email_footer()}
+    </div>"""
+
+
+async def _notify_waitlist(studio_id: str, date: str):
+    """Notify active waitlist customers when capacity opens on a given date."""
+    if not studio_id or not date:
+        return
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        return
+    studio_day_cap: int = int(studio.get("day_capacity") or _DAY_CAPACITY)
+    _ACTIVE = ["pending","pending_studio_review","under_review","offer_sent",
+               "waiting_for_deposit","deposit_pending","confirmed"]
+    existing = await db.bookings.find({
+        "studio_id": studio_id, "date": date,
+        "status": {"$in": _ACTIVE}, "capacity_cost": {"$exists": True},
+    }).to_list(500)
+    used = sum(int(b.get("capacity_cost", 0)) for b in existing)
+    remaining = studio_day_cap - used
+    if remaining <= 0:
+        return
+
+    month = date[:7]
+    entries = await db.waitlists.find({
+        "studio_id": studio_id,
+        "status": "active",
+        "$or": [{"date": date}, {"date": None, "month": month}],
+    }).to_list(100)
+
+    studio_name = studio.get("name", "")
+    frontend_url = _get_frontend_url()
+    size_labels = {
+        "mini": "Mini-Tattoo", "small": "Kleines Tattoo",
+        "medium": "Mittleres Tattoo", "large": "Großes Tattoo", "xl": "Extra-Großes Tattoo",
+    }
+    notified_ids = []
+    for entry in entries:
+        needed = _SIZE_CAPACITY.get(entry.get("size_category", "small"), 2)
+        if needed <= remaining:
+            email = entry.get("user_email", "")
+            if email:
+                asyncio.create_task(send_email(
+                    to=email,
+                    subject=f"🎉 Platz frei bei {studio_name} am {date}",
+                    html=_waitlist_email_html(
+                        entry.get("user_name", ""), studio_name, date, studio_id,
+                        size_labels.get(entry.get("size_category", "small"), "Tattoo"), frontend_url,
+                    ),
+                ))
+            notified_ids.append(entry.get("waitlist_id"))
+
+    if notified_ids:
+        await db.waitlists.update_many(
+            {"waitlist_id": {"$in": notified_ids}},
+            {"$set": {"status": "notified", "notified_at": datetime.now(timezone.utc).isoformat()}},
+        )
+
+
+class WaitlistRequest(BaseModel):
+    studio_id: str
+    date: Optional[str] = None
+    month: Optional[str] = None
+    size_category: str
+    booking_type: str = "tattoo"
+    notes: str = ""
+
+
+@api_router.post("/waitlist")
+async def join_waitlist(data: WaitlistRequest, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if not data.date and not data.month:
+        raise HTTPException(status_code=400, detail="Datum oder Monat erforderlich")
+    if data.size_category not in _SIZE_CAPACITY:
+        raise HTTPException(status_code=400, detail="Ungültige Größenkategorie")
+    studio = await db.studios.find_one({"studio_id": data.studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+
+    filter_q: Dict[str, Any] = {"studio_id": data.studio_id, "user_id": user_id, "status": "active"}
+    if data.date:
+        filter_q["date"] = data.date
+    else:
+        filter_q["month"] = data.month
+        filter_q["date"] = None
+    if await db.waitlists.find_one(filter_q):
+        raise HTTPException(status_code=409, detail="Du stehst bereits auf der Warteliste")
+
+    entry = {
+        "waitlist_id": f"wl_{uuid.uuid4().hex[:12]}",
+        "studio_id": data.studio_id,
+        "studio_name": studio.get("name", ""),
+        "user_id": user_id,
+        "user_name": current_user.get("name", ""),
+        "user_email": current_user.get("email", ""),
+        "date": data.date,
+        "month": data.month,
+        "size_category": data.size_category,
+        "booking_type": data.booking_type,
+        "notes": data.notes,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "notified_at": None,
+    }
+    await db.waitlists.insert_one(entry)
+    return {"waitlist_id": entry["waitlist_id"], "message": "Erfolgreich auf die Warteliste gesetzt"}
+
+
+@api_router.get("/waitlist/my")
+async def get_my_waitlist(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    entries = await db.waitlists.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"entries": entries}
+
+
+@api_router.delete("/waitlist/{waitlist_id}")
+async def leave_waitlist(waitlist_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    entry = await db.waitlists.find_one({"waitlist_id": waitlist_id})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Nicht gefunden")
+    if entry.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    await db.waitlists.update_one({"waitlist_id": waitlist_id}, {"$set": {"status": "cancelled"}})
+    return {"message": "Von der Warteliste entfernt"}
+
+
+@api_router.get("/studios/my/waitlist")
+async def get_studio_waitlist(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"owner_id": user_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    entries = await db.waitlists.find(
+        {"studio_id": studio["studio_id"], "status": {"$in": ["active", "notified"]}},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(200)
+    return {"entries": entries}
 
 
 # ─── Invoice Helpers ──────────────────────────────────────────────────────────
