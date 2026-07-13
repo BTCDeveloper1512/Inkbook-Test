@@ -5796,10 +5796,149 @@ async def _check_deposit_deadlines():
             logger.error(f"[DEPOSIT DEADLINE] Error: {e}")
         await asyncio.sleep(60)
 
+# ─── Email: Reminder (24h before) ─────────────────────────────────────────────
+def _reminder_email_html(booking: dict) -> str:
+    studio = booking.get("studio_name", "deinem Studio")
+    date_raw = booking.get("offer_date") or booking.get("date", "")
+    try:
+        dt = datetime.strptime(date_raw, "%Y-%m-%d")
+        date_fmt = dt.strftime("%d.%m.%Y")
+        weekday = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"][dt.weekday()]
+    except Exception:
+        date_fmt = date_raw
+        weekday = ""
+    time_str = booking.get("offer_time") or booking.get("start_time", "")
+    time_display = f"um {time_str} Uhr" if time_str else ""
+    dur_min = booking.get("offer_duration_min")
+    dur_display = f"{dur_min // 60} Std.{f' {dur_min % 60} Min.' if dur_min % 60 else ''}" if dur_min else ""
+    customer_name = booking.get("customer_name") or booking.get("guest_name") or "Kunde"
+    first_name = customer_name.split()[0] if customer_name else "Hallo"
+
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">
+      {_email_header()}
+      <div style="padding:32px;">
+        <p style="font-size:14px;color:#444;margin:0 0 20px;">Hey {first_name} 👋</p>
+        <p style="font-size:16px;font-weight:700;color:#111;margin:0 0 6px;">Dein Termin ist morgen!</p>
+        <p style="font-size:14px;color:#666;margin:0 0 24px;">Zur Erinnerung: Du hast morgen einen Termin bei <strong style="color:#111;">{studio}</strong>.</p>
+        <table style="width:100%;border-collapse:collapse;border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin:0 0 24px;">
+          <tbody>
+            {_detail_row("Studio", studio, highlight=True)}
+            {_detail_row("Datum", f"{weekday}, {date_fmt}")}
+            {f'<tr><td style="padding:11px 16px;font-size:12px;color:#888;border-bottom:1px solid #f0f0f0;width:38%;">Uhrzeit</td><td style="padding:11px 16px;font-size:13px;color:#111;font-weight:600;border-bottom:1px solid #f0f0f0;">{time_display}</td></tr>' if time_str else ''}
+            {f'<tr><td style="padding:11px 16px;font-size:12px;color:#888;border-bottom:1px solid #f0f0f0;width:38%;">Dauer</td><td style="padding:11px 16px;font-size:13px;color:#111;font-weight:600;border-bottom:1px solid #f0f0f0;">{dur_display}</td></tr>' if dur_display else ''}
+          </tbody>
+        </table>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:0 0 24px;">
+          <p style="font-size:13px;color:#92400e;margin:0;font-weight:600;">Tipps für morgen 💡</p>
+          <ul style="font-size:13px;color:#78350f;margin:8px 0 0;padding-left:18px;line-height:1.7;">
+            <li>Ausreichend schlafen und Wasser trinken</li>
+            <li>Gegessen haben vor dem Termin</li>
+            <li>Bequeme Kleidung die Zugang zur Körperstelle ermöglicht</li>
+            <li>Haut gut eincremen (nicht direkt auf der Stelle)</li>
+          </ul>
+        </div>
+        <p style="font-size:13px;color:#888;margin:0;">Wir freuen uns auf dich! Bei Fragen wende dich direkt ans Studio.</p>
+      </div>
+      {_email_footer(f"Du erhältst diese Erinnerung weil du einen Termin bei {studio} auf StudioOS gebucht hast.")}
+    </div>"""
+
+# ─── Email: Aftercare (3 days after) ──────────────────────────────────────────
+def _aftercare_email_html(booking: dict) -> str:
+    studio = booking.get("studio_name", "deinem Studio")
+    studio_id = booking.get("studio_id", "")
+    customer_name = booking.get("customer_name") or booking.get("guest_name") or "Kunde"
+    first_name = customer_name.split()[0] if customer_name else "Hallo"
+    review_url = f"https://studioos.de/studio/{studio_id}#reviews" if studio_id else "https://studioos.de"
+
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">
+      {_email_header()}
+      <div style="padding:32px;">
+        <p style="font-size:14px;color:#444;margin:0 0 20px;">Hey {first_name} 🎉</p>
+        <p style="font-size:16px;font-weight:700;color:#111;margin:0 0 6px;">Wie läuft die Heilung?</p>
+        <p style="font-size:14px;color:#666;margin:0 0 24px;">Wir hoffen dein Tattoo bei <strong style="color:#111;">{studio}</strong> macht dir Freude! Hier sind die wichtigsten Pflegetipps für die nächsten Wochen:</p>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:0 0 20px;">
+          <p style="font-size:13px;color:#14532d;margin:0;font-weight:600;">Pflegehinweise 🌿</p>
+          <ul style="font-size:13px;color:#166534;margin:8px 0 0;padding-left:18px;line-height:1.8;">
+            <li>Tattoo 2–3× täglich mit parfümfreier Lotion eincremen</li>
+            <li>Direkte Sonneneinstrahlung mindestens 4 Wochen meiden</li>
+            <li>Nicht kratzen oder reiben — auch wenn es juckt!</li>
+            <li>Kein Schwimmbad, Sauna oder Baden für 2–3 Wochen</li>
+            <li>Schutzfolie erst nach Anweisung des Artists entfernen</li>
+          </ul>
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:0 0 24px;text-align:center;">
+          <p style="font-size:14px;color:#111;font-weight:700;margin:0 0 4px;">Hat alles gepasst?</p>
+          <p style="font-size:13px;color:#666;margin:0 0 14px;">Eine kurze Bewertung hilft anderen Kunden und unterstützt das Studio.</p>
+          <a href="{review_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:13px;font-weight:700;">Jetzt bewerten ⭐</a>
+        </div>
+        <p style="font-size:13px;color:#888;margin:0;">Bis zum nächsten Mal auf StudioOS! 🖤</p>
+      </div>
+      {_email_footer(f"Du erhältst diese E-Mail weil du einen Termin bei {studio} auf StudioOS hattest.")}
+    </div>"""
+
+# ─── Scheduler: Reminder & Aftercare ──────────────────────────────────────────
+async def _check_reminders():
+    await asyncio.sleep(60)  # Let DB init first
+    while True:
+        try:
+            tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            bookings = await db.bookings.find({
+                "status": "confirmed",
+                "reminder_sent": {"$ne": True},
+                "$or": [{"date": tomorrow}, {"offer_date": tomorrow}]
+            }, {"_id": 0}).to_list(None)
+            for booking in bookings:
+                email = booking.get("user_email") or booking.get("customer_email") or booking.get("guest_email", "")
+                if email:
+                    asyncio.create_task(send_email(
+                        to=email,
+                        subject=f"⏰ Morgen ist dein Termin bei {booking.get('studio_name', 'deinem Studio')}",
+                        html=_reminder_email_html(booking)
+                    ))
+                    logger.info(f"[REMINDER] Sent to {email} for booking {booking.get('booking_id')}")
+                await db.bookings.update_one(
+                    {"booking_id": booking["booking_id"]},
+                    {"$set": {"reminder_sent": True}}
+                )
+        except Exception as e:
+            logger.error(f"[REMINDER] Error: {e}")
+        await asyncio.sleep(3600)  # Check every hour
+
+async def _check_aftercare():
+    await asyncio.sleep(90)  # Offset from reminder check
+    while True:
+        try:
+            three_days_ago = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+            bookings = await db.bookings.find({
+                "status": {"$in": ["confirmed", "completed"]},
+                "aftercare_sent": {"$ne": True},
+                "$or": [{"date": three_days_ago}, {"offer_date": three_days_ago}]
+            }, {"_id": 0}).to_list(None)
+            for booking in bookings:
+                email = booking.get("user_email") or booking.get("customer_email") or booking.get("guest_email", "")
+                if email:
+                    asyncio.create_task(send_email(
+                        to=email,
+                        subject=f"🎉 Wie läuft die Heilung? Pflegetipps für dein neues Tattoo",
+                        html=_aftercare_email_html(booking)
+                    ))
+                    logger.info(f"[AFTERCARE] Sent to {email} for booking {booking.get('booking_id')}")
+                await db.bookings.update_one(
+                    {"booking_id": booking["booking_id"]},
+                    {"$set": {"aftercare_sent": True}}
+                )
+        except Exception as e:
+            logger.error(f"[AFTERCARE] Error: {e}")
+        await asyncio.sleep(3600)  # Check every hour
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(_init_db())
     asyncio.create_task(_check_deposit_deadlines())
+    asyncio.create_task(_check_reminders())
+    asyncio.create_task(_check_aftercare())
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
