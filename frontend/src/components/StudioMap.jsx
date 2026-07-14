@@ -31,7 +31,7 @@ function Recenter({ lat, lng }) {
   return null;
 }
 
-export default function StudioMap({ address, city, studioName }) {
+export default function StudioMap({ address, city, studioName, hidden = false }) {
   const [coords, setCoords] = useState(null);
   const [status, setStatus] = useState("loading"); // loading | ok | error
   const fetched = useRef(false);
@@ -86,7 +86,10 @@ export default function StudioMap({ address, city, studioName }) {
   }
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-zinc-100" style={{ height: 220 }}>
+    <div
+      className="relative rounded-2xl overflow-hidden border border-zinc-100"
+      style={{ height: 220, visibility: hidden ? "hidden" : "visible", pointerEvents: hidden ? "none" : "auto" }}
+    >
       <MapContainer
         center={[coords.lat, coords.lng]}
         zoom={15}

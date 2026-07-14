@@ -777,6 +777,7 @@ export default function StudioPage() {
                           address={studio.address}
                           city={studio.city}
                           studioName={studio.name}
+                          hidden={!!(lightbox || showGuestModal || showWaitlistModal || selectedArtist || igActive || reportingReviewId)}
                         />
                       </div>
                     )}
