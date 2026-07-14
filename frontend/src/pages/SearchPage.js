@@ -8,19 +8,12 @@ import Footer from "../components/Footer";
 import StudioCard from "../components/StudioCard";
 import { useAuth } from "../context/AuthContext";
 import {
-  Search, SlidersHorizontal, X, MapPin, Calendar, Palette,
+  Search, SlidersHorizontal, X, MapPin, Palette,
   Star, ChevronDown
 } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-
-const PRICE_OPTIONS = [
-  { value: "budget", label: "Bis €100", sub: "Einstiegspreise" },
-  { value: "medium", label: "€100 – €200", sub: "Mittleres Segment" },
-  { value: "premium", label: "€200 – €400", sub: "Gehobene Studios" },
-  { value: "luxury", label: "Ab €400", sub: "Premium" },
-];
 
 const RATING_OPTIONS = [
   { value: "4.9", label: "4.9+" },
@@ -30,8 +23,6 @@ const RATING_OPTIONS = [
   { value: "3.5", label: "3.5+" },
   { value: "3.0", label: "3.0+" },
 ];
-
-const AVAIL_OPTIONS = ["Diese Woche", "Nächste Woche", "Diesen Monat", "Flexible Termine"];
 
 function DropPanel({ label, icon, open, onToggle, children }) {
   const btnRef = useRef(null);
@@ -106,11 +97,9 @@ export default function SearchPage() {
 
   const [allStudios, setAllStudios] = useState(null); // null = initial load pending
   const [loading, setLoading] = useState(true);
-  const [inputValue, setInputValue] = useState(searchParams.get("search") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [city, setCity] = useState("");
   const [activeStyles, setActiveStyles] = useState([]);
-  const [priceRange, setPriceRange] = useState("");
   const [minRating, setMinRating] = useState("");
   const [openPanel, setOpenPanel] = useState(null);
   const [filterData, setFilterData] = useState({ cities: [], styles: [] });
@@ -139,34 +128,49 @@ export default function SearchPage() {
 
   // PostHog tracking when search params change
   useEffect(() => {
-    if (!allStudios || !(search || city || activeStyles.length > 0 || priceRange || minRating)) return;
+    if (!allStudios || !(search || city || activeStyles.length > 0 || minRating)) return;
     if (window.posthog) {
       window.posthog.capture("search_performed", {
         query: search || null, city: city || null,
         styles: activeStyles.length > 0 ? activeStyles : null,
-        price_range: priceRange || null, min_rating: minRating || null,
+        min_rating: minRating || null,
       });
     }
-  }, [search, city, activeStyles, priceRange, minRating, allStudios]);
+  }, [search, city, activeStyles, minRating, allStudios]);
 
-  // Client-side filtering — instant, zero extra network calls
+  // Client-side filtering with improved search — instant, zero extra network calls
   const studios = useMemo(() => {
     if (!allStudios) return [];
     return allStudios.filter((s) => {
       if (search) {
-        const q = search.toLowerCase();
-        if (![s.name, s.description, s.city].some((f) => f?.toLowerCase().includes(q))) return false;
+        const q = search.toLowerCase().trim();
+        const searchableText = [
+          s.name,
+          s.city,
+          s.address,
+          s.description,
+          ...(s.styles || []),
+        ].filter(Boolean).map(f => f.toLowerCase());
+        if (!searchableText.some(f => f.includes(q))) return false;
       }
-      if (city && !s.city?.toLowerCase().includes(city.toLowerCase())) return false;
+      if (city && s.city?.toLowerCase() !== city.toLowerCase()) return false;
       if (activeStyles.length > 0) {
         const sStyles = (s.styles || []).map((x) => x.toLowerCase());
         if (!activeStyles.some((st) => sStyles.includes(st.toLowerCase()))) return false;
       }
-      if (priceRange && s.price_range !== priceRange) return false;
       if (minRating && (s.avg_rating || 0) < parseFloat(minRating)) return false;
       return true;
+    }).sort((a, b) => {
+      // Relevance: exact name match first, then by rating
+      if (search) {
+        const q = search.toLowerCase().trim();
+        const aNameMatch = a.name?.toLowerCase().startsWith(q) ? 1 : 0;
+        const bNameMatch = b.name?.toLowerCase().startsWith(q) ? 1 : 0;
+        if (aNameMatch !== bNameMatch) return bNameMatch - aNameMatch;
+      }
+      return (b.avg_rating || 0) - (a.avg_rating || 0);
     });
-  }, [allStudios, search, city, activeStyles, priceRange, minRating]);
+  }, [allStudios, search, city, activeStyles, minRating]);
 
   const toggleStyle = (s) => {
     setActiveStyles((prev) =>
@@ -177,11 +181,10 @@ export default function SearchPage() {
   const toggle = (name) => setOpenPanel((p) => (p === name ? null : name));
 
   const clearAll = () => {
-    setCity(""); setActiveStyles([]); setPriceRange(""); setMinRating("");
-    setSearch(""); setInputValue("");
+    setCity(""); setActiveStyles([]); setMinRating(""); setSearch("");
   };
 
-  const activeCount = [city, priceRange, minRating].filter(Boolean).length + activeStyles.length;
+  const activeCount = [city, minRating].filter(Boolean).length + activeStyles.length;
 
   const handleFavoriteToggle = (studioId, isFav) => {
     setFavoriteIds(prev => {
@@ -205,24 +208,20 @@ export default function SearchPage() {
             Dein perfektes Studio.
           </h1>
 
-          {/* Search pill */}
+          {/* Search pill — live as-you-type */}
           <div className="inline-flex items-center rounded-full border border-zinc-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden bg-white max-w-lg w-full">
+            <Search size={15} className="ml-5 text-zinc-400 shrink-0" strokeWidth={2} />
             <input
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                if (e.target.value === "") setSearch("");
-              }}
-              onKeyDown={(e) => e.key === "Enter" && setSearch(inputValue)}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Studioname, Stil oder Stadt..."
-              className="flex-1 px-6 py-3.5 text-sm text-zinc-700 placeholder-zinc-400 outline-none bg-transparent"
+              className="flex-1 px-4 py-3.5 text-sm text-zinc-700 placeholder-zinc-400 outline-none bg-transparent"
             />
-            <button
-              onClick={() => setSearch(inputValue)}
-              className="m-1.5 w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center hover:bg-zinc-700 transition-colors shrink-0"
-            >
-              <Search size={15} className="text-white" strokeWidth={2.5} />
-            </button>
+            {search && (
+              <button onClick={() => setSearch("")} className="mr-3 text-zinc-400 hover:text-zinc-700 transition-colors shrink-0">
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -269,10 +268,7 @@ export default function SearchPage() {
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tätowierstil</p>
               {activeStyles.length > 0 && (
-                <button
-                  onClick={() => setActiveStyles([])}
-                  className="text-xs font-semibold text-zinc-900 underline"
-                >
+                <button onClick={() => setActiveStyles([])} className="text-xs font-semibold text-zinc-900 underline">
                   Löschen
                 </button>
               )}
@@ -293,36 +289,6 @@ export default function SearchPage() {
                 </button>
               ))}
             </div>
-          </DropPanel>
-
-          {/* Price */}
-          <DropPanel
-            label={priceRange ? PRICE_OPTIONS.find((p) => p.value === priceRange)?.label : "Preis"}
-            icon={<span className="text-xs font-bold">€</span>}
-            open={openPanel === "price"}
-            onToggle={() => toggle("price")}
-          >
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Startpreis</p>
-            <button
-              onClick={() => { setPriceRange(""); setOpenPanel(null); }}
-              className={`w-full text-left px-3 py-2 rounded-xl text-sm mb-1 transition-colors ${
-                !priceRange ? "bg-zinc-900 text-white font-semibold" : "hover:bg-zinc-50 text-zinc-700"
-              }`}
-            >
-              Alle Preise
-            </button>
-            {PRICE_OPTIONS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => { setPriceRange(p.value); setOpenPanel(null); }}
-                className={`w-full text-left px-3 py-2.5 rounded-xl hover:bg-zinc-50 transition-colors ${
-                  priceRange === p.value ? "bg-zinc-900 text-white" : ""
-                }`}
-              >
-                <p className="text-sm font-semibold text-inherit">{p.label}</p>
-                <p className="text-xs text-zinc-400">{p.sub}</p>
-              </button>
-            ))}
           </DropPanel>
 
           {/* Rating */}
@@ -357,51 +323,26 @@ export default function SearchPage() {
             ))}
           </DropPanel>
 
-          {/* Availability (UI only for now) */}
-          <DropPanel
-            label="Verfügbarkeit"
-            icon={<Calendar size={13} />}
-            open={openPanel === "avail"}
-            onToggle={() => toggle("avail")}
-          >
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Termin</p>
-            {AVAIL_OPTIONS.map((a) => (
-              <button
-                key={a}
-                onClick={() => setOpenPanel(null)}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-50 text-sm text-zinc-700 transition-colors"
-              >
-                {a}
-              </button>
-            ))}
-          </DropPanel>
-
-          {/* All filters / clear */}
-          <button
-            onClick={() => toggle("all")}
-            className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-500 transition-colors"
-          >
-            <SlidersHorizontal size={13} />
-            Alle Filter
-            {activeCount > 0 && (
-              <span className="bg-zinc-900 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                {activeCount}
-              </span>
-            )}
-          </button>
+          {activeCount > 0 && (
+            <button
+              onClick={clearAll}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full border border-zinc-200 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors"
+            >
+              <X size={11} />
+              Filter löschen
+            </button>
+          )}
         </div>
       </div>
 
       {/* Active filter chips */}
-      {(activeStyles.length > 0 || city || priceRange || minRating) && (
+      {(activeStyles.length > 0 || city || minRating) && (
         <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center gap-2 flex-wrap">
           <span className="text-xs text-zinc-400">Filter:</span>
           {city && (
             <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
               {city}
-              <button onClick={() => setCity("")}>
-                <X size={10} />
-              </button>
+              <button onClick={() => setCity("")}><X size={10} /></button>
             </span>
           )}
           {activeStyles.map((s) => (
@@ -410,20 +351,10 @@ export default function SearchPage() {
               <button onClick={() => toggleStyle(s)}><X size={10} /></button>
             </span>
           ))}
-          {priceRange && (
-            <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
-              {PRICE_OPTIONS.find((p) => p.value === priceRange)?.label}
-              <button onClick={() => setPriceRange("")}>
-                <X size={10} />
-              </button>
-            </span>
-          )}
           {minRating && (
             <span className="flex items-center gap-1.5 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-full">
               {minRating}+ ★
-              <button onClick={() => setMinRating("")}>
-                <X size={10} />
-              </button>
+              <button onClick={() => setMinRating("")}><X size={10} /></button>
             </span>
           )}
           <button onClick={clearAll} className="text-xs text-zinc-400 hover:text-zinc-700 underline">
@@ -484,7 +415,7 @@ export default function SearchPage() {
           </motion.div>
         ) : (
           <motion.div
-            key={`${search}-${city}-${activeStyles.join()}-${priceRange}-${minRating}`}
+            key={`${search}-${city}-${activeStyles.join()}-${minRating}`}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
           >
             {studios.map((studio, i) => (

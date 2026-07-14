@@ -7,8 +7,6 @@ import { notify } from "./InkNotify";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const priceStarting = { budget: 80, medium: 150, premium: 280, luxury: 450 };
-
 export default function StudioCard({ studio, index = 0, favorited = false, onToggleFavorite }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -17,7 +15,6 @@ export default function StudioCard({ studio, index = 0, favorited = false, onTog
 
   useEffect(() => { setSaved(favorited); }, [favorited]);
 
-  const startingPrice = studio.starting_price || priceStarting[studio.price_range] || null;
   const imageSrc = studio.banner_image || null;
 
   const handleToggleFavorite = async (e) => {
@@ -134,16 +131,13 @@ export default function StudioCard({ studio, index = 0, favorited = false, onTog
             <div className="flex items-center gap-1 shrink-0">
               <Star size={12} className="fill-zinc-900 text-zinc-900" />
               <span className="text-xs font-medium text-zinc-900">
-                {studio.avg_rating?.toFixed(2)}
+                {studio.avg_rating?.toFixed(1)}
               </span>
               <span className="text-xs text-zinc-400">({studio.review_count})</span>
             </div>
           )}
         </div>
         <p className="text-zinc-400 text-xs">{studio.city}</p>
-        {startingPrice && (
-          <p className="text-sm text-zinc-900 pt-0.5 font-semibold">ab &euro;{startingPrice}</p>
-        )}
       </div>
     </div>
   );

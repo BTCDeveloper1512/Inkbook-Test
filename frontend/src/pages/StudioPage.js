@@ -17,7 +17,6 @@ import StudioMap from "../components/StudioMap";
 import { notify } from "../components/InkNotify";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const priceLabels = { budget: "€", medium: "€€", premium: "€€€", luxury: "€€€€" };
 
 const SIZE_COST = { mini: 1, small: 2, medium: 3, large: 5, xl: 8 };
 const DAY_CAPACITY = 8;
@@ -678,12 +677,6 @@ export default function StudioPage() {
             <span className="flex items-center gap-1 text-zinc-500">
               <MapPin size={13} /> {studio.city}
             </span>
-            {studio.price_range && (
-              <>
-                <span className="text-zinc-200">|</span>
-                <span className="text-zinc-500 font-medium">{priceLabels[studio.price_range]}</span>
-              </>
-            )}
           </div>
           {studio.styles?.length > 0 && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -696,47 +689,48 @@ export default function StudioPage() {
           )}
         </div>
 
-        {/* ── Photo gallery grid ── */}
-        <div className="relative rounded-3xl overflow-hidden mb-10"
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: 460, gap: 8 }}>
-          {/* Main image */}
+        {/* ── Banner + Profile pic ── */}
+        <div className="relative mb-14">
+          {/* Banner */}
           <div
-            className="overflow-hidden bg-zinc-100 cursor-pointer"
+            className="relative rounded-3xl overflow-hidden cursor-pointer"
+            style={{ height: 340 }}
             onClick={() => allImages.length > 0 && setLightbox({ imgs: allImages, idx: 0 })}
           >
             {allImages[0] ? (
-              <img src={allImages[0]} alt={studio.name} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
+              <img
+                src={allImages[0]}
+                alt={studio.name}
+                className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-700"
+              />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-                <span className="text-zinc-300 text-8xl font-playfair">{studio.name?.[0]}</span>
+              <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+                <span className="text-zinc-700 text-[100px] font-playfair select-none">{studio.name?.[0]}</span>
               </div>
             )}
-          </div>
-          {/* Two stacked smaller images */}
-          <div className="grid grid-rows-2 gap-2 h-full overflow-hidden">
-            {[allImages[1], allImages[2]].map((img, i) => (
-              <div
-                key={i}
-                className="overflow-hidden bg-zinc-100 cursor-pointer min-h-0"
-                onClick={() => allImages.length > 0 && setLightbox({ imgs: allImages, idx: i + 1 })}
+            {allImages.length > 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setLightbox({ imgs: allImages, idx: 0 }); }}
+                className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm border border-white/50 rounded-xl px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-white transition-colors"
               >
-                {img ? (
-                  <img src={img} alt={`${studio.name} ${i + 2}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-500" />
-                ) : (
-                  <div className="w-full h-full bg-zinc-100" />
-                )}
-              </div>
-            ))}
+                Alle Fotos · {allImages.length}
+              </button>
+            )}
           </div>
-          {/* "All photos" button */}
-          {allImages.length > 0 && (
-            <button
-              onClick={() => setLightbox({ imgs: allImages, idx: 0 })}
-              className="absolute bottom-4 right-4 bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:shadow-md transition-shadow"
-            >
-              Alle Fotos · {allImages.length}
-            </button>
-          )}
+          {/* Profile / logo pic — overlaps bottom of banner */}
+          <div className="absolute -bottom-10 left-8">
+            <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-zinc-100">
+              {studio.logo_image ? (
+                <img src={studio.logo_image} alt={studio.name} className="w-full h-full object-cover" />
+              ) : allImages[0] ? (
+                <img src={allImages[0]} alt={studio.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                  <span className="text-white text-2xl font-playfair">{studio.name?.[0]}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-14">
