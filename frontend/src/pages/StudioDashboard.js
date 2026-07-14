@@ -2597,7 +2597,9 @@ export default function StudioDashboard() {
 
           const downloadInvoicePDF = (inv) => {
             const doc = new jsPDF();
-            const sName = inv.studio_name || "Studio";
+            const taxModel = stats?.studio?.tax_model || "standard";
+            const taxNumber = stats?.studio?.tax_number || "";
+            const sName = inv.studio_name || stats?.studio?.name || "Studio";
             const cName = inv.user_name || "Kunde";
             const invNum = inv.invoice_number || "INK-?";
             const dateStr = inv.created_at ? new Date(inv.created_at).toLocaleDateString("de-DE") : "–";
@@ -2606,7 +2608,14 @@ export default function StudioDashboard() {
             const tLabel = typeLabels[inv.booking_type] || "Tattoo-Sitzung";
             const pMethod = payMethodFull[inv.payment_method] || inv.payment_method || "–";
             const pType = payTypeFull[inv.payment_type] || inv.payment_type || "–";
-            const amtFmt = (inv.amount || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const gross = inv.amount || 0;
+            const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Tax calculations
+            const isStandard = taxModel !== "kleinunternehmer";
+            const vatRate = 0.19;
+            const net = isStandard ? gross / (1 + vatRate) : gross;
+            const vat = isStandard ? gross - net : 0;
 
             // Header
             doc.setFillColor(24, 24, 27);
@@ -2627,21 +2636,28 @@ export default function StudioDashboard() {
             doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(24, 24, 27);
             doc.text(dateStr, 196, 59, { align: "right" });
 
-            // Studio / Kunde boxes
+            // Studio / Kunde boxes — slightly taller to fit tax number
+            const studioBoxH = taxNumber ? 28 : 22;
             doc.setFillColor(244, 244, 245);
-            doc.roundedRect(14, 67, 85, 22, 3, 3, "F");
-            doc.roundedRect(111, 67, 85, 22, 3, 3, "F");
+            doc.roundedRect(14, 67, 85, studioBoxH, 3, 3, "F");
+            doc.roundedRect(111, 67, 85, studioBoxH, 3, 3, "F");
             doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(113, 113, 122);
             doc.text("STUDIO", 18, 73); doc.text("KUNDE", 115, 73);
             doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(24, 24, 27);
-            doc.text(sName, 18, 83, { maxWidth: 77 });
-            doc.text(cName, 115, 83, { maxWidth: 77 });
+            doc.text(sName, 18, 82, { maxWidth: 77 });
+            doc.text(cName, 115, 82, { maxWidth: 77 });
+            if (taxNumber) {
+              doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(113, 113, 122);
+              doc.text(taxNumber, 18, 91, { maxWidth: 77 });
+            }
+
+            const tableStartY = 67 + studioBoxH + 6;
 
             // Table
             autoTable(doc, {
-              startY: 97,
-              head: [["Leistung", "Termin", "Typ", "Betrag"]],
-              body: [[tLabel, `${bDateStr}${timeStr}`, pType, `\u20AC ${amtFmt}`]],
+              startY: tableStartY,
+              head: [["Leistung", "Termin", "Typ", isStandard ? "Nettobetrag" : "Betrag"]],
+              body: [[tLabel, `${bDateStr}${timeStr}`, pType, `\u20AC ${fmt(net)}`]],
               styles: { font: "helvetica", fontSize: 10, cellPadding: 5 },
               headStyles: { fillColor: [244, 244, 245], textColor: [113, 113, 122], fontStyle: "bold", fontSize: 8 },
               columnStyles: {
@@ -2650,19 +2666,51 @@ export default function StudioDashboard() {
               tableLineColor: [235, 235, 235], tableLineWidth: 0.1,
             });
 
-            // Total block
             const finalY = doc.lastAutoTable.finalY + 8;
-            doc.setFillColor(24, 24, 27);
-            doc.roundedRect(14, finalY, 182, 24, 4, 4, "F");
-            doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(161, 161, 170);
-            doc.text(`Zahlungsart: ${pMethod}`, 20, finalY + 10);
-            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-            doc.text(`\u20AC ${amtFmt}`, 192, finalY + 16, { align: "right" });
+
+            if (isStandard) {
+              // MwSt breakdown: Netto + MwSt + Brutto
+              const rowH = 7;
+              doc.setFillColor(248, 248, 248);
+              doc.roundedRect(110, finalY, 86, rowH * 3 + 10, 3, 3, "F");
+              doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(113, 113, 122);
+              doc.text("Nettobetrag", 116, finalY + rowH);
+              doc.text("MwSt. 19%", 116, finalY + rowH * 2);
+              doc.setFont("helvetica", "bold"); doc.setTextColor(24, 24, 27);
+              doc.text("Bruttobetrag", 116, finalY + rowH * 3 + 2);
+              doc.setFont("helvetica", "normal"); doc.setTextColor(113, 113, 122);
+              doc.text(`\u20AC ${fmt(net)}`, 192, finalY + rowH, { align: "right" });
+              doc.text(`\u20AC ${fmt(vat)}`, 192, finalY + rowH * 2, { align: "right" });
+
+              // Total block
+              const totalY = finalY + rowH * 3 + 14;
+              doc.setFillColor(24, 24, 27);
+              doc.roundedRect(14, totalY, 182, 24, 4, 4, "F");
+              doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(161, 161, 170);
+              doc.text(`Zahlungsart: ${pMethod}`, 20, totalY + 10);
+              doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+              doc.text(`\u20AC ${fmt(gross)}`, 192, totalY + 16, { align: "right" });
+            } else {
+              // Kleinunternehmer — plain total + §19 note
+              doc.setFillColor(24, 24, 27);
+              doc.roundedRect(14, finalY, 182, 24, 4, 4, "F");
+              doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(161, 161, 170);
+              doc.text(`Zahlungsart: ${pMethod}`, 20, finalY + 10);
+              doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+              doc.text(`\u20AC ${fmt(gross)}`, 192, finalY + 16, { align: "right" });
+
+              // §19 note
+              doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(113, 113, 122);
+              doc.text(
+                "Kein Ausweis von Umsatzsteuer gem\u00e4\u00df \u00a719 UStG.",
+                14, finalY + 32
+              );
+            }
 
             // Footer
             const pageH = doc.internal.pageSize.height;
             doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(180, 180, 180);
-            doc.text("Erstellt mit StudioOS · inkbook.io", 14, pageH - 8);
+            doc.text("Erstellt mit StudioOS \u00b7 inkbook.io", 14, pageH - 8);
             doc.text(invNum, 196, pageH - 8, { align: "right" });
 
             doc.save(`${invNum}.pdf`);
@@ -3019,6 +3067,46 @@ export default function StudioDashboard() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* ── Steuer & Rechnungen ── */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg mb-1 text-zinc-900">Steuer &amp; Rechnungen</h3>
+              <p className="text-xs text-zinc-400 font-inter mb-5">Wird auf allen generierten Rechnungs-PDFs ausgewiesen.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Steuermodell</label>
+                  <select
+                    value={editForm.tax_model || "standard"}
+                    onChange={e => setEditForm({ ...editForm, tax_model: e.target.value })}
+                    className="input-base w-full"
+                  >
+                    <option value="standard">Standard (19% MwSt ausweisen)</option>
+                    <option value="kleinunternehmer">Kleinunternehmer §19 UStG (keine MwSt)</option>
+                  </select>
+                  {(editForm.tax_model === "kleinunternehmer" || (!editForm.tax_model)) && editForm.tax_model === "kleinunternehmer" && (
+                    <p className="text-[11px] text-zinc-400 font-inter mt-1.5 leading-relaxed">
+                      Auf Rechnungen erscheint: „Kein Ausweis von Umsatzsteuer gemäß §19 UStG"
+                    </p>
+                  )}
+                  {(editForm.tax_model === "standard" || !editForm.tax_model) && editForm.tax_model !== "kleinunternehmer" && (
+                    <p className="text-[11px] text-zinc-400 font-inter mt-1.5 leading-relaxed">
+                      Rechnungsbetrag wird als Brutto ausgewiesen (inkl. 19% MwSt).
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Steuernummer / USt-IdNr.</label>
+                  <input
+                    type="text"
+                    value={editForm.tax_number || ""}
+                    onChange={e => setEditForm({ ...editForm, tax_number: e.target.value })}
+                    placeholder="z.B. DE123456789 oder 123/456/78901"
+                    className="input-base w-full"
+                  />
+                  <p className="text-[11px] text-zinc-400 font-inter mt-1.5">Optional — wird auf Rechnungen angezeigt.</p>
+                </div>
+              </div>
             </div>
 
             {/* ── Stornierungsrichtlinie ── */}

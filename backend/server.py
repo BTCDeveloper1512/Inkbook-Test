@@ -559,6 +559,8 @@ class StudioUpdate(BaseModel):
     bank_holder: Optional[str] = None
     bank_iban: Optional[str] = None
     bank_bic: Optional[str] = None
+    tax_model: Optional[str] = None     # "standard" | "kleinunternehmer"
+    tax_number: Optional[str] = None    # Steuernummer or USt-IdNr.
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
