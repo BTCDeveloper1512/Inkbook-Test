@@ -24,3 +24,39 @@ id = "IwTrIP8J63nG28D-UdTN-"
 uri = "file://backend/schema.json"
 type = "unspecified"
 title = "StudioOS API Schema"
+
+[[outputs]]
+id = "heUqFrFkwfSGMD27XZ5kp"
+uri = "file://screenshots/01_homepage.jpg"
+type = "image"
+title = "01 – Homepage"
+
+[[outputs]]
+id = "lON73yw4DsWYGNQ0qNPhl"
+uri = "file://screenshots/02_search.jpg"
+type = "image"
+title = "02 – Studiosuche"
+
+[[outputs]]
+id = "ae2cbgZsnBmRSo4XjDPIU"
+uri = "file://screenshots/03_studio_detail.jpg"
+type = "image"
+title = "03 – Studio-Detailseite"
+
+[[outputs]]
+id = "K_vOnROMNoOorXQQualWG"
+uri = "file://screenshots/05_register.jpg"
+type = "image"
+title = "04 – Registrierung"
+
+[[outputs]]
+id = "NidN7jUo_duMpkchz-HrS"
+uri = "file://screenshots/06_login.jpg"
+type = "image"
+title = "05 – Anmelden"
+
+[[outputs]]
+id = "l5TAbVtjb5mxxdp2EOAT-"
+uri = "file://screenshots/08_guide.jpg"
+type = "image"
+title = "06 – Studio-Handbuch"
