@@ -3506,6 +3506,234 @@ export default function StudioDashboard() {
           );
         })()}
 
+        {/* ── Shop Tab ── */}
+        {activeTab === "shop" && (() => {
+          const studioId = stats?.studio?.studio_id;
+          const TYPE_LABELS = { flash: "Flash-Design", voucher: "Gutschein", aftercare: "Pflegeprodukt" };
+          const TYPE_COLORS = { flash: "bg-violet-50 text-violet-700 border-violet-200", voucher: "bg-emerald-50 text-emerald-700 border-emerald-200", aftercare: "bg-blue-50 text-blue-700 border-blue-200" };
+          return (
+            <motion.div key="shop" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="font-playfair font-bold text-xl text-zinc-900">Online-Shop</h2>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Flash-Designs, Gutscheine & Pflegeprodukte</p>
+                </div>
+                <motion.button whileTap={{ scale: 0.97 }}
+                  onClick={() => { setShopProductForm({ type: "flash", title: "", description: "", price_cents: "", stock: "", image_data: null, active: true }); setShopProductModal({}); }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
+                  <Plus size={14} strokeWidth={2} /> Neues Produkt
+                </motion.button>
+              </div>
+
+              {/* Stripe Connect prompt */}
+              {connectStatus?.status !== "complete" && (
+                <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-start gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <CreditCard size={17} className="text-amber-600" strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-inter font-semibold text-amber-900 text-sm mb-0.5">Stripe-Konto erforderlich</p>
+                    <p className="text-xs text-amber-700 font-inter leading-relaxed">
+                      Damit Kunden im Shop bezahlen können, musst du zuerst dein Stripe-Konto verbinden. Produkte können bereits angelegt werden, der Checkout ist aber erst nach der Verbindung aktiv.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("settings")}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-inter font-semibold rounded-xl transition-colors">
+                      <Link2 size={12} strokeWidth={2} /> Stripe jetzt verbinden
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tabs */}
+              <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+                {[{ id: "products", label: "Produkte" }, { id: "orders", label: "Bestellungen" }].map(t => (
+                  <button key={t.id} onClick={() => setShopSubTab(t.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-inter font-medium transition-all whitespace-nowrap ${shopSubTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                    {t.label}
+                    {t.id === "orders" && shopOrders.filter(o => o.status === "paid").length > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 bg-white/20 text-white text-[9px] font-bold rounded-full">{shopOrders.filter(o => o.status === "paid").length}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Products sub-tab */}
+              {shopSubTab === "products" && (
+                <div>
+                  {shopLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1,2,3].map(i => <div key={i} className="h-48 bg-zinc-100 animate-pulse rounded-2xl" />)}
+                    </div>
+                  ) : shopProducts.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] p-14 text-center">
+                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <ShoppingBag size={20} className="text-zinc-400" strokeWidth={1.5} />
+                      </div>
+                      <p className="font-inter font-semibold text-zinc-700 mb-1">Noch keine Produkte</p>
+                      <p className="text-xs text-zinc-400 font-inter mb-4">Erstelle dein erstes Produkt – Flash-Design, Gutschein oder Pflegeprodukt.</p>
+                      <motion.button whileTap={{ scale: 0.97 }}
+                        onClick={() => { setShopProductForm({ type: "flash", title: "", description: "", price_cents: "", stock: "", image_data: null, active: true }); setShopProductModal({}); }}
+                        className="px-4 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
+                        Erstes Produkt erstellen
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {shopProducts.map(product => (
+                        <div key={product.product_id} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                          {product.image_data && (
+                            <div className="h-40 overflow-hidden bg-zinc-100">
+                              <img src={product.image_data} alt={product.title} className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          {!product.image_data && product.type === "flash" && (
+                            <div className="h-24 bg-zinc-100 flex items-center justify-center">
+                              <Package size={28} className="text-zinc-300" strokeWidth={1} />
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <span className={`inline-block text-[9px] font-inter font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border mb-1.5 ${TYPE_COLORS[product.type]}`}>
+                                  {TYPE_LABELS[product.type]}
+                                </span>
+                                <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{product.title}</p>
+                              </div>
+                              <p className="font-playfair font-bold text-base text-zinc-900 flex-shrink-0">€{(product.price_cents / 100).toFixed(2)}</p>
+                            </div>
+                            {product.description && (
+                              <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-3 line-clamp-2">{product.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-inter mb-3">
+                              <span>{product.sold_count || 0}× verkauft</span>
+                              {product.stock !== null && product.stock !== undefined && (
+                                <><span>·</span><span>{product.stock} auf Lager</span></>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleShopToggleActive(product)}
+                                title={product.active ? "Aktiv – klicken zum Deaktivieren" : "Inaktiv – klicken zum Aktivieren"}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border transition-all ${product.active ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : "bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200"}`}>
+                                {product.active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                                {product.active ? "Aktiv" : "Inaktiv"}
+                              </button>
+                              <button onClick={() => { setShopProductModal(product); setShopProductForm({ type: product.type, title: product.title, description: product.description || "", price_cents: (product.price_cents / 100).toFixed(2), stock: product.stock ?? "", image_data: product.image_data || null, active: product.active }); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border border-zinc-200 hover:border-zinc-400 text-zinc-600 transition-all">
+                                <Eye size={12} strokeWidth={1.5} /> Bearbeiten
+                              </button>
+                              <button onClick={() => handleShopProductDelete(product.product_id)} disabled={shopProductDeleting[product.product_id]}
+                                className="p-1.5 rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all disabled:opacity-40">
+                                <Trash2 size={13} strokeWidth={1.5} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Orders sub-tab */}
+              {shopSubTab === "orders" && (
+                <div>
+                  {/* Umsatzübersicht */}
+                  {shopOrders.length > 0 && (() => {
+                    const paidOrders = shopOrders.filter(o => o.status === "paid");
+                    const totalRevenue = paidOrders.reduce((s, o) => s + (o.amount_cents || 0), 0) / 100;
+                    const now = new Date();
+                    const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                    const monthRevenue = paidOrders.filter(o => (o.paid_at || o.created_at || "").startsWith(monthPrefix)).reduce((s, o) => s + (o.amount_cents || 0), 0) / 100;
+                    const byType = paidOrders.reduce((acc, o) => { acc[o.product_type] = (acc[o.product_type] || 0) + 1; return acc; }, {});
+                    const TYPE_LABELS_REV = { flash: "Flash-Designs", voucher: "Gutscheine", aftercare: "Pflegeprodukte" };
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                        {[
+                          { label: "Gesamtumsatz", value: `€${totalRevenue.toFixed(2)}`, sub: `${paidOrders.length} Bestellung${paidOrders.length !== 1 ? "en" : ""}` },
+                          { label: "Diesen Monat", value: `€${monthRevenue.toFixed(2)}`, sub: now.toLocaleDateString("de-DE", { month: "long", year: "numeric" }) },
+                          ...Object.entries(byType).map(([type, count]) => ({ label: TYPE_LABELS_REV[type] || type, value: `${count}×`, sub: "verkauft" })),
+                        ].map((card, i) => (
+                          <div key={i} className="bg-white rounded-2xl border border-black/[0.04] p-4">
+                            <p className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 mb-1">{card.label}</p>
+                            <p className="font-playfair font-bold text-xl text-zinc-900">{card.value}</p>
+                            <p className="text-[10px] text-zinc-400 font-inter mt-0.5">{card.sub}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {shopOrders.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] p-12 text-center">
+                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <Receipt size={20} className="text-zinc-400" strokeWidth={1.5} />
+                      </div>
+                      <p className="text-zinc-400 font-inter text-sm">Noch keine Bestellungen</p>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-zinc-100">
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Datum</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Produkt</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Kunde</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Betrag</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Status</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Code / Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-50">
+                            {shopOrders.map(order => (
+                              <tr key={order.order_id} className="hover:bg-zinc-50 transition-colors">
+                                <td className="px-5 py-3 text-xs font-inter text-zinc-500">
+                                  {new Date(order.created_at).toLocaleDateString("de-DE")}
+                                </td>
+                                <td className="px-5 py-3">
+                                  <div>
+                                    <p className="text-xs font-inter font-semibold text-zinc-800">{order.product_title}</p>
+                                    <span className={`text-[9px] font-inter font-medium px-1.5 py-0.5 rounded-full border ${TYPE_COLORS[order.product_type] || "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
+                                      {TYPE_LABELS[order.product_type] || order.product_type}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-5 py-3 text-xs font-inter text-zinc-600">{order.user_name || order.user_email || "–"}</td>
+                                <td className="px-5 py-3 text-xs font-inter font-semibold text-zinc-800">€{(order.amount_cents / 100).toFixed(2)}</td>
+                                <td className="px-5 py-3">
+                                  <span className={`text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full border ${order.status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                                    {order.status === "paid" ? "Bezahlt" : "Ausstehend"}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-xs font-mono text-zinc-500">
+                                  {order.voucher_code ? (
+                                    <div className="flex flex-col gap-1">
+                                      <span className="font-bold text-emerald-700">{order.voucher_code}</span>
+                                      {order.redeemed_at ? (
+                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-zinc-100 text-zinc-500 border-zinc-200 w-fit">
+                                          Eingelöst {new Date(order.redeemed_at).toLocaleDateString("de-DE")}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-600 border-emerald-200 w-fit">Verfügbar</span>
+                                      )}
+                                    </div>
+                                  ) : order.download_token ? <span className="text-violet-600">Download-Link aktiv</span> : "–"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
+
         {/* Profile Edit Tab */}
         {activeTab === "profile" && editForm && (
           <><motion.form initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }} onSubmit={handleSaveProfile} className="space-y-6">
@@ -4456,236 +4684,6 @@ export default function StudioDashboard() {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* ── Shop Tab ── */}
-      <AnimatePresence>
-        {activeTab === "shop" && (() => {
-          const studioId = stats?.studio?.studio_id;
-          const TYPE_LABELS = { flash: "Flash-Design", voucher: "Gutschein", aftercare: "Pflegeprodukt" };
-          const TYPE_COLORS = { flash: "bg-violet-50 text-violet-700 border-violet-200", voucher: "bg-emerald-50 text-emerald-700 border-emerald-200", aftercare: "bg-blue-50 text-blue-700 border-blue-200" };
-          return (
-            <motion.div key="shop" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="font-playfair font-bold text-xl text-zinc-900">Online-Shop</h2>
-                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Flash-Designs, Gutscheine & Pflegeprodukte</p>
-                </div>
-                <motion.button whileTap={{ scale: 0.97 }}
-                  onClick={() => { setShopProductForm({ type: "flash", title: "", description: "", price_cents: "", stock: "", image_data: null, active: true }); setShopProductModal({}); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
-                  <Plus size={14} strokeWidth={2} /> Neues Produkt
-                </motion.button>
-              </div>
-
-              {/* Stripe Connect prompt */}
-              {connectStatus?.status !== "complete" && (
-                <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-start gap-4">
-                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CreditCard size={17} className="text-amber-600" strokeWidth={1.75} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-inter font-semibold text-amber-900 text-sm mb-0.5">Stripe-Konto erforderlich</p>
-                    <p className="text-xs text-amber-700 font-inter leading-relaxed">
-                      Damit Kunden im Shop bezahlen können, musst du zuerst dein Stripe-Konto verbinden. Produkte können bereits angelegt werden, der Checkout ist aber erst nach der Verbindung aktiv.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab("settings")}
-                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-inter font-semibold rounded-xl transition-colors">
-                      <Link2 size={12} strokeWidth={2} /> Stripe jetzt verbinden
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Sub-tabs */}
-              <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit">
-                {[{ id: "products", label: "Produkte" }, { id: "orders", label: "Bestellungen" }].map(t => (
-                  <button key={t.id} onClick={() => setShopSubTab(t.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-inter font-medium transition-all whitespace-nowrap ${shopSubTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
-                    {t.label}
-                    {t.id === "orders" && shopOrders.filter(o => o.status === "paid").length > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 bg-white/20 text-white text-[9px] font-bold rounded-full">{shopOrders.filter(o => o.status === "paid").length}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* Products sub-tab */}
-              {shopSubTab === "products" && (
-                <div>
-                  {shopLoading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[1,2,3].map(i => <div key={i} className="h-48 bg-zinc-100 animate-pulse rounded-2xl" />)}
-                    </div>
-                  ) : shopProducts.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-black/[0.04] p-14 text-center">
-                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                        <ShoppingBag size={20} className="text-zinc-400" strokeWidth={1.5} />
-                      </div>
-                      <p className="font-inter font-semibold text-zinc-700 mb-1">Noch keine Produkte</p>
-                      <p className="text-xs text-zinc-400 font-inter mb-4">Erstelle dein erstes Produkt – Flash-Design, Gutschein oder Pflegeprodukt.</p>
-                      <motion.button whileTap={{ scale: 0.97 }}
-                        onClick={() => { setShopProductForm({ type: "flash", title: "", description: "", price_cents: "", stock: "", image_data: null, active: true }); setShopProductModal({}); }}
-                        className="px-4 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
-                        Erstes Produkt erstellen
-                      </motion.button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {shopProducts.map(product => (
-                        <div key={product.product_id} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-                          {product.image_data && (
-                            <div className="h-40 overflow-hidden bg-zinc-100">
-                              <img src={product.image_data} alt={product.title} className="w-full h-full object-cover" />
-                            </div>
-                          )}
-                          {!product.image_data && product.type === "flash" && (
-                            <div className="h-24 bg-zinc-100 flex items-center justify-center">
-                              <Package size={28} className="text-zinc-300" strokeWidth={1} />
-                            </div>
-                          )}
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex-1 min-w-0">
-                                <span className={`inline-block text-[9px] font-inter font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border mb-1.5 ${TYPE_COLORS[product.type]}`}>
-                                  {TYPE_LABELS[product.type]}
-                                </span>
-                                <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{product.title}</p>
-                              </div>
-                              <p className="font-playfair font-bold text-base text-zinc-900 flex-shrink-0">€{(product.price_cents / 100).toFixed(2)}</p>
-                            </div>
-                            {product.description && (
-                              <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-3 line-clamp-2">{product.description}</p>
-                            )}
-                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-inter mb-3">
-                              <span>{product.sold_count || 0}× verkauft</span>
-                              {product.stock !== null && product.stock !== undefined && (
-                                <><span>·</span><span>{product.stock} auf Lager</span></>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => handleShopToggleActive(product)}
-                                title={product.active ? "Aktiv – klicken zum Deaktivieren" : "Inaktiv – klicken zum Aktivieren"}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border transition-all ${product.active ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : "bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200"}`}>
-                                {product.active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
-                                {product.active ? "Aktiv" : "Inaktiv"}
-                              </button>
-                              <button onClick={() => { setShopProductModal(product); setShopProductForm({ type: product.type, title: product.title, description: product.description || "", price_cents: (product.price_cents / 100).toFixed(2), stock: product.stock ?? "", image_data: product.image_data || null, active: product.active }); }}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border border-zinc-200 hover:border-zinc-400 text-zinc-600 transition-all">
-                                <Eye size={12} strokeWidth={1.5} /> Bearbeiten
-                              </button>
-                              <button onClick={() => handleShopProductDelete(product.product_id)} disabled={shopProductDeleting[product.product_id]}
-                                className="p-1.5 rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all disabled:opacity-40">
-                                <Trash2 size={13} strokeWidth={1.5} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Orders sub-tab */}
-              {shopSubTab === "orders" && (
-                <div>
-                  {/* Umsatzübersicht */}
-                  {shopOrders.length > 0 && (() => {
-                    const paidOrders = shopOrders.filter(o => o.status === "paid");
-                    const totalRevenue = paidOrders.reduce((s, o) => s + (o.amount_cents || 0), 0) / 100;
-                    const now = new Date();
-                    const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-                    const monthRevenue = paidOrders.filter(o => (o.paid_at || o.created_at || "").startsWith(monthPrefix)).reduce((s, o) => s + (o.amount_cents || 0), 0) / 100;
-                    const byType = paidOrders.reduce((acc, o) => { acc[o.product_type] = (acc[o.product_type] || 0) + 1; return acc; }, {});
-                    const TYPE_LABELS = { flash: "Flash-Designs", voucher: "Gutscheine", aftercare: "Pflegeprodukte" };
-                    return (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-                        {[
-                          { label: "Gesamtumsatz", value: `€${totalRevenue.toFixed(2)}`, sub: `${paidOrders.length} Bestellung${paidOrders.length !== 1 ? "en" : ""}` },
-                          { label: "Diesen Monat", value: `€${monthRevenue.toFixed(2)}`, sub: now.toLocaleDateString("de-DE", { month: "long", year: "numeric" }) },
-                          ...Object.entries(byType).map(([type, count]) => ({ label: TYPE_LABELS[type] || type, value: `${count}×`, sub: "verkauft" })),
-                        ].map((card, i) => (
-                          <div key={i} className="bg-white rounded-2xl border border-black/[0.04] p-4">
-                            <p className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 mb-1">{card.label}</p>
-                            <p className="font-playfair font-bold text-xl text-zinc-900">{card.value}</p>
-                            <p className="text-[10px] text-zinc-400 font-inter mt-0.5">{card.sub}</p>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
-                  {shopOrders.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-black/[0.04] p-12 text-center">
-                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                        <Receipt size={20} className="text-zinc-400" strokeWidth={1.5} />
-                      </div>
-                      <p className="text-zinc-400 font-inter text-sm">Noch keine Bestellungen</p>
-                    </div>
-                  ) : (
-                    <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-zinc-100">
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Datum</th>
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Produkt</th>
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Kunde</th>
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Betrag</th>
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Status</th>
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Code / Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-50">
-                            {shopOrders.map(order => (
-                              <tr key={order.order_id} className="hover:bg-zinc-50 transition-colors">
-                                <td className="px-5 py-3 text-xs font-inter text-zinc-500">
-                                  {new Date(order.created_at).toLocaleDateString("de-DE")}
-                                </td>
-                                <td className="px-5 py-3">
-                                  <div>
-                                    <p className="text-xs font-inter font-semibold text-zinc-800">{order.product_title}</p>
-                                    <span className={`text-[9px] font-inter font-medium px-1.5 py-0.5 rounded-full border ${TYPE_COLORS[order.product_type] || "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
-                                      {TYPE_LABELS[order.product_type] || order.product_type}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-5 py-3 text-xs font-inter text-zinc-600">{order.user_name || order.user_email || "–"}</td>
-                                <td className="px-5 py-3 text-xs font-inter font-semibold text-zinc-800">€{(order.amount_cents / 100).toFixed(2)}</td>
-                                <td className="px-5 py-3">
-                                  <span className={`text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full border ${order.status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-                                    {order.status === "paid" ? "Bezahlt" : "Ausstehend"}
-                                  </span>
-                                </td>
-                                <td className="px-5 py-3 text-xs font-mono text-zinc-500">
-                                  {order.voucher_code ? (
-                                    <div className="flex flex-col gap-1">
-                                      <span className="font-bold text-emerald-700">{order.voucher_code}</span>
-                                      {order.redeemed_at ? (
-                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-zinc-100 text-zinc-500 border-zinc-200 w-fit">
-                                          Eingelöst {new Date(order.redeemed_at).toLocaleDateString("de-DE")}
-                                        </span>
-                                      ) : (
-                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-600 border-emerald-200 w-fit">Verfügbar</span>
-                                      )}
-                                    </div>
-                                  ) : order.download_token ? <span className="text-violet-600">Download-Link aktiv</span> : "–"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          );
-        })()}
       </AnimatePresence>
 
       {/* ── Shop Product Modal ── */}
