@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp, Lock, Unlock, ShoppingBag, Package, Gift, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp, Lock, Unlock, ShoppingBag, Package, Gift, ToggleLeft, ToggleRight, Archive, ArchiveRestore, User, Layers } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -169,6 +169,18 @@ export default function StudioDashboard() {
   const [stripeWindowOpened, setStripeWindowOpened] = useState(() => !!localStorage.getItem("inkbook_stripe_window_opened"));
   const [offerModal, setOfferModal] = useState(null);
   const [expandedActions, setExpandedActions] = useState({});
+  const [archivedBookings, setArchivedBookings] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("sb_archived") || "[]")); } catch { return new Set(); }
+  });
+  const [showArchived, setShowArchived] = useState(false);
+  const archiveBooking = (id) => setArchivedBookings(prev => {
+    const next = new Set(prev); next.add(id);
+    localStorage.setItem("sb_archived", JSON.stringify([...next])); return next;
+  });
+  const unarchiveBooking = (id) => setArchivedBookings(prev => {
+    const next = new Set(prev); next.delete(id);
+    localStorage.setItem("sb_archived", JSON.stringify([...next])); return next;
+  });
   const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
   const [offerLoading, setOfferLoading] = useState(false);
   const [refundModal, setRefundModal] = useState(null); // booking object with paid deposit
@@ -2393,17 +2405,27 @@ export default function StudioDashboard() {
             </div>
 
             {/* Sub-tabs */}
-            <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
-              {[
-                { id: "active", label: `Aktuelle Buchungen (${activeBookings.length})` },
-                { id: "past", label: `Vergangene Termine (${pastStudioBookings.length})` }
-              ].map(t => (
-                <motion.button key={t.id} onClick={() => setStudioBookingsTab(t.id)} whileTap={{ scale: 0.96 }}
-                  className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${studioBookingsTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
-                  data-testid={`studio-bookings-${t.id}-tab`}>
-                  {t.label}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex gap-1 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_10px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+                {[
+                  { id: "active", label: `Aktuelle Buchungen (${activeBookings.length})` },
+                  { id: "past", label: `Vergangene Termine (${pastStudioBookings.filter(b => !archivedBookings.has(b.booking_id)).length})` }
+                ].map(t => (
+                  <motion.button key={t.id} onClick={() => setStudioBookingsTab(t.id)} whileTap={{ scale: 0.96 }}
+                    className={`px-4 py-2 rounded-xl text-sm font-inter font-medium transition-all whitespace-nowrap ${studioBookingsTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}
+                    data-testid={`studio-bookings-${t.id}-tab`}>
+                    {t.label}
+                  </motion.button>
+                ))}
+              </div>
+              {studioBookingsTab === "past" && archivedBookings.size > 0 && (
+                <motion.button initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                  onClick={() => setShowArchived(v => !v)}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-inter font-medium transition-all ${showArchived ? "bg-zinc-800 text-white border-zinc-800" : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:text-zinc-800"}`}>
+                  <Archive size={12} strokeWidth={1.5} />
+                  Archiv {showArchived ? "ausblenden" : `anzeigen (${archivedBookings.size})`}
                 </motion.button>
-              ))}
+              )}
             </div>
 
             <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
@@ -2413,7 +2435,7 @@ export default function StudioDashboard() {
                   const statusMap = { pending: "ausstehend", confirmed: "bestätigt", cancelled: "abgesagt" };
                   const q = bookingSearch.toLowerCase().trim();
                   const base = studioBookingsTab === "active" ? activeBookings : pastStudioBookings;
-                  const filtered = q ? base.filter(b => {
+                  const searchFiltered = q ? base.filter(b => {
                     const dateStr = b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE") : "";
                     return (
                       (b.user_name || "").toLowerCase().includes(q) ||
@@ -2426,6 +2448,9 @@ export default function StudioDashboard() {
                       (b.notes || "").toLowerCase().includes(q)
                     );
                   }) : base;
+                  const filtered = studioBookingsTab === "past" && !showArchived
+                    ? searchFiltered.filter(b => !archivedBookings.has(b.booking_id))
+                    : searchFiltered;
 
                   if (filtered.length === 0) return (
                     <div className="py-20 flex flex-col items-center text-center">
@@ -2440,6 +2465,73 @@ export default function StudioDashboard() {
 
                   return filtered.map((b, idx) => {
                   const isPast = isBookingPast(b);
+                  const isArchived = archivedBookings.has(b.booking_id);
+
+                  /* ── Compact card for Vergangene Termine ── */
+                  if (studioBookingsTab === "past") {
+                    const typeLabel = b.booking_type === "video_consultation" ? "Video" : b.booking_type === "consultation" ? "Beratung" : "Tattoo";
+                    const dateObj = b.date ? new Date(b.date + "T12:00:00") : null;
+                    const dayNum = dateObj ? dateObj.toLocaleDateString("de-DE", { day: "2-digit" }) : "–";
+                    const monthStr = dateObj ? dateObj.toLocaleDateString("de-DE", { month: "short" }) : "";
+                    const yearStr = dateObj ? dateObj.getFullYear() : "";
+                    return (
+                      <motion.div key={b.booking_id}
+                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.03, type: "spring", stiffness: 320, damping: 26 }}
+                        className={`group flex items-center gap-4 px-5 py-3.5 hover:bg-zinc-50/70 transition-colors ${isArchived ? "opacity-50" : ""}`}
+                        data-testid={`studio-booking-${b.booking_id}`}
+                      >
+                        {/* Date badge */}
+                        <div className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl border shrink-0 ${b.status === "cancelled" || b.status === "studio_cancelled" ? "bg-zinc-50 border-zinc-200" : b.status === "completed" ? "bg-emerald-50 border-emerald-100" : "bg-zinc-50 border-zinc-200"}`}>
+                          <span className={`text-base font-playfair font-bold leading-none ${b.status === "completed" ? "text-emerald-700" : "text-zinc-700"}`}>{dayNum}</span>
+                          <span className="text-[9px] font-inter font-semibold uppercase tracking-wide text-zinc-400">{monthStr}</span>
+                        </div>
+
+                        {/* Customer + details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-inter font-semibold text-sm text-zinc-800 truncate">{b.user_name}</span>
+                            <span className={`text-[10px] font-inter font-semibold px-1.5 py-0.5 rounded-full border ${statusColors[b.status] || statusColors.pending}`}>{statusLabels[b.status] || b.status}</span>
+                            {b.voucher_code && <span className="text-[10px] font-inter bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full">🎟 Gutschein</span>}
+                            {isArchived && <span className="text-[10px] font-inter bg-zinc-100 text-zinc-400 border border-zinc-200 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Archive size={8} /> Archiviert</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-[11px] font-inter text-zinc-400">{b.start_time ? `${b.start_time} – ${b.end_time}` : yearStr}</span>
+                            <span className="w-0.5 h-0.5 rounded-full bg-zinc-300 inline-block" />
+                            <span className="text-[11px] font-inter text-zinc-400">{typeLabel}</span>
+                            {b.status === "completed" && (b.revenue || 0) > 0 && (
+                              <><span className="w-0.5 h-0.5 rounded-full bg-zinc-300 inline-block" /><span className="text-[11px] font-inter font-semibold text-emerald-600">+€{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</span></>
+                            )}
+                            {b.cancellation_reason && <span className="text-[11px] font-inter text-red-400 italic truncate max-w-[160px]">{b.cancellation_reason}</span>}
+                          </div>
+                          {b.notes && <p className="text-[11px] font-inter text-zinc-400 italic mt-0.5 truncate max-w-xs">"{b.notes}"</p>}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <motion.button whileTap={{ scale: 0.92 }}
+                            onClick={() => setNotesModal(b)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+                            title="Bemerkungen">
+                            <FileText size={12} strokeWidth={1.5} />
+                          </motion.button>
+                          <motion.button whileTap={{ scale: 0.92 }}
+                            onClick={() => handleContactCustomer(b)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors"
+                            title="Kunde kontaktieren">
+                            <MessageSquare size={12} strokeWidth={1.5} />
+                          </motion.button>
+                          <motion.button whileTap={{ scale: 0.92 }}
+                            onClick={() => isArchived ? unarchiveBooking(b.booking_id) : archiveBooking(b.booking_id)}
+                            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isArchived ? "text-zinc-500 hover:bg-emerald-50 hover:text-emerald-600" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"}`}
+                            title={isArchived ? "Aus Archiv zurückholen" : "Archivieren"}>
+                            {isArchived ? <ArchiveRestore size={12} strokeWidth={1.5} /> : <Archive size={12} strokeWidth={1.5} />}
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    );
+                  }
+
                   return (
                     <motion.div key={b.booking_id}
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -2829,71 +2921,104 @@ export default function StudioDashboard() {
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: "auto", opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.18 }}
+                              transition={{ type: "spring", stiffness: 280, damping: 28 }}
                               className="overflow-hidden"
                             >
-                              <div className="px-5 pb-4 pt-1 bg-zinc-50/50 border-t border-zinc-100">
-                                <p className="text-xs font-inter text-zinc-700 leading-relaxed mb-3">{inq.tattoo_description}</p>
-                                {(inq.size || inq.body_part) && (
-                                  <div className="flex gap-2 mb-3 flex-wrap">
-                                    {inq.size && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.size}</span>}
-                                    {inq.body_part && <span className="text-[11px] font-inter bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">{inq.body_part}</span>}
+                              {/* Accent bar matching status color */}
+                              <div className={`h-0.5 w-full ${inq.status === "offer_sent" ? "bg-gradient-to-r from-violet-400 to-violet-200" : inq.status === "contacted" ? "bg-gradient-to-r from-blue-400 to-blue-200" : inq.status === "closed" ? "bg-gradient-to-r from-zinc-300 to-zinc-100" : "bg-gradient-to-r from-amber-400 to-amber-200"}`} />
+                              <div className="px-5 pb-5 pt-4 bg-gradient-to-b from-zinc-50/80 to-white">
+                                <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-4">
+                                  {/* Left: content */}
+                                  <div className="space-y-3">
+                                    {/* Description */}
+                                    <div className="bg-white border border-zinc-100 rounded-2xl px-4 py-3">
+                                      <p className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">Anfrage</p>
+                                      <p className="text-sm font-inter text-zinc-800 leading-relaxed">{inq.tattoo_description}</p>
+                                      {(inq.size || inq.body_part) && (
+                                        <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                                          {inq.size && <span className="text-[11px] font-inter font-medium bg-zinc-100 text-zinc-600 px-2.5 py-0.5 rounded-full">{inq.size}</span>}
+                                          {inq.body_part && <span className="text-[11px] font-inter font-medium bg-zinc-100 text-zinc-600 px-2.5 py-0.5 rounded-full">{inq.body_part}</span>}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Reference images */}
+                                    {imgs.length > 0 && (
+                                      <div>
+                                        <p className="text-[10px] font-inter font-semibold uppercase tracking-wider text-zinc-400 mb-2">Referenzbilder</p>
+                                        <div className="flex gap-2 flex-wrap">
+                                          {imgs.map((img, i) => (
+                                            <motion.button key={i} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }} type="button" onClick={() => setNotesLightbox(img)} className="focus:outline-none">
+                                              <img src={img} alt="" className="w-16 h-16 object-cover rounded-2xl border border-zinc-200 shadow-sm cursor-zoom-in" />
+                                            </motion.button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                {(inq.wished_date_from || inq.wished_date_to || inq.wished_time) && (
-                                  <div className="flex items-center gap-1.5 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl flex-wrap">
-                                    <Calendar size={11} className="text-blue-500 shrink-0" strokeWidth={1.5} />
-                                    <span className="text-[11px] font-inter font-semibold text-blue-700">Wunschzeitraum:</span>
-                                    {inq.wished_date_from && <span className="text-[11px] font-inter text-blue-700">{new Date(inq.wished_date_from + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>}
-                                    {inq.wished_date_to && inq.wished_date_to !== inq.wished_date_from && <><span className="text-[11px] text-blue-400">–</span><span className="text-[11px] font-inter text-blue-700">{new Date(inq.wished_date_to + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</span></>}
-                                    {inq.wished_time && <span className="text-[11px] font-inter text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">{inq.wished_time}</span>}
+
+                                  {/* Right: meta + actions */}
+                                  <div className="space-y-2">
+                                    {/* Wunschzeitraum */}
+                                    {(inq.wished_date_from || inq.wished_date_to || inq.wished_time) && (
+                                      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-3.5 py-3">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <Calendar size={11} className="text-blue-500" strokeWidth={2} />
+                                          <span className="text-[10px] font-inter font-bold uppercase tracking-wider text-blue-600">Wunschzeitraum</span>
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          {inq.wished_date_from && (
+                                            <span className="text-sm font-inter font-semibold text-blue-800">
+                                              {new Date(inq.wished_date_from + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
+                                              {inq.wished_date_to && inq.wished_date_to !== inq.wished_date_from && <> – {new Date(inq.wished_date_to + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}</>}
+                                            </span>
+                                          )}
+                                          {inq.wished_time && <span className="text-[11px] font-inter text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full w-fit mt-0.5">{inq.wished_time}</span>}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Actions */}
+                                    <div className="flex flex-col gap-1.5">
+                                      {inq.status !== "offer_sent" && (
+                                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                          onClick={() => {
+                                            setOfferModal({ _inquiry_id: inq.inquiry_id, user_name: inq.user_name, notes: inq.tattoo_description });
+                                            setOfferForm(f => ({ ...f, offer_date: "", offer_notes: "" }));
+                                          }}
+                                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-inter font-semibold rounded-xl hover:bg-violet-700 transition-colors shadow-sm"
+                                        >
+                                          <Tag size={11} strokeWidth={2} /> Angebot erstellen
+                                        </motion.button>
+                                      )}
+                                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                        onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
+                                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors"
+                                      >
+                                        <MessageSquare size={11} strokeWidth={2} /> Nachricht senden
+                                      </motion.button>
+                                      <div className="flex gap-1.5">
+                                        {inq.status === "pending" && (
+                                          <motion.button whileTap={{ scale: 0.97 }} onClick={() => updateInquiryStatus(inq.inquiry_id, "contacted")}
+                                            className="flex-1 px-2 py-1.5 text-[11px] font-inter text-blue-700 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors text-center">
+                                            Kontaktiert
+                                          </motion.button>
+                                        )}
+                                        {inq.status === "contacted" && (
+                                          <motion.button whileTap={{ scale: 0.97 }} onClick={() => updateInquiryStatus(inq.inquiry_id, "closed")}
+                                            className="flex-1 px-2 py-1.5 text-[11px] font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-100 transition-colors text-center">
+                                            Abschließen
+                                          </motion.button>
+                                        )}
+                                        {inq.status !== "pending" && (
+                                          <motion.button whileTap={{ scale: 0.97 }} onClick={() => updateInquiryStatus(inq.inquiry_id, "pending")}
+                                            className="flex-1 px-2 py-1.5 text-[11px] font-inter text-zinc-400 border border-zinc-100 rounded-xl hover:text-zinc-600 hover:border-zinc-200 transition-colors text-center">
+                                            Zurücksetzen
+                                          </motion.button>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                )}
-                                {imgs.length > 0 && (
-                                  <div className="flex gap-2 mb-3 flex-wrap">
-                                    {imgs.map((img, i) => (
-                                      <button key={i} type="button" onClick={() => setNotesLightbox(img)} className="focus:outline-none">
-                                        <img src={img} alt="" className="w-14 h-14 object-cover rounded-xl border border-zinc-200 hover:opacity-80 transition-opacity cursor-zoom-in" />
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  {inq.status !== "offer_sent" && (
-                                    <button
-                                      onClick={() => {
-                                        setOfferModal({ _inquiry_id: inq.inquiry_id, user_name: inq.user_name, notes: inq.tattoo_description });
-                                        setOfferForm(f => ({ ...f, offer_date: "", offer_notes: "" }));
-                                      }}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-inter font-medium rounded-xl hover:bg-violet-700 transition-colors"
-                                    >
-                                      <Tag size={11} strokeWidth={1.5} /> Angebot erstellen
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => navigate(`/messages/${inq.user_id}`, { state: { recipientName: inq.user_name, recipientRole: "customer" } })}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors"
-                                  >
-                                    <MessageSquare size={11} strokeWidth={1.5} /> Nachricht senden
-                                  </button>
-                                  {inq.status === "pending" && (
-                                    <button onClick={() => updateInquiryStatus(inq.inquiry_id, "contacted")}
-                                      className="px-3 py-1.5 text-xs font-inter text-zinc-600 border border-zinc-200 rounded-xl hover:bg-white transition-colors">
-                                      Als kontaktiert markieren
-                                    </button>
-                                  )}
-                                  {inq.status === "contacted" && (
-                                    <button onClick={() => updateInquiryStatus(inq.inquiry_id, "closed")}
-                                      className="px-3 py-1.5 text-xs font-inter text-zinc-500 border border-zinc-200 rounded-xl hover:bg-white transition-colors">
-                                      Abschließen
-                                    </button>
-                                  )}
-                                  {inq.status !== "pending" && (
-                                    <button onClick={() => updateInquiryStatus(inq.inquiry_id, "pending")}
-                                      className="px-3 py-1.5 text-xs font-inter text-zinc-400 hover:text-zinc-600 transition-colors">
-                                      Zurücksetzen
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             </motion.div>
