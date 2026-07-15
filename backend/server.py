@@ -1871,7 +1871,7 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
     deposit_amount = original_deposit_amount
 
     if data.voucher_code:
-        v_code = data.voucher_code.strip().upper()
+        v_code = _normalize_voucher_code(data.voucher_code)
         voucher_order = await db.shop_orders.find_one({
             "voucher_code": v_code,
             "studio_id": data.studio_id,
@@ -1976,7 +1976,7 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
     deposit_amount = original_deposit_amount
 
     if data.voucher_code:
-        v_code = data.voucher_code.strip().upper()
+        v_code = _normalize_voucher_code(data.voucher_code)
         voucher_order = await db.shop_orders.find_one({
             "voucher_code": v_code,
             "studio_id": data.studio_id,
@@ -6763,9 +6763,16 @@ class VoucherValidateRequest(BaseModel):
     voucher_code: str
     studio_id: str
 
+def _normalize_voucher_code(raw: str) -> str:
+    """Normalize voucher input: strip spaces/dashes, reformat as XXXX-XXXX-XXXX."""
+    c = raw.strip().upper().replace("-", "").replace(" ", "")
+    if len(c) >= 12:
+        return f"{c[:4]}-{c[4:8]}-{c[8:12]}"
+    return c
+
 @api_router.post("/shop/vouchers/validate")
 async def validate_voucher(data: VoucherValidateRequest):
-    code = data.voucher_code.strip().upper()
+    code = _normalize_voucher_code(data.voucher_code)
     order = await db.shop_orders.find_one({
         "voucher_code": code,
         "studio_id": data.studio_id,

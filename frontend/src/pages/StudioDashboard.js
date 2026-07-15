@@ -3782,19 +3782,25 @@ export default function StudioDashboard() {
                                     {order.status === "paid" ? "Bezahlt" : "Ausstehend"}
                                   </span>
                                 </td>
-                                <td className="px-5 py-3 text-xs font-mono text-zinc-500">
+                                <td className="px-5 py-3">
                                   {order.voucher_code ? (
-                                    <div className="flex flex-col gap-1">
-                                      <span className="font-bold text-emerald-700">{order.voucher_code}</span>
+                                    <div className="flex flex-col gap-1.5">
+                                      <span className="font-mono font-bold text-sm text-zinc-800 tracking-widest">{order.voucher_code}</span>
                                       {order.redeemed_at ? (
-                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-zinc-100 text-zinc-500 border-zinc-200 w-fit">
-                                          Eingelöst {new Date(order.redeemed_at).toLocaleDateString("de-DE")}
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-inter font-semibold px-2 py-1 rounded-full border bg-zinc-100 text-zinc-500 border-zinc-300 w-fit">
+                                          <CheckCircle size={10} strokeWidth={2} className="text-zinc-400" />
+                                          Eingelöst · {new Date(order.redeemed_at).toLocaleDateString("de-DE")}
                                         </span>
                                       ) : (
-                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-600 border-emerald-200 w-fit">Verfügbar</span>
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-inter font-semibold px-2 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 w-fit animate-pulse">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                          Aktiv · nicht eingelöst
+                                        </span>
                                       )}
                                     </div>
-                                  ) : order.download_token ? <span className="text-violet-600">Download-Link aktiv</span> : "–"}
+                                  ) : order.download_token ? (
+                                    <span className="text-[11px] font-inter text-violet-600 flex items-center gap-1"><Download size={11} strokeWidth={1.5} /> Download-Link aktiv</span>
+                                  ) : "–"}
                                 </td>
                               </tr>
                             ))}
