@@ -629,7 +629,7 @@ export default function CustomerDashboard() {
         {/* Consent Banner — shown when any confirmed booking needs the form */}
         {(() => {
           const pendingConsent = allBookings.filter(b =>
-            b.consent_status === "pending" && b.studio_consent_required &&
+            b.consent_status === "required" && b.studio_consent_required &&
             ["confirmed", "waiting_for_deposit"].includes(b.status)
           );
           if (pendingConsent.length === 0) return null;
@@ -1021,7 +1021,7 @@ export default function CustomerDashboard() {
                             <CheckCircle size={11} strokeWidth={2} className="text-emerald-500" /> Einverständnis eingereicht
                           </span>
                         )}
-                        {booking.consent_status === "pending" && booking.studio_consent_required && !isClosed && (
+                        {booking.consent_status === "required" && booking.studio_consent_required && !isClosed && (
                           <Link
                             to={`/consent/${booking.booking_id}`}
                             className="text-xs font-inter font-semibold flex items-center gap-1 bg-amber-50 border border-amber-300 text-amber-800 px-2.5 py-1 rounded-full hover:bg-amber-100 transition-colors"

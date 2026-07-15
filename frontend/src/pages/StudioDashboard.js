@@ -2254,11 +2254,36 @@ export default function StudioDashboard() {
                               </span>
                             )}
                             {b.consent_status === "submitted" && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
-                                <CheckCircle size={9} strokeWidth={2} /> Einverständnis ✓
+                              <span className="flex items-center gap-1">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
+                                  <CheckCircle size={9} strokeWidth={2} /> Einverständnis ✓
+                                </span>
+                                <button
+                                  type="button"
+                                  title="Einverständnis PDF herunterladen"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await axios.get(`${API}/bookings/${b.booking_id}/consent/download`, { withCredentials: true });
+                                      const pdfData = res.data?.pdf_data || "";
+                                      if (pdfData) {
+                                        const link = document.createElement("a");
+                                        link.href = pdfData;
+                                        link.download = `einverstaendnis-${b.booking_id}.pdf`;
+                                        link.click();
+                                      } else {
+                                        notify.info("Kein PDF gespeichert – das Formular wurde mit einer älteren Version eingereicht.");
+                                      }
+                                    } catch (err) {
+                                      notify.error("PDF konnte nicht geladen werden.");
+                                    }
+                                  }}
+                                  className="text-[10px] px-1.5 py-0.5 rounded-full border font-inter bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 transition-colors flex items-center gap-0.5"
+                                >
+                                  <Download size={8} strokeWidth={2} /> PDF
+                                </button>
                               </span>
                             )}
-                            {b.consent_status === "pending" && (
+                            {b.consent_status === "required" && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
                                 ⚠️ Formular ausstehend
                               </span>

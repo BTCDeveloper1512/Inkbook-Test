@@ -3021,6 +3021,30 @@ async def mark_no_show(booking_id: str, current_user: dict = Depends(get_current
 
 # ─── Digitale Einverständniserklärung ─────────────────────────────────────────
 
+async def send_email_with_pdf(to: str, subject: str, html: str, pdf_base64: str, pdf_filename: str):
+    """Send email with PDF attachment via Resend; falls back to plain HTML email."""
+    resend_api_key = os.environ.get("RESEND_API_KEY", "")
+    if resend_api_key and resend:
+        try:
+            resend.api_key = resend_api_key
+            def _send():
+                resend.Emails.send({
+                    "from": "StudioOS <noreply@studioos.de>",
+                    "to": [to],
+                    "subject": subject,
+                    "html": html,
+                    "attachments": [{"filename": pdf_filename, "content": pdf_base64}],
+                })
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _send)
+            logger.info(f"Email+PDF sent via Resend to {to}: {subject}")
+            return
+        except Exception as e:
+            logger.warning(f"Resend with attachment failed, trying plain email: {e}")
+    # Fallback: send without attachment
+    await send_email(to, subject, html)
+
+
 class ConsentFormSubmit(BaseModel):
     full_name: str
     no_blood_disorders: bool = False
@@ -3033,10 +3057,11 @@ class ConsentFormSubmit(BaseModel):
     medication_notes: str = ""
     agrees_to_terms: bool
     agrees_to_aftercare: bool
-    signature_data: str  # base64 data URL of the signature canvas
+    signature_data: str   # base64 data URL of the signature canvas
+    pdf_data: str = ""    # base64-encoded PDF generated on the frontend with jsPDF
 
-@api_router.post("/bookings/{booking_id}/consent-form")
-async def submit_consent_form(booking_id: str, data: ConsentFormSubmit, current_user: dict = Depends(get_current_user)):
+@api_router.post("/bookings/{booking_id}/consent")
+async def submit_consent(booking_id: str, data: ConsentFormSubmit, current_user: dict = Depends(get_current_user)):
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
@@ -3066,72 +3091,94 @@ async def submit_consent_form(booking_id: str, data: ConsentFormSubmit, current_
         "agrees_to_terms": data.agrees_to_terms,
         "agrees_to_aftercare": data.agrees_to_aftercare,
         "signature_data": data.signature_data,
+        "pdf_data": data.pdf_data,   # base64 PDF stored for studio download
         "submitted_at": now_iso,
     }
-    # Upsert – replace if already exists
+    # Upsert — replace if already submitted
     existing = await db.consent_forms.find_one({"booking_id": booking_id})
     if existing:
         await db.consent_forms.update_one({"booking_id": booking_id}, {"$set": consent_doc})
     else:
         await db.consent_forms.insert_one(consent_doc)
 
-    # Update booking's consent_status
+    # Update booking consent_status lifecycle: required → submitted
     await db.bookings.update_one(
         {"booking_id": booking_id},
         {"$set": {"consent_status": "submitted", "consent_submitted_at": now_iso}}
     )
 
-    # Notify studio owner by email
+    # Send emails with PDF attachment
     studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
     studio_email = studio.get("email") if studio else None
     studio_name = studio.get("name", "Studio") if studio else "Studio"
     customer_email = current_user.get("email", "")
     customer_name = current_user.get("name", data.full_name)
+    appt_date = booking.get("offer_date") or booking.get("date", "")
+    pdf_filename = f"einverstaendnis-{data.full_name.replace(' ', '-').lower()[:30]}-{now_iso[:10]}.pdf"
+
+    # Determine the base64 PDF content for attachments
+    # pdf_data is a data URL like "data:application/pdf;base64,JVBERi..."
+    pdf_b64 = ""
+    if data.pdf_data:
+        try:
+            header, encoded = data.pdf_data.split(",", 1)
+            pdf_b64 = encoded
+        except Exception:
+            pdf_b64 = data.pdf_data
+
+    html_studio = f"""
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+      <div style="background:#18181b;padding:20px 28px">
+        <span style="color:#fff;font-size:18px;font-weight:700">StudioOS</span>
+      </div>
+      <div style="padding:28px">
+        <h2 style="margin:0 0 8px;font-size:18px;color:#18181b">Einverständniserklärung eingereicht ✓</h2>
+        <p style="color:#71717a;font-size:14px;margin:0 0 20px">
+          <strong style="color:#18181b">{customer_name}</strong> hat die digitale Einverständniserklärung für den Termin am
+          <strong style="color:#18181b">{appt_date}</strong> eingereicht.
+        </p>
+        <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px;color:#374151;line-height:1.8">
+          <strong>Name:</strong> {data.full_name}<br>
+          <strong>Eingereicht am:</strong> {now_iso[:10]}<br>
+          <strong>Allergie-Hinweise:</strong> {data.allergy_notes or '–'}<br>
+          <strong>Medikamenten-Hinweise:</strong> {data.medication_notes or '–'}
+        </div>
+        <p style="color:#71717a;font-size:13px">Das vollständige Formular (inkl. Unterschrift) ist als PDF-Anhang beigefügt und kann auch im Studio-Dashboard heruntergeladen werden.</p>
+      </div>
+    </div>"""
+
+    html_customer = f"""
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+      <div style="background:#18181b;padding:20px 28px">
+        <span style="color:#fff;font-size:18px;font-weight:700">StudioOS</span>
+      </div>
+      <div style="padding:28px">
+        <h2 style="margin:0 0 8px;font-size:18px;color:#18181b">Einverständniserklärung bestätigt ✓</h2>
+        <p style="color:#71717a;font-size:14px;margin:0 0 16px">
+          Deine Einverständniserklärung für den Termin bei <strong style="color:#18181b">{studio_name}</strong> am
+          <strong style="color:#18181b">{appt_date}</strong> wurde erfolgreich eingereicht.
+          Eine Kopie ist als PDF-Anhang beigefügt.
+        </p>
+        <p style="color:#71717a;font-size:13px">Bei Fragen wende dich direkt an das Studio.</p>
+      </div>
+    </div>"""
 
     if studio_email:
-        html_studio = f"""
-        <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
-          <div style="background:#18181b;padding:20px 28px">
-            <span style="color:#fff;font-size:18px;font-weight:700">StudioOS</span>
-          </div>
-          <div style="padding:28px">
-            <h2 style="margin:0 0 8px;font-size:18px;color:#18181b">Einverständniserklärung eingereicht</h2>
-            <p style="color:#71717a;font-size:14px;margin:0 0 20px">
-              <strong style="color:#18181b">{customer_name}</strong> hat die digitale Einverständniserklärung für den Termin am
-              <strong style="color:#18181b">{booking.get('date','')}</strong> eingereicht.
-            </p>
-            <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px;color:#374151;line-height:1.7">
-              <strong>Name:</strong> {data.full_name}<br>
-              <strong>Eingereicht:</strong> {now_iso[:10]}<br>
-              <strong>Allergie-Hinweise:</strong> {data.allergy_notes or '–'}<br>
-              <strong>Medikamenten-Hinweise:</strong> {data.medication_notes or '–'}
-            </div>
-            <p style="color:#71717a;font-size:13px">Das vollständige Formular kann im Studio-Dashboard unter Buchungen eingesehen werden.</p>
-          </div>
-        </div>"""
-        asyncio.create_task(send_email(studio_email, f"Einverständniserklärung von {customer_name} – {studio_name}", html_studio))
-
+        asyncio.create_task(
+            send_email_with_pdf(studio_email, f"Einverständniserklärung von {customer_name} – {studio_name}", html_studio, pdf_b64, pdf_filename) if pdf_b64
+            else send_email(studio_email, f"Einverständniserklärung von {customer_name} – {studio_name}", html_studio)
+        )
     if customer_email:
-        html_customer = f"""
-        <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
-          <div style="background:#18181b;padding:20px 28px">
-            <span style="color:#fff;font-size:18px;font-weight:700">StudioOS</span>
-          </div>
-          <div style="padding:28px">
-            <h2 style="margin:0 0 8px;font-size:18px;color:#18181b">Einverständniserklärung bestätigt ✓</h2>
-            <p style="color:#71717a;font-size:14px;margin:0 0 16px">
-              Deine Einverständniserklärung für den Termin bei <strong style="color:#18181b">{studio_name}</strong> am
-              <strong style="color:#18181b">{booking.get('date','')}</strong> wurde erfolgreich eingereicht.
-            </p>
-            <p style="color:#71717a;font-size:13px">Bei Fragen wende dich direkt an das Studio.</p>
-          </div>
-        </div>"""
-        asyncio.create_task(send_email(customer_email, f"Einverständniserklärung bestätigt – {studio_name}", html_customer))
+        asyncio.create_task(
+            send_email_with_pdf(customer_email, f"Einverständniserklärung bestätigt – {studio_name}", html_customer, pdf_b64, pdf_filename) if pdf_b64
+            else send_email(customer_email, f"Einverständniserklärung bestätigt – {studio_name}", html_customer)
+        )
 
     return {"ok": True, "consent_form_id": consent_doc["consent_form_id"]}
 
-@api_router.get("/bookings/{booking_id}/consent-form")
-async def get_consent_form(booking_id: str, current_user: dict = Depends(get_current_user)):
+@api_router.get("/bookings/{booking_id}/consent")
+async def get_consent(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Returns consent status and form metadata (no signature/pdf data)."""
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
@@ -3139,7 +3186,6 @@ async def get_consent_form(booking_id: str, current_user: dict = Depends(get_cur
     user_id = current_user.get("id") or current_user.get("user_id")
     role = current_user.get("role")
 
-    # Studio owners can view their bookings' forms; customers can view their own
     if role == "studio_owner":
         studio = await db.studios.find_one({"owner_id": user_id})
         if not studio or studio.get("studio_id") != booking.get("studio_id"):
@@ -3147,15 +3193,22 @@ async def get_consent_form(booking_id: str, current_user: dict = Depends(get_cur
     elif booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
 
-    form = await db.consent_forms.find_one({"booking_id": booking_id}, {"_id": 0})
-    if not form:
-        return {"status": "not_submitted"}
-    form.pop("signature_data", None)  # Don't return the raw signature in list views
-    return {"status": "submitted", "form": form}
+    # Derive consent_status from studio setting + existence of form
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"consent_required": 1})
+    consent_required = studio.get("consent_required", False) if studio else False
 
-@api_router.get("/bookings/{booking_id}/consent-form/full")
-async def get_consent_form_full(booking_id: str, current_user: dict = Depends(get_current_user)):
-    """Returns the full consent form including signature data (studio owners only)."""
+    form = await db.consent_forms.find_one({"booking_id": booking_id}, {"_id": 0})
+    if form:
+        safe_form = {k: v for k, v in form.items() if k not in ("signature_data", "pdf_data")}
+        return {"status": "submitted", "consent_status": "submitted", "form": safe_form}
+    elif consent_required and booking.get("status") in ("confirmed", "waiting_for_deposit"):
+        return {"status": "not_submitted", "consent_status": "required"}
+    else:
+        return {"status": "not_submitted", "consent_status": "not_required"}
+
+@api_router.get("/bookings/{booking_id}/consent/download")
+async def download_consent_pdf(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Returns the stored PDF (studio owners only) for download."""
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
@@ -3172,8 +3225,13 @@ async def get_consent_form_full(booking_id: str, current_user: dict = Depends(ge
 
     form = await db.consent_forms.find_one({"booking_id": booking_id}, {"_id": 0})
     if not form:
-        return {"status": "not_submitted"}
-    return {"status": "submitted", "form": form}
+        raise HTTPException(status_code=404, detail="Formular nicht eingereicht")
+    return {
+        "ok": True,
+        "pdf_data": form.get("pdf_data", ""),
+        "signature_data": form.get("signature_data", ""),
+        "form": {k: v for k, v in form.items() if k not in ("pdf_data", "signature_data")},
+    }
 
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
 @api_router.post("/messages/unread-count")
@@ -4349,9 +4407,9 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 b["consent_status"] = "submitted"
                 b["consent_submitted_at"] = consent_map[bid]
             elif consent_required and b.get("status") in ["confirmed", "waiting_for_deposit"]:
-                b["consent_status"] = "pending"
+                b["consent_status"] = "required"
             else:
-                b["consent_status"] = b.get("consent_status")
+                b["consent_status"] = "not_required"
 
         return {
             "has_studio": True,
@@ -4396,9 +4454,9 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             if bid in customer_consent_map:
                 b["consent_status"] = "submitted"
             elif studio_consent_required and b.get("status") in ["confirmed", "waiting_for_deposit"]:
-                b["consent_status"] = "pending"
+                b["consent_status"] = "required"
             else:
-                b["consent_status"] = b.get("consent_status")
+                b["consent_status"] = "not_required"
 
         upcoming_list = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
         return {

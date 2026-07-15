@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import jsPDF from "jspdf";
 import Navbar from "../components/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, AlertTriangle, X, PenLine, RotateCcw } from "lucide-react";
@@ -52,7 +53,7 @@ export default function ConsentFormPage() {
       try {
         const [bRes, cRes] = await Promise.all([
           axios.get(`${API}/bookings/${bookingId}`, { withCredentials: true }),
-          axios.get(`${API}/bookings/${bookingId}/consent-form`, { withCredentials: true }),
+          axios.get(`${API}/bookings/${bookingId}/consent`, { withCredentials: true }),
         ]);
         setBooking(bRes.data);
         if (cRes.data?.status === "submitted") setAlreadySubmitted(true);
@@ -150,9 +151,124 @@ export default function ConsentFormPage() {
     const canvas = canvasRef.current;
     const signatureData = canvas.toDataURL("image/png");
 
+    // Generate PDF with jsPDF
+    let pdfDataUrl = "";
+    try {
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const W = doc.internal.pageSize.getWidth();
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
+
+      doc.setFillColor(24, 24, 27);
+      doc.rect(0, 0, W, 28, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("StudioOS", 15, 12);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("Digitale Einverständniserklärung", 15, 20);
+      doc.text(dateStr, W - 15, 20, { align: "right" });
+
+      doc.setTextColor(24, 24, 27);
+      let y = 40;
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Einverständniserklärung", 15, y);
+      y += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(113, 113, 122);
+      const bookingRef = `Buchung: ${bookingId}` + (booking?.studio_name ? ` · ${booking.studio_name}` : "");
+      doc.text(bookingRef, 15, y);
+      y += 12;
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 24, 27);
+      doc.text("Persönliche Angaben", 15, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Name: ${fullName.trim()}`, 15, y);
+      y += 12;
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Gesundheitserklärung", 15, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      const QUESTION_LABELS = {
+        no_blood_disorders: "Keine Blutgerinnungsstörungen / Blutverdünner",
+        no_skin_conditions: "Keine aktiven Hauterkrankungen",
+        no_pregnancy: "Nicht schwanger / stillend",
+        no_medications: "Keine wundheilungshemmenden Medikamente",
+        no_known_allergies: "Keine bekannten Allergien gegen Tattoo-Tinten, Latex oder Desinfektionsmittel",
+        no_infectious_diseases: "Keine übertragbaren Infektionskrankheiten",
+      };
+      Object.entries(healthChecks).forEach(([key, val]) => {
+        doc.setTextColor(val ? 22 : 220, val ? 163 : 38, val ? 74 : 38);
+        doc.text(`${val ? "✓" : "✗"} ${QUESTION_LABELS[key] || key}`, 15, y);
+        y += 6;
+      });
+      y += 2;
+
+      doc.setTextColor(24, 24, 27);
+      if (allergyNotes.trim()) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("Allergie-Hinweise:", 15, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        const allergyLines = doc.splitTextToSize(allergyNotes.trim(), W - 30);
+        doc.text(allergyLines, 15, y);
+        y += allergyLines.length * 5 + 4;
+      }
+      if (medicationNotes.trim()) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("Medikamenten-Hinweise:", 15, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        const medLines = doc.splitTextToSize(medicationNotes.trim(), W - 30);
+        doc.text(medLines, 15, y);
+        y += medLines.length * 5 + 4;
+      }
+
+      doc.setFontSize(9);
+      doc.setTextColor(22, 163, 74);
+      doc.setFont("helvetica", "bold");
+      doc.text("✓ Volljährigkeit / Einwilligung bestätigt", 15, y);
+      y += 5;
+      doc.text("✓ Pflegehinweise bestätigt", 15, y);
+      y += 10;
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 24, 27);
+      doc.text("Unterschrift", 15, y);
+      y += 6;
+      try {
+        doc.addImage(signatureData, "PNG", 15, y, 80, 35);
+        y += 40;
+      } catch (_) {}
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(113, 113, 122);
+      doc.text(`${fullName.trim()} · ${dateStr}`, 15, y);
+
+      pdfDataUrl = doc.output("datauristring");
+    } catch (pdfErr) {
+      console.warn("PDF generation failed (non-critical):", pdfErr);
+    }
+
     setSubmitting(true);
     try {
-      await axios.post(`${API}/bookings/${bookingId}/consent-form`, {
+      await axios.post(`${API}/bookings/${bookingId}/consent`, {
         full_name: fullName.trim(),
         ...healthChecks,
         allergy_notes: allergyNotes,
@@ -160,6 +276,7 @@ export default function ConsentFormPage() {
         agrees_to_terms: agreesTerms,
         agrees_to_aftercare: agreesAftercare,
         signature_data: signatureData,
+        pdf_data: pdfDataUrl,
       }, { withCredentials: true });
       setSubmitted(true);
     } catch (err) {
