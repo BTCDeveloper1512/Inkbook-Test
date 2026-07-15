@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -174,6 +174,114 @@ export default function StudioDashboard() {
   const [refundLoading, setRefundLoading] = useState(false);
   const [depositRefundLoading, setDepositRefundLoading] = useState("");
   const [pageAnalytics, setPageAnalytics] = useState(null);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientsList, setClientsList] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [clientCard, setClientCard] = useState(null);
+  const [clientCardLoading, setClientCardLoading] = useState(false);
+  const clientNotesTimerRef = useRef(null);
+  const [clientNotesSaving, setClientNotesSaving] = useState(false);
+  const [clientTagInput, setClientTagInput] = useState("");
+  const [photoUploadLoading, setPhotoUploadLoading] = useState({});
+  const [photoLightbox, setPhotoLightbox] = useState(null);
+
+  const FITZPATRICK = [
+    { scale: 1, label: "Typ I",   bg: "#FDDCBC", desc: "Sehr hell" },
+    { scale: 2, label: "Typ II",  bg: "#F5C797", desc: "Hell" },
+    { scale: 3, label: "Typ III", bg: "#D4A574", desc: "Mittel" },
+    { scale: 4, label: "Typ IV",  bg: "#A0724A", desc: "Olivfarben" },
+    { scale: 5, label: "Typ V",   bg: "#6B4226", desc: "Braun" },
+    { scale: 6, label: "Typ VI",  bg: "#3D1F0D", desc: "Dunkelbraun" },
+  ];
+
+  const fetchClients = async (studioId) => {
+    setClientsLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/studios/${studioId}/clients`, { withCredentials: true });
+      setClientsList(data || []);
+    } catch { setClientsList([]); } finally { setClientsLoading(false); }
+  };
+
+  const fetchClientCard = async (studioId, userId) => {
+    setClientCardLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/studios/${studioId}/clients/${userId}`, { withCredentials: true });
+      setClientCard(data);
+    } catch { notify.error("Karteikarte konnte nicht geladen werden."); } finally { setClientCardLoading(false); }
+  };
+
+  const handleClientCardField = async (studioId, userId, field, value) => {
+    setClientCard(prev => prev ? { ...prev, [field]: value } : prev);
+    if (field === "internal_notes") {
+      clearTimeout(clientNotesTimerRef.current);
+      clientNotesTimerRef.current = setTimeout(async () => {
+        setClientNotesSaving(true);
+        try {
+          await axios.put(`${API}/studios/${studioId}/clients/${userId}`, { internal_notes: value }, { withCredentials: true });
+        } catch {} finally { setClientNotesSaving(false); }
+      }, 1200);
+    } else {
+      try {
+        await axios.put(`${API}/studios/${studioId}/clients/${userId}`, { [field]: value }, { withCredentials: true });
+      } catch { notify.error("Speichern fehlgeschlagen."); }
+    }
+  };
+
+  const resizeImageToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxPx = 800;
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handlePhotoUpload = async (bookingId, files, label) => {
+    if (!files || !files.length) return;
+    setPhotoUploadLoading(prev => ({ ...prev, [bookingId]: true }));
+    try {
+      const photos = await Promise.all(Array.from(files).slice(0, 5).map(async f => ({
+        photo_data: await resizeImageToBase64(f),
+        label: label || "after",
+      })));
+      const studioId = stats?.studio?.studio_id;
+      await axios.post(`${API}/bookings/${bookingId}/photos`, { photos }, { withCredentials: true });
+      if (selectedClient && studioId) await fetchClientCard(studioId, selectedClient.user_id);
+      notify.success(`${photos.length} Foto(s) hochgeladen.`);
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Foto-Upload fehlgeschlagen.");
+    } finally {
+      setPhotoUploadLoading(prev => ({ ...prev, [bookingId]: false }));
+    }
+  };
+
+  const handleDeletePhoto = async (bookingId, photoId) => {
+    try {
+      await axios.delete(`${API}/bookings/${bookingId}/photos/${photoId}`, { withCredentials: true });
+      setClientCard(prev => prev ? {
+        ...prev,
+        bookings: prev.bookings.map(b => b.booking_id === bookingId
+          ? { ...b, before_after_photos: (b.before_after_photos || []).filter(p => p.photo_id !== photoId) }
+          : b
+        )
+      } : prev);
+    } catch { notify.error("Foto konnte nicht gelöscht werden."); }
+  };
 
   const fetchUnreadMessages = async () => {
     try {
@@ -256,6 +364,13 @@ export default function StudioDashboard() {
         .then(r => setStudioWaitlist(r.data?.entries || []))
         .catch(() => setStudioWaitlist([]))
         .finally(() => setWaitlistLoading(false));
+    }
+    if (activeTab === "clients") {
+      const sid = stats?.studio?.studio_id;
+      if (sid) fetchClients(sid);
+      setSelectedClient(null);
+      setClientCard(null);
+      setClientSearch("");
     }
   }, [activeTab]); // eslint-disable-line
 
@@ -984,6 +1099,7 @@ export default function StudioDashboard() {
                 { id: "kalender",  icon: <CalendarPlus  size={15} strokeWidth={1.5} />, label: "Kalender",     badge: 0 },
                 { id: "waitlist",  icon: <Bell          size={15} strokeWidth={1.5} />, label: "Warteliste",   badge: studioWaitlist.filter(e => e.status === "active").length },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
+                { id: "clients",   icon: <Camera        size={15} strokeWidth={1.5} />, label: "Kunden",        badge: 0 },
                 { id: "invoices",  icon: <Receipt       size={15} strokeWidth={1.5} />, label: "Rechnungen",   badge: 0 },
                 { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
                 { id: "profile",   icon: <Settings2     size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
@@ -1031,6 +1147,7 @@ export default function StudioDashboard() {
                 { id: "inquiries", label: "Anfragen",   badge: inquiries.filter(i => i.status === "pending").length },
                 { id: "kalender",  label: "Kalender",   badge: 0 },
                 { id: "artists",   label: "Artists",    badge: 0 },
+                { id: "clients",   label: "Kunden",     badge: 0 },
                 { id: "messages",  label: "Nachrichten", badge: unreadMessages, href: "/messages" },
                 { id: "profile",   label: "Profil",     badge: 0 },
               ].map(tab => (
@@ -2887,6 +3004,326 @@ export default function StudioDashboard() {
             <ArtistsTab studioId={stats.studio.studio_id} />
           </motion.div>
         )}
+
+        {/* Kunden Tab */}
+        {activeTab === "clients" && (() => {
+          const studioId = stats?.studio?.studio_id;
+          const labelMap = { before: "Vorher", after: "Nachher", healed: "Verheilt" };
+          const statusLabelMap = { confirmed: "Bestätigt", completed: "Abgeschlossen", pending: "Ausstehend", cancelled: "Storniert", customer_cancelled: "Storniert", studio_cancelled: "Storniert" };
+
+          const filteredClients = clientsList.filter(c =>
+            !clientSearch ||
+            c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+            c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+            (c.tags || []).some(t => t.toLowerCase().includes(clientSearch.toLowerCase()))
+          );
+
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  {selectedClient && (
+                    <button onClick={() => { setSelectedClient(null); setClientCard(null); setClientTagInput(""); }}
+                      className="flex items-center gap-1.5 text-xs font-inter text-zinc-500 hover:text-zinc-900 transition-colors px-2.5 py-1.5 rounded-xl hover:bg-zinc-100">
+                      <ChevronLeft size={14} strokeWidth={2} /> Zurück
+                    </button>
+                  )}
+                  <div>
+                    <h2 className="font-playfair font-bold text-xl text-zinc-900">
+                      {selectedClient ? clientCard?.name || selectedClient.name : "Kundenkartei"}
+                    </h2>
+                    <p className="text-xs text-zinc-400 font-inter mt-0.5">
+                      {selectedClient ? (clientCard?.email || selectedClient.email) : `${clientsList.length} Kunden insgesamt`}
+                    </p>
+                  </div>
+                </div>
+                {!selectedClient && (
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" strokeWidth={1.5} />
+                    <input
+                      value={clientSearch} onChange={e => setClientSearch(e.target.value)}
+                      placeholder="Name, E-Mail oder Tag..."
+                      className="pl-8 pr-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-inter text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 transition-all w-64"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Client List */}
+              {!selectedClient && (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                  {clientsLoading ? (
+                    <div className="p-8 flex flex-col gap-3">
+                      {[1,2,3,4].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />)}
+                    </div>
+                  ) : filteredClients.length === 0 ? (
+                    <div className="py-24 flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Users size={26} className="text-zinc-300" strokeWidth={1.5} />
+                      </div>
+                      <h3 className="font-playfair text-lg text-zinc-900 mb-1">
+                        {clientSearch ? "Kein Treffer" : "Noch keine Kunden"}
+                      </h3>
+                      <p className="text-zinc-400 font-inter text-sm text-center max-w-xs">
+                        {clientSearch ? "Kein Kunde passt zur Suche." : "Sobald ein Kunde eine Buchung erstellt hat, erscheint er hier."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-zinc-50">
+                      {filteredClients.map((client, i) => {
+                        const fitz = FITZPATRICK.find(f => f.scale === client.fitzpatrick_scale);
+                        return (
+                          <motion.div key={client.user_id}
+                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.04, type: "spring", stiffness: 300, damping: 22 }}
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setClientTagInput("");
+                              fetchClientCard(studioId, client.user_id);
+                            }}
+                            className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-50 cursor-pointer transition-colors group"
+                          >
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-playfair font-bold text-base text-white"
+                              style={{ background: fitz?.bg || "#94a3b8" }}>
+                              {(client.name || "?")[0]?.toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-inter font-semibold text-sm text-zinc-900">{client.name || "Unbekannt"}</span>
+                                {(client.tags || []).map(t => (
+                                  <span key={t} className="text-[10px] font-inter px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded-full">{t}</span>
+                                ))}
+                                {fitz && (
+                                  <span className="flex items-center gap-1 text-[10px] font-inter text-zinc-500">
+                                    <span className="w-3 h-3 rounded-full inline-block border border-black/10" style={{ background: fitz.bg }} />
+                                    {fitz.label}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-zinc-400 font-inter mt-0.5 truncate">{client.email}</p>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <p className="text-xs font-inter font-semibold text-zinc-700">{client.visit_count} {client.visit_count === 1 ? "Besuch" : "Besuche"}</p>
+                              {client.last_visit && (
+                                <p className="text-xs text-zinc-400 font-inter">
+                                  {new Date(client.last_visit + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
+                                </p>
+                              )}
+                            </div>
+                            <ChevronRight size={14} className="text-zinc-300 group-hover:text-zinc-500 transition-colors flex-shrink-0" strokeWidth={1.5} />
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Client Card Detail */}
+              {selectedClient && (
+                <div className="space-y-4">
+                  {clientCardLoading ? (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] p-8 flex flex-col gap-3">
+                      {[1,2,3].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />)}
+                    </div>
+                  ) : clientCard ? (
+                    <>
+                      {/* Card Header */}
+                      <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5 space-y-5">
+                        {/* Fitzpatrick */}
+                        <div>
+                          <p className="text-[10px] font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2.5">Hauttonkategorie (Fitzpatrick)</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {FITZPATRICK.map(f => (
+                              <button key={f.scale}
+                                onClick={() => handleClientCardField(studioId, selectedClient.user_id, "fitzpatrick_scale", f.scale)}
+                                title={`${f.label} – ${f.desc}`}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-inter transition-all ${clientCard.fitzpatrick_scale === f.scale ? "border-zinc-900 bg-zinc-50 font-semibold text-zinc-900" : "border-zinc-200 text-zinc-500 hover:border-zinc-400"}`}
+                              >
+                                <span className="w-4 h-4 rounded-full flex-shrink-0 border border-black/10" style={{ background: f.bg }} />
+                                {f.label}
+                              </button>
+                            ))}
+                            {clientCard.fitzpatrick_scale && (
+                              <button onClick={() => handleClientCardField(studioId, selectedClient.user_id, "fitzpatrick_scale", null)}
+                                className="px-3 py-2 rounded-xl border border-zinc-100 text-xs font-inter text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 transition-all">
+                                <X size={12} strokeWidth={2} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        <div>
+                          <p className="text-[10px] font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">Tags</p>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {(clientCard.tags || []).map(t => (
+                              <span key={t} className="flex items-center gap-1 text-xs font-inter px-2.5 py-1 bg-zinc-100 text-zinc-700 rounded-full">
+                                {t}
+                                <button onClick={() => handleClientCardField(studioId, selectedClient.user_id, "tags", (clientCard.tags || []).filter(x => x !== t))}
+                                  className="hover:text-red-500 transition-colors ml-0.5">
+                                  <X size={10} strokeWidth={2} />
+                                </button>
+                              </span>
+                            ))}
+                            <div className="flex items-center gap-1">
+                              <input
+                                value={clientTagInput} onChange={e => setClientTagInput(e.target.value)}
+                                onKeyDown={e => {
+                                  if ((e.key === "Enter" || e.key === ",") && clientTagInput.trim()) {
+                                    e.preventDefault();
+                                    const newTag = clientTagInput.trim().replace(/,/g, "");
+                                    if (newTag && !(clientCard.tags || []).includes(newTag)) {
+                                      handleClientCardField(studioId, selectedClient.user_id, "tags", [...(clientCard.tags || []), newTag]);
+                                    }
+                                    setClientTagInput("");
+                                  }
+                                }}
+                                placeholder="Tag hinzufügen…"
+                                className="px-3 py-1 border border-dashed border-zinc-300 rounded-full text-xs font-inter text-zinc-700 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 bg-transparent w-36"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 font-inter">Enter oder Komma zum Hinzufügen · z.B. „Stammkunde", „Erstbesuch"</p>
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400">Interne Notizen</p>
+                            {clientNotesSaving && <span className="text-[10px] text-zinc-400 font-inter animate-pulse">Wird gespeichert…</span>}
+                          </div>
+                          <textarea
+                            value={clientCard.internal_notes || ""}
+                            onChange={e => handleClientCardField(studioId, selectedClient.user_id, "internal_notes", e.target.value)}
+                            rows={4}
+                            placeholder="Allergien, bevorzugte Stile, besondere Hinweise…"
+                            className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl font-inter text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all resize-none"
+                          />
+                          <p className="text-[10px] text-zinc-400 font-inter mt-1">Nur für dein Studio sichtbar · wird automatisch gespeichert</p>
+                        </div>
+                      </div>
+
+                      {/* Booking Timeline */}
+                      <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                        <div className="px-5 py-4 border-b border-zinc-50">
+                          <h3 className="font-inter font-semibold text-sm text-zinc-900">Buchungshistorie</h3>
+                          <p className="text-xs text-zinc-400 font-inter mt-0.5">{(clientCard.bookings || []).length} {(clientCard.bookings || []).length === 1 ? "Termin" : "Termine"}</p>
+                        </div>
+                        {(clientCard.bookings || []).length === 0 ? (
+                          <div className="py-12 flex flex-col items-center justify-center">
+                            <p className="text-zinc-400 font-inter text-sm">Noch keine Buchungen vorhanden.</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-zinc-50">
+                            {(clientCard.bookings || []).map((booking, bi) => {
+                              const photos = booking.before_after_photos || [];
+                              const typeLabels = { tattoo: "Tattoo-Session", consultation: "Beratung", full_day: "Ganztag", video_consultation: "Videoberatung" };
+                              return (
+                                <div key={booking.booking_id} className="p-5">
+                                  {/* Booking header */}
+                                  <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className="w-10 h-10 bg-zinc-900 rounded-xl flex-shrink-0 flex items-center justify-center">
+                                        <Calendar size={14} className="text-white" strokeWidth={1.5} />
+                                      </div>
+                                      <div>
+                                        <p className="font-inter font-semibold text-sm text-zinc-900">
+                                          {(booking.offer_date || booking.date)
+                                            ? new Date((booking.offer_date || booking.date) + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" })
+                                            : "Datum unbekannt"}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                          <span className="text-xs text-zinc-400 font-inter">{typeLabels[booking.booking_type] || booking.booking_type}</span>
+                                          {booking.artist_name && <span className="text-xs text-zinc-400 font-inter">· {booking.artist_name}</span>}
+                                          {booking.revenue != null && booking.revenue > 0 && (
+                                            <span className="text-xs text-emerald-600 font-inter font-semibold">€ {parseFloat(booking.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full border font-inter font-semibold ${statusColors[booking.status] || "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
+                                      {statusLabelMap[booking.status] || booking.status}
+                                    </span>
+                                  </div>
+
+                                  {/* Photos section */}
+                                  <div className="mt-3">
+                                    {photos.length > 0 && (
+                                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3">
+                                        {photos.map(ph => (
+                                          <div key={ph.photo_id} className="relative group aspect-square rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100 cursor-pointer"
+                                            onClick={() => setPhotoLightbox(ph)}>
+                                            <img src={ph.photo_data} alt={ph.label}
+                                              className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end justify-between p-1.5 opacity-0 group-hover:opacity-100">
+                                              <span className="text-[9px] font-inter font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-full">
+                                                {labelMap[ph.label] || ph.label}
+                                              </span>
+                                              <button
+                                                onClick={e => { e.stopPropagation(); handleDeletePhoto(booking.booking_id, ph.photo_id); }}
+                                                className="p-0.5 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors">
+                                                <X size={9} strokeWidth={2.5} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {photos.length < 5 && (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        {["before", "after", "healed"].map(label => (
+                                          <label key={label} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-inter cursor-pointer transition-all hover:border-zinc-400 ${photoUploadLoading[booking.booking_id] ? "opacity-50 pointer-events-none" : "border-zinc-200 text-zinc-600"}`}>
+                                            <Camera size={11} strokeWidth={1.5} />
+                                            {labelMap[label]} hochladen
+                                            <input type="file" accept="image/*" multiple className="hidden"
+                                              onChange={e => handlePhotoUpload(booking.booking_id, e.target.files, label)}
+                                            />
+                                          </label>
+                                        ))}
+                                        {photoUploadLoading[booking.booking_id] && (
+                                          <span className="text-xs font-inter text-zinc-400 animate-pulse">Wird hochgeladen…</span>
+                                        )}
+                                        <span className="text-[10px] text-zinc-400 font-inter">{photos.length}/5 Fotos</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Photo Lightbox */}
+              <AnimatePresence>
+                {photoLightbox && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+                    onClick={() => setPhotoLightbox(null)}>
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                      className="relative max-w-2xl max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                      <img src={photoLightbox.photo_data} alt={photoLightbox.label}
+                        className="max-h-[80vh] w-auto rounded-2xl object-contain" />
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 px-3 py-1 rounded-full text-xs font-inter text-white">
+                        {labelMap[photoLightbox.label] || photoLightbox.label}
+                      </div>
+                      <button onClick={() => setPhotoLightbox(null)}
+                        className="absolute top-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors">
+                        <X size={14} strokeWidth={2} />
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })()}
 
         {/* Profile Edit Tab */}
         {activeTab === "profile" && editForm && (

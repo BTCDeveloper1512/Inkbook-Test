@@ -4423,6 +4423,9 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 b["consent_status"] = "required"
             else:
                 b["consent_status"] = "not_required"
+            # Add photos_count; strip large base64 data from stats payload
+            photos = b.pop("before_after_photos", []) or []
+            b["photos_count"] = len(photos)
 
         return {
             "has_studio": True,
@@ -4470,6 +4473,9 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 b["consent_status"] = "required"
             else:
                 b["consent_status"] = "not_required"
+            # Add photos_count; strip large base64 data from stats payload
+            photos = b.pop("before_after_photos", []) or []
+            b["photos_count"] = len(photos)
 
         upcoming_list = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
         return {
@@ -5960,6 +5966,198 @@ async def admin_reply_direct_chat(chat_id: str, data: TicketReply, current_user:
 
 
 # ─── Video Call ────────────────────────────────────────────────────────────────
+
+# ─── Client Cards & Booking Photos ────────────────────────────────────────────
+
+class ClientCardUpdate(BaseModel):
+    fitzpatrick_scale: Optional[int] = None  # 1-6
+    tags: Optional[List[str]] = None
+    internal_notes: Optional[str] = None
+
+class PhotoUpload(BaseModel):
+    photos: List[Dict[str, Any]]  # [{photo_data: "data:image/...", label: "before"|"after"|"healed"}]
+
+@api_router.get("/studios/{studio_id}/clients")
+async def list_studio_clients(studio_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "studio_owner":
+        raise HTTPException(status_code=403, detail="Nur für Studios")
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    bookings = await db.bookings.find({"studio_id": studio_id}, {"_id": 0}).to_list(None)
+    client_map: Dict[str, Any] = {}
+    for b in bookings:
+        uid = b.get("user_id")
+        if not uid:
+            continue
+        if uid not in client_map:
+            client_map[uid] = {
+                "user_id": uid, "name": b.get("user_name", ""),
+                "email": b.get("user_email", ""), "visit_count": 0, "last_visit": None,
+            }
+        client_map[uid]["visit_count"] += 1
+        bdate = b.get("offer_date") or b.get("date") or ""
+        if bdate and (not client_map[uid]["last_visit"] or bdate > client_map[uid]["last_visit"]):
+            client_map[uid]["last_visit"] = bdate
+
+    client_ids = list(client_map.keys())
+    cards = await db.client_cards.find(
+        {"studio_id": studio_id, "user_id": {"$in": client_ids}}, {"_id": 0}
+    ).to_list(None)
+    card_map = {c["user_id"]: c for c in cards}
+
+    result = []
+    for uid, info in client_map.items():
+        card = card_map.get(uid, {})
+        result.append({
+            "user_id": uid, "name": info["name"], "email": info["email"],
+            "visit_count": info["visit_count"], "last_visit": info["last_visit"],
+            "tags": card.get("tags", []), "fitzpatrick_scale": card.get("fitzpatrick_scale"),
+        })
+    result.sort(key=lambda x: x["last_visit"] or "", reverse=True)
+    return result
+
+@api_router.get("/studios/{studio_id}/clients/{user_id}")
+async def get_client_card(studio_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "studio_owner":
+        raise HTTPException(status_code=403, detail="Nur für Studios")
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    bookings = await db.bookings.find(
+        {"studio_id": studio_id, "user_id": user_id},
+        {"_id": 0, "booking_id": 1, "date": 1, "offer_date": 1, "start_time": 1,
+         "end_time": 1, "status": 1, "booking_type": 1, "artist_name": 1,
+         "revenue": 1, "before_after_photos": 1}
+    ).to_list(None)
+    bookings.sort(key=lambda b: b.get("offer_date") or b.get("date") or "", reverse=True)
+
+    card = await db.client_cards.find_one({"studio_id": studio_id, "user_id": user_id}, {"_id": 0})
+    if not card:
+        card = {"studio_id": studio_id, "user_id": user_id,
+                "fitzpatrick_scale": None, "tags": [], "internal_notes": ""}
+
+    user = await db.users.find_one({"_id": user_id}, {"name": 1, "email": 1, "_id": 0})
+    if not user:
+        user = await db.users.find_one({"id": user_id}, {"name": 1, "email": 1, "_id": 0})
+
+    return {
+        "user_id": user_id,
+        "name": user.get("name", "") if user else (bookings[0].get("user_name", "") if bookings else ""),
+        "email": user.get("email", "") if user else "",
+        "fitzpatrick_scale": card.get("fitzpatrick_scale"),
+        "tags": card.get("tags", []),
+        "internal_notes": card.get("internal_notes", ""),
+        "bookings": bookings,
+    }
+
+@api_router.put("/studios/{studio_id}/clients/{user_id}")
+async def update_client_card(studio_id: str, user_id: str, data: ClientCardUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "studio_owner":
+        raise HTTPException(status_code=403, detail="Nur für Studios")
+    studio = await db.studios.find_one({"studio_id": studio_id})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    if studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing = await db.client_cards.find_one({"studio_id": studio_id, "user_id": user_id})
+    if existing:
+        patch: Dict[str, Any] = {"updated_at": now_iso}
+        if data.fitzpatrick_scale is not None:
+            patch["fitzpatrick_scale"] = data.fitzpatrick_scale
+        if data.tags is not None:
+            patch["tags"] = data.tags
+        if data.internal_notes is not None:
+            patch["internal_notes"] = data.internal_notes
+        await db.client_cards.update_one({"studio_id": studio_id, "user_id": user_id}, {"$set": patch})
+    else:
+        await db.client_cards.insert_one({
+            "studio_id": studio_id, "user_id": user_id, "created_at": now_iso, "updated_at": now_iso,
+            "fitzpatrick_scale": data.fitzpatrick_scale,
+            "tags": data.tags if data.tags is not None else [],
+            "internal_notes": data.internal_notes if data.internal_notes is not None else "",
+        })
+    return {"ok": True}
+
+@api_router.post("/bookings/{booking_id}/photos")
+async def upload_booking_photos(booking_id: str, data: PhotoUpload, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    if current_user.get("role") != "studio_owner":
+        raise HTTPException(status_code=403, detail="Nur Studios können Fotos hochladen")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    existing = booking.get("before_after_photos", [])
+    remaining = 5 - len(existing)
+    if remaining <= 0:
+        raise HTTPException(status_code=400, detail="Maximale Anzahl von 5 Fotos pro Buchung erreicht")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    valid_labels = {"before", "after", "healed"}
+    new_photos = []
+    for p in data.photos[:remaining]:
+        label = p.get("label", "after")
+        if label not in valid_labels:
+            label = "after"
+        new_photos.append({
+            "photo_id": f"ph_{uuid.uuid4().hex[:10]}",
+            "photo_data": p.get("photo_data", ""),
+            "label": label,
+            "uploaded_by": owner_id,
+            "uploaded_at": now_iso,
+        })
+
+    all_photos = existing + new_photos
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"before_after_photos": all_photos}})
+    return {"ok": True, "uploaded": len(new_photos)}
+
+@api_router.delete("/bookings/{booking_id}/photos/{photo_id}")
+async def delete_booking_photo(booking_id: str, photo_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    if current_user.get("role") != "studio_owner":
+        raise HTTPException(status_code=403, detail="Nur Studios können Fotos löschen")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    photos = [p for p in booking.get("before_after_photos", []) if p.get("photo_id") != photo_id]
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"before_after_photos": photos}})
+    return {"ok": True}
+
+@api_router.get("/bookings/{booking_id}/photos")
+async def get_booking_photos(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role")
+    is_customer = booking.get("user_id") == user_id
+    is_studio_owner = False
+    if role == "studio_owner":
+        studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+        is_studio_owner = bool(studio and studio.get("owner_id") == user_id)
+    if not is_customer and not is_studio_owner:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    return {"photos": booking.get("before_after_photos", []), "booking_id": booking_id}
+
 
 @api_router.post("/bookings/{booking_id}/video-join")
 async def video_join(booking_id: str, current_user: dict = Depends(get_current_user)):

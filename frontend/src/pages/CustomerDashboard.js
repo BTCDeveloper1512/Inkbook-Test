@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart, Bell, PenLine } from "lucide-react";
+import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart, Bell, PenLine, Camera, ChevronDown, ChevronUp } from "lucide-react";
 import StudioCard from "../components/StudioCard";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -258,6 +258,28 @@ export default function CustomerDashboard() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [waitlistEntries, setWaitlistEntries] = useState([]);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [bookingPhotosMap, setBookingPhotosMap] = useState({});
+  const [expandedPhotos, setExpandedPhotos] = useState(new Set());
+
+  const fetchBookingPhotos = async (bookingId) => {
+    if (bookingPhotosMap[bookingId] !== undefined) return;
+    setBookingPhotosMap(prev => ({ ...prev, [bookingId]: null }));
+    try {
+      const { data } = await axios.get(`${API}/bookings/${bookingId}/photos`, { withCredentials: true });
+      setBookingPhotosMap(prev => ({ ...prev, [bookingId]: data.photos || [] }));
+    } catch {
+      setBookingPhotosMap(prev => ({ ...prev, [bookingId]: [] }));
+    }
+  };
+
+  const togglePhotos = (bookingId) => {
+    setExpandedPhotos(prev => {
+      const next = new Set(prev);
+      if (next.has(bookingId)) { next.delete(bookingId); }
+      else { next.add(bookingId); fetchBookingPhotos(bookingId); }
+      return next;
+    });
+  };
 
   const fetchReviewedIds = async () => {
     try {
@@ -1030,6 +1052,52 @@ export default function CustomerDashboard() {
                           </Link>
                         )}
                         </div>{/* end actions flex-wrap */}
+
+                        {/* Photos section — shown for past/completed bookings that have studio-uploaded photos */}
+                        {(booking.photos_count > 0) && (isPast || isClosed) && (
+                          <div className="mt-3 border-t border-zinc-100 pt-3">
+                            <button
+                              onClick={() => togglePhotos(booking.booking_id)}
+                              className="flex items-center gap-1.5 text-xs font-inter text-zinc-500 hover:text-zinc-800 transition-colors"
+                            >
+                              <Camera size={11} strokeWidth={1.5} />
+                              {booking.photos_count} {booking.photos_count === 1 ? "Foto" : "Fotos"} vom Studio
+                              {expandedPhotos.has(booking.booking_id) ? <ChevronUp size={11} strokeWidth={2} /> : <ChevronDown size={11} strokeWidth={2} />}
+                            </button>
+                            <AnimatePresence>
+                              {expandedPhotos.has(booking.booking_id) && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                  <div className="pt-3">
+                                    {bookingPhotosMap[booking.booking_id] === null ? (
+                                      <div className="flex gap-2">
+                                        {[1,2,3].map(i => <div key={i} className="w-20 h-20 rounded-xl bg-zinc-100 animate-pulse" />)}
+                                      </div>
+                                    ) : (bookingPhotosMap[booking.booking_id] || []).length === 0 ? (
+                                      <p className="text-xs text-zinc-400 font-inter">Keine Fotos vorhanden.</p>
+                                    ) : (
+                                      <div className="flex gap-2 flex-wrap">
+                                        {(bookingPhotosMap[booking.booking_id] || []).map(ph => {
+                                          const lblMap = { before: "Vorher", after: "Nachher", healed: "Verheilt" };
+                                          return (
+                                            <div key={ph.photo_id} className="relative group">
+                                              <img src={ph.photo_data} alt={ph.label}
+                                                className="w-20 h-20 object-cover rounded-xl border border-zinc-200 cursor-pointer hover:opacity-90 transition-opacity"
+                                                onClick={() => window.open(ph.photo_data, "_blank")}
+                                              />
+                                              <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] font-inter font-semibold px-1.5 py-0.5 rounded-full">
+                                                {lblMap[ph.label] || ph.label}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
                       </div>{/* end content flex-1 */}
                     </motion.div>
                   );
