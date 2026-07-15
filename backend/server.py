@@ -3058,6 +3058,7 @@ class ConsentFormSubmit(BaseModel):
     medication_notes: str = ""
     agrees_to_terms: bool
     agrees_to_aftercare: bool
+    agrees_to_dsgvo: bool      # DSGVO / data protection consent
     signature_data: str        # base64 data URL of the signature canvas
     pdf_data: str = ""         # base64-encoded PDF generated on the frontend with jsPDF
     custom_answers: dict = {}  # answers to studio-configured custom questions {"q_idx": bool}
@@ -3072,8 +3073,15 @@ async def submit_consent(booking_id: str, data: ConsentFormSubmit, current_user:
     if booking.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
 
-    if not data.agrees_to_terms or not data.agrees_to_aftercare:
+    if not data.agrees_to_terms or not data.agrees_to_aftercare or not data.agrees_to_dsgvo:
         raise HTTPException(status_code=400, detail="Alle Pflichtfelder müssen bestätigt werden")
+
+    # Enforce: consent must only be submitted when studio requires it and booking is in an eligible state
+    studio_check = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"consent_required": 1})
+    if not studio_check or not studio_check.get("consent_required", False):
+        raise HTTPException(status_code=400, detail="Dieses Studio fordert keine Einverständniserklärung für diese Buchung")
+    if booking.get("status") not in ("confirmed", "waiting_for_deposit"):
+        raise HTTPException(status_code=400, detail="Das Einverständnisformular kann nur für bestätigte Buchungen eingereicht werden")
 
     now_iso = datetime.now(timezone.utc).isoformat()
     consent_doc = {
@@ -3092,6 +3100,7 @@ async def submit_consent(booking_id: str, data: ConsentFormSubmit, current_user:
         "medication_notes": data.medication_notes,
         "agrees_to_terms": data.agrees_to_terms,
         "agrees_to_aftercare": data.agrees_to_aftercare,
+        "agrees_to_dsgvo": data.agrees_to_dsgvo,
         "signature_data": data.signature_data,
         "pdf_data": data.pdf_data,       # base64 PDF stored for studio download
         "custom_answers": data.custom_answers,  # studio-configured custom question answers

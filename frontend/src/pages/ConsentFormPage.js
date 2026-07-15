@@ -42,6 +42,7 @@ export default function ConsentFormPage() {
   const [medicationNotes, setMedicationNotes] = useState("");
   const [agreesTerms, setAgreesTerms] = useState(false);
   const [agreesAftercare, setAgreesAftercare] = useState(false);
+  const [agreesDsgvo, setAgreesDsgvo] = useState(false);
 
   // Signature canvas
   const canvasRef = useRef(null);
@@ -152,7 +153,7 @@ export default function ConsentFormPage() {
     const allCustomAnswered = customQuestions.every((_, i) => customAnswers[i] !== null);
     if (!allCustomAnswered) { setError("Bitte beantworte alle Zusatzfragen des Studios."); return; }
     if (!hasSignature) { setError("Bitte unterschreibe das Formular im Unterschriftenfeld."); return; }
-    if (!agreesTerms || !agreesAftercare) { setError("Bitte bestätige alle Pflichtfelder."); return; }
+    if (!agreesTerms || !agreesAftercare || !agreesDsgvo) { setError("Bitte bestätige alle Pflichtfelder einschließlich der DSGVO-Zustimmung."); return; }
 
     // Get signature as data URL
     const canvas = canvasRef.current;
@@ -258,6 +259,8 @@ export default function ConsentFormPage() {
       doc.text("✓ Volljährigkeit / Einwilligung bestätigt", 15, y);
       y += 5;
       doc.text("✓ Pflegehinweise bestätigt", 15, y);
+      y += 5;
+      doc.text("✓ DSGVO-Zustimmung erteilt", 15, y);
       y += 10;
 
       doc.setFontSize(11);
@@ -316,6 +319,7 @@ export default function ConsentFormPage() {
         medication_notes: medicationNotes,
         agrees_to_terms: agreesTerms,
         agrees_to_aftercare: agreesAftercare,
+        agrees_to_dsgvo: agreesDsgvo,
         signature_data: signatureData,
         pdf_data: pdfDataUrl,
         custom_answers: customBooleans,
@@ -567,6 +571,12 @@ export default function ConsentFormPage() {
                   val: agreesAftercare,
                   set: setAgreesAftercare,
                   label: "Ich habe die Pflegehinweise erhalten und werde das Tattoo gemäß den Anweisungen des Studios pflegen. Ich nehme zur Kenntnis, dass das Studio für Komplikationen, die durch mangelnde Pflege entstehen, nicht haftet."
+                },
+                {
+                  key: "dsgvo",
+                  val: agreesDsgvo,
+                  set: setAgreesDsgvo,
+                  label: "Ich stimme der Verarbeitung meiner personenbezogenen Daten und Gesundheitsdaten im Rahmen dieser Einverständniserklärung gemäß DSGVO Art. 9 Abs. 2 lit. a zu. Die Daten werden ausschließlich zur Dokumentation und Absicherung des Tätowierungsvorgangs verwendet und nicht an Dritte weitergegeben."
                 }
               ].map(item => (
                 <label key={item.key}
