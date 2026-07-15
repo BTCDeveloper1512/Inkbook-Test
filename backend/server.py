@@ -6386,6 +6386,314 @@ def _aftercare_email_html(booking: dict) -> str:
       {_email_footer(f"Du erhältst diese E-Mail weil du einen Termin bei {studio} auf StudioOS hattest.")}
     </div>"""
 
+# ─── Online-Shop ──────────────────────────────────────────────────────────────
+
+class ShopProductCreate(BaseModel):
+    type: str  # flash | voucher | aftercare
+    title: str
+    description: Optional[str] = ""
+    price_cents: int
+    stock: Optional[int] = None  # None = unlimited
+    image_data: Optional[str] = None  # base64 dataURL for flash designs
+    active: Optional[bool] = True
+
+class ShopProductUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    price_cents: Optional[int] = None
+    stock: Optional[int] = None
+    image_data: Optional[str] = None
+    active: Optional[bool] = None
+
+class ShopCheckoutRequest(BaseModel):
+    product_id: str
+    studio_id: str
+
+@api_router.get("/studios/{studio_id}/shop")
+async def get_shop_products(studio_id: str, include_inactive: bool = False):
+    studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0, "studio_id": 1})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    query = {"studio_id": studio_id}
+    if not include_inactive:
+        query["active"] = True
+    products = await db.shop_products.find(query, {"_id": 0}).to_list(None)
+    return products
+
+@api_router.get("/studios/{studio_id}/shop/orders")
+async def get_shop_orders(studio_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id, "owner_id": current_user.get("id") or current_user.get("user_id")}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    orders = await db.shop_orders.find({"studio_id": studio_id}, {"_id": 0}).to_list(None)
+    orders.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return orders
+
+@api_router.post("/studios/{studio_id}/shop")
+async def create_shop_product(studio_id: str, data: ShopProductCreate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id, "owner_id": current_user.get("id") or current_user.get("user_id")}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    if data.type not in ("flash", "voucher", "aftercare"):
+        raise HTTPException(status_code=400, detail="Ungültiger Produkttyp")
+    if data.price_cents < 50:
+        raise HTTPException(status_code=400, detail="Mindestpreis: 0,50 €")
+    product_id = f"prod_{uuid.uuid4().hex[:14]}"
+    product = {
+        "product_id": product_id,
+        "studio_id": studio_id,
+        "type": data.type,
+        "title": data.title,
+        "description": data.description or "",
+        "price_cents": data.price_cents,
+        "stock": data.stock,
+        "sold_count": 0,
+        "image_data": data.image_data,
+        "active": data.active if data.active is not None else True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.shop_products.insert_one(product)
+    return {k: v for k, v in product.items() if k != "_id"}
+
+@api_router.put("/studios/{studio_id}/shop/{product_id}")
+async def update_shop_product(studio_id: str, product_id: str, data: ShopProductUpdate, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id, "owner_id": current_user.get("id") or current_user.get("user_id")}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    product = await db.shop_products.find_one({"product_id": product_id, "studio_id": studio_id})
+    if not product:
+        raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
+    updates = {k: v for k, v in data.dict(exclude_none=True).items()}
+    if not updates:
+        return {k: v for k, v in product.items() if k != "_id"}
+    await db.shop_products.update_one({"product_id": product_id}, {"$set": updates})
+    updated = await db.shop_products.find_one({"product_id": product_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/studios/{studio_id}/shop/{product_id}")
+async def delete_shop_product(studio_id: str, product_id: str, current_user: dict = Depends(get_current_user)):
+    studio = await db.studios.find_one({"studio_id": studio_id, "owner_id": current_user.get("id") or current_user.get("user_id")}, {"_id": 0})
+    if not studio:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    result = await db.shop_products.delete_one({"product_id": product_id, "studio_id": studio_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
+    return {"ok": True}
+
+@api_router.post("/shop/checkout")
+async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_user: dict = Depends(get_current_user)):
+    product = await db.shop_products.find_one({"product_id": data.product_id, "studio_id": data.studio_id, "active": True}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
+    if product.get("stock") is not None and product.get("stock", 0) <= 0:
+        raise HTTPException(status_code=409, detail="Produkt nicht mehr verfügbar")
+
+    studio = await db.studios.find_one({"studio_id": data.studio_id}, {"_id": 0, "name": 1, "stripe_connect_account_id": 1, "stripe_connect_status": 1})
+    if not studio:
+        raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    customer_email = current_user.get("email", "")
+    studio_name = studio.get("name", "Studio")
+    amount_cents = product["price_cents"]
+    platform_fee_cents = int(round(amount_cents * 5 / 100))
+
+    stripe_client = get_stripe_client()
+    connect_account_id = studio.get("stripe_connect_account_id")
+    use_connect = connect_account_id and studio.get("stripe_connect_status") == "complete"
+
+    order_id = f"ord_{uuid.uuid4().hex[:14]}"
+    pi_kwargs = dict(
+        amount=amount_cents,
+        currency="eur",
+        automatic_payment_methods={"enabled": True},
+        receipt_email=customer_email or None,
+        metadata={"order_id": order_id, "product_id": data.product_id, "user_id": user_id, "studio_id": data.studio_id},
+        description=f"{product['title']} – {studio_name}",
+    )
+    if use_connect:
+        pi_kwargs["transfer_data"] = {"destination": connect_account_id}
+        pi_kwargs["application_fee_amount"] = platform_fee_cents
+    else:
+        pi_kwargs["metadata"]["platform_fee_cents"] = platform_fee_cents
+
+    try:
+        intent = await asyncio.to_thread(stripe_client.PaymentIntent.create, **pi_kwargs)
+    except Exception as e:
+        err_str = str(e)
+        if use_connect and ("No such destination" in err_str or "no such account" in err_str.lower()):
+            pi_kwargs.pop("transfer_data", None)
+            pi_kwargs.pop("application_fee_amount", None)
+            pi_kwargs["metadata"]["platform_fee_cents"] = platform_fee_cents
+            intent = await asyncio.to_thread(stripe_client.PaymentIntent.create, **pi_kwargs)
+        else:
+            raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {err_str}")
+
+    order = {
+        "order_id": order_id,
+        "studio_id": data.studio_id,
+        "studio_name": studio_name,
+        "user_id": user_id,
+        "user_email": customer_email,
+        "user_name": current_user.get("name", ""),
+        "product_id": data.product_id,
+        "product_type": product["type"],
+        "product_title": product["title"],
+        "amount_cents": amount_cents,
+        "stripe_payment_intent_id": intent["id"],
+        "status": "pending",
+        "voucher_code": None,
+        "download_token": None,
+        "download_expires_at": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.shop_orders.insert_one(order)
+
+    return {
+        "order_id": order_id,
+        "client_secret": intent["client_secret"],
+        "amount": amount_cents / 100,
+        "studio_name": studio_name,
+        "product_title": product["title"],
+        "product_type": product["type"],
+    }
+
+@api_router.post("/shop/confirm/{order_id}")
+async def shop_confirm(order_id: str, current_user: dict = Depends(get_current_user)):
+    order = await db.shop_orders.find_one({"order_id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if order.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    stripe_client = get_stripe_client()
+    try:
+        intent = await asyncio.to_thread(stripe_client.PaymentIntent.retrieve, order["stripe_payment_intent_id"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stripe-Fehler: {str(e)}")
+
+    if intent["status"] != "succeeded":
+        raise HTTPException(status_code=400, detail="Zahlung noch nicht abgeschlossen")
+
+    if order.get("status") == "paid":
+        return {k: v for k, v in order.items() if k != "_id"}
+
+    # Generate fulfillment data based on product type
+    product_type = order.get("product_type", "aftercare")
+    updates = {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}
+    voucher_code = None
+    download_token = None
+
+    if product_type == "voucher":
+        voucher_code = str(uuid.uuid4()).upper().replace("-", "")[:16]
+        voucher_code = f"{voucher_code[:4]}-{voucher_code[4:8]}-{voucher_code[8:12]}"
+        updates["voucher_code"] = voucher_code
+    elif product_type == "flash":
+        download_token = secrets.token_urlsafe(32)
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        updates["download_token"] = download_token
+        updates["download_expires_at"] = expires_at
+
+    await db.shop_orders.update_one({"order_id": order_id}, {"$set": updates})
+
+    # Decrement stock if finite
+    product = await db.shop_products.find_one({"product_id": order["product_id"]}, {"_id": 0})
+    if product and product.get("stock") is not None:
+        new_stock = max(0, product["stock"] - 1)
+        await db.shop_products.update_one({"product_id": order["product_id"]}, {"$set": {"stock": new_stock, "sold_count": product.get("sold_count", 0) + 1}})
+    elif product:
+        await db.shop_products.update_one({"product_id": order["product_id"]}, {"$set": {"sold_count": product.get("sold_count", 0) + 1}})
+
+    # Send confirmation email
+    email = order.get("user_email", "")
+    if email:
+        asyncio.create_task(send_email(
+            to=email,
+            subject=f"✅ Deine Bestellung bei {order.get('studio_name', 'Studio')} – {order.get('product_title', '')}",
+            html=_shop_order_email_html(order, voucher_code, download_token, updates.get("download_expires_at"))
+        ))
+
+    updated_order = {**order, **updates}
+    return {k: v for k, v in updated_order.items() if k != "_id"}
+
+@api_router.get("/shop/download/{download_token}")
+async def shop_download(download_token: str):
+    order = await db.shop_orders.find_one({"download_token": download_token, "status": "paid"}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Ungültiger oder abgelaufener Download-Link")
+    expires_at_str = order.get("download_expires_at")
+    if expires_at_str:
+        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(status_code=410, detail="Download-Link abgelaufen")
+    product = await db.shop_products.find_one({"product_id": order["product_id"]}, {"_id": 0})
+    if not product or not product.get("image_data"):
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+    return {"image_data": product["image_data"], "title": product.get("title", "flash-design")}
+
+def _shop_order_email_html(order: dict, voucher_code: str = None, download_token: str = None, download_expires_at: str = None) -> str:
+    studio = order.get("studio_name", "Studio")
+    product_title = order.get("product_title", "")
+    product_type = order.get("product_type", "aftercare")
+    amount = order.get("amount_cents", 0) / 100
+    type_label = {"flash": "Flash-Design", "voucher": "Gutschein", "aftercare": "Pflegeprodukt"}.get(product_type, "Produkt")
+    base_url = os.environ.get("REACT_APP_BACKEND_URL", "")
+
+    extra_block = ""
+    if product_type == "voucher" and voucher_code:
+        extra_block = f"""
+        <div style="margin:24px 0;padding:20px;background:#f4f4f5;border-radius:12px;text-align:center;">
+          <p style="font-size:12px;color:#888;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.1em;">Dein Gutschein-Code</p>
+          <p style="font-size:28px;font-weight:900;letter-spacing:0.2em;color:#0a0a0a;margin:0;font-family:monospace;">{voucher_code}</p>
+          <p style="font-size:11px;color:#aaa;margin:10px 0 0;">Zeige diesen Code beim Besuch im Studio vor.</p>
+        </div>"""
+    elif product_type == "flash" and download_token:
+        expires_label = ""
+        if download_expires_at:
+            try:
+                exp = datetime.fromisoformat(download_expires_at.replace("Z", "+00:00"))
+                expires_label = exp.strftime("%d.%m.%Y %H:%M Uhr")
+            except Exception:
+                pass
+        dl_url = f"{base_url}/api/shop/download/{download_token}"
+        extra_block = f"""
+        <div style="margin:24px 0;padding:20px;background:#f4f4f5;border-radius:12px;text-align:center;">
+          <p style="font-size:13px;color:#555;margin:0 0 14px;">Dein Flash-Design steht zum Download bereit.</p>
+          <a href="{dl_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:13px;font-weight:700;">Flash-Design herunterladen ↓</a>
+          {f'<p style="font-size:11px;color:#aaa;margin:12px 0 0;">Link gültig bis: {expires_label}</p>' if expires_label else ""}
+        </div>"""
+
+    return f"""
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="background:#0a0a0a;padding:28px 32px 20px;">
+        <p style="font-size:22px;font-weight:900;color:#fff;margin:0;">StudioOS</p>
+        <p style="font-size:13px;color:#888;margin:6px 0 0;">Bestellbestätigung</p>
+      </div>
+      <div style="padding:32px;">
+        <p style="font-size:15px;color:#111;font-weight:700;margin:0 0 4px;">Vielen Dank für deine Bestellung! ✅</p>
+        <p style="font-size:13px;color:#555;margin:0 0 20px;">Deine Zahlung bei <strong>{studio}</strong> wurde erfolgreich verarbeitet.</p>
+        <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:12px;color:#888;">Produkt</span>
+            <span style="font-size:12px;color:#111;font-weight:600;">{product_title}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:12px;color:#888;">Typ</span>
+            <span style="font-size:12px;color:#111;">{type_label}</span>
+          </div>
+          <div style="border-top:1px solid #e5e7eb;margin:10px 0;"></div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-size:13px;color:#111;font-weight:700;">Betrag</span>
+            <span style="font-size:14px;color:#0a0a0a;font-weight:900;">€ {amount:.2f}</span>
+          </div>
+        </div>
+        {extra_block}
+        <p style="font-size:12px;color:#aaa;margin:24px 0 0;">Bei Fragen wende dich direkt an das Studio.</p>
+      </div>
+      {_email_footer(f"Du erhältst diese E-Mail weil du ein Produkt bei {studio} auf StudioOS gekauft hast.")}
+    </div>"""
+
 # ─── Scheduler: Reminder & Aftercare ──────────────────────────────────────────
 async def _check_reminders():
     await asyncio.sleep(60)  # Let DB init first

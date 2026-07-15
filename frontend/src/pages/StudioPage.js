@@ -7,7 +7,8 @@ import Lottie from "lottie-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import GuestBookingModal from "../components/GuestBookingModal";
-import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag, Info, Bell } from "lucide-react";
+import { Star, MapPin, Phone, Mail, Globe, CheckCircle, X, ImagePlus, MessageSquare, Palette, Calendar, Clock, ChevronLeft, ChevronRight, Scissors, Instagram, LogIn, UserPlus, Images, Video, Maximize2, ZoomIn, Flag, Info, Bell, ShoppingBag, Package, Gift, Download, ExternalLink } from "lucide-react";
+import PaymentModal from "../components/PaymentModal";
 import WaitlistModal from "../components/WaitlistModal";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "../components/ProfileCard";
@@ -421,6 +422,13 @@ export default function StudioPage() {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportedIds, setReportedIds] = useState(new Set());
 
+  // Shop
+  const [shopProducts, setShopProducts] = useState([]);
+  const [shopLoading, setShopLoading] = useState(false);
+  const [shopSession, setShopSession] = useState(null); // PaymentModal session object
+  const [shopCheckoutLoading, setShopCheckoutLoading] = useState({}); // { productId: bool }
+  const [shopOrderResult, setShopOrderResult] = useState(null); // { type, voucher_code, download_token, product_title }
+
   // Auto-scroll to booking sidebar when ?book=true
   useEffect(() => {
     if (new URLSearchParams(location.search).get("book") === "true" && bookingRef.current) {
@@ -511,14 +519,16 @@ export default function StudioPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [studioRes, reviewsRes, artistsRes] = await Promise.all([
+        const [studioRes, reviewsRes, artistsRes, shopRes] = await Promise.all([
           axios.get(`${API}/studios/${studioId}`),
           axios.get(`${API}/studios/${studioId}/reviews`),
-          axios.get(`${API}/studios/${studioId}/artists`)
+          axios.get(`${API}/studios/${studioId}/artists`),
+          axios.get(`${API}/studios/${studioId}/shop`).catch(() => ({ data: [] })),
         ]);
         setStudio(studioRes.data);
         setReviews(reviewsRes.data);
         setArtists(artistsRes.data);
+        setShopProducts(shopRes.data || []);
         if (artistsRes.data.length > 1) setSelectedCapArtist(artistsRes.data[0].artist_id);
         if (window.posthog) {
           window.posthog.capture("studio_viewed", {
@@ -635,10 +645,47 @@ export default function StudioPage() {
   );
   if (!studio) return null;
 
+  const handleShopCheckout = async (product) => {
+    if (!user) { setShowGuestModal(true); return; }
+    setShopCheckoutLoading(prev => ({ ...prev, [product.product_id]: true }));
+    try {
+      const { data } = await axios.post(`${API}/shop/checkout`, {
+        product_id: product.product_id,
+        studio_id: studioId,
+      }, { withCredentials: true });
+      setShopSession({
+        ...data,
+        session_id: data.order_id,
+        client_secret: data.client_secret,
+        amount: data.amount,
+        studio_name: data.studio_name,
+      });
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Checkout fehlgeschlagen.");
+    } finally {
+      setShopCheckoutLoading(prev => ({ ...prev, [product.product_id]: false }));
+    }
+  };
+
+  const handleShopPaymentSuccess = async () => {
+    if (!shopSession) return;
+    try {
+      const { data } = await axios.post(`${API}/shop/confirm/${shopSession.session_id}`, {}, { withCredentials: true });
+      setShopOrderResult({
+        type: data.product_type,
+        voucher_code: data.voucher_code,
+        download_token: data.download_token,
+        product_title: data.product_title,
+      });
+      setShopSession(null);
+    } catch {}
+  };
+
   const TABS = [
     { id: "about", label: t("studio.about") },
     { id: "artists", label: `Artists (${artists.length})` },
     { id: "reviews", label: `${t("studio.reviews")} (${reviews.length})` },
+    ...(shopProducts.length > 0 ? [{ id: "shop", label: `Shop (${shopProducts.length})` }] : []),
   ];
 
   const allImages = [
@@ -828,6 +875,109 @@ export default function StudioPage() {
                           />
                         </div>
                       ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Shop */}
+              {activeTab === "shop" && (
+                <motion.div key="shop" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+                  {/* Order success banner */}
+                  <AnimatePresence>
+                    {shopOrderResult && (
+                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-inter font-semibold text-emerald-800 mb-1">Bestellung erfolgreich! 🎉</p>
+                            <p className="text-xs text-emerald-700 font-inter mb-3">{shopOrderResult.product_title}</p>
+                            {shopOrderResult.type === "voucher" && shopOrderResult.voucher_code && (
+                              <div className="bg-white rounded-xl p-4 border border-emerald-200 text-center">
+                                <p className="text-[10px] font-inter text-emerald-600 uppercase tracking-widest mb-2">Dein Gutschein-Code</p>
+                                <p className="font-mono font-black text-2xl text-zinc-900 tracking-widest">{shopOrderResult.voucher_code}</p>
+                                <p className="text-[10px] text-zinc-400 font-inter mt-2">Zeige diesen Code beim Besuch vor. Der Code wurde auch per E-Mail gesendet.</p>
+                              </div>
+                            )}
+                            {shopOrderResult.type === "flash" && shopOrderResult.download_token && (
+                              <a href={`${process.env.REACT_APP_BACKEND_URL}/api/shop/download/${shopOrderResult.download_token}`}
+                                target="_blank" rel="noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
+                                <Download size={14} strokeWidth={2} /> Flash-Design herunterladen
+                              </a>
+                            )}
+                            {shopOrderResult.type === "aftercare" && (
+                              <p className="text-xs text-emerald-700 font-inter">Eine Bestätigung wurde per E-Mail gesendet. Das Studio wird sich mit Details melden.</p>
+                            )}
+                          </div>
+                          <button onClick={() => setShopOrderResult(null)} className="p-1 rounded-lg text-emerald-400 hover:text-emerald-700 transition-colors flex-shrink-0">
+                            <X size={16} strokeWidth={2} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Product grid */}
+                  {shopProducts.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] p-12 text-center">
+                      <ShoppingBag size={28} className="text-zinc-300 mx-auto mb-3" strokeWidth={1} />
+                      <p className="text-zinc-400 font-inter text-sm">Noch keine Produkte im Shop</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(() => {
+                        const TYPE_LABELS = { flash: "Flash-Design", voucher: "Gutschein", aftercare: "Pflegeprodukt" };
+                        const TYPE_COLORS = { flash: "bg-violet-50 text-violet-700 border-violet-200", voucher: "bg-emerald-50 text-emerald-700 border-emerald-200", aftercare: "bg-blue-50 text-blue-700 border-blue-200" };
+                        return shopProducts.map(product => (
+                          <div key={product.product_id} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col">
+                            {product.image_data && (
+                              <div className="h-52 overflow-hidden bg-zinc-100 flex-shrink-0">
+                                <img src={product.image_data} alt={product.title}
+                                  className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500" />
+                              </div>
+                            )}
+                            {!product.image_data && product.type === "flash" && (
+                              <div className="h-32 bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                                <Package size={32} className="text-zinc-300" strokeWidth={1} />
+                              </div>
+                            )}
+                            {product.type === "voucher" && (
+                              <div className="h-24 bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center flex-shrink-0">
+                                <Gift size={32} className="text-emerald-400" strokeWidth={1} />
+                              </div>
+                            )}
+                            <div className="p-5 flex flex-col flex-1">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <span className={`inline-block text-[9px] font-inter font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border mb-1.5 ${TYPE_COLORS[product.type]}`}>
+                                    {TYPE_LABELS[product.type]}
+                                  </span>
+                                  <h3 className="font-inter font-semibold text-sm text-zinc-900">{product.title}</h3>
+                                </div>
+                                <p className="font-playfair font-bold text-lg text-zinc-900 flex-shrink-0">€{(product.price_cents / 100).toFixed(2)}</p>
+                              </div>
+                              {product.description && (
+                                <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-4 flex-1">{product.description}</p>
+                              )}
+                              {product.stock !== null && product.stock !== undefined && (
+                                <p className="text-[10px] text-zinc-400 font-inter mb-3">{product.stock} auf Lager</p>
+                              )}
+                              <motion.button whileTap={{ scale: 0.97 }}
+                                onClick={() => handleShopCheckout(product)}
+                                disabled={shopCheckoutLoading[product.product_id] || (product.stock !== null && product.stock !== undefined && product.stock <= 0)}
+                                className="w-full py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                                {shopCheckoutLoading[product.product_id] ? (
+                                  <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Lädt…</>
+                                ) : product.stock === 0 ? "Ausverkauft" : (
+                                  <><ShoppingBag size={13} strokeWidth={2} /> {user ? "Jetzt kaufen" : "Anmelden zum Kaufen"}</>
+                                )}
+                              </motion.button>
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   )}
                 </motion.div>
@@ -1461,6 +1611,51 @@ export default function StudioPage() {
       {showGuestModal && studio && (
         <GuestBookingModal studio={studio} onClose={() => setShowGuestModal(false)} />
       )}
+
+      {/* Shop PaymentModal */}
+      {shopSession && (
+        <PaymentModal
+          session={shopSession}
+          onClose={() => setShopSession(null)}
+          onSuccess={handleShopPaymentSuccess}
+        />
+      )}
+
+      {/* Shop Order Result Modal */}
+      <AnimatePresence>
+        {shopOrderResult && shopOrderResult.type !== "aftercare" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) setShopOrderResult(null); }}>
+            <motion.div initial={{ opacity: 0, scale: 0.94, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
+              <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <CheckCircle size={28} className="text-emerald-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="font-playfair font-bold text-xl text-zinc-900 mb-2">Vielen Dank!</h3>
+              <p className="text-sm text-zinc-500 font-inter mb-5">{shopOrderResult.product_title}</p>
+              {shopOrderResult.type === "voucher" && shopOrderResult.voucher_code && (
+                <div className="bg-zinc-50 rounded-2xl p-5 mb-5 border border-zinc-100">
+                  <p className="text-[10px] font-inter text-zinc-400 uppercase tracking-widest mb-2">Gutschein-Code</p>
+                  <p className="font-mono font-black text-3xl text-zinc-900 tracking-widest">{shopOrderResult.voucher_code}</p>
+                  <p className="text-[10px] text-zinc-400 font-inter mt-3">Zeige diesen Code beim Besuch vor. Er wurde auch per E-Mail gesendet.</p>
+                </div>
+              )}
+              {shopOrderResult.type === "flash" && shopOrderResult.download_token && (
+                <a href={`${API}/shop/download/${shopOrderResult.download_token}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-zinc-900 text-white text-sm font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors mb-4">
+                  <Download size={15} strokeWidth={2} /> Flash-Design herunterladen
+                </a>
+              )}
+              <button onClick={() => setShopOrderResult(null)} className="w-full py-2.5 text-sm font-inter text-zinc-400 hover:text-zinc-700 transition-colors">
+                Schließen
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Waitlist Modal */}
       <AnimatePresence>

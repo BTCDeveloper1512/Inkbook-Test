@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp, Lock, Unlock } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp, Lock, Unlock, ShoppingBag, Package, Gift, ToggleLeft, ToggleRight } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -190,6 +190,17 @@ export default function StudioDashboard() {
   const [clientTagInput, setClientTagInput] = useState("");
   const [photoUploadLoading, setPhotoUploadLoading] = useState({});
   const [photoLightbox, setPhotoLightbox] = useState(null);
+
+  // ── Shop state ────────────────────────────────────────────────────────────
+  const [shopProducts, setShopProducts] = useState([]);
+  const [shopOrders, setShopOrders] = useState([]);
+  const [shopLoading, setShopLoading] = useState(false);
+  const [shopSubTab, setShopSubTab] = useState("products"); // "products" | "orders"
+  const [shopProductModal, setShopProductModal] = useState(null); // null | product obj (empty = new)
+  const [shopProductForm, setShopProductForm] = useState({ type: "flash", title: "", description: "", price_cents: 0, stock: "", image_data: null, active: true });
+  const [shopProductSaving, setShopProductSaving] = useState(false);
+  const [shopProductDeleting, setShopProductDeleting] = useState({});
+  const [shopImageUploading, setShopImageUploading] = useState(false);
 
   const FITZPATRICK = [
     { scale: 1, label: "Typ I",   bg: "#FDDCBC", desc: "Sehr hell" },
@@ -394,7 +405,97 @@ export default function StudioDashboard() {
       setClientCard(null);
       setClientSearch("");
     }
+    if (activeTab === "shop") {
+      const sid = stats?.studio?.studio_id;
+      if (sid) { fetchShopProducts(sid); fetchShopOrders(sid); }
+    }
   }, [activeTab]); // eslint-disable-line
+
+  const fetchShopProducts = async (studioId) => {
+    setShopLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/studios/${studioId}/shop?include_inactive=true`, { withCredentials: true });
+      setShopProducts(data || []);
+    } catch { setShopProducts([]); } finally { setShopLoading(false); }
+  };
+
+  const fetchShopOrders = async (studioId) => {
+    try {
+      const { data } = await axios.get(`${API}/studios/${studioId}/shop/orders`, { withCredentials: true });
+      setShopOrders(data || []);
+    } catch { setShopOrders([]); }
+  };
+
+  const handleShopProductSave = async () => {
+    const studioId = stats?.studio?.studio_id;
+    if (!studioId || !shopProductForm.title.trim() || !shopProductForm.price_cents) return;
+    setShopProductSaving(true);
+    const payload = {
+      type: shopProductForm.type,
+      title: shopProductForm.title.trim(),
+      description: shopProductForm.description.trim(),
+      price_cents: parseInt(Math.round(parseFloat(shopProductForm.price_cents) * 100)) || 0,
+      stock: shopProductForm.stock !== "" ? parseInt(shopProductForm.stock) : null,
+      image_data: shopProductForm.image_data || null,
+      active: shopProductForm.active,
+    };
+    try {
+      if (shopProductModal?.product_id) {
+        await axios.put(`${API}/studios/${studioId}/shop/${shopProductModal.product_id}`, payload, { withCredentials: true });
+      } else {
+        await axios.post(`${API}/studios/${studioId}/shop`, payload, { withCredentials: true });
+      }
+      setShopProductModal(null);
+      await fetchShopProducts(studioId);
+      notify.success(shopProductModal?.product_id ? "Produkt aktualisiert." : "Produkt erstellt.");
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Fehler beim Speichern.");
+    } finally { setShopProductSaving(false); }
+  };
+
+  const handleShopProductDelete = async (productId) => {
+    const studioId = stats?.studio?.studio_id;
+    if (!studioId) return;
+    setShopProductDeleting(prev => ({ ...prev, [productId]: true }));
+    try {
+      await axios.delete(`${API}/studios/${studioId}/shop/${productId}`, { withCredentials: true });
+      setShopProducts(prev => prev.filter(p => p.product_id !== productId));
+      notify.success("Produkt gelöscht.");
+    } catch (e) {
+      notify.error(e.response?.data?.detail || "Fehler beim Löschen.");
+    } finally { setShopProductDeleting(prev => ({ ...prev, [productId]: false })); }
+  };
+
+  const handleShopToggleActive = async (product) => {
+    const studioId = stats?.studio?.studio_id;
+    try {
+      await axios.put(`${API}/studios/${studioId}/shop/${product.product_id}`, { active: !product.active }, { withCredentials: true });
+      setShopProducts(prev => prev.map(p => p.product_id === product.product_id ? { ...p, active: !product.active } : p));
+    } catch { notify.error("Fehler beim Ändern."); }
+  };
+
+  const shopResizeImage = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxPx = 1200;
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
   const fetchSubscription = async () => {
     try {
@@ -1122,6 +1223,7 @@ export default function StudioDashboard() {
                 { id: "waitlist",  icon: <Bell          size={15} strokeWidth={1.5} />, label: "Warteliste",   badge: studioWaitlist.filter(e => e.status === "active").length },
                 { id: "artists",   icon: <Users         size={15} strokeWidth={1.5} />, label: "Artists",      badge: 0 },
                 { id: "clients",   icon: <Camera        size={15} strokeWidth={1.5} />, label: "Kunden",        badge: 0 },
+                { id: "shop",      icon: <ShoppingBag   size={15} strokeWidth={1.5} />, label: "Shop",          badge: 0 },
                 { id: "invoices",  icon: <Receipt       size={15} strokeWidth={1.5} />, label: "Rechnungen",   badge: 0 },
                 { id: "messages",  icon: <MessageSquare size={15} strokeWidth={1.5} />, label: "Nachrichten",  badge: unreadMessages, href: "/messages" },
                 { id: "profile",   icon: <Settings2     size={15} strokeWidth={1.5} />, label: "Profil & Link",badge: 0 },
@@ -1170,6 +1272,7 @@ export default function StudioDashboard() {
                 { id: "kalender",  label: "Kalender",   badge: 0 },
                 { id: "artists",   label: "Artists",    badge: 0 },
                 { id: "clients",   label: "Kunden",     badge: 0 },
+                { id: "shop",      label: "Shop",       badge: 0 },
                 { id: "messages",  label: "Nachrichten", badge: unreadMessages, href: "/messages" },
                 { id: "profile",   label: "Profil",     badge: 0 },
               ].map(tab => (
@@ -4348,6 +4451,306 @@ export default function StudioDashboard() {
                 <motion.button whileTap={{ scale: 0.97 }} onClick={handleCreateOffer} disabled={offerLoading}
                   className="flex-1 px-4 py-2.5 bg-zinc-900 text-white text-sm font-inter font-medium rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {offerLoading ? "Wird gesendet…" : "Angebot senden"}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Shop Tab ── */}
+      <AnimatePresence>
+        {activeTab === "shop" && (() => {
+          const studioId = stats?.studio?.studio_id;
+          const TYPE_LABELS = { flash: "Flash-Design", voucher: "Gutschein", aftercare: "Pflegeprodukt" };
+          const TYPE_COLORS = { flash: "bg-violet-50 text-violet-700 border-violet-200", voucher: "bg-emerald-50 text-emerald-700 border-emerald-200", aftercare: "bg-blue-50 text-blue-700 border-blue-200" };
+          return (
+            <motion.div key="shop" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="font-playfair font-bold text-xl text-zinc-900">Online-Shop</h2>
+                  <p className="text-xs text-zinc-400 font-inter mt-0.5">Flash-Designs, Gutscheine & Pflegeprodukte</p>
+                </div>
+                <motion.button whileTap={{ scale: 0.97 }}
+                  onClick={() => { setShopProductForm({ type: "flash", title: "", description: "", price_cents: "", stock: "", image_data: null, active: true }); setShopProductModal({}); }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
+                  <Plus size={14} strokeWidth={2} /> Neues Produkt
+                </motion.button>
+              </div>
+
+              {/* Sub-tabs */}
+              <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit">
+                {[{ id: "products", label: "Produkte" }, { id: "orders", label: "Bestellungen" }].map(t => (
+                  <button key={t.id} onClick={() => setShopSubTab(t.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-inter font-medium transition-all whitespace-nowrap ${shopSubTab === t.id ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                    {t.label}
+                    {t.id === "orders" && shopOrders.filter(o => o.status === "paid").length > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 bg-white/20 text-white text-[9px] font-bold rounded-full">{shopOrders.filter(o => o.status === "paid").length}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Products sub-tab */}
+              {shopSubTab === "products" && (
+                <div>
+                  {shopLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1,2,3].map(i => <div key={i} className="h-48 bg-zinc-100 animate-pulse rounded-2xl" />)}
+                    </div>
+                  ) : shopProducts.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] p-14 text-center">
+                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <ShoppingBag size={20} className="text-zinc-400" strokeWidth={1.5} />
+                      </div>
+                      <p className="font-inter font-semibold text-zinc-700 mb-1">Noch keine Produkte</p>
+                      <p className="text-xs text-zinc-400 font-inter mb-4">Erstelle dein erstes Produkt – Flash-Design, Gutschein oder Pflegeprodukt.</p>
+                      <motion.button whileTap={{ scale: 0.97 }}
+                        onClick={() => { setShopProductForm({ type: "flash", title: "", description: "", price_cents: "", stock: "", image_data: null, active: true }); setShopProductModal({}); }}
+                        className="px-4 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 transition-colors">
+                        Erstes Produkt erstellen
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {shopProducts.map(product => (
+                        <div key={product.product_id} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
+                          {product.image_data && (
+                            <div className="h-40 overflow-hidden bg-zinc-100">
+                              <img src={product.image_data} alt={product.title} className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          {!product.image_data && product.type === "flash" && (
+                            <div className="h-24 bg-zinc-100 flex items-center justify-center">
+                              <Package size={28} className="text-zinc-300" strokeWidth={1} />
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <span className={`inline-block text-[9px] font-inter font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border mb-1.5 ${TYPE_COLORS[product.type]}`}>
+                                  {TYPE_LABELS[product.type]}
+                                </span>
+                                <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{product.title}</p>
+                              </div>
+                              <p className="font-playfair font-bold text-base text-zinc-900 flex-shrink-0">€{(product.price_cents / 100).toFixed(2)}</p>
+                            </div>
+                            {product.description && (
+                              <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-3 line-clamp-2">{product.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-inter mb-3">
+                              <span>{product.sold_count || 0}× verkauft</span>
+                              {product.stock !== null && product.stock !== undefined && (
+                                <><span>·</span><span>{product.stock} auf Lager</span></>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleShopToggleActive(product)}
+                                title={product.active ? "Aktiv – klicken zum Deaktivieren" : "Inaktiv – klicken zum Aktivieren"}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border transition-all ${product.active ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : "bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200"}`}>
+                                {product.active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                                {product.active ? "Aktiv" : "Inaktiv"}
+                              </button>
+                              <button onClick={() => { setShopProductModal(product); setShopProductForm({ type: product.type, title: product.title, description: product.description || "", price_cents: (product.price_cents / 100).toFixed(2), stock: product.stock ?? "", image_data: product.image_data || null, active: product.active }); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border border-zinc-200 hover:border-zinc-400 text-zinc-600 transition-all">
+                                <Eye size={12} strokeWidth={1.5} /> Bearbeiten
+                              </button>
+                              <button onClick={() => handleShopProductDelete(product.product_id)} disabled={shopProductDeleting[product.product_id]}
+                                className="p-1.5 rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all disabled:opacity-40">
+                                <Trash2 size={13} strokeWidth={1.5} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Orders sub-tab */}
+              {shopSubTab === "orders" && (
+                <div>
+                  {shopOrders.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] p-12 text-center">
+                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <Receipt size={20} className="text-zinc-400" strokeWidth={1.5} />
+                      </div>
+                      <p className="text-zinc-400 font-inter text-sm">Noch keine Bestellungen</p>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-zinc-100">
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Datum</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Produkt</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Kunde</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Betrag</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Status</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Code / Token</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-50">
+                            {shopOrders.map(order => (
+                              <tr key={order.order_id} className="hover:bg-zinc-50 transition-colors">
+                                <td className="px-5 py-3 text-xs font-inter text-zinc-500">
+                                  {new Date(order.created_at).toLocaleDateString("de-DE")}
+                                </td>
+                                <td className="px-5 py-3">
+                                  <div>
+                                    <p className="text-xs font-inter font-semibold text-zinc-800">{order.product_title}</p>
+                                    <span className={`text-[9px] font-inter font-medium px-1.5 py-0.5 rounded-full border ${TYPE_COLORS[order.product_type] || "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
+                                      {TYPE_LABELS[order.product_type] || order.product_type}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-5 py-3 text-xs font-inter text-zinc-600">{order.user_name || order.user_email || "–"}</td>
+                                <td className="px-5 py-3 text-xs font-inter font-semibold text-zinc-800">€{(order.amount_cents / 100).toFixed(2)}</td>
+                                <td className="px-5 py-3">
+                                  <span className={`text-[10px] font-inter font-semibold px-2 py-0.5 rounded-full border ${order.status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                                    {order.status === "paid" ? "Bezahlt" : "Ausstehend"}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-xs font-mono text-zinc-500">
+                                  {order.voucher_code ? <span className="font-bold text-emerald-700">{order.voucher_code}</span> : order.download_token ? <span className="text-violet-600">Download-Link aktiv</span> : "–"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* ── Shop Product Modal ── */}
+      <AnimatePresence>
+        {shopProductModal !== null && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget && !shopProductSaving) setShopProductModal(null); }}
+          >
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-base font-playfair font-semibold text-zinc-900">
+                  {shopProductModal?.product_id ? "Produkt bearbeiten" : "Neues Produkt"}
+                </p>
+                {!shopProductSaving && (
+                  <button onClick={() => setShopProductModal(null)} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors"><X size={16} strokeWidth={2} /></button>
+                )}
+              </div>
+
+              {/* Product type */}
+              <div className="mb-4">
+                <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Produkttyp</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[{ id: "flash", label: "Flash-Design", icon: <Package size={14} strokeWidth={1.5} /> }, { id: "voucher", label: "Gutschein", icon: <Gift size={14} strokeWidth={1.5} /> }, { id: "aftercare", label: "Pflegeprodukt", icon: <ShoppingBag size={14} strokeWidth={1.5} /> }].map(t => (
+                    <button key={t.id} onClick={() => setShopProductForm(f => ({ ...f, type: t.id }))}
+                      disabled={!!shopProductModal?.product_id}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 text-xs font-inter font-medium transition-all ${shopProductForm.type === t.id ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"} disabled:cursor-default`}>
+                      {t.icon}{t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title */}
+              <div className="mb-4">
+                <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Titel *</label>
+                <input type="text" value={shopProductForm.title} onChange={e => setShopProductForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="z.B. Rose Flash Design, Heilcreme 50ml..."
+                  className="w-full px-3.5 py-2.5 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-900 text-zinc-900 transition-colors" />
+              </div>
+
+              {/* Description */}
+              <div className="mb-4">
+                <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Beschreibung</label>
+                <textarea rows={2} value={shopProductForm.description} onChange={e => setShopProductForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional – kurze Produktbeschreibung..."
+                  className="w-full px-3.5 py-2.5 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-900 text-zinc-900 resize-none transition-colors" />
+              </div>
+
+              {/* Price + Stock */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Preis (€) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-inter">€</span>
+                    <input type="number" min="0.50" step="0.01" value={shopProductForm.price_cents} onChange={e => setShopProductForm(f => ({ ...f, price_cents: e.target.value }))}
+                      placeholder="0.00"
+                      className="w-full pl-7 pr-3 py-2.5 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-900 text-zinc-900 transition-colors" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Lagerbestand</label>
+                  <input type="number" min="0" step="1" value={shopProductForm.stock} onChange={e => setShopProductForm(f => ({ ...f, stock: e.target.value }))}
+                    placeholder="∞ (unlimitiert)"
+                    className="w-full px-3.5 py-2.5 text-sm border border-zinc-200 rounded-xl font-inter focus:outline-none focus:border-zinc-900 text-zinc-900 transition-colors" />
+                </div>
+              </div>
+
+              {/* Image upload for flash designs */}
+              {shopProductForm.type === "flash" && (
+                <div className="mb-4">
+                  <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Design-Bild</label>
+                  {shopProductForm.image_data ? (
+                    <div className="relative rounded-2xl overflow-hidden bg-zinc-100 h-40">
+                      <img src={shopProductForm.image_data} alt="Vorschau" className="w-full h-full object-contain" />
+                      <button onClick={() => setShopProductForm(f => ({ ...f, image_data: null }))}
+                        className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-zinc-600 hover:text-red-500 transition-colors shadow-sm">
+                        <X size={13} strokeWidth={2} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className={`flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 hover:border-zinc-400 rounded-2xl cursor-pointer transition-colors ${shopImageUploading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                      <Package size={20} className="text-zinc-400" strokeWidth={1.5} />
+                      <span className="text-xs font-inter text-zinc-500">{shopImageUploading ? "Wird hochgeladen…" : "Bild hochladen (JPG, PNG)"}</span>
+                      <input type="file" accept="image/*" disabled={shopImageUploading} className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setShopImageUploading(true);
+                          try {
+                            const dataUrl = await shopResizeImage(file);
+                            setShopProductForm(f => ({ ...f, image_data: dataUrl }));
+                          } catch { notify.error("Bild konnte nicht geladen werden."); }
+                          finally { setShopImageUploading(false); }
+                        }} />
+                    </label>
+                  )}
+                  <p className="text-[10px] text-zinc-400 font-inter mt-1">Das Bild wird erst nach Kauf zum Download freigegeben.</p>
+                </div>
+              )}
+
+              {/* Active toggle */}
+              <div className="flex items-center justify-between mb-5 p-3 bg-zinc-50 rounded-xl">
+                <span className="text-xs font-inter text-zinc-700 font-medium">Im Shop sichtbar</span>
+                <button onClick={() => setShopProductForm(f => ({ ...f, active: !f.active }))}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter font-medium border transition-all ${shopProductForm.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-zinc-100 text-zinc-500 border-zinc-200"}`}>
+                  {shopProductForm.active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                  {shopProductForm.active ? "Ja" : "Nein"}
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => setShopProductModal(null)} disabled={shopProductSaving}
+                  className="flex-1 py-2.5 text-sm font-inter text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-2xl transition-all disabled:opacity-50">
+                  Abbrechen
+                </button>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={handleShopProductSave} disabled={shopProductSaving || !shopProductForm.title.trim() || !shopProductForm.price_cents}
+                  className="flex-1 py-2.5 text-sm font-inter font-medium text-white bg-zinc-900 hover:bg-zinc-700 rounded-2xl transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                  {shopProductSaving ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Speichern…</> : <><Save size={14} strokeWidth={2} /> Speichern</>}
                 </motion.button>
               </div>
             </motion.div>
