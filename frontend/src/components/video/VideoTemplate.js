@@ -8,12 +8,12 @@ import { Scene5 } from './video_scenes/Scene5';
 import { Scene6 } from './video_scenes/Scene6';
 
 const SCENE_DURATIONS = {
-  open: 5000,
-  kunde1: 16000,
-  studio1: 16000,
-  verbindung: 8000,
+  open:        5000,
   buchungsflow: 22000,
-  abschluss: 6000
+  kunde1:      16000,
+  studio1:     16000,
+  verbindung:   8000,
+  abschluss:    6000
 };
 
 export default function VideoTemplate() {
@@ -41,10 +41,10 @@ export default function VideoTemplate() {
 
       <AnimatePresence mode="sync">
         {currentScene === 0 && <Scene1 key="open" />}
-        {currentScene === 1 && <Scene2 key="kunde" />}
-        {currentScene === 2 && <Scene3 key="studio" />}
-        {currentScene === 3 && <Scene4 key="verbindung" />}
-        {currentScene === 4 && <Scene6 key="buchungsflow" />}
+        {currentScene === 1 && <Scene6 key="buchungsflow" />}
+        {currentScene === 2 && <Scene2 key="kunde" />}
+        {currentScene === 3 && <Scene3 key="studio" />}
+        {currentScene === 4 && <Scene4 key="verbindung" />}
         {currentScene === 5 && <Scene5 key="abschluss" />}
       </AnimatePresence>
     </div>
