@@ -5,7 +5,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, UploadF
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from bson import ObjectId
-from pydantic import BaseModel, Field, EmailStr, BeforeValidator
+from pydantic import BaseModel, Field, EmailStr, BeforeValidator, field_validator
 from typing import Optional, List, Annotated, Dict, Any
 import os
 import random
@@ -5970,15 +5970,22 @@ async def admin_reply_direct_chat(chat_id: str, data: TicketReply, current_user:
 # ─── Client Cards & Booking Photos ────────────────────────────────────────────
 
 class ClientCardUpdate(BaseModel):
-    fitzpatrick_scale: Optional[int] = None  # 1-6
+    fitzpatrick_scale: Optional[int] = None  # 1-6; None = clear
     tags: Optional[List[str]] = None
     internal_notes: Optional[str] = None
+
+    @field_validator("fitzpatrick_scale")
+    @classmethod
+    def validate_fitzpatrick(cls, v):
+        if v is not None and v not in range(1, 7):
+            raise ValueError("fitzpatrick_scale must be 1–6")
+        return v
 
 class PhotoUpload(BaseModel):
     photos: List[Dict[str, Any]]  # [{photo_data: "data:image/...", label: "before"|"after"|"healed"}]
 
 @api_router.get("/studios/{studio_id}/clients")
-async def list_studio_clients(studio_id: str, current_user: dict = Depends(get_current_user)):
+async def list_studio_clients(studio_id: str, skip: int = 0, limit: int = 50, current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "studio_owner":
         raise HTTPException(status_code=403, detail="Nur für Studios")
     studio = await db.studios.find_one({"studio_id": studio_id})
@@ -6023,7 +6030,8 @@ async def list_studio_clients(studio_id: str, current_user: dict = Depends(get_c
             "tags": card.get("tags", []), "fitzpatrick_scale": card.get("fitzpatrick_scale"),
         })
     result.sort(key=lambda x: x["last_visit"] or "", reverse=True)
-    return result
+    total = len(result)
+    return {"clients": result[skip: skip + limit], "total": total, "skip": skip, "limit": limit}
 
 @api_router.get("/studios/{studio_id}/clients/{user_id}")
 async def get_client_card(studio_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
@@ -6110,14 +6118,24 @@ async def upload_booking_photos(booking_id: str, data: PhotoUpload, current_user
 
     now_iso = datetime.now(timezone.utc).isoformat()
     valid_labels = {"before", "after", "healed"}
+    _MAX_PHOTO_BYTES = 6_000_000  # ~5 MB decoded (base64 overhead ~33%)
     new_photos = []
     for p in data.photos[:remaining]:
         label = p.get("label", "after")
         if label not in valid_labels:
             label = "after"
+        photo_data = p.get("photo_data", "")
+        # Validate content type prefix
+        if not (photo_data.startswith("data:image/jpeg") or
+                photo_data.startswith("data:image/png") or
+                photo_data.startswith("data:image/webp") or
+                photo_data.startswith("data:image/gif")):
+            raise HTTPException(status_code=400, detail="Ungültiges Bildformat. Erlaubt: JPEG, PNG, WebP, GIF")
+        if len(photo_data) > _MAX_PHOTO_BYTES:
+            raise HTTPException(status_code=400, detail="Foto zu groß. Maximale Größe: 5 MB")
         new_photos.append({
             "photo_id": f"ph_{uuid.uuid4().hex[:10]}",
-            "photo_data": p.get("photo_data", ""),
+            "photo_data": photo_data,
             "label": label,
             "uploaded_by": owner_id,
             "uploaded_at": now_iso,
@@ -6168,13 +6186,17 @@ async def get_booking_photos(booking_id: str, current_user: dict = Depends(get_c
     booking = await db.bookings.find_one({"booking_id": booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
-    user_id = current_user.get("id") or current_user.get("user_id")
+    # Support both legacy UUID-based and new ObjectId-string user identities
+    current_id = current_user.get("id")
+    current_alt = current_user.get("user_id")
+    current_ids = {v for v in (current_id, current_alt) if v}
     role = current_user.get("role")
-    is_customer = booking.get("user_id") == user_id
+    is_customer = booking.get("user_id") in current_ids
     is_studio_owner = False
     if role == "studio_owner":
+        owner_check = current_id or current_alt
         studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
-        is_studio_owner = bool(studio and studio.get("owner_id") == user_id)
+        is_studio_owner = bool(studio and studio.get("owner_id") == owner_check)
     if not is_customer and not is_studio_owner:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
     all_photos = booking.get("before_after_photos") or []

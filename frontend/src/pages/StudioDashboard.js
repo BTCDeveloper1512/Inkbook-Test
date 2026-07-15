@@ -178,6 +178,9 @@ export default function StudioDashboard() {
   const [clientStyleFilter, setClientStyleFilter] = useState(null);
   const [clientDateFilter, setClientDateFilter] = useState("all");
   const [clientsList, setClientsList] = useState([]);
+  const [clientsTotal, setClientsTotal] = useState(0);
+  const [clientsSkip, setClientsSkip] = useState(0);
+  const CLIENTS_PAGE_SIZE = 50;
   const [clientsLoading, setClientsLoading] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientCard, setClientCard] = useState(null);
@@ -197,12 +200,15 @@ export default function StudioDashboard() {
     { scale: 6, label: "Typ VI",  bg: "#3D1F0D", desc: "Dunkelbraun" },
   ];
 
-  const fetchClients = async (studioId) => {
+  const fetchClients = async (studioId, skip = 0, append = false) => {
     setClientsLoading(true);
     try {
-      const { data } = await axios.get(`${API}/studios/${studioId}/clients`, { withCredentials: true });
-      setClientsList(data || []);
-    } catch { setClientsList([]); } finally { setClientsLoading(false); }
+      const { data } = await axios.get(`${API}/studios/${studioId}/clients?skip=${skip}&limit=${CLIENTS_PAGE_SIZE}`, { withCredentials: true });
+      const clients = data?.clients || data || [];
+      setClientsList(prev => append ? [...prev, ...clients] : clients);
+      setClientsTotal(data?.total ?? clients.length);
+      setClientsSkip(skip + clients.length);
+    } catch { if (!append) setClientsList([]); } finally { setClientsLoading(false); }
   };
 
   const fetchClientCard = async (studioId, userId) => {
@@ -3163,6 +3169,16 @@ export default function StudioDashboard() {
                           </motion.div>
                         );
                       })}
+                      {/* Load more */}
+                      {!clientSearch && !clientStyleFilter && clientDateFilter === "all" && clientsSkip < clientsTotal && (
+                        <div className="px-5 py-3 flex justify-center">
+                          <button onClick={() => fetchClients(studioId, clientsSkip, true)}
+                            disabled={clientsLoading}
+                            className="text-xs font-inter text-zinc-500 hover:text-zinc-900 border border-zinc-200 px-4 py-1.5 rounded-xl hover:border-zinc-400 transition-all disabled:opacity-50">
+                            {clientsLoading ? "Lade…" : `Weitere laden (${clientsTotal - clientsSkip} verbleibend)`}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
