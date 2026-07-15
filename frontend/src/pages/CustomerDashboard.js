@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart, Bell } from "lucide-react";
+import { Calendar, Clock, CheckCircle, XCircle, CreditCard, RefreshCw, AlertTriangle, Scissors, X, Search, Star, HelpCircle, Video, Settings, ChevronRight, Heart, Bell, PenLine } from "lucide-react";
 import StudioCard from "../components/StudioCard";
 import VideoCallModal from "../components/VideoCallModal";
 import VideoCountdownTimer from "../components/VideoCountdownTimer";
@@ -626,6 +626,42 @@ export default function CustomerDashboard() {
           )}
         </AnimatePresence>
 
+        {/* Consent Banner — shown when any confirmed booking needs the form */}
+        {(() => {
+          const pendingConsent = allBookings.filter(b =>
+            b.consent_status === "pending" && b.studio_consent_required &&
+            ["confirmed", "waiting_for_deposit"].includes(b.status)
+          );
+          if (pendingConsent.length === 0) return null;
+          return (
+            <AnimatePresence>
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
+                className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3"
+              >
+                <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <PenLine size={15} className="text-amber-600" strokeWidth={1.5} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-inter font-semibold text-amber-900 text-sm">Einverständniserklärung erforderlich</p>
+                  {pendingConsent.map(b => (
+                    <div key={b.booking_id} className="flex items-center gap-2 mt-1.5">
+                      <p className="text-xs text-amber-700 font-inter flex-1">
+                        {b.studio_name} · {b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
+                      </p>
+                      <Link
+                        to={`/consent/${b.booking_id}`}
+                        className="flex-shrink-0 text-xs font-inter font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900"
+                      >
+                        Jetzt ausfüllen →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          );
+        })()}
+
         {/* Stats */}
         <motion.div
           initial="hidden" animate="visible"
@@ -977,6 +1013,21 @@ export default function CustomerDashboard() {
                           <span className="text-xs text-zinc-400 font-inter flex items-center gap-1">
                             <CheckCircle size={11} className="text-emerald-500" strokeWidth={2} /> Bewertet
                           </span>
+                        )}
+
+                        {/* Consent form badge */}
+                        {booking.consent_status === "submitted" && (
+                          <span className="text-xs text-emerald-700 font-inter font-medium flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                            <CheckCircle size={11} strokeWidth={2} className="text-emerald-500" /> Einverständnis eingereicht
+                          </span>
+                        )}
+                        {booking.consent_status === "pending" && booking.studio_consent_required && !isClosed && (
+                          <Link
+                            to={`/consent/${booking.booking_id}`}
+                            className="text-xs font-inter font-semibold flex items-center gap-1 bg-amber-50 border border-amber-300 text-amber-800 px-2.5 py-1 rounded-full hover:bg-amber-100 transition-colors"
+                          >
+                            <PenLine size={11} strokeWidth={2} /> Formular ausfüllen →
+                          </Link>
                         )}
                         </div>{/* end actions flex-wrap */}
                       </div>{/* end content flex-1 */}

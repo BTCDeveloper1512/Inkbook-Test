@@ -2253,6 +2253,16 @@ export default function StudioDashboard() {
                                 <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
                               </span>
                             )}
+                            {b.consent_status === "submitted" && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
+                                <CheckCircle size={9} strokeWidth={2} /> Einverständnis ✓
+                              </span>
+                            )}
+                            {b.consent_status === "pending" && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
+                                ⚠️ Formular ausstehend
+                              </span>
+                            )}
                             {b.refund_pending && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
                                 ⚠️ Rückzahlung ausstehend
@@ -3107,6 +3117,31 @@ export default function StudioDashboard() {
                   <p className="text-[11px] text-zinc-400 font-inter mt-1.5">Optional — wird auf Rechnungen angezeigt.</p>
                 </div>
               </div>
+            </div>
+
+            {/* ── Digitale Einverständniserklärung ── */}
+            <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-playfair font-semibold text-lg mb-1 text-zinc-900">Digitale Einverständniserklärung</h3>
+                  <p className="text-xs text-zinc-400 font-inter leading-relaxed">
+                    Kunden müssen vor bestätigten Terminen ein digitales Gesundheitsformular ausfüllen und elektronisch unterschreiben. Du siehst den Status direkt in der Buchungsübersicht.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditForm(prev => ({ ...prev, consent_required: !prev.consent_required }))}
+                  className={`flex-shrink-0 relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${editForm?.consent_required ? "bg-zinc-900" : "bg-zinc-200"}`}
+                  data-testid="consent-required-toggle"
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${editForm?.consent_required ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+              {editForm?.consent_required && (
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs font-inter text-amber-800 leading-relaxed">
+                  ✅ Aktiviert — Kunden erhalten nach Terminbestätigung einen Link zum Formular. Der Status erscheint in jeder Buchungskarte.
+                </div>
+              )}
             </div>
 
             {/* ── Stornierungsrichtlinie ── */}

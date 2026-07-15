@@ -26,6 +26,7 @@ import AGBPage from "./pages/AGBPage";
 import FAQPage from "./pages/FAQPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
 import ActivatePage from "./pages/ActivatePage";
+import ConsentFormPage from "./pages/ConsentFormPage";
 import { InkNotifyMount } from "./components/InkNotify";
 import "./App.css";
 
@@ -52,6 +53,9 @@ function AppRouter() {
         <Route path="/faq"           element={<FAQPage />} />
         <Route path="/ueber-uns"     element={<UeberUnsPage />} />
         <Route path="/activate"      element={<ActivatePage />} />
+        <Route path="/consent/:bookingId" element={
+          <ProtectedRoute><ConsentFormPage /></ProtectedRoute>
+        } />
         <Route path="/messages" element={
           <ProtectedRoute><MessagesPage /></ProtectedRoute>
         } />

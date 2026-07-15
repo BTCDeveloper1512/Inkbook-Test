@@ -561,6 +561,7 @@ class StudioUpdate(BaseModel):
     bank_bic: Optional[str] = None
     tax_model: Optional[str] = None     # "standard" | "kleinunternehmer"
     tax_number: Optional[str] = None    # Steuernummer or USt-IdNr.
+    consent_required: Optional[bool] = None  # Require digital consent form from customer
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
@@ -3018,6 +3019,162 @@ async def mark_no_show(booking_id: str, current_user: dict = Depends(get_current
 
     return {"message": "No-Show markiert", "status": "no_show"}
 
+# ─── Digitale Einverständniserklärung ─────────────────────────────────────────
+
+class ConsentFormSubmit(BaseModel):
+    full_name: str
+    no_blood_disorders: bool = False
+    no_skin_conditions: bool = False
+    no_pregnancy: bool = False
+    no_medications: bool = False
+    no_known_allergies: bool = False
+    no_infectious_diseases: bool = False
+    allergy_notes: str = ""
+    medication_notes: str = ""
+    agrees_to_terms: bool
+    agrees_to_aftercare: bool
+    signature_data: str  # base64 data URL of the signature canvas
+
+@api_router.post("/bookings/{booking_id}/consent-form")
+async def submit_consent_form(booking_id: str, data: ConsentFormSubmit, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    if booking.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    if not data.agrees_to_terms or not data.agrees_to_aftercare:
+        raise HTTPException(status_code=400, detail="Alle Pflichtfelder müssen bestätigt werden")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    consent_doc = {
+        "consent_form_id": f"cf_{uuid.uuid4().hex[:12]}",
+        "booking_id": booking_id,
+        "studio_id": booking.get("studio_id"),
+        "user_id": user_id,
+        "full_name": data.full_name,
+        "no_blood_disorders": data.no_blood_disorders,
+        "no_skin_conditions": data.no_skin_conditions,
+        "no_pregnancy": data.no_pregnancy,
+        "no_medications": data.no_medications,
+        "no_known_allergies": data.no_known_allergies,
+        "no_infectious_diseases": data.no_infectious_diseases,
+        "allergy_notes": data.allergy_notes,
+        "medication_notes": data.medication_notes,
+        "agrees_to_terms": data.agrees_to_terms,
+        "agrees_to_aftercare": data.agrees_to_aftercare,
+        "signature_data": data.signature_data,
+        "submitted_at": now_iso,
+    }
+    # Upsert – replace if already exists
+    existing = await db.consent_forms.find_one({"booking_id": booking_id})
+    if existing:
+        await db.consent_forms.update_one({"booking_id": booking_id}, {"$set": consent_doc})
+    else:
+        await db.consent_forms.insert_one(consent_doc)
+
+    # Update booking's consent_status
+    await db.bookings.update_one(
+        {"booking_id": booking_id},
+        {"$set": {"consent_status": "submitted", "consent_submitted_at": now_iso}}
+    )
+
+    # Notify studio owner by email
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    studio_email = studio.get("email") if studio else None
+    studio_name = studio.get("name", "Studio") if studio else "Studio"
+    customer_email = current_user.get("email", "")
+    customer_name = current_user.get("name", data.full_name)
+
+    if studio_email:
+        html_studio = f"""
+        <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+          <div style="background:#18181b;padding:20px 28px">
+            <span style="color:#fff;font-size:18px;font-weight:700">StudioOS</span>
+          </div>
+          <div style="padding:28px">
+            <h2 style="margin:0 0 8px;font-size:18px;color:#18181b">Einverständniserklärung eingereicht</h2>
+            <p style="color:#71717a;font-size:14px;margin:0 0 20px">
+              <strong style="color:#18181b">{customer_name}</strong> hat die digitale Einverständniserklärung für den Termin am
+              <strong style="color:#18181b">{booking.get('date','')}</strong> eingereicht.
+            </p>
+            <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px;color:#374151;line-height:1.7">
+              <strong>Name:</strong> {data.full_name}<br>
+              <strong>Eingereicht:</strong> {now_iso[:10]}<br>
+              <strong>Allergie-Hinweise:</strong> {data.allergy_notes or '–'}<br>
+              <strong>Medikamenten-Hinweise:</strong> {data.medication_notes or '–'}
+            </div>
+            <p style="color:#71717a;font-size:13px">Das vollständige Formular kann im Studio-Dashboard unter Buchungen eingesehen werden.</p>
+          </div>
+        </div>"""
+        asyncio.create_task(send_email(studio_email, f"Einverständniserklärung von {customer_name} – {studio_name}", html_studio))
+
+    if customer_email:
+        html_customer = f"""
+        <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+          <div style="background:#18181b;padding:20px 28px">
+            <span style="color:#fff;font-size:18px;font-weight:700">StudioOS</span>
+          </div>
+          <div style="padding:28px">
+            <h2 style="margin:0 0 8px;font-size:18px;color:#18181b">Einverständniserklärung bestätigt ✓</h2>
+            <p style="color:#71717a;font-size:14px;margin:0 0 16px">
+              Deine Einverständniserklärung für den Termin bei <strong style="color:#18181b">{studio_name}</strong> am
+              <strong style="color:#18181b">{booking.get('date','')}</strong> wurde erfolgreich eingereicht.
+            </p>
+            <p style="color:#71717a;font-size:13px">Bei Fragen wende dich direkt an das Studio.</p>
+          </div>
+        </div>"""
+        asyncio.create_task(send_email(customer_email, f"Einverständniserklärung bestätigt – {studio_name}", html_customer))
+
+    return {"ok": True, "consent_form_id": consent_doc["consent_form_id"]}
+
+@api_router.get("/bookings/{booking_id}/consent-form")
+async def get_consent_form(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role")
+
+    # Studio owners can view their bookings' forms; customers can view their own
+    if role == "studio_owner":
+        studio = await db.studios.find_one({"owner_id": user_id})
+        if not studio or studio.get("studio_id") != booking.get("studio_id"):
+            raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    elif booking.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    form = await db.consent_forms.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not form:
+        return {"status": "not_submitted"}
+    form.pop("signature_data", None)  # Don't return the raw signature in list views
+    return {"status": "submitted", "form": form}
+
+@api_router.get("/bookings/{booking_id}/consent-form/full")
+async def get_consent_form_full(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Returns the full consent form including signature data (studio owners only)."""
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+
+    user_id = current_user.get("id") or current_user.get("user_id")
+    role = current_user.get("role")
+
+    if role == "studio_owner":
+        studio = await db.studios.find_one({"owner_id": user_id})
+        if not studio or studio.get("studio_id") != booking.get("studio_id"):
+            raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    else:
+        raise HTTPException(status_code=403, detail="Nur für Studio-Inhaber")
+
+    form = await db.consent_forms.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not form:
+        return {"status": "not_submitted"}
+    return {"status": "submitted", "form": form}
+
 # ─── Messages / Chat ──────────────────────────────────────────────────────────
 @api_router.post("/messages/unread-count")
 async def get_unread_count_post(current_user: dict = Depends(get_current_user)):
@@ -4182,6 +4339,20 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             {"_id": 0}
         ).sort([("date", -1), ("start_time", -1)]).to_list(500)
 
+        # Enrich bookings with consent_status from consent_forms collection
+        studio_consent_forms = await db.consent_forms.find({"studio_id": studio_id}, {"_id": 0}).to_list(2000)
+        consent_map = {f["booking_id"]: f.get("submitted_at", "") for f in studio_consent_forms}
+        consent_required = studio.get("consent_required", False)
+        for b in all_studio_bookings:
+            bid = b.get("booking_id", "")
+            if bid in consent_map:
+                b["consent_status"] = "submitted"
+                b["consent_submitted_at"] = consent_map[bid]
+            elif consent_required and b.get("status") in ["confirmed", "waiting_for_deposit"]:
+                b["consent_status"] = "pending"
+            else:
+                b["consent_status"] = b.get("consent_status")
+
         return {
             "has_studio": True,
             "studio": studio,
@@ -4210,6 +4381,25 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         bookings = await db.bookings.find(
             bookings_query, {"_id": 0}
         ).sort([("date", 1), ("start_time", 1)]).to_list(500)
+
+        # Enrich with consent_status so customer can see what's needed
+        customer_booking_ids = [b.get("booking_id") for b in bookings if b.get("booking_id")]
+        customer_consent_forms = await db.consent_forms.find(
+            {"booking_id": {"$in": customer_booking_ids}}, {"_id": 0}
+        ).to_list(500) if customer_booking_ids else []
+        customer_consent_map = {f["booking_id"] for f in customer_consent_forms}
+        for b in bookings:
+            bid = b.get("booking_id", "")
+            studio = await db.studios.find_one({"studio_id": b.get("studio_id", "")}, {"consent_required": 1})
+            studio_consent_required = studio.get("consent_required", False) if studio else False
+            b["studio_consent_required"] = studio_consent_required
+            if bid in customer_consent_map:
+                b["consent_status"] = "submitted"
+            elif studio_consent_required and b.get("status") in ["confirmed", "waiting_for_deposit"]:
+                b["consent_status"] = "pending"
+            else:
+                b["consent_status"] = b.get("consent_status")
+
         upcoming_list = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
         return {
             "total_bookings": len(bookings),
