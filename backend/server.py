@@ -6563,6 +6563,12 @@ async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_use
     if not studio:
         raise HTTPException(status_code=404, detail="Studio nicht gefunden")
 
+    if studio.get("stripe_connect_status") != "complete":
+        raise HTTPException(
+            status_code=402,
+            detail="Dieser Shop ist derzeit nicht für Online-Zahlungen konfiguriert. Das Studio muss zunächst sein Stripe-Konto verbinden."
+        )
+
     # Support both authenticated users and guests (guest_email required for guests)
     if current_user:
         user_id = current_user.get("id") or current_user.get("user_id")

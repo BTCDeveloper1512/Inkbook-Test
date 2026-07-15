@@ -4479,6 +4479,26 @@ export default function StudioDashboard() {
                 </motion.button>
               </div>
 
+              {/* Stripe Connect prompt */}
+              {connectStatus?.status !== "complete" && (
+                <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-start gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <CreditCard size={17} className="text-amber-600" strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-inter font-semibold text-amber-900 text-sm mb-0.5">Stripe-Konto erforderlich</p>
+                    <p className="text-xs text-amber-700 font-inter leading-relaxed">
+                      Damit Kunden im Shop bezahlen können, musst du zuerst dein Stripe-Konto verbinden. Produkte können bereits angelegt werden, der Checkout ist aber erst nach der Verbindung aktiv.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("settings")}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-inter font-semibold rounded-xl transition-colors">
+                      <Link2 size={12} strokeWidth={2} /> Stripe jetzt verbinden
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Sub-tabs */}
               <div className="flex gap-1 mb-5 bg-white rounded-2xl border border-black/[0.04] shadow-[0_2px_8px_rgb(0,0,0,0.04)] p-1.5 w-fit">
                 {[{ id: "products", label: "Produkte" }, { id: "orders", label: "Bestellungen" }].map(t => (
