@@ -728,11 +728,11 @@ export default function StudioDashboard() {
       const typeStr = typeMap[booking.booking_type] || "Termin";
       const msg = `Hallo ${firstName} 👋\n\nHier meldet sich ${studioName} zu deiner Buchung:\n\n📅 ${dateStr} · ${booking.start_time} – ${booking.end_time}\n✏️ ${typeStr}\n\nBei Fragen oder Wünschen, schreib mir gerne hier. Bis bald! 🎨`;
       navigate(`/messages/${booking.user_id}`, {
-        state: { recipientName: booking.user_name, recipientRole: "customer", initialMessage: msg }
+        state: { recipientName: booking.user_name, recipientRole: "customer", initialMessage: msg, bookingId: booking.booking_id }
       });
     } else {
       navigate(`/messages/${booking.user_id}`, {
-        state: { recipientName: booking.user_name, recipientRole: "customer" }
+        state: { recipientName: booking.user_name, recipientRole: "customer", bookingId: booking.booking_id }
       });
     }
   };

@@ -32,6 +32,7 @@ export default function MessagesPage() {
   const [linkedBooking, setLinkedBooking] = useState(null);
   const [loadingLinkedBooking, setLoadingLinkedBooking] = useState(false);
   const [offerLoading, setOfferLoading] = useState(false);
+  const [skipEmail, setSkipEmail] = useState(false);
   const [studioId, setStudioId] = useState(null);
   const [bookingMsgId, setBookingMsgId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -218,6 +219,7 @@ export default function MessagesPage() {
     clearInterval(pollTypingRef.current);
     setOtherIsTyping(false);
     setShowOfferPanel(false);
+    setSkipEmail(false);
     setLinkedBooking(null);
     setOfferForm({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
 
@@ -348,13 +350,15 @@ export default function MessagesPage() {
     setLinkedBooking(null);
     try {
       const { data } = await axios.get(`${API}/bookings`, { withCredentials: true });
-      const open = data.find(b =>
-        b.user_id === customerId &&
-        ["pending", "pending_studio_review", "under_review"].includes(b.status)
-      );
+      // Prefer booking explicitly passed via router state (e.g. from "Kunde kontaktieren")
+      const routeBookingId = location.state?.bookingId;
+      const open = routeBookingId
+        ? data.find(b => b.booking_id === routeBookingId && ["pending", "pending_studio_review", "under_review"].includes(b.status))
+          ?? data.find(b => b.user_id === customerId && ["pending", "pending_studio_review", "under_review"].includes(b.status))
+        : data.find(b => b.user_id === customerId && ["pending", "pending_studio_review", "under_review"].includes(b.status));
       setLinkedBooking(open || null);
     } catch {} finally { setLoadingLinkedBooking(false); }
-  }, []);
+  }, [location.state?.bookingId]);
 
   const handleSendOffer = async () => {
     if (!linkedBooking?.booking_id) return;
@@ -371,8 +375,10 @@ export default function MessagesPage() {
         offer_total_price: parseFloat(offerForm.offer_total_price) || 0,
         offer_deposit_amount: parseFloat(offerForm.offer_deposit_amount) || 0,
         offer_notes: offerForm.offer_notes,
+        skip_email: skipEmail,
       }, { withCredentials: true });
       setShowOfferPanel(false);
+      setSkipEmail(false);
       setOfferForm({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
       await fetchMessages(activeConvRef.current?.other_id);
       fetchConversations(false);
@@ -949,6 +955,25 @@ export default function MessagesPage() {
                               </div>
                             </div>
 
+                            {/* Skip email toggle */}
+                            <label className="flex items-start gap-2.5 mt-3 cursor-pointer select-none group">
+                              <div className="relative mt-0.5 flex-shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={skipEmail}
+                                  onChange={e => setSkipEmail(e.target.checked)}
+                                  className="sr-only"
+                                />
+                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${skipEmail ? "bg-zinc-900 border-zinc-900" : "border-zinc-300 bg-white group-hover:border-zinc-400"}`}>
+                                  {skipEmail && <svg viewBox="0 0 10 8" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 3.5 6.5 9 1" /></svg>}
+                                </div>
+                              </div>
+                              <span className="text-xs font-inter text-zinc-500 leading-snug">
+                                Angebot wurde bereits per Chat besprochen –<br />
+                                <span className="font-semibold text-zinc-700">keine E-Mail an den Kunden senden</span>
+                              </span>
+                            </label>
+
                             {/* Submit */}
                             <div className="flex justify-end mt-3">
                               <motion.button whileTap={{ scale: 0.97 }}
@@ -958,7 +983,7 @@ export default function MessagesPage() {
                                 data-testid="send-offer-btn"
                               >
                                 <FileText size={14} strokeWidth={1.5} />
-                                {offerLoading ? "Wird gesendet..." : "Angebot senden"}
+                                {offerLoading ? "Wird gesendet..." : skipEmail ? "Angebot speichern (kein E-Mail)" : "Angebot senden"}
                               </motion.button>
                             </div>
                           </>

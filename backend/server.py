@@ -671,6 +671,7 @@ class BookingOffer(BaseModel):
     offer_total_price: float
     offer_deposit_amount: float
     offer_notes: str = ""
+    skip_email: bool = False         # True when offer was already discussed via chat
 
 class InquiryOffer(BaseModel):
     offer_date: str
@@ -2774,9 +2775,9 @@ async def create_booking_offer(booking_id: str, offer: BookingOffer, current_use
         url="/dashboard"
     ))
 
-    # Send email to customer with offer details + deadline
+    # Send email to customer with offer details + deadline (skip if offer was made via chat)
     user_email = booking.get("user_email", "")
-    if user_email:
+    if user_email and not offer.skip_email:
         asyncio.create_task(send_email(
             to=user_email,
             subject=f"⏳ Neues Angebot von {studio.get('name', '')} – {offer_deadline_label} Zeit zum Annehmen",
