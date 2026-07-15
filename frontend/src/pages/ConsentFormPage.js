@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import jsPDF from "jspdf";
 import Navbar from "../components/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle, AlertTriangle, X, PenLine, RotateCcw } from "lucide-react";
+import { CheckCircle, AlertTriangle, X, PenLine } from "lucide-react";
 import { notify } from "../components/InkNotify";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -44,11 +44,9 @@ export default function ConsentFormPage() {
   const [agreesAftercare, setAgreesAftercare] = useState(false);
   const [agreesDsgvo, setAgreesDsgvo] = useState(false);
 
-  // Signature canvas
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [hasSignature, setHasSignature] = useState(false);
-  const lastPos = useRef(null);
+  // Typed cursive signature (replaces freehand canvas)
+  const [signatureName, setSignatureName] = useState("");
+  const hasSignature = signatureName.trim().length > 0;
 
   // Fetch booking info + check if already submitted
   useEffect(() => {
@@ -77,71 +75,29 @@ export default function ConsentFormPage() {
     if (user?.name && !fullName) setFullName(user.name);
   }, [user]);
 
-  // Canvas setup
-  const initCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    ctx.strokeStyle = "#18181b";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-  }, []);
-
-  useEffect(() => {
-    initCanvas();
-    window.addEventListener("resize", initCanvas);
-    return () => window.removeEventListener("resize", initCanvas);
-  }, [initCanvas]);
-
-  const getPos = (e, canvas) => {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  };
-
-  const startDraw = (e) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    setIsDrawing(true);
-    lastPos.current = getPos(e, canvas);
-  };
-
-  const draw = (e) => {
-    e.preventDefault();
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const pos = getPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastPos.current = pos;
-    setHasSignature(true);
-  };
-
-  const stopDraw = (e) => {
-    e?.preventDefault();
-    setIsDrawing(false);
-    lastPos.current = null;
-  };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Generate signature image from typed name (cursive-style canvas render)
+  const buildSignatureDataUrl = useCallback(() => {
+    const name = signatureName.trim();
+    if (!name) return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = 480;
+    canvas.height = 120;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasSignature(false);
-  };
+    ctx.font = "italic 52px Georgia, 'Times New Roman', serif";
+    ctx.fillStyle = "#18181b";
+    ctx.textBaseline = "middle";
+    ctx.fillText(name, 16, 64);
+    // Underline
+    const metrics = ctx.measureText(name);
+    ctx.beginPath();
+    ctx.moveTo(16, 92);
+    ctx.lineTo(Math.min(16 + metrics.width, canvas.width - 16), 92);
+    ctx.strokeStyle = "#18181b";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    return canvas.toDataURL("image/png");
+  }, [signatureName]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -152,150 +108,202 @@ export default function ConsentFormPage() {
     if (!allHealthAnswered) { setError("Bitte beantworte alle Gesundheitsfragen mit Ja oder Nein."); return; }
     const allCustomAnswered = customQuestions.every((_, i) => customAnswers[i] !== null);
     if (!allCustomAnswered) { setError("Bitte beantworte alle Zusatzfragen des Studios."); return; }
-    if (!hasSignature) { setError("Bitte unterschreibe das Formular im Unterschriftenfeld."); return; }
+    if (!hasSignature) { setError("Bitte gib deinen Namen im Unterschriftenfeld ein."); return; }
     if (!agreesTerms || !agreesAftercare || !agreesDsgvo) { setError("Bitte bestätige alle Pflichtfelder einschließlich der DSGVO-Zustimmung."); return; }
 
-    // Get signature as data URL
-    const canvas = canvasRef.current;
-    const signatureData = canvas.toDataURL("image/png");
+    // Build signature image from typed cursive name
+    const signatureData = buildSignatureDataUrl();
 
     // Generate PDF with jsPDF
     let pdfDataUrl = "";
     try {
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+      const M = 15; // margin
       const now = new Date();
       const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
 
+      // ── Header bar ──
       doc.setFillColor(24, 24, 27);
-      doc.rect(0, 0, W, 28, "F");
+      doc.rect(0, 0, W, 32, "F");
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(16);
+      doc.setFontSize(17);
       doc.setFont("helvetica", "bold");
-      doc.text("StudioOS", 15, 12);
-      doc.setFontSize(8);
+      doc.text("StudioOS", M, 13);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text("Digitale Einverständniserklärung", 15, 20);
-      doc.text(dateStr, W - 15, 20, { align: "right" });
+      doc.setTextColor(180, 180, 185);
+      doc.text("Digitale Einverständniserklärung", M, 22);
+      doc.text(dateStr, W - M, 22, { align: "right" });
 
       doc.setTextColor(24, 24, 27);
-      let y = 40;
+      let y = 42;
 
-      doc.setFontSize(14);
+      // ── Title + booking ref ──
+      doc.setFontSize(15);
       doc.setFont("helvetica", "bold");
-      doc.text("Einverständniserklärung", 15, y);
-      y += 8;
-
-      doc.setFontSize(10);
+      doc.text("Einverständniserklärung", M, y);
+      y += 7;
+      doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(113, 113, 122);
-      const bookingRef = `Buchung: ${bookingId}` + (booking?.studio_name ? ` · ${booking.studio_name}` : "");
-      doc.text(bookingRef, 15, y);
-      y += 12;
+      const bookingRef = `Buchungs-ID: ${bookingId}` + (booking?.studio_name ? `   ·   Studio: ${booking.studio_name}` : "");
+      doc.text(bookingRef, M, y);
+      y += 3;
+      doc.setDrawColor(230, 230, 233);
+      doc.setLineWidth(0.4);
+      doc.line(M, y, W - M, y);
+      y += 8;
 
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(24, 24, 27);
-      doc.text("Persönliche Angaben", 15, y);
-      y += 6;
+      // ── Helper: section header ──
+      const sectionHeader = (title) => {
+        doc.setFillColor(245, 245, 247);
+        doc.roundedRect(M, y - 1, W - M * 2, 7, 1, 1, "F");
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(24, 24, 27);
+        doc.text(title.toUpperCase(), M + 3, y + 4);
+        y += 11;
+      };
+
+      // ── Persönliche Angaben ──
+      sectionHeader("Persönliche Angaben");
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      doc.text(`Name: ${fullName.trim()}`, 15, y);
-      y += 12;
-
-      doc.setFontSize(11);
+      doc.setTextColor(24, 24, 27);
+      doc.text("Name:", M + 3, y);
       doc.setFont("helvetica", "bold");
-      doc.text("Gesundheitserklärung", 15, y);
-      y += 6;
+      doc.text(fullName.trim(), M + 25, y);
+      y += 10;
+
+      // ── Gesundheitserklärung ──
+      sectionHeader("Gesundheitserklärung");
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       const QUESTION_LABELS = {
         no_blood_disorders: "Keine Blutgerinnungsstörungen / Blutverdünner",
-        no_skin_conditions: "Keine aktiven Hauterkrankungen",
-        no_pregnancy: "Nicht schwanger / stillend",
+        no_skin_conditions: "Keine aktiven Hauterkrankungen an der Tätowierungsstelle",
+        no_pregnancy: "Nicht schwanger / nicht stillend",
         no_medications: "Keine wundheilungshemmenden Medikamente",
-        no_known_allergies: "Keine bekannten Allergien gegen Tattoo-Tinten, Latex oder Desinfektionsmittel",
+        no_known_allergies: "Keine Allergien gegen Tinten, Latex oder Desinfektionsmittel",
         no_infectious_diseases: "Keine übertragbaren Infektionskrankheiten",
       };
-      HEALTH_QUESTIONS.forEach(({ key }) => {
+      HEALTH_QUESTIONS.forEach(({ key }, idx) => {
         const ans = healthAnswers[key];
-        const jaColor = [22, 163, 74];
-        const neinColor = [220, 38, 38];
-        const neutral = [113, 113, 122];
-        doc.setTextColor(...(ans === "ja" ? jaColor : ans === "nein" ? neinColor : neutral));
+        const isJa = ans === "ja";
+        const isNein = ans === "nein";
+        const bgFill = isJa ? [240, 253, 244] : isNein ? [254, 242, 242] : [248, 248, 249];
+        doc.setFillColor(...bgFill);
+        doc.roundedRect(M, y - 1, W - M * 2, 6.5, 1, 1, "F");
+        // Status dot
+        doc.setFillColor(isJa ? 22 : isNein ? 220 : 180, isJa ? 163 : isNein ? 38 : 180, isJa ? 74 : isNein ? 38 : 185);
+        doc.circle(M + 5, y + 2.2, 1.5, "F");
+        doc.setTextColor(isJa ? 21 : isNein ? 185 : 80, isJa ? 128 : isNein ? 28 : 80, isJa ? 61 : isNein ? 28 : 85);
+        doc.setFont("helvetica", "bold");
+        doc.text(isJa ? "JA" : isNein ? "NEIN" : "–", M + 9, y + 4);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(40, 40, 45);
         const label = QUESTION_LABELS[key] || key;
-        const ansLabel = ans === "ja" ? "Ja" : ans === "nein" ? "Nein" : "–";
-        const lines = doc.splitTextToSize(`${ansLabel}: ${label}`, W - 30);
-        doc.text(lines, 15, y);
-        y += lines.length * 5 + 1;
+        const lines = doc.splitTextToSize(label, W - M * 2 - 30);
+        doc.text(lines, M + 25, y + 4);
+        y += lines.length * 5 + 2.5;
+        if (idx < HEALTH_QUESTIONS.length - 1) y += 0.5;
       });
-      y += 2;
+      y += 3;
 
-      doc.setTextColor(24, 24, 27);
       if (allergyNotes.trim()) {
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
-        doc.text("Allergie-Hinweise:", 15, y);
+        doc.setTextColor(24, 24, 27);
+        doc.text("Allergien / Unverträglichkeiten:", M + 3, y);
         y += 5;
         doc.setFont("helvetica", "normal");
-        const allergyLines = doc.splitTextToSize(allergyNotes.trim(), W - 30);
-        doc.text(allergyLines, 15, y);
+        doc.setTextColor(80, 80, 90);
+        const allergyLines = doc.splitTextToSize(allergyNotes.trim(), W - M * 2 - 6);
+        doc.text(allergyLines, M + 3, y);
         y += allergyLines.length * 5 + 4;
       }
       if (medicationNotes.trim()) {
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
-        doc.text("Medikamenten-Hinweise:", 15, y);
+        doc.setTextColor(24, 24, 27);
+        doc.text("Medikamente:", M + 3, y);
         y += 5;
         doc.setFont("helvetica", "normal");
-        const medLines = doc.splitTextToSize(medicationNotes.trim(), W - 30);
-        doc.text(medLines, 15, y);
+        doc.setTextColor(80, 80, 90);
+        const medLines = doc.splitTextToSize(medicationNotes.trim(), W - M * 2 - 6);
+        doc.text(medLines, M + 3, y);
         y += medLines.length * 5 + 4;
       }
 
-      doc.setFontSize(9);
-      doc.setTextColor(22, 163, 74);
-      doc.setFont("helvetica", "bold");
-      doc.text("✓ Volljährigkeit / Einwilligung bestätigt", 15, y);
-      y += 5;
-      doc.text("✓ Pflegehinweise bestätigt", 15, y);
-      y += 5;
-      doc.text("✓ DSGVO-Zustimmung erteilt", 15, y);
-      y += 10;
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(24, 24, 27);
-      doc.text("Unterschrift", 15, y);
-      y += 6;
-      try {
-        doc.addImage(signatureData, "PNG", 15, y, 80, 35);
-        y += 40;
-      } catch (_) {}
-
       if (customQuestions.length > 0) {
-        y += 4;
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(24, 24, 27);
-        doc.text("Studio-Zusatzfragen", 15, y);
-        y += 6;
+        sectionHeader("Studio-Zusatzfragen");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         customQuestions.forEach((q, idx) => {
-          const val = customAnswers[idx];
-          doc.setTextColor(val ? 22 : 220, val ? 163 : 38, val ? 74 : 38);
-          const lines = doc.splitTextToSize(`${val ? "✓" : "✗"} ${q}`, W - 30);
-          doc.text(lines, 15, y);
-          y += lines.length * 5 + 2;
+          const val = customAnswers[idx] === "ja";
+          doc.setFillColor(val ? 240 : 254, val ? 253 : 242, val ? 244 : 242);
+          doc.roundedRect(M, y - 1, W - M * 2, 6.5, 1, 1, "F");
+          doc.setFillColor(val ? 22 : 220, val ? 163 : 38, val ? 74 : 38);
+          doc.circle(M + 5, y + 2.2, 1.5, "F");
+          doc.setTextColor(val ? 21 : 185, val ? 128 : 28, val ? 61 : 28);
+          doc.setFont("helvetica", "bold");
+          doc.text(val ? "JA" : "NEIN", M + 9, y + 4);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(40, 40, 45);
+          const lines = doc.splitTextToSize(q, W - M * 2 - 30);
+          doc.text(lines, M + 25, y + 4);
+          y += lines.length * 5 + 3;
         });
-        y += 2;
+        y += 3;
       }
 
-      doc.setFontSize(8);
+      // ── Bestätigungen ──
+      sectionHeader("Bestätigungen");
+      doc.setFontSize(9);
+      const confirmations = [
+        "Volljährigkeit / Einwilligung in die Tätowierung",
+        "Pflegehinweise erhalten und verstanden",
+        "DSGVO-Zustimmung gemäß Art. 9 Abs. 2 lit. a",
+      ];
+      confirmations.forEach((c) => {
+        doc.setFillColor(240, 253, 244);
+        doc.roundedRect(M, y - 1, W - M * 2, 6.5, 1, 1, "F");
+        doc.setFillColor(22, 163, 74);
+        doc.circle(M + 5, y + 2.2, 1.5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(21, 128, 61);
+        doc.text("✓", M + 9, y + 4);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(40, 40, 45);
+        doc.text(c, M + 17, y + 4);
+        y += 8;
+      });
+      y += 4;
+
+      // ── Unterschrift ──
+      sectionHeader("Unterschrift");
+      if (signatureData) {
+        try {
+          doc.setFillColor(252, 252, 252);
+          doc.setDrawColor(220, 220, 225);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(M, y, W - M * 2, 30, 2, 2, "FD");
+          doc.addImage(signatureData, "PNG", M + 3, y + 2, 90, 26);
+          y += 34;
+        } catch (_) { y += 10; }
+      }
+
+      // Footer
+      doc.setDrawColor(220, 220, 225);
+      doc.setLineWidth(0.3);
+      doc.line(M, H - 16, W - M, H - 16);
+      doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(113, 113, 122);
-      doc.text(`${fullName.trim()} · ${dateStr}`, 15, y);
+      doc.setTextColor(150, 150, 155);
+      doc.text(`${fullName.trim()}   ·   ${dateStr}   ·   Buchung: ${bookingId}`, M, H - 10);
+      doc.text("Erstellt mit StudioOS", W - M, H - 10, { align: "right" });
 
       pdfDataUrl = doc.output("datauristring");
     } catch (pdfErr) {
@@ -605,42 +613,44 @@ export default function ConsentFormPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.35 }}
             className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-playfair font-semibold text-lg text-zinc-900">Unterschrift *</h3>
-                <p className="text-xs font-inter text-zinc-400 mt-0.5">Zeichne deine Unterschrift im Feld unten</p>
-              </div>
-              {hasSignature && (
-                <button type="button" onClick={clearSignature}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-xs font-inter text-zinc-500 hover:border-zinc-400 hover:text-zinc-900 transition-all">
-                  <RotateCcw size={12} strokeWidth={1.5} /> Löschen
-                </button>
-              )}
+            <div className="mb-4">
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900">Unterschrift *</h3>
+              <p className="text-xs font-inter text-zinc-400 mt-0.5">Gib deinen vollständigen Namen ein — er wird als Unterschrift übernommen</p>
             </div>
-            <div className={`relative rounded-xl border-2 transition-colors overflow-hidden ${
-              hasSignature ? "border-zinc-900" : "border-dashed border-zinc-300"
-            }`} style={{ height: 160 }}>
-              {!hasSignature && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                  <PenLine size={22} className="text-zinc-300 mb-2" strokeWidth={1.5} />
-                  <p className="text-xs font-inter text-zinc-300">Hier unterschreiben</p>
-                </div>
+            {/* Name input */}
+            <input
+              type="text"
+              value={signatureName}
+              onChange={e => setSignatureName(e.target.value)}
+              placeholder="Vollständiger Name"
+              className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-sm font-inter text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all"
+            />
+            {/* Cursive preview */}
+            <div className={`mt-3 rounded-xl border-2 transition-all overflow-hidden flex items-center px-5 ${
+              hasSignature ? "border-zinc-800 bg-white" : "border-dashed border-zinc-200 bg-zinc-50"
+            }`} style={{ minHeight: 72 }}>
+              {hasSignature ? (
+                <span style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontStyle: "italic",
+                  fontSize: "2rem",
+                  color: "#18181b",
+                  letterSpacing: "0.01em",
+                  lineHeight: 1.1,
+                  borderBottom: "1.5px solid #18181b",
+                  paddingBottom: "2px",
+                }}>
+                  {signatureName.trim()}
+                </span>
+              ) : (
+                <span className="text-xs font-inter text-zinc-300 mx-auto select-none flex items-center gap-1.5">
+                  <PenLine size={14} strokeWidth={1.5} /> Vorschau der Unterschrift erscheint hier
+                </span>
               )}
-              <canvas
-                ref={canvasRef}
-                style={{ width: "100%", height: "100%", touchAction: "none", cursor: "crosshair" }}
-                onMouseDown={startDraw}
-                onMouseMove={draw}
-                onMouseUp={stopDraw}
-                onMouseLeave={stopDraw}
-                onTouchStart={startDraw}
-                onTouchMove={draw}
-                onTouchEnd={stopDraw}
-              />
             </div>
             {hasSignature && (
               <p className="text-xs text-emerald-600 font-inter font-medium mt-2 flex items-center gap-1">
-                <CheckCircle size={12} strokeWidth={2} /> Unterschrift erfasst
+                <CheckCircle size={12} strokeWidth={2} /> Unterschrift bereit
               </p>
             )}
           </motion.div>

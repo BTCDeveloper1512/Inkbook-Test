@@ -2583,29 +2583,51 @@ export default function StudioDashboard() {
                           return (
                           <div className="flex flex-col gap-1.5 min-w-[158px]">
 
-                            {/* Status badges */}
-                            <div className="flex flex-col gap-1 bg-zinc-50 border border-zinc-200 rounded-xl p-2.5">
-                              <span className={`text-xs px-2.5 py-1 rounded-full border font-inter text-center ${statusColors[b.status] || statusColors.pending}`}>
-                                {statusLabels[b.status] || b.status}
-                              </span>
-                              {b.status === "confirmed" && b.payment_status === "paid" && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center justify-center gap-1">
-                                  <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
-                                </span>
+                            {/* Status panel */}
+                            <div className="flex flex-col gap-1.5 bg-white border border-zinc-200 rounded-2xl p-3 shadow-[0_1px_4px_rgb(0,0,0,0.06)]">
+                              {/* Main status */}
+                              <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border font-inter ${statusColors[b.status] || statusColors.pending}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                  b.status === "confirmed" ? "bg-emerald-500" :
+                                  b.status === "offer_sent" ? "bg-violet-500" :
+                                  b.status === "waiting_for_deposit" ? "bg-orange-400" :
+                                  b.status === "completed" ? "bg-emerald-600" :
+                                  b.status === "cancelled" || b.status === "customer_cancelled" || b.status === "studio_cancelled" ? "bg-red-400" :
+                                  "bg-amber-400"
+                                }`} />
+                                <span className="text-xs font-semibold">{statusLabels[b.status] || b.status}</span>
+                              </div>
+
+                              {/* Sub-indicators */}
+                              {b.status === "completed" && (b.revenue || 0) > 0 && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-100">
+                                  <CheckCircle size={10} strokeWidth={2} className="text-emerald-500 flex-shrink-0" />
+                                  <span className="text-[11px] font-inter font-semibold text-emerald-700" data-testid={`revenue-display-${b.booking_id}`}>
+                                    €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2 })} eingenommen
+                                  </span>
+                                </div>
+                              )}
+                              {b.payment_status === "paid" && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-100">
+                                  <CheckCircle size={10} strokeWidth={2} className="text-emerald-500 flex-shrink-0" />
+                                  <span className="text-[11px] font-inter font-medium text-emerald-700">Anzahlung bezahlt</span>
+                                </div>
                               )}
                               {b.voucher_code && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1">
-                                  🎟 Gutschein eingelöst
-                                </span>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-100">
+                                  <span className="text-[10px]">🎟</span>
+                                  <span className="text-[11px] font-inter font-medium text-emerald-700">Gutschein eingelöst</span>
+                                </div>
                               )}
                               {b.consent_status === "submitted" && (
-                                <span className="flex items-center gap-1">
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
-                                    <CheckCircle size={9} strokeWidth={2} /> Einverständnis ✓
-                                  </span>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-100 flex-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
+                                    <CheckCircle size={10} strokeWidth={2} className="text-emerald-500 flex-shrink-0" />
+                                    <span className="text-[11px] font-inter font-medium text-emerald-700">Einverständnis ✓</span>
+                                  </div>
                                   <button
                                     type="button"
-                                    title="Einverständnis PDF herunterladen"
+                                    title="PDF herunterladen"
                                     onClick={async () => {
                                       try {
                                         const res = await axios.get(`${API}/bookings/${b.booking_id}/consent/download`, { withCredentials: true });
@@ -2616,37 +2638,33 @@ export default function StudioDashboard() {
                                           link.download = `einverstaendnis-${b.booking_id}.pdf`;
                                           link.click();
                                         } else {
-                                          notify.info("Kein PDF gespeichert – das Formular wurde mit einer älteren Version eingereicht.");
+                                          notify.info("Kein PDF gespeichert.");
                                         }
-                                      } catch (err) {
-                                        notify.error("PDF konnte nicht geladen werden.");
-                                      }
+                                      } catch { notify.error("PDF konnte nicht geladen werden."); }
                                     }}
-                                    className="text-[10px] px-1.5 py-0.5 rounded-full border font-inter bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 transition-colors flex items-center gap-0.5"
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition-colors text-[11px] font-inter flex-shrink-0"
                                   >
-                                    <Download size={8} strokeWidth={2} /> PDF
+                                    <Download size={9} strokeWidth={2} /> PDF
                                   </button>
-                                </span>
+                                </div>
                               )}
                               {b.consent_status === "required" && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
-                                  ⚠️ Formular ausstehend
-                                </span>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200">
+                                  <span className="text-[10px]">⚠️</span>
+                                  <span className="text-[11px] font-inter font-medium text-amber-700">Formular ausstehend</span>
+                                </div>
                               )}
                               {b.refund_pending && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
-                                  ⚠️ Rückzahlung ausstehend
-                                </span>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200">
+                                  <span className="text-[10px]">⚠️</span>
+                                  <span className="text-[11px] font-inter font-medium text-amber-700">Rückzahlung ausstehend</span>
+                                </div>
                               )}
                               {!b.refund_pending && (b.refund_status === "refunded" || b.refund_status === "manual") && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1">
-                                  <CheckCircle size={9} strokeWidth={2} /> Rückzahlung eingeleitet
-                                </span>
-                              )}
-                              {b.status === "completed" && (b.revenue || 0) > 0 && (
-                                <span className="text-sm font-playfair font-semibold text-emerald-600 text-center" data-testid={`revenue-display-${b.booking_id}`}>
-                                  + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-100">
+                                  <CheckCircle size={10} strokeWidth={2} className="text-emerald-500 flex-shrink-0" />
+                                  <span className="text-[11px] font-inter font-medium text-emerald-700">Rückzahlung eingeleitet</span>
+                                </div>
                               )}
                             </div>
 

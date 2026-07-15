@@ -242,6 +242,11 @@ class UpdateResult:
         self.modified_count = modified
 
 
+class DeleteResult:
+    def __init__(self, deleted_count):
+        self.deleted_count = deleted_count
+
+
 class InsertOneResult:
     def __init__(self, inserted_id):
         self.inserted_id = inserted_id
@@ -392,7 +397,8 @@ class Collection:
             if _matches_filter(doc, filter_dict):
                 self._docs.pop(i)
                 self._save()
-                return
+                return DeleteResult(1)
+        return DeleteResult(0)
 
     async def delete_many(self, filter_dict):
         before = len(self._docs)
