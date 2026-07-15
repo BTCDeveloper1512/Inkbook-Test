@@ -3149,8 +3149,9 @@ async def submit_consent(booking_id: str, data: ConsentFormSubmit, current_user:
     studio_check = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"consent_required": 1})
     if not studio_check or not studio_check.get("consent_required", False):
         raise HTTPException(status_code=400, detail="Dieses Studio fordert keine Einverständniserklärung für diese Buchung")
-    if booking.get("status") not in ("confirmed", "waiting_for_deposit"):
-        raise HTTPException(status_code=400, detail="Das Einverständnisformular kann nur für bestätigte Buchungen eingereicht werden")
+    _CONSENT_ELIGIBLE = {"pending", "pending_studio_review", "under_review", "offer_sent", "waiting_for_deposit", "confirmed"}
+    if booking.get("status") not in _CONSENT_ELIGIBLE:
+        raise HTTPException(status_code=400, detail="Das Einverständnisformular kann nur für aktive Buchungen eingereicht werden")
 
     now_iso = datetime.now(timezone.utc).isoformat()
     consent_doc = {
@@ -4536,9 +4537,10 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             studio = await db.studios.find_one({"studio_id": b.get("studio_id", "")}, {"consent_required": 1})
             studio_consent_required = studio.get("consent_required", False) if studio else False
             b["studio_consent_required"] = studio_consent_required
+            _CONSENT_ACTIVE = {"pending", "pending_studio_review", "under_review", "offer_sent", "waiting_for_deposit", "confirmed"}
             if bid in customer_consent_map:
                 b["consent_status"] = "submitted"
-            elif studio_consent_required and b.get("status") in ["confirmed", "waiting_for_deposit"]:
+            elif studio_consent_required and b.get("status") in _CONSENT_ACTIVE:
                 b["consent_status"] = "required"
             else:
                 b["consent_status"] = "not_required"

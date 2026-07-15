@@ -651,8 +651,7 @@ export default function CustomerDashboard() {
         {/* Consent Banner — shown when any confirmed booking needs the form */}
         {(() => {
           const pendingConsent = allBookings.filter(b =>
-            b.consent_status === "required" && b.studio_consent_required &&
-            ["confirmed", "waiting_for_deposit"].includes(b.status)
+            b.consent_status === "required" && b.studio_consent_required
           );
           if (pendingConsent.length === 0) return null;
           return (
