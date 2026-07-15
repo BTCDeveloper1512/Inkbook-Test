@@ -6645,12 +6645,96 @@ async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_use
         "product_type": product["type"],
     }
 
+async def _fulfill_shop_order(order: dict) -> dict | None:
+    """Atomically transition a pending shop order to paid, then run side-effects.
+
+    Uses find_one_and_update with a status:'pending' guard so only one concurrent
+    caller (webhook vs. /shop/confirm) can win the transition. Returns the updated
+    order dict on success, or None if the order was already fulfilled by another caller.
+    """
+    order_id = order["order_id"]
+    product_type = order.get("product_type", "aftercare")
+    updates = {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}
+    voucher_code = None
+    download_token = None
+
+    if product_type == "voucher":
+        voucher_code = str(uuid.uuid4()).upper().replace("-", "")[:16]
+        voucher_code = f"{voucher_code[:4]}-{voucher_code[4:8]}-{voucher_code[8:12]}"
+        updates["voucher_code"] = voucher_code
+    elif product_type == "flash":
+        download_token = secrets.token_urlsafe(32)
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        updates["download_token"] = download_token
+        updates["download_expires_at"] = expires_at
+
+    # Atomic guard: only matches when status is still "pending".
+    # Returns None if another caller already transitioned the order.
+    matched = await db.shop_orders.find_one_and_update(
+        {"order_id": order_id, "status": "pending"},
+        {"$set": updates}
+    )
+    if matched is None:
+        return None
+
+    # Side-effects run only when we won the race.
+    product = await db.shop_products.find_one({"product_id": order["product_id"]}, {"_id": 0})
+    if product and product.get("stock") is not None:
+        new_stock = max(0, product["stock"] - 1)
+        await db.shop_products.update_one({"product_id": order["product_id"]}, {"$set": {"stock": new_stock, "sold_count": product.get("sold_count", 0) + 1}})
+    elif product:
+        await db.shop_products.update_one({"product_id": order["product_id"]}, {"$set": {"sold_count": product.get("sold_count", 0) + 1}})
+
+    email = order.get("user_email", "")
+    if email:
+        asyncio.create_task(send_email(
+            to=email,
+            subject=f"✅ Deine Bestellung bei {order.get('studio_name', 'Studio')} – {order.get('product_title', '')}",
+            html=_shop_order_email_html(order, voucher_code, download_token, updates.get("download_expires_at"))
+        ))
+
+    return {**{k: v for k, v in order.items() if k != "_id"}, **updates}
+
+
+@api_router.post("/stripe/webhook")
+async def stripe_payment_webhook(request: Request):
+    """Handle Stripe payment_intent.succeeded webhooks to auto-confirm pending shop orders.
+
+    Requires STRIPE_WEBHOOK_SECRET to be set and a valid Stripe-Signature header.
+    Requests that cannot be verified are rejected with 400 — there is no unsigned fallback.
+    """
+    import stripe as stripe_lib
+    stripe_lib.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+    payload = await request.body()
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not webhook_secret:
+        raise HTTPException(status_code=400, detail="Webhook-Signaturprüfung nicht konfiguriert")
+
+    try:
+        event = stripe_lib.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except stripe_lib.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Ungültige Webhook-Signatur")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Ungültiger Payload")
+
+    if event["type"] == "payment_intent.succeeded":
+        payment_intent = event["data"]["object"]
+        pi_id = payment_intent.get("id")
+        if pi_id:
+            order = await db.shop_orders.find_one({"stripe_payment_intent_id": pi_id, "status": "pending"}, {"_id": 0})
+            if order:
+                await _fulfill_shop_order(order)
+
+    return {"received": True}
+
+
 @api_router.post("/shop/confirm/{order_id}")
 async def shop_confirm(order_id: str, current_user: Optional[dict] = Depends(get_current_user_optional)):
     order = await db.shop_orders.find_one({"order_id": order_id}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
-    # For authenticated users: verify ownership. Guests have user_id=None so skip check.
     if current_user and order.get("user_id") is not None:
         user_id = current_user.get("id") or current_user.get("user_id")
         if order.get("user_id") != user_id:
@@ -6668,43 +6752,12 @@ async def shop_confirm(order_id: str, current_user: Optional[dict] = Depends(get
     if order.get("status") == "paid":
         return {k: v for k, v in order.items() if k != "_id"}
 
-    # Generate fulfillment data based on product type
-    product_type = order.get("product_type", "aftercare")
-    updates = {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}
-    voucher_code = None
-    download_token = None
-
-    if product_type == "voucher":
-        voucher_code = str(uuid.uuid4()).upper().replace("-", "")[:16]
-        voucher_code = f"{voucher_code[:4]}-{voucher_code[4:8]}-{voucher_code[8:12]}"
-        updates["voucher_code"] = voucher_code
-    elif product_type == "flash":
-        download_token = secrets.token_urlsafe(32)
-        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
-        updates["download_token"] = download_token
-        updates["download_expires_at"] = expires_at
-
-    await db.shop_orders.update_one({"order_id": order_id}, {"$set": updates})
-
-    # Decrement stock if finite
-    product = await db.shop_products.find_one({"product_id": order["product_id"]}, {"_id": 0})
-    if product and product.get("stock") is not None:
-        new_stock = max(0, product["stock"] - 1)
-        await db.shop_products.update_one({"product_id": order["product_id"]}, {"$set": {"stock": new_stock, "sold_count": product.get("sold_count", 0) + 1}})
-    elif product:
-        await db.shop_products.update_one({"product_id": order["product_id"]}, {"$set": {"sold_count": product.get("sold_count", 0) + 1}})
-
-    # Send confirmation email
-    email = order.get("user_email", "")
-    if email:
-        asyncio.create_task(send_email(
-            to=email,
-            subject=f"✅ Deine Bestellung bei {order.get('studio_name', 'Studio')} – {order.get('product_title', '')}",
-            html=_shop_order_email_html(order, voucher_code, download_token, updates.get("download_expires_at"))
-        ))
-
-    updated_order = {**order, **updates}
-    return {k: v for k, v in updated_order.items() if k != "_id"}
+    fulfilled = await _fulfill_shop_order(order)
+    if fulfilled is None:
+        # Webhook fulfilled the order concurrently — return the current DB state.
+        current = await db.shop_orders.find_one({"order_id": order_id}, {"_id": 0})
+        return current or {k: v for k, v in order.items() if k != "_id"}
+    return fulfilled
 
 class VoucherValidateRequest(BaseModel):
     voucher_code: str

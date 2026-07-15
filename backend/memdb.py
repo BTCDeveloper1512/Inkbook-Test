@@ -343,6 +343,21 @@ class Collection:
         self._save()
         return InsertOneResult(new_doc["_id"])
 
+    async def find_one_and_update(self, filter_dict, update_dict, return_document=False):
+        """Find first matching document, apply update, and return it.
+
+        return_document=False (default): returns the document as it was before the update.
+        return_document=True: returns the document after the update.
+        Returns None if no document matched the filter.
+        """
+        for doc in self._docs:
+            if _matches_filter(doc, filter_dict or {}):
+                before = copy.deepcopy(doc)
+                _apply_update(doc, update_dict)
+                self._save()
+                return copy.deepcopy(doc) if return_document else before
+        return None
+
     async def update_one(self, filter_dict, update_dict, upsert=False):
         for doc in self._docs:
             if _matches_filter(doc, filter_dict):
