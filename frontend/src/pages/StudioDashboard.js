@@ -168,6 +168,7 @@ export default function StudioDashboard() {
   const [showDepositPopup, setShowDepositPopup] = useState(false);
   const [stripeWindowOpened, setStripeWindowOpened] = useState(() => !!localStorage.getItem("inkbook_stripe_window_opened"));
   const [offerModal, setOfferModal] = useState(null);
+  const [expandedActions, setExpandedActions] = useState({});
   const [offerForm, setOfferForm] = useState({ offer_date: "", offer_time: "", offer_duration_min: 120, offer_total_price: "", offer_deposit_amount: "", offer_notes: "" });
   const [offerLoading, setOfferLoading] = useState(false);
   const [refundModal, setRefundModal] = useState(null); // booking object with paid deposit
@@ -2483,170 +2484,213 @@ export default function StudioDashboard() {
                           )}
                         </div>
                         {/* ── Right action panel ── */}
-                        <div className="flex flex-col gap-1.5 min-w-[158px] bg-zinc-50 border border-zinc-200 rounded-xl p-2.5">
+                        {(() => {
+                          const isExpanded = !!expandedActions[b.booking_id];
+                          const toggleExpanded = () => setExpandedActions(prev => ({ ...prev, [b.booking_id]: !prev[b.booking_id] }));
+                          const hasPrimaryAction = (b.status === "confirmed") || (["pending_studio_review","under_review","pending"].includes(b.status) && !isPast) || b.refund_pending;
+                          return (
+                          <div className="flex flex-col gap-1.5 min-w-[158px]">
 
-                          {/* Status row */}
-                          <div className="flex flex-col gap-1 pb-2 border-b border-zinc-200">
-                            <span className={`text-xs px-2.5 py-1 rounded-full border font-inter text-center ${statusColors[b.status] || statusColors.pending}`}>
-                              {statusLabels[b.status] || b.status}
-                            </span>
-                            {b.status === "confirmed" && b.payment_status === "paid" && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center justify-center gap-1">
-                                <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
+                            {/* Status badges */}
+                            <div className="flex flex-col gap-1 bg-zinc-50 border border-zinc-200 rounded-xl p-2.5">
+                              <span className={`text-xs px-2.5 py-1 rounded-full border font-inter text-center ${statusColors[b.status] || statusColors.pending}`}>
+                                {statusLabels[b.status] || b.status}
                               </span>
-                            )}
-                            {b.consent_status === "submitted" && (
-                              <span className="flex items-center gap-1">
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
-                                  <CheckCircle size={9} strokeWidth={2} /> Einverständnis ✓
+                              {b.status === "confirmed" && b.payment_status === "paid" && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-600 border-emerald-200 flex items-center justify-center gap-1">
+                                  <CheckCircle size={9} strokeWidth={2} /> Anzahlung bezahlt
                                 </span>
-                                <button
-                                  type="button"
-                                  title="Einverständnis PDF herunterladen"
-                                  onClick={async () => {
-                                    try {
-                                      const res = await axios.get(`${API}/bookings/${b.booking_id}/consent/download`, { withCredentials: true });
-                                      const pdfData = res.data?.pdf_data || "";
-                                      if (pdfData) {
-                                        const link = document.createElement("a");
-                                        link.href = pdfData;
-                                        link.download = `einverstaendnis-${b.booking_id}.pdf`;
-                                        link.click();
-                                      } else {
-                                        notify.info("Kein PDF gespeichert – das Formular wurde mit einer älteren Version eingereicht.");
+                              )}
+                              {b.voucher_code && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1">
+                                  🎟 Gutschein eingelöst
+                                </span>
+                              )}
+                              {b.consent_status === "submitted" && (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1" title={`Einverständnis eingereicht${b.consent_submitted_at ? " am " + b.consent_submitted_at.slice(0,10) : ""}`}>
+                                    <CheckCircle size={9} strokeWidth={2} /> Einverständnis ✓
+                                  </span>
+                                  <button
+                                    type="button"
+                                    title="Einverständnis PDF herunterladen"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await axios.get(`${API}/bookings/${b.booking_id}/consent/download`, { withCredentials: true });
+                                        const pdfData = res.data?.pdf_data || "";
+                                        if (pdfData) {
+                                          const link = document.createElement("a");
+                                          link.href = pdfData;
+                                          link.download = `einverstaendnis-${b.booking_id}.pdf`;
+                                          link.click();
+                                        } else {
+                                          notify.info("Kein PDF gespeichert – das Formular wurde mit einer älteren Version eingereicht.");
+                                        }
+                                      } catch (err) {
+                                        notify.error("PDF konnte nicht geladen werden.");
                                       }
-                                    } catch (err) {
-                                      notify.error("PDF konnte nicht geladen werden.");
-                                    }
-                                  }}
-                                  className="text-[10px] px-1.5 py-0.5 rounded-full border font-inter bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 transition-colors flex items-center gap-0.5"
-                                >
-                                  <Download size={8} strokeWidth={2} /> PDF
-                                </button>
-                              </span>
-                            )}
-                            {b.consent_status === "required" && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
-                                ⚠️ Formular ausstehend
-                              </span>
-                            )}
-                            {b.refund_pending && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
-                                ⚠️ Rückzahlung ausstehend
-                              </span>
-                            )}
-                            {!b.refund_pending && (b.refund_status === "refunded" || b.refund_status === "manual") && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1">
-                                <CheckCircle size={9} strokeWidth={2} /> Rückzahlung eingeleitet
-                              </span>
-                            )}
-                            {b.status === "completed" && (b.revenue || 0) > 0 && (
-                              <span className="text-sm font-playfair font-semibold text-emerald-600 text-center" data-testid={`revenue-display-${b.booking_id}`}>
-                                + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            )}
-                          </div>
+                                    }}
+                                    className="text-[10px] px-1.5 py-0.5 rounded-full border font-inter bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 transition-colors flex items-center gap-0.5"
+                                  >
+                                    <Download size={8} strokeWidth={2} /> PDF
+                                  </button>
+                                </span>
+                              )}
+                              {b.consent_status === "required" && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
+                                  ⚠️ Formular ausstehend
+                                </span>
+                              )}
+                              {b.refund_pending && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-amber-50 text-amber-700 border-amber-200 flex items-center justify-center gap-1 animate-pulse">
+                                  ⚠️ Rückzahlung ausstehend
+                                </span>
+                              )}
+                              {!b.refund_pending && (b.refund_status === "refunded" || b.refund_status === "manual") && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center justify-center gap-1">
+                                  <CheckCircle size={9} strokeWidth={2} /> Rückzahlung eingeleitet
+                                </span>
+                              )}
+                              {b.status === "completed" && (b.revenue || 0) > 0 && (
+                                <span className="text-sm font-playfair font-semibold text-emerald-600 text-center" data-testid={`revenue-display-${b.booking_id}`}>
+                                  + €&thinsp;{(b.revenue).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              )}
+                            </div>
 
-                          {/* Confirmed: payment actions */}
-                          {b.status === "confirmed" && (
-                            <>
-                              <motion.button whileTap={{ scale: 0.97 }}
+                            {/* Primary actions */}
+                            {b.status === "confirmed" && (
+                              <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}
                                 onClick={() => { setFinalPayModal(b); setFinalPayAmount(""); setFinalPayMethod("cash"); }}
-                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-inter hover:bg-emerald-700 transition-colors"
+                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 bg-emerald-600 text-white rounded-xl font-inter font-medium hover:bg-emerald-700 transition-colors shadow-sm"
                                 data-testid={`complete-booking-btn-${b.booking_id}`}
                               >
                                 <CreditCard size={11} strokeWidth={2} /> Zahlung erfassen
                               </motion.button>
-                              <motion.button whileTap={{ scale: 0.97 }}
-                                onClick={() => handleCheckFinalPayment(b.booking_id)}
-                                disabled={checkPayLoading[b.booking_id]}
-                                className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-lg font-inter hover:bg-violet-100 hover:border-violet-400 transition-all disabled:opacity-50"
+                            )}
+                            {b.refund_pending && (
+                              <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}
+                                onClick={() => handleRefundDeposit(b.booking_id)}
+                                disabled={depositRefundLoading === b.booking_id}
+                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 bg-amber-500 text-white rounded-xl font-inter font-semibold hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+                                data-testid={`refund-deposit-btn-${b.booking_id}`}
                               >
-                                {checkPayLoading[b.booking_id]
-                                  ? <><div className="w-2.5 h-2.5 border border-violet-400 border-t-transparent rounded-full animate-spin" /> Wird geprüft…</>
-                                  : <><CheckCircle size={10} strokeWidth={2} /> Zahlungseingang prüfen</>
+                                {depositRefundLoading === b.booking_id
+                                  ? <><div className="w-2.5 h-2.5 border border-white/50 border-t-transparent rounded-full animate-spin" />&nbsp;Wird gebucht…</>
+                                  : "💳 Anzahlung zurückzahlen"
                                 }
                               </motion.button>
-                              {isPast && (
-                                <motion.button whileTap={{ scale: 0.97 }}
-                                  onClick={async () => {
-                                    const ok = await notify.confirm("Kunde als No-Show markieren?", "Die Anzahlung wird einbehalten.");
-                                    if (!ok) return;
-                                    try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { notify.error(e.response?.data?.detail || "Fehler"); }
-                                  }}
-                                  className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-lg font-inter hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all"
-                                  data-testid={`no-show-btn-${b.booking_id}`}
-                                >
-                                  ⚠️ No-Show markieren
-                                </motion.button>
-                              )}
-                            </>
-                          )}
-
-                          {/* Pending deposit refund */}
-                          {b.refund_pending && (
-                            <motion.button whileTap={{ scale: 0.97 }}
-                              onClick={() => handleRefundDeposit(b.booking_id)}
-                              disabled={depositRefundLoading === b.booking_id}
-                              className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg font-inter font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
-                              data-testid={`refund-deposit-btn-${b.booking_id}`}
-                            >
-                              {depositRefundLoading === b.booking_id
-                                ? <><div className="w-2.5 h-2.5 border border-white/50 border-t-transparent rounded-full animate-spin" />&nbsp;Wird gebucht…</>
-                                : "💳 Anzahlung zurückzahlen"
-                              }
-                            </motion.button>
-                          )}
-
-                          {/* Pending: offer button */}
-                          {["pending_studio_review","under_review","pending"].includes(b.status) && !isPast && (
-                            <motion.button whileTap={{ scale: 0.97 }}
-                              onClick={() => { setOfferModal(b); setOfferForm(f => ({ ...f, offer_date: b.date || "", offer_notes: "" })); }}
-                              className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg font-inter hover:bg-violet-700 transition-colors"
-                              data-testid={`create-offer-btn-${b.booking_id}`}
-                            >
-                              📋 Angebot erstellen
-                            </motion.button>
-                          )}
-
-                          {/* Divider before utility actions */}
-                          <div className="border-t border-zinc-200 pt-1.5 flex flex-col gap-1.5">
-                            {/* Cancel */}
-                            {STUDIO_ACTIVE.includes(b.status) && (!isPast || isBookingToday(b)) && (
-                              <motion.button whileTap={{ scale: 0.97 }}
-                                onClick={async () => {
-                                  if (b.payment_status === "paid") {
-                                    setRefundModal(b);
-                                  } else {
-                                    const ok = await notify.confirm("Buchung wirklich stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
-                                    if (!ok) return;
-                                    axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
-                                  }
+                            )}
+                            {["pending_studio_review","under_review","pending"].includes(b.status) && !isPast && (
+                              <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}
+                                onClick={() => {
+                                  setOfferModal(b);
+                                  setOfferForm(f => ({
+                                    ...f,
+                                    offer_date: b.date || "",
+                                    offer_notes: b.voucher_code ? `Gutschein ${b.voucher_code} eingelöst` : "",
+                                    offer_total_price: b.voucher_discount_cents ? (b.voucher_discount_cents / 100).toFixed(0) : "",
+                                    offer_deposit_amount: b.voucher_discount_cents ? "0" : f.offer_deposit_amount,
+                                  }));
                                 }}
-                                className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-lg font-inter hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all"
-                                data-testid={`cancel-booking-studio-${b.booking_id}`}
+                                className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 bg-violet-600 text-white rounded-xl font-inter font-medium hover:bg-violet-700 transition-colors shadow-sm"
+                                data-testid={`create-offer-btn-${b.booking_id}`}
                               >
-                                {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
+                                <Tag size={11} strokeWidth={2} /> Angebot erstellen
                               </motion.button>
                             )}
-                            {/* Notes */}
-                            <motion.button whileTap={{ scale: 0.97 }}
-                              onClick={() => setNotesModal(b)}
-                              className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-500 rounded-lg font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
-                              data-testid={`notes-btn-booking-${b.booking_id}`}
-                            >
-                              <FileText size={11} strokeWidth={1.5} /> Bemerkungen
-                            </motion.button>
-                            {/* Contact */}
-                            <motion.button whileTap={{ scale: 0.97 }}
-                              onClick={() => handleContactCustomer(b)}
-                              className="w-full flex items-center justify-center gap-1.5 text-[11px] px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
-                              data-testid={`contact-customer-booking-${b.booking_id}`}
-                            >
-                              <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
-                            </motion.button>
+
+                            {/* Collapsible secondary actions */}
+                            <div className="rounded-xl border border-zinc-200 overflow-hidden">
+                              <motion.button
+                                whileTap={{ scale: 0.98 }}
+                                onClick={toggleExpanded}
+                                className="w-full flex items-center justify-between gap-2 text-[11px] px-3 py-2 bg-white text-zinc-500 font-inter hover:bg-zinc-50 transition-colors"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <Settings2 size={11} strokeWidth={1.5} /> Aktionen
+                                </span>
+                                <motion.span animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 22 }}>
+                                  <ChevronDown size={12} strokeWidth={2} />
+                                </motion.span>
+                              </motion.button>
+
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="flex flex-col gap-1 p-1.5 border-t border-zinc-100">
+                                      {b.status === "confirmed" && (
+                                        <>
+                                          <motion.button whileTap={{ scale: 0.96 }} whileHover={{ x: 2 }}
+                                            onClick={() => handleCheckFinalPayment(b.booking_id)}
+                                            disabled={checkPayLoading[b.booking_id]}
+                                            className="w-full flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 bg-violet-50 border border-violet-100 text-violet-700 rounded-lg font-inter hover:bg-violet-100 transition-all disabled:opacity-50"
+                                          >
+                                            {checkPayLoading[b.booking_id]
+                                              ? <><div className="w-2.5 h-2.5 border border-violet-400 border-t-transparent rounded-full animate-spin" /> Wird geprüft…</>
+                                              : <><CheckCircle size={10} strokeWidth={2} /> Zahlungseingang prüfen</>
+                                            }
+                                          </motion.button>
+                                          {isPast && (
+                                            <motion.button whileTap={{ scale: 0.96 }} whileHover={{ x: 2 }}
+                                              onClick={async () => {
+                                                const ok = await notify.confirm("Kunde als No-Show markieren?", "Die Anzahlung wird einbehalten.");
+                                                if (!ok) return;
+                                                try { await axios.post(`${API}/bookings/${b.booking_id}/no-show`, {}, { withCredentials: true }); fetchStats(); } catch (e) { notify.error(e.response?.data?.detail || "Fehler"); }
+                                              }}
+                                              className="w-full flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 border border-zinc-100 text-zinc-500 rounded-lg font-inter hover:border-amber-200 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                                              data-testid={`no-show-btn-${b.booking_id}`}
+                                            >
+                                              ⚠️ No-Show markieren
+                                            </motion.button>
+                                          )}
+                                        </>
+                                      )}
+                                      {STUDIO_ACTIVE.includes(b.status) && (!isPast || isBookingToday(b)) && (
+                                        <motion.button whileTap={{ scale: 0.96 }} whileHover={{ x: 2 }}
+                                          onClick={async () => {
+                                            if (b.payment_status === "paid") {
+                                              setRefundModal(b);
+                                            } else {
+                                              const ok = await notify.confirm("Buchung wirklich stornieren?", "Diese Aktion kann nicht rückgängig gemacht werden.");
+                                              if (!ok) return;
+                                              axios.put(`${API}/bookings/${b.booking_id}/status`, null, { params: { status: "studio_cancelled" }, withCredentials: true }).then(fetchStats).catch(() => {});
+                                            }
+                                          }}
+                                          className="w-full flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 border border-zinc-100 text-zinc-500 rounded-lg font-inter hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-all"
+                                          data-testid={`cancel-booking-studio-${b.booking_id}`}
+                                        >
+                                          <X size={11} strokeWidth={1.5} /> {b.payment_status === "paid" ? "Stornieren & Rückzahlen" : "Stornieren"}
+                                        </motion.button>
+                                      )}
+                                      <motion.button whileTap={{ scale: 0.96 }} whileHover={{ x: 2 }}
+                                        onClick={() => setNotesModal(b)}
+                                        className="w-full flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 border border-zinc-100 text-zinc-500 rounded-lg font-inter hover:bg-zinc-100 hover:text-zinc-700 transition-all"
+                                        data-testid={`notes-btn-booking-${b.booking_id}`}
+                                      >
+                                        <FileText size={11} strokeWidth={1.5} /> Bemerkungen
+                                      </motion.button>
+                                      <motion.button whileTap={{ scale: 0.96 }} whileHover={{ x: 2 }}
+                                        onClick={() => handleContactCustomer(b)}
+                                        className="w-full flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 border border-zinc-100 text-zinc-600 rounded-lg font-inter hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+                                        data-testid={`contact-customer-booking-${b.booking_id}`}
+                                      >
+                                        <MessageSquare size={11} strokeWidth={1.5} /> Kunde kontaktieren
+                                      </motion.button>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
-                        </div>
+                          );
+                        })()}
                       </div>
                     </motion.div>
                   );
@@ -4659,6 +4703,17 @@ export default function StudioDashboard() {
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-50 border border-violet-100 mb-4">
                   <Tag size={12} strokeWidth={1.5} className="text-violet-500 shrink-0" />
                   <p className="text-xs text-violet-700 font-inter">Das Angebot wird per E-Mail an den Gast gesendet – mit einem Aktivierungslink zum StudioOS-Konto.</p>
+                </div>
+              )}
+              {offerModal.voucher_code && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 mb-4">
+                  <span className="text-base leading-none">🎟</span>
+                  <div>
+                    <p className="text-xs font-inter font-semibold text-emerald-800">Gutschein eingelöst: <span className="font-mono tracking-wide">{offerModal.voucher_code}</span></p>
+                    {offerModal.voucher_discount_cents && (
+                      <p className="text-[11px] text-emerald-600 font-inter mt-0.5">Wert €{(offerModal.voucher_discount_cents / 100).toFixed(2)} bereits als Gesamtpreis vorgemerkt</p>
+                    )}
+                  </div>
                 </div>
               )}
 
