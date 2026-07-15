@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle, Trash2, Save, X, MessageSquare, Upload, HelpCircle, Video, FileText, Search, Download, CreditCard, Link2, Copy, ExternalLink, LayoutGrid, BookOpen, Inbox, CalendarPlus, Users, Settings2, Tag, Eye, Banknote, Send, Receipt, ChevronLeft, ChevronRight, Sparkles, Bell, Camera, Image, ChevronDown, ChevronUp, Lock, Unlock } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ArtistsTab from "../components/ArtistsTab";
@@ -175,6 +175,8 @@ export default function StudioDashboard() {
   const [depositRefundLoading, setDepositRefundLoading] = useState("");
   const [pageAnalytics, setPageAnalytics] = useState(null);
   const [clientSearch, setClientSearch] = useState("");
+  const [clientStyleFilter, setClientStyleFilter] = useState(null);
+  const [clientDateFilter, setClientDateFilter] = useState("all");
   const [clientsList, setClientsList] = useState([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -281,6 +283,20 @@ export default function StudioDashboard() {
         )
       } : prev);
     } catch { notify.error("Foto konnte nicht gelöscht werden."); }
+  };
+
+  const handleTogglePhotoVisibility = async (bookingId, photoId, visible) => {
+    try {
+      await axios.patch(`${API}/bookings/${bookingId}/photos/${photoId}/release?visible=${visible}`, {}, { withCredentials: true });
+      setClientCard(prev => prev ? {
+        ...prev,
+        bookings: prev.bookings.map(b => b.booking_id === bookingId
+          ? { ...b, before_after_photos: (b.before_after_photos || []).map(p =>
+              p.photo_id === photoId ? { ...p, visible_to_customer: visible } : p) }
+          : b
+        )
+      } : prev);
+    } catch { notify.error("Sichtbarkeit konnte nicht geändert werden."); }
   };
 
   const fetchUnreadMessages = async () => {
@@ -3011,12 +3027,24 @@ export default function StudioDashboard() {
           const labelMap = { before: "Vorher", after: "Nachher", healed: "Verheilt" };
           const statusLabelMap = { confirmed: "Bestätigt", completed: "Abgeschlossen", pending: "Ausstehend", cancelled: "Storniert", customer_cancelled: "Storniert", studio_cancelled: "Storniert" };
 
-          const filteredClients = clientsList.filter(c =>
-            !clientSearch ||
-            c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-            c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-            (c.tags || []).some(t => t.toLowerCase().includes(clientSearch.toLowerCase()))
-          );
+          const allStyles = [...new Set(clientsList.flatMap(c => c.styles || []))].sort();
+          const now = new Date();
+          const filteredClients = clientsList.filter(c => {
+            if (clientSearch && !(
+              c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+              c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+              (c.tags || []).some(t => t.toLowerCase().includes(clientSearch.toLowerCase()))
+            )) return false;
+            if (clientStyleFilter && !(c.styles || []).includes(clientStyleFilter)) return false;
+            if (clientDateFilter !== "all" && c.last_visit) {
+              const lv = new Date(c.last_visit + "T12:00:00");
+              const diffDays = (now - lv) / (1000 * 60 * 60 * 24);
+              if (clientDateFilter === "30" && diffDays > 30) return false;
+              if (clientDateFilter === "90" && diffDays > 90) return false;
+              if (clientDateFilter === "365" && diffDays > 365) return false;
+            } else if (clientDateFilter !== "all" && !c.last_visit) return false;
+            return true;
+          });
 
           return (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
@@ -3049,6 +3077,26 @@ export default function StudioDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Filter chips (style + date) */}
+              {!selectedClient && (allStyles.length > 0 || clientDateFilter !== "all" || clientStyleFilter) && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {/* Date filter */}
+                  {[{v:"all",l:"Alle Zeiträume"},{v:"30",l:"Letzten 30 Tage"},{v:"90",l:"Letztes Quartal"},{v:"365",l:"Dieses Jahr"}].map(opt => (
+                    <button key={opt.v} onClick={() => setClientDateFilter(opt.v)}
+                      className={`px-3 py-1 rounded-full text-xs font-inter transition-all border ${clientDateFilter === opt.v ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"}`}>
+                      {opt.l}
+                    </button>
+                  ))}
+                  {/* Style filter chips */}
+                  {allStyles.map(s => (
+                    <button key={s} onClick={() => setClientStyleFilter(clientStyleFilter === s ? null : s)}
+                      className={`px-3 py-1 rounded-full text-xs font-inter transition-all border ${clientStyleFilter === s ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Client List */}
               {!selectedClient && (
@@ -3257,15 +3305,29 @@ export default function StudioDashboard() {
                                             onClick={() => setPhotoLightbox(ph)}>
                                             <img src={ph.photo_data} alt={ph.label}
                                               className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                            {/* Visible-to-customer indicator (always shown) */}
+                                            <div className="absolute top-1 left-1">
+                                              {ph.visible_to_customer
+                                                ? <span title="Für Kunden sichtbar" className="flex items-center gap-0.5 bg-emerald-500/90 text-white text-[8px] font-inter px-1.5 py-0.5 rounded-full"><Unlock size={7} strokeWidth={2.5} />Freigegeben</span>
+                                                : <span title="Nur für Studio sichtbar" className="flex items-center gap-0.5 bg-zinc-800/70 text-white text-[8px] font-inter px-1.5 py-0.5 rounded-full"><Lock size={7} strokeWidth={2.5} />Intern</span>
+                                              }
+                                            </div>
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-end justify-between p-1.5 opacity-0 group-hover:opacity-100">
                                               <span className="text-[9px] font-inter font-semibold text-white bg-black/60 px-1.5 py-0.5 rounded-full">
                                                 {labelMap[ph.label] || ph.label}
                                               </span>
-                                              <button
-                                                onClick={e => { e.stopPropagation(); handleDeletePhoto(booking.booking_id, ph.photo_id); }}
-                                                className="p-0.5 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors">
-                                                <X size={9} strokeWidth={2.5} />
-                                              </button>
+                                              <div className="flex gap-1">
+                                                <button title={ph.visible_to_customer ? "Freigabe aufheben" : "Für Kunde freigeben"}
+                                                  onClick={e => { e.stopPropagation(); handleTogglePhotoVisibility(booking.booking_id, ph.photo_id, !ph.visible_to_customer); }}
+                                                  className={`p-0.5 rounded-full text-white transition-colors ${ph.visible_to_customer ? "bg-emerald-500 hover:bg-emerald-600" : "bg-zinc-600 hover:bg-zinc-700"}`}>
+                                                  {ph.visible_to_customer ? <Unlock size={9} strokeWidth={2.5} /> : <Lock size={9} strokeWidth={2.5} />}
+                                                </button>
+                                                <button
+                                                  onClick={e => { e.stopPropagation(); handleDeletePhoto(booking.booking_id, ph.photo_id); }}
+                                                  className="p-0.5 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors">
+                                                  <X size={9} strokeWidth={2.5} />
+                                                </button>
+                                              </div>
                                             </div>
                                           </div>
                                         ))}

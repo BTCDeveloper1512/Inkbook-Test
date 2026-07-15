@@ -4473,9 +4473,9 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 b["consent_status"] = "required"
             else:
                 b["consent_status"] = "not_required"
-            # Add photos_count; strip large base64 data from stats payload
+            # Add photos_count (only released photos for customers); strip large base64 data
             photos = b.pop("before_after_photos", []) or []
-            b["photos_count"] = len(photos)
+            b["photos_count"] = sum(1 for p in photos if p.get("visible_to_customer", False))
 
         upcoming_list = [b for b in bookings if b.get("status") in ["pending", "confirmed"]]
         return {
@@ -5997,12 +5997,15 @@ async def list_studio_clients(studio_id: str, current_user: dict = Depends(get_c
         if uid not in client_map:
             client_map[uid] = {
                 "user_id": uid, "name": b.get("user_name", ""),
-                "email": b.get("user_email", ""), "visit_count": 0, "last_visit": None,
+                "email": b.get("user_email", ""), "visit_count": 0,
+                "last_visit": None, "styles": set(),
             }
         client_map[uid]["visit_count"] += 1
         bdate = b.get("offer_date") or b.get("date") or ""
         if bdate and (not client_map[uid]["last_visit"] or bdate > client_map[uid]["last_visit"]):
             client_map[uid]["last_visit"] = bdate
+        for s in (b.get("styles") or []):
+            client_map[uid]["styles"].add(s)
 
     client_ids = list(client_map.keys())
     cards = await db.client_cards.find(
@@ -6016,6 +6019,7 @@ async def list_studio_clients(studio_id: str, current_user: dict = Depends(get_c
         result.append({
             "user_id": uid, "name": info["name"], "email": info["email"],
             "visit_count": info["visit_count"], "last_visit": info["last_visit"],
+            "styles": sorted(info["styles"]),
             "tags": card.get("tags", []), "fitzpatrick_scale": card.get("fitzpatrick_scale"),
         })
     result.sort(key=lambda x: x["last_visit"] or "", reverse=True)
@@ -6073,13 +6077,10 @@ async def update_client_card(studio_id: str, user_id: str, data: ClientCardUpdat
     now_iso = datetime.now(timezone.utc).isoformat()
     existing = await db.client_cards.find_one({"studio_id": studio_id, "user_id": user_id})
     if existing:
+        # Use model_fields_set so that explicit null values (e.g. clearing Fitzpatrick) are applied
         patch: Dict[str, Any] = {"updated_at": now_iso}
-        if data.fitzpatrick_scale is not None:
-            patch["fitzpatrick_scale"] = data.fitzpatrick_scale
-        if data.tags is not None:
-            patch["tags"] = data.tags
-        if data.internal_notes is not None:
-            patch["internal_notes"] = data.internal_notes
+        for field_name in data.model_fields_set:
+            patch[field_name] = getattr(data, field_name)
         await db.client_cards.update_one({"studio_id": studio_id, "user_id": user_id}, {"$set": patch})
     else:
         await db.client_cards.insert_one({
@@ -6120,6 +6121,7 @@ async def upload_booking_photos(booking_id: str, data: PhotoUpload, current_user
             "label": label,
             "uploaded_by": owner_id,
             "uploaded_at": now_iso,
+            "visible_to_customer": False,  # Studio must explicitly release photos to customer
         })
 
     all_photos = existing + new_photos
@@ -6142,6 +6144,25 @@ async def delete_booking_photo(booking_id: str, photo_id: str, current_user: dic
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"before_after_photos": photos}})
     return {"ok": True}
 
+@api_router.patch("/bookings/{booking_id}/photos/{photo_id}/release")
+async def toggle_photo_visibility(booking_id: str, photo_id: str, visible: bool = True, current_user: dict = Depends(get_current_user)):
+    """Studio toggles whether a photo is visible to the customer."""
+    booking = await db.bookings.find_one({"booking_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Buchung nicht gefunden")
+    if current_user.get("role") != "studio_owner":
+        raise HTTPException(status_code=403, detail="Nur Studios können Fotos freigeben")
+    owner_id = current_user.get("id") or current_user.get("user_id")
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")})
+    if not studio or studio.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    photos = [
+        {**p, "visible_to_customer": visible} if p.get("photo_id") == photo_id else p
+        for p in (booking.get("before_after_photos") or [])
+    ]
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": {"before_after_photos": photos}})
+    return {"ok": True, "visible_to_customer": visible}
+
 @api_router.get("/bookings/{booking_id}/photos")
 async def get_booking_photos(booking_id: str, current_user: dict = Depends(get_current_user)):
     booking = await db.bookings.find_one({"booking_id": booking_id})
@@ -6156,7 +6177,11 @@ async def get_booking_photos(booking_id: str, current_user: dict = Depends(get_c
         is_studio_owner = bool(studio and studio.get("owner_id") == user_id)
     if not is_customer and not is_studio_owner:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
-    return {"photos": booking.get("before_after_photos", []), "booking_id": booking_id}
+    all_photos = booking.get("before_after_photos") or []
+    # Customers only see photos the studio has explicitly released
+    if is_customer and not is_studio_owner:
+        all_photos = [p for p in all_photos if p.get("visible_to_customer", False)]
+    return {"photos": all_photos, "booking_id": booking_id}
 
 
 @api_router.post("/bookings/{booking_id}/video-join")
