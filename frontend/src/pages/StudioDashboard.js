@@ -3580,57 +3580,88 @@ export default function StudioDashboard() {
                       </motion.button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {shopProducts.map(product => (
-                        <div key={product.product_id} className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] overflow-hidden">
-                          {product.image_data && (
-                            <div className="h-40 overflow-hidden bg-zinc-100">
-                              <img src={product.image_data} alt={product.title} className="w-full h-full object-cover" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {shopProducts.map((product, idx) => {
+                        const TYPE_BG = {
+                          flash: "from-violet-100 via-violet-50 to-white",
+                          voucher: "from-emerald-100 via-emerald-50 to-white",
+                          aftercare: "from-blue-100 via-blue-50 to-white",
+                        };
+                        const TYPE_ICON_COLOR = { flash: "text-violet-400", voucher: "text-emerald-400", aftercare: "text-blue-400" };
+                        const TYPE_ICON = { flash: <Package size={36} strokeWidth={1} />, voucher: <Tag size={36} strokeWidth={1} />, aftercare: <Sparkles size={36} strokeWidth={1} /> };
+                        return (
+                          <motion.div
+                            key={product.product_id}
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 24, delay: idx * 0.06 }}
+                            whileHover={{ y: -4, transition: { type: "spring", stiffness: 400, damping: 20 } }}
+                            className="group relative bg-white rounded-3xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.12)] transition-shadow duration-300 cursor-pointer"
+                            onClick={() => { setShopProductModal(product); setShopProductForm({ type: product.type, title: product.title, description: product.description || "", price_cents: (product.price_cents / 100).toFixed(2), stock: product.stock ?? "", image_data: product.image_data || null, active: product.active }); }}
+                          >
+                            {/* Image / Hero area */}
+                            <div className="relative h-48 overflow-hidden">
+                              {product.image_data ? (
+                                <>
+                                  <img src={product.image_data} alt={product.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                                </>
+                              ) : (
+                                <div className={`w-full h-full bg-gradient-to-br ${TYPE_BG[product.type] || "from-zinc-100 to-white"} flex items-center justify-center transition-transform duration-500 group-hover:scale-105`}>
+                                  <span className={`${TYPE_ICON_COLOR[product.type] || "text-zinc-300"} transition-transform duration-300 group-hover:scale-110`}>
+                                    {TYPE_ICON[product.type] || <Package size={36} strokeWidth={1} />}
+                                  </span>
+                                </div>
+                              )}
+                              {/* Floating price badge */}
+                              <div className="absolute top-3 right-3">
+                                <span className="bg-white/90 backdrop-blur-md text-zinc-900 font-playfair font-bold text-sm px-3 py-1 rounded-full shadow-sm">
+                                  €{(product.price_cents / 100).toFixed(2)}
+                                </span>
+                              </div>
+                              {/* Active / inactive dot */}
+                              <div className="absolute top-3 left-3">
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={e => { e.stopPropagation(); handleShopToggleActive(product); }}
+                                  title={product.active ? "Aktiv – klicken zum Deaktivieren" : "Inaktiv – klicken zum Aktivieren"}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-inter font-semibold backdrop-blur-md shadow-sm transition-all ${product.active ? "bg-emerald-500/90 text-white" : "bg-black/30 text-white/70"}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${product.active ? "bg-white" : "bg-white/50"}`} />
+                                  {product.active ? "Aktiv" : "Inaktiv"}
+                                </motion.button>
+                              </div>
                             </div>
-                          )}
-                          {!product.image_data && product.type === "flash" && (
-                            <div className="h-24 bg-zinc-100 flex items-center justify-center">
-                              <Package size={28} className="text-zinc-300" strokeWidth={1} />
-                            </div>
-                          )}
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex-1 min-w-0">
+
+                            {/* Content */}
+                            <div className="p-4">
+                              <div className="mb-3">
                                 <span className={`inline-block text-[9px] font-inter font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border mb-1.5 ${TYPE_COLORS[product.type]}`}>
                                   {TYPE_LABELS[product.type]}
                                 </span>
-                                <p className="font-inter font-semibold text-sm text-zinc-900 truncate">{product.title}</p>
+                                <p className="font-inter font-semibold text-[15px] text-zinc-900 leading-snug">{product.title}</p>
+                                {product.description && (
+                                  <p className="text-xs text-zinc-400 font-inter leading-relaxed mt-1 line-clamp-2">{product.description}</p>
+                                )}
                               </div>
-                              <p className="font-playfair font-bold text-base text-zinc-900 flex-shrink-0">€{(product.price_cents / 100).toFixed(2)}</p>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-zinc-400 font-inter">
+                                  {product.sold_count || 0}× verkauft
+                                  {product.stock !== null && product.stock !== undefined && ` · ${product.stock} auf Lager`}
+                                </span>
+                                <motion.button
+                                  whileTap={{ scale: 0.92 }}
+                                  onClick={e => { e.stopPropagation(); handleShopProductDelete(product.product_id); }}
+                                  disabled={shopProductDeleting[product.product_id]}
+                                  className="p-1.5 rounded-xl text-zinc-300 hover:text-red-400 hover:bg-red-50 transition-all disabled:opacity-40"
+                                >
+                                  <Trash2 size={13} strokeWidth={1.5} />
+                                </motion.button>
+                              </div>
                             </div>
-                            {product.description && (
-                              <p className="text-xs text-zinc-500 font-inter leading-relaxed mb-3 line-clamp-2">{product.description}</p>
-                            )}
-                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-inter mb-3">
-                              <span>{product.sold_count || 0}× verkauft</span>
-                              {product.stock !== null && product.stock !== undefined && (
-                                <><span>·</span><span>{product.stock} auf Lager</span></>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => handleShopToggleActive(product)}
-                                title={product.active ? "Aktiv – klicken zum Deaktivieren" : "Inaktiv – klicken zum Aktivieren"}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border transition-all ${product.active ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" : "bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200"}`}>
-                                {product.active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
-                                {product.active ? "Aktiv" : "Inaktiv"}
-                              </button>
-                              <button onClick={() => { setShopProductModal(product); setShopProductForm({ type: product.type, title: product.title, description: product.description || "", price_cents: (product.price_cents / 100).toFixed(2), stock: product.stock ?? "", image_data: product.image_data || null, active: product.active }); }}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-inter font-medium border border-zinc-200 hover:border-zinc-400 text-zinc-600 transition-all">
-                                <Eye size={12} strokeWidth={1.5} /> Bearbeiten
-                              </button>
-                              <button onClick={() => handleShopProductDelete(product.product_id)} disabled={shopProductDeleting[product.product_id]}
-                                className="p-1.5 rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all disabled:opacity-40">
-                                <Trash2 size={13} strokeWidth={1.5} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
