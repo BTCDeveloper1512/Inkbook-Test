@@ -600,6 +600,7 @@ class BookingCreate(BaseModel):
     booking_type: str = "tattoo"  # consultation | tattoo | video_consultation
     notes: str = ""
     reference_images: List[str] = []
+    voucher_code: Optional[str] = None
 
 class ReviewCreate(BaseModel):
     studio_id: str
@@ -661,6 +662,7 @@ class BookingCapacityCreate(BaseModel):
     preferred_time_to: str = ""     # e.g. "14:00"
     artist_id: Optional[str] = None  # optional preferred artist
     artist_name: str = ""            # display name of the artist
+    voucher_code: Optional[str] = None
 
 class BookingOffer(BaseModel):
     offer_date: str                  # ISO date "2026-06-18"
@@ -1861,8 +1863,38 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         )
 
     user_id = current_user.get("id") or current_user.get("user_id")
+    booking_id = f"book_{uuid.uuid4().hex[:12]}"
+
+    voucher_discount_cents = None
+    applied_voucher_code = None
+    original_deposit_amount = studio.get("deposit_amount", 50.0)
+    deposit_amount = original_deposit_amount
+
+    if data.voucher_code:
+        v_code = data.voucher_code.strip().upper()
+        voucher_order = await db.shop_orders.find_one({
+            "voucher_code": v_code,
+            "studio_id": data.studio_id,
+            "product_type": "voucher",
+            "status": "paid",
+            "redeemed_at": None
+        }, {"_id": 0})
+        if not voucher_order:
+            raise HTTPException(status_code=400, detail="Ungültiger oder bereits eingelöster Gutschein-Code")
+        redeemed_now = datetime.now(timezone.utc).isoformat()
+        result = await db.shop_orders.update_one(
+            {"order_id": voucher_order["order_id"], "redeemed_at": None},
+            {"$set": {"redeemed_at": redeemed_now, "redeemed_booking_id": booking_id}}
+        )
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Ungültiger oder bereits eingelöster Gutschein-Code")
+        voucher_discount_cents = voucher_order["amount_cents"]
+        applied_voucher_code = v_code
+        voucher_discount_euros = voucher_discount_cents / 100
+        deposit_amount = max(0.0, round(original_deposit_amount - voucher_discount_euros, 2))
+
     booking_doc = {
-        "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+        "booking_id": booking_id,
         "user_id": user_id,
         "user_name": current_user.get("name", ""),
         "user_email": current_user.get("email", ""),
@@ -1885,7 +1917,10 @@ async def create_capacity_booking(data: BookingCapacityCreate, current_user: dic
         "status": "pending_studio_review",
         "payment_status": "unpaid",
         "deposit_required": studio.get("deposit_required", False),
-        "deposit_amount": studio.get("deposit_amount", 50.0),
+        "deposit_amount": deposit_amount,
+        "original_deposit_amount": original_deposit_amount if applied_voucher_code else None,
+        "voucher_code": applied_voucher_code,
+        "voucher_discount_cents": voucher_discount_cents,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.bookings.insert_one(booking_doc)
@@ -1933,8 +1968,38 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
         raise HTTPException(status_code=404, detail="Studio not found")
     
     user_id = current_user.get("id") or current_user.get("user_id")
+    booking_id = f"book_{uuid.uuid4().hex[:12]}"
+
+    voucher_discount_cents = None
+    applied_voucher_code = None
+    original_deposit_amount = studio.get("deposit_amount", 50.0)
+    deposit_amount = original_deposit_amount
+
+    if data.voucher_code:
+        v_code = data.voucher_code.strip().upper()
+        voucher_order = await db.shop_orders.find_one({
+            "voucher_code": v_code,
+            "studio_id": data.studio_id,
+            "product_type": "voucher",
+            "status": "paid",
+            "redeemed_at": None
+        }, {"_id": 0})
+        if not voucher_order:
+            raise HTTPException(status_code=400, detail="Ungültiger oder bereits eingelöster Gutschein-Code")
+        redeemed_now = datetime.now(timezone.utc).isoformat()
+        result = await db.shop_orders.update_one(
+            {"order_id": voucher_order["order_id"], "redeemed_at": None},
+            {"$set": {"redeemed_at": redeemed_now, "redeemed_booking_id": booking_id}}
+        )
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Ungültiger oder bereits eingelöster Gutschein-Code")
+        voucher_discount_cents = voucher_order["amount_cents"]
+        applied_voucher_code = v_code
+        voucher_discount_euros = voucher_discount_cents / 100
+        deposit_amount = max(0.0, round(original_deposit_amount - voucher_discount_euros, 2))
+
     booking_doc = {
-        "booking_id": f"book_{uuid.uuid4().hex[:12]}",
+        "booking_id": booking_id,
         "user_id": user_id,
         "user_name": current_user.get("name", ""),
         "user_email": current_user.get("email", ""),
@@ -1950,12 +2015,15 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
         "status": "pending",
         "payment_status": "unpaid",
         "deposit_required": studio.get("deposit_required", False),
-        "deposit_amount": studio.get("deposit_amount", 50.0),
+        "deposit_amount": deposit_amount,
+        "original_deposit_amount": original_deposit_amount if applied_voucher_code else None,
+        "voucher_code": applied_voucher_code,
+        "voucher_discount_cents": voucher_discount_cents,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.bookings.insert_one(booking_doc)
     await db.slots.update_one({"slot_id": data.slot_id}, {"$set": {"is_booked": True, "booking_id": booking_doc["booking_id"]}})
-    
+
     # Notify studio owner by email
     studio_owner = await db.users.find_one({"user_id": studio.get("owner_id", "")})
     if studio_owner and studio_owner.get("email"):
@@ -6631,6 +6699,38 @@ async def shop_confirm(order_id: str, current_user: Optional[dict] = Depends(get
 
     updated_order = {**order, **updates}
     return {k: v for k, v in updated_order.items() if k != "_id"}
+
+class VoucherValidateRequest(BaseModel):
+    voucher_code: str
+    studio_id: str
+
+@api_router.post("/shop/vouchers/validate")
+async def validate_voucher(data: VoucherValidateRequest):
+    code = data.voucher_code.strip().upper()
+    order = await db.shop_orders.find_one({
+        "voucher_code": code,
+        "studio_id": data.studio_id,
+        "product_type": "voucher",
+        "status": "paid",
+        "redeemed_at": None
+    }, {"_id": 0})
+    if not order:
+        already = await db.shop_orders.find_one({
+            "voucher_code": code,
+            "studio_id": data.studio_id,
+            "product_type": "voucher",
+            "status": "paid",
+            "redeemed_at": {"$ne": None}
+        }, {"_id": 0})
+        if already:
+            raise HTTPException(status_code=400, detail="Dieser Gutschein wurde bereits eingelöst")
+        raise HTTPException(status_code=404, detail="Ungültiger Gutschein-Code")
+    return {
+        "valid": True,
+        "order_id": order["order_id"],
+        "amount_cents": order["amount_cents"],
+        "product_title": order.get("product_title", ""),
+    }
 
 @api_router.get("/shop/download/{download_token}")
 async def shop_download(download_token: str):

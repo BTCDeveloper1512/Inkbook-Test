@@ -455,6 +455,12 @@ export default function StudioPage() {
   const [calVisibleUntil, setCalVisibleUntil] = useState(null);
   const [selectedCapArtist, setSelectedCapArtist] = useState(null); // null = no artist filter
 
+  // Voucher code redemption
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherStatus, setVoucherStatus] = useState(null); // null | "checking" | "valid" | "invalid" | "used"
+  const [voucherDiscount, setVoucherDiscount] = useState(null); // { amount_cents, product_title }
+  const [voucherError, setVoucherError] = useState("");
+
   const today = new Date();
   const [calMonth, setCalMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
 
@@ -558,6 +564,29 @@ export default function StudioPage() {
       .finally(() => setSlotsLoading(false));
   }, [selectedDate, bookingType, studioId]);
 
+  const handleVoucherValidate = async () => {
+    const code = voucherCode.trim().toUpperCase();
+    if (!code) return;
+    setVoucherStatus("checking");
+    setVoucherError("");
+    setVoucherDiscount(null);
+    try {
+      const { data } = await axios.post(`${API}/shop/vouchers/validate`, { voucher_code: code, studio_id: studioId });
+      setVoucherStatus("valid");
+      setVoucherDiscount({ amount_cents: data.amount_cents, product_title: data.product_title });
+    } catch (e) {
+      const detail = e.response?.data?.detail || "";
+      if (detail.includes("eingelöst")) {
+        setVoucherStatus("used");
+        setVoucherError("Dieser Gutschein wurde bereits eingelöst.");
+      } else {
+        setVoucherStatus("invalid");
+        setVoucherError("Ungültiger Gutschein-Code.");
+      }
+      setVoucherDiscount(null);
+    }
+  };
+
   const handleBook = async () => {
     if (!user) {
       if (window.posthog) window.posthog.capture("inquiry_started", { studio_id: studioId, studio_name: studio?.name, source: "guest_modal" });
@@ -570,7 +599,8 @@ export default function StudioPage() {
     try {
       const { data } = await axios.post(`${API}/bookings`, {
         studio_id: studioId, slot_id: selectedSlot.slot_id,
-        booking_type: bookingType, notes: bookingNotes, reference_images: refImages
+        booking_type: bookingType, notes: bookingNotes, reference_images: refImages,
+        voucher_code: voucherStatus === "valid" ? voucherCode.trim().toUpperCase() : null,
       }, { withCredentials: true });
       setBookingSuccess(data);
       if (window.posthog) window.posthog.capture("booking_confirmed", { studio_id: studioId, studio_name: studio?.name, booking_type: bookingType });
@@ -599,6 +629,7 @@ export default function StudioPage() {
         preferred_time_to: preferredTimeTo,
         artist_id: selectedCapArtist || null,
         artist_name: selectedCapArtist ? (artists.find(a => a.artist_id === selectedCapArtist)?.name || "") : "",
+        voucher_code: voucherStatus === "valid" ? voucherCode.trim().toUpperCase() : null,
       }, { withCredentials: true });
       setBookingSuccess(data);
       if (window.posthog) window.posthog.capture("booking_confirmed", { studio_id: studioId, studio_name: studio?.name, booking_type: bookingType, size_category: sizeCategory });
@@ -1436,6 +1467,36 @@ export default function StudioPage() {
                   </div>
                 )}
 
+                <div className="mb-4">
+                  <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">Gutschein-Code (optional)</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={voucherCode}
+                      onChange={e => { setVoucherCode(e.target.value.toUpperCase()); setVoucherStatus(null); setVoucherDiscount(null); setVoucherError(""); }}
+                      placeholder="XXXX-XXXX-XXXX"
+                      className={`flex-1 px-3.5 py-2.5 bg-zinc-50 border rounded-xl text-sm font-mono text-zinc-900 placeholder-zinc-400 focus:outline-none focus:bg-white transition-all ${voucherStatus === "valid" ? "border-emerald-400 focus:border-emerald-500" : voucherStatus === "invalid" || voucherStatus === "used" ? "border-rose-400 focus:border-rose-500" : "border-zinc-200 focus:border-zinc-400"}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVoucherValidate}
+                      disabled={!voucherCode.trim() || voucherStatus === "checking"}
+                      className="px-3.5 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 disabled:opacity-40 transition-colors whitespace-nowrap"
+                    >
+                      {voucherStatus === "checking" ? "…" : "Prüfen"}
+                    </button>
+                  </div>
+                  {voucherStatus === "valid" && voucherDiscount && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 font-inter bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                      <span className="text-emerald-600">✓</span>
+                      <span>Gutschein gültig – <strong>€{(voucherDiscount.amount_cents / 100).toFixed(2)} Rabatt</strong> wird angewendet</span>
+                    </div>
+                  )}
+                  {(voucherStatus === "invalid" || voucherStatus === "used") && (
+                    <p className="mt-1.5 text-xs text-rose-600 font-inter">{voucherError}</p>
+                  )}
+                </div>
+
                 {(() => {
                   const selCapDay = capacityData[selectedDate];
                   const selRemaining = selCapDay ? selCapDay.remaining : DAY_CAPACITY;
@@ -1578,6 +1639,35 @@ export default function StudioPage() {
                     <span><strong className="text-zinc-700">Stornierungsbedingung:</strong> Kostenlose Stornierung bis {studio.cancellation_hours >= 24 ? `${studio.cancellation_hours / 24} Tag${studio.cancellation_hours >= 48 ? "e" : ""}` : `${studio.cancellation_hours} Stunden`} vor dem Termin. Danach wird die Anzahlung einbehalten.</span>
                   </div>
                 )}
+                <div className="mb-4">
+                  <p className="text-xs font-inter font-semibold tracking-[0.15em] uppercase text-zinc-400 mb-2">Gutschein-Code (optional)</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={voucherCode}
+                      onChange={e => { setVoucherCode(e.target.value.toUpperCase()); setVoucherStatus(null); setVoucherDiscount(null); setVoucherError(""); }}
+                      placeholder="XXXX-XXXX-XXXX"
+                      className={`flex-1 px-3.5 py-2.5 bg-zinc-50 border rounded-xl text-sm font-mono text-zinc-900 placeholder-zinc-400 focus:outline-none focus:bg-white transition-all ${voucherStatus === "valid" ? "border-emerald-400 focus:border-emerald-500" : voucherStatus === "invalid" || voucherStatus === "used" ? "border-rose-400 focus:border-rose-500" : "border-zinc-200 focus:border-zinc-400"}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVoucherValidate}
+                      disabled={!voucherCode.trim() || voucherStatus === "checking"}
+                      className="px-3.5 py-2.5 bg-zinc-900 text-white text-xs font-inter font-semibold rounded-xl hover:bg-zinc-700 disabled:opacity-40 transition-colors whitespace-nowrap"
+                    >
+                      {voucherStatus === "checking" ? "…" : "Prüfen"}
+                    </button>
+                  </div>
+                  {voucherStatus === "valid" && voucherDiscount && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 font-inter bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                      <span className="text-emerald-600">✓</span>
+                      <span>Gutschein gültig – <strong>€{(voucherDiscount.amount_cents / 100).toFixed(2)} Rabatt</strong> wird angewendet</span>
+                    </div>
+                  )}
+                  {(voucherStatus === "invalid" || voucherStatus === "used") && (
+                    <p className="mt-1.5 text-xs text-rose-600 font-inter">{voucherError}</p>
+                  )}
+                </div>
                 {bookingSuccess ? (
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center" data-testid="booking-success">
                     <CheckCircle size={24} className="text-emerald-600 mx-auto mb-2" strokeWidth={1.5} />

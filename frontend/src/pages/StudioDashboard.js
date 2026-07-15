@@ -4616,7 +4616,7 @@ export default function StudioDashboard() {
                               <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Kunde</th>
                               <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Betrag</th>
                               <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Status</th>
-                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Code / Token</th>
+                              <th className="text-left px-5 py-3 text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400">Code / Status</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-50">
@@ -4641,7 +4641,18 @@ export default function StudioDashboard() {
                                   </span>
                                 </td>
                                 <td className="px-5 py-3 text-xs font-mono text-zinc-500">
-                                  {order.voucher_code ? <span className="font-bold text-emerald-700">{order.voucher_code}</span> : order.download_token ? <span className="text-violet-600">Download-Link aktiv</span> : "–"}
+                                  {order.voucher_code ? (
+                                    <div className="flex flex-col gap-1">
+                                      <span className="font-bold text-emerald-700">{order.voucher_code}</span>
+                                      {order.redeemed_at ? (
+                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-zinc-100 text-zinc-500 border-zinc-200 w-fit">
+                                          Eingelöst {new Date(order.redeemed_at).toLocaleDateString("de-DE")}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] font-inter font-semibold px-1.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-600 border-emerald-200 w-fit">Verfügbar</span>
+                                      )}
+                                    </div>
+                                  ) : order.download_token ? <span className="text-violet-600">Download-Link aktiv</span> : "–"}
                                 </td>
                               </tr>
                             ))}
