@@ -6408,14 +6408,17 @@ class ShopProductUpdate(BaseModel):
 class ShopCheckoutRequest(BaseModel):
     product_id: str
     studio_id: str
+    guest_email: Optional[str] = None  # for unauthenticated/guest purchases
 
 @api_router.get("/studios/{studio_id}/shop")
-async def get_shop_products(studio_id: str, include_inactive: bool = False):
-    studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0, "studio_id": 1})
+async def get_shop_products(studio_id: str, include_inactive: bool = False, current_user: Optional[dict] = Depends(get_current_user_optional)):
+    studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0, "studio_id": 1, "owner_id": 1})
     if not studio:
         raise HTTPException(status_code=404, detail="Studio nicht gefunden")
+    # Only the studio owner may see inactive products
+    is_owner = current_user and (current_user.get("id") or current_user.get("user_id")) == studio.get("owner_id")
     query = {"studio_id": studio_id}
-    if not include_inactive:
+    if not (include_inactive and is_owner):
         query["active"] = True
     products = await db.shop_products.find(query, {"_id": 0}).to_list(None)
     return products
@@ -6481,7 +6484,7 @@ async def delete_shop_product(studio_id: str, product_id: str, current_user: dic
     return {"ok": True}
 
 @api_router.post("/shop/checkout")
-async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_user: dict = Depends(get_current_user)):
+async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_user: Optional[dict] = Depends(get_current_user_optional)):
     product = await db.shop_products.find_one({"product_id": data.product_id, "studio_id": data.studio_id, "active": True}, {"_id": 0})
     if not product:
         raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
@@ -6492,8 +6495,17 @@ async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_use
     if not studio:
         raise HTTPException(status_code=404, detail="Studio nicht gefunden")
 
-    user_id = current_user.get("id") or current_user.get("user_id")
-    customer_email = current_user.get("email", "")
+    # Support both authenticated users and guests (guest_email required for guests)
+    if current_user:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        customer_email = current_user.get("email", "")
+        user_name = current_user.get("name", "")
+    else:
+        if not data.guest_email:
+            raise HTTPException(status_code=400, detail="E-Mail-Adresse erforderlich für Gast-Kauf")
+        user_id = None
+        customer_email = data.guest_email
+        user_name = ""
     studio_name = studio.get("name", "Studio")
     amount_cents = product["price_cents"]
     platform_fee_cents = int(round(amount_cents * 5 / 100))
@@ -6535,7 +6547,8 @@ async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_use
         "studio_name": studio_name,
         "user_id": user_id,
         "user_email": customer_email,
-        "user_name": current_user.get("name", ""),
+        "user_name": user_name,
+        "is_guest": current_user is None,
         "product_id": data.product_id,
         "product_type": product["type"],
         "product_title": product["title"],
@@ -6559,13 +6572,15 @@ async def shop_checkout(data: ShopCheckoutRequest, request: Request, current_use
     }
 
 @api_router.post("/shop/confirm/{order_id}")
-async def shop_confirm(order_id: str, current_user: dict = Depends(get_current_user)):
+async def shop_confirm(order_id: str, current_user: Optional[dict] = Depends(get_current_user_optional)):
     order = await db.shop_orders.find_one({"order_id": order_id}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
-    user_id = current_user.get("id") or current_user.get("user_id")
-    if order.get("user_id") != user_id:
-        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    # For authenticated users: verify ownership. Guests have user_id=None so skip check.
+    if current_user and order.get("user_id") is not None:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if order.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="Nicht autorisiert")
 
     stripe_client = get_stripe_client()
     try:

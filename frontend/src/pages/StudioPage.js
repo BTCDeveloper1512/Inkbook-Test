@@ -428,6 +428,10 @@ export default function StudioPage() {
   const [shopSession, setShopSession] = useState(null); // PaymentModal session object
   const [shopCheckoutLoading, setShopCheckoutLoading] = useState({}); // { productId: bool }
   const [shopOrderResult, setShopOrderResult] = useState(null); // { type, voucher_code, download_token, product_title }
+  const [shopGuestModal, setShopGuestModal] = useState(null); // product pending guest email
+  const [shopGuestEmail, setShopGuestEmail] = useState("");
+  const [shopGuestEmailError, setShopGuestEmailError] = useState("");
+  const [shopConfirmRetry, setShopConfirmRetry] = useState(false);
 
   // Auto-scroll to booking sidebar when ?book=true
   useEffect(() => {
@@ -645,14 +649,12 @@ export default function StudioPage() {
   );
   if (!studio) return null;
 
-  const handleShopCheckout = async (product) => {
-    if (!user) { setShowGuestModal(true); return; }
+  const _doShopCheckout = async (product, guestEmail) => {
     setShopCheckoutLoading(prev => ({ ...prev, [product.product_id]: true }));
     try {
-      const { data } = await axios.post(`${API}/shop/checkout`, {
-        product_id: product.product_id,
-        studio_id: studioId,
-      }, { withCredentials: true });
+      const payload = { product_id: product.product_id, studio_id: studioId };
+      if (guestEmail) payload.guest_email = guestEmail;
+      const { data } = await axios.post(`${API}/shop/checkout`, payload, { withCredentials: true });
       setShopSession({
         ...data,
         session_id: data.order_id,
@@ -667,8 +669,30 @@ export default function StudioPage() {
     }
   };
 
+  const handleShopCheckout = async (product) => {
+    if (!user) {
+      setShopGuestModal(product);
+      setShopGuestEmail("");
+      setShopGuestEmailError("");
+      return;
+    }
+    await _doShopCheckout(product, null);
+  };
+
+  const handleShopGuestSubmit = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(shopGuestEmail)) {
+      setShopGuestEmailError("Bitte gib eine gültige E-Mail-Adresse ein.");
+      return;
+    }
+    const product = shopGuestModal;
+    setShopGuestModal(null);
+    await _doShopCheckout(product, shopGuestEmail);
+  };
+
   const handleShopPaymentSuccess = async () => {
     if (!shopSession) return;
+    setShopConfirmRetry(false);
     try {
       const { data } = await axios.post(`${API}/shop/confirm/${shopSession.session_id}`, {}, { withCredentials: true });
       setShopOrderResult({
@@ -678,7 +702,10 @@ export default function StudioPage() {
         product_title: data.product_title,
       });
       setShopSession(null);
-    } catch {}
+    } catch (e) {
+      setShopConfirmRetry(true);
+      notify.error("Bestellung konnte nicht bestätigt werden – bitte versuche es erneut oder kontaktiere das Studio.");
+    }
   };
 
   const TABS = [
@@ -1611,6 +1638,52 @@ export default function StudioPage() {
       {showGuestModal && studio && (
         <GuestBookingModal studio={studio} onClose={() => setShowGuestModal(false)} />
       )}
+
+      {/* Shop Guest Email Modal */}
+      <AnimatePresence>
+        {shopGuestModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) setShopGuestModal(null); }}>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
+              <p className="font-playfair font-bold text-lg text-zinc-900 mb-1">Bestellung als Gast</p>
+              <p className="text-xs text-zinc-500 font-inter mb-5">
+                Gib deine E-Mail-Adresse ein – wir senden dir die Bestellbestätigung{shopGuestModal?.type === "voucher" ? " mit dem Gutschein-Code" : shopGuestModal?.type === "flash" ? " mit dem Download-Link" : ""} dorthin.
+              </p>
+              <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">E-Mail-Adresse</label>
+              <input
+                type="email"
+                value={shopGuestEmail}
+                onChange={e => { setShopGuestEmail(e.target.value); setShopGuestEmailError(""); }}
+                onKeyDown={e => e.key === "Enter" && handleShopGuestSubmit()}
+                placeholder="deine@email.de"
+                autoFocus
+                className={`w-full px-3.5 py-2.5 text-sm border rounded-xl font-inter focus:outline-none text-zinc-900 transition-colors mb-1 ${shopGuestEmailError ? "border-red-400 focus:border-red-500" : "border-zinc-200 focus:border-zinc-900"}`}
+              />
+              {shopGuestEmailError && <p className="text-[11px] text-red-500 font-inter mb-3">{shopGuestEmailError}</p>}
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShopGuestModal(null)}
+                  className="flex-1 py-2.5 text-sm font-inter text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-2xl transition-all">
+                  Abbrechen
+                </button>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={handleShopGuestSubmit}
+                  disabled={!shopGuestEmail}
+                  className="flex-1 py-2.5 text-sm font-inter font-semibold text-white bg-zinc-900 hover:bg-zinc-700 rounded-2xl transition-all disabled:opacity-40">
+                  Weiter zur Zahlung
+                </motion.button>
+              </div>
+              <p className="text-center mt-3 text-[11px] text-zinc-400 font-inter">
+                Bereits registriert?{" "}
+                <button onClick={() => { setShopGuestModal(null); navigate("/login"); }} className="text-zinc-700 font-semibold hover:underline">
+                  Anmelden
+                </button>
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Shop PaymentModal */}
       {shopSession && (

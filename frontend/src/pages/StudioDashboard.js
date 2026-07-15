@@ -4572,6 +4572,32 @@ export default function StudioDashboard() {
               {/* Orders sub-tab */}
               {shopSubTab === "orders" && (
                 <div>
+                  {/* Umsatzübersicht */}
+                  {shopOrders.length > 0 && (() => {
+                    const paidOrders = shopOrders.filter(o => o.status === "paid");
+                    const totalRevenue = paidOrders.reduce((s, o) => s + (o.amount_cents || 0), 0) / 100;
+                    const now = new Date();
+                    const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                    const monthRevenue = paidOrders.filter(o => (o.paid_at || o.created_at || "").startsWith(monthPrefix)).reduce((s, o) => s + (o.amount_cents || 0), 0) / 100;
+                    const byType = paidOrders.reduce((acc, o) => { acc[o.product_type] = (acc[o.product_type] || 0) + 1; return acc; }, {});
+                    const TYPE_LABELS = { flash: "Flash-Designs", voucher: "Gutscheine", aftercare: "Pflegeprodukte" };
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                        {[
+                          { label: "Gesamtumsatz", value: `€${totalRevenue.toFixed(2)}`, sub: `${paidOrders.length} Bestellung${paidOrders.length !== 1 ? "en" : ""}` },
+                          { label: "Diesen Monat", value: `€${monthRevenue.toFixed(2)}`, sub: now.toLocaleDateString("de-DE", { month: "long", year: "numeric" }) },
+                          ...Object.entries(byType).map(([type, count]) => ({ label: TYPE_LABELS[type] || type, value: `${count}×`, sub: "verkauft" })),
+                        ].map((card, i) => (
+                          <div key={i} className="bg-white rounded-2xl border border-black/[0.04] p-4">
+                            <p className="text-[10px] font-inter font-semibold uppercase tracking-widest text-zinc-400 mb-1">{card.label}</p>
+                            <p className="font-playfair font-bold text-xl text-zinc-900">{card.value}</p>
+                            <p className="text-[10px] text-zinc-400 font-inter mt-0.5">{card.sub}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                   {shopOrders.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-black/[0.04] p-12 text-center">
                       <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
