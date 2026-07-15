@@ -3163,8 +3163,57 @@ export default function StudioDashboard() {
                 </button>
               </div>
               {editForm?.consent_required && (
-                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs font-inter text-amber-800 leading-relaxed">
-                  ✅ Aktiviert — Kunden erhalten nach Terminbestätigung einen Link zum Formular. Der Status erscheint in jeder Buchungskarte.
+                <div className="mt-4 space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs font-inter text-emerald-800 leading-relaxed">
+                    ✅ Aktiviert — Kunden erhalten nach Terminbestätigung einen Link zum Formular. Der Status erscheint in jeder Buchungskarte.
+                  </div>
+
+                  {/* Custom questions */}
+                  <div>
+                    <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">
+                      Eigene Zusatzfragen (optional)
+                    </label>
+                    <p className="text-[11px] text-zinc-400 font-inter mb-3">
+                      Kunden müssen diese Fragen ebenfalls per Häkchen bestätigen. Standardfragen (Gesundheit, Allergie, Unterschrift) sind immer enthalten.
+                    </p>
+                    <div className="space-y-2">
+                      {((editForm.consent_config?.custom_questions) || []).map((q, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={q}
+                            onChange={e => {
+                              const updated = [...(editForm.consent_config?.custom_questions || [])];
+                              updated[idx] = e.target.value;
+                              setEditForm(prev => ({ ...prev, consent_config: { ...(prev.consent_config || {}), custom_questions: updated } }));
+                            }}
+                            placeholder={`Zusatzfrage ${idx + 1}`}
+                            className="input-base flex-1 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = ((editForm.consent_config?.custom_questions) || []).filter((_, i) => i !== idx);
+                              setEditForm(prev => ({ ...prev, consent_config: { ...(prev.consent_config || {}), custom_questions: updated } }));
+                            }}
+                            className="flex-shrink-0 w-7 h-7 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-400 hover:text-red-500 hover:border-red-200 transition-colors"
+                          >
+                            <X size={13} strokeWidth={1.8} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = editForm.consent_config?.custom_questions || [];
+                          setEditForm(prev => ({ ...prev, consent_config: { ...(prev.consent_config || {}), custom_questions: [...current, ""] } }));
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-inter font-medium text-zinc-500 hover:text-zinc-900 transition-colors mt-1"
+                      >
+                        <Plus size={13} strokeWidth={1.8} /> Frage hinzufügen
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

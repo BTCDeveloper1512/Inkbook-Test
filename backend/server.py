@@ -562,6 +562,7 @@ class StudioUpdate(BaseModel):
     tax_model: Optional[str] = None     # "standard" | "kleinunternehmer"
     tax_number: Optional[str] = None    # Steuernummer or USt-IdNr.
     consent_required: Optional[bool] = None  # Require digital consent form from customer
+    consent_config: Optional[dict] = None    # {"custom_questions": ["q1", "q2", ...]}
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
@@ -3057,8 +3058,9 @@ class ConsentFormSubmit(BaseModel):
     medication_notes: str = ""
     agrees_to_terms: bool
     agrees_to_aftercare: bool
-    signature_data: str   # base64 data URL of the signature canvas
-    pdf_data: str = ""    # base64-encoded PDF generated on the frontend with jsPDF
+    signature_data: str        # base64 data URL of the signature canvas
+    pdf_data: str = ""         # base64-encoded PDF generated on the frontend with jsPDF
+    custom_answers: dict = {}  # answers to studio-configured custom questions {"q_idx": bool}
 
 @api_router.post("/bookings/{booking_id}/consent")
 async def submit_consent(booking_id: str, data: ConsentFormSubmit, current_user: dict = Depends(get_current_user)):
@@ -3091,7 +3093,8 @@ async def submit_consent(booking_id: str, data: ConsentFormSubmit, current_user:
         "agrees_to_terms": data.agrees_to_terms,
         "agrees_to_aftercare": data.agrees_to_aftercare,
         "signature_data": data.signature_data,
-        "pdf_data": data.pdf_data,   # base64 PDF stored for studio download
+        "pdf_data": data.pdf_data,       # base64 PDF stored for studio download
+        "custom_answers": data.custom_answers,  # studio-configured custom question answers
         "submitted_at": now_iso,
     }
     # Upsert — replace if already submitted
@@ -3194,17 +3197,18 @@ async def get_consent(booking_id: str, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
 
     # Derive consent_status from studio setting + existence of form
-    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"consent_required": 1})
+    studio = await db.studios.find_one({"studio_id": booking.get("studio_id")}, {"consent_required": 1, "consent_config": 1})
     consent_required = studio.get("consent_required", False) if studio else False
+    consent_config = studio.get("consent_config", {}) if studio else {}
 
     form = await db.consent_forms.find_one({"booking_id": booking_id}, {"_id": 0})
     if form:
         safe_form = {k: v for k, v in form.items() if k not in ("signature_data", "pdf_data")}
-        return {"status": "submitted", "consent_status": "submitted", "form": safe_form}
+        return {"status": "submitted", "consent_status": "submitted", "form": safe_form, "consent_config": consent_config}
     elif consent_required and booking.get("status") in ("confirmed", "waiting_for_deposit"):
-        return {"status": "not_submitted", "consent_status": "required"}
+        return {"status": "not_submitted", "consent_status": "required", "consent_config": consent_config}
     else:
-        return {"status": "not_submitted", "consent_status": "not_required"}
+        return {"status": "not_submitted", "consent_status": "not_required", "consent_config": consent_config}
 
 @api_router.get("/bookings/{booking_id}/consent/download")
 async def download_consent_pdf(booking_id: str, current_user: dict = Depends(get_current_user)):

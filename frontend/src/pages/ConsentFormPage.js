@@ -25,6 +25,8 @@ export default function ConsentFormPage() {
   const navigate = useNavigate();
 
   const [booking, setBooking] = useState(null);
+  const [customQuestions, setCustomQuestions] = useState([]);
+  const [customAnswers, setCustomAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +59,9 @@ export default function ConsentFormPage() {
         ]);
         setBooking(bRes.data);
         if (cRes.data?.status === "submitted") setAlreadySubmitted(true);
+        const cqs = cRes.data?.consent_config?.custom_questions || [];
+        setCustomQuestions(cqs);
+        setCustomAnswers(Object.fromEntries(cqs.map((_, i) => [i, false])));
       } catch (e) {
         setError("Buchung nicht gefunden oder kein Zugriff.");
       } finally {
@@ -144,6 +149,8 @@ export default function ConsentFormPage() {
 
     if (!fullName.trim()) { setError("Bitte gib deinen vollständigen Namen ein."); return; }
     if (!allHealthChecked) { setError("Bitte bestätige alle Gesundheitsfragen."); return; }
+    const allCustomChecked = customQuestions.every((_, i) => customAnswers[i]);
+    if (!allCustomChecked) { setError("Bitte bestätige alle Zusatzfragen des Studios."); return; }
     if (!hasSignature) { setError("Bitte unterschreibe das Formular im Unterschriftenfeld."); return; }
     if (!agreesTerms || !agreesAftercare) { setError("Bitte bestätige alle Pflichtfelder."); return; }
 
@@ -256,6 +263,25 @@ export default function ConsentFormPage() {
         y += 40;
       } catch (_) {}
 
+      if (customQuestions.length > 0) {
+        y += 4;
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(24, 24, 27);
+        doc.text("Studio-Zusatzfragen", 15, y);
+        y += 6;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        customQuestions.forEach((q, idx) => {
+          const val = customAnswers[idx];
+          doc.setTextColor(val ? 22 : 220, val ? 163 : 38, val ? 74 : 38);
+          const lines = doc.splitTextToSize(`${val ? "✓" : "✗"} ${q}`, W - 30);
+          doc.text(lines, 15, y);
+          y += lines.length * 5 + 2;
+        });
+        y += 2;
+      }
+
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(113, 113, 122);
@@ -277,6 +303,7 @@ export default function ConsentFormPage() {
         agrees_to_aftercare: agreesAftercare,
         signature_data: signatureData,
         pdf_data: pdfDataUrl,
+        custom_answers: customAnswers,
       }, { withCredentials: true });
       setSubmitted(true);
     } catch (err) {
@@ -446,6 +473,40 @@ export default function ConsentFormPage() {
               </div>
             </div>
           </motion.div>
+
+          {/* Studio custom questions */}
+          {customQuestions.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.13, duration: 0.35 }}
+              className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
+              <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-1">Studio-Zusatzfragen</h3>
+              <p className="text-xs font-inter text-zinc-400 mb-5">Diese Fragen wurden vom Studio hinzugefügt. Bitte bestätige jede Aussage.</p>
+              <div className="space-y-3">
+                {customQuestions.map((q, idx) => (
+                  <label key={idx}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all select-none ${
+                      customAnswers[idx]
+                        ? "bg-emerald-50 border-emerald-200"
+                        : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
+                    }`}>
+                    <div
+                      className={`flex-shrink-0 w-5 h-5 rounded-md border-2 mt-0.5 flex items-center justify-center transition-all ${
+                        customAnswers[idx] ? "bg-emerald-600 border-emerald-600" : "border-zinc-300 bg-white"
+                      }`}
+                      onClick={() => setCustomAnswers(prev => ({ ...prev, [idx]: !prev[idx] }))}>
+                      {customAnswers[idx] && <CheckCircle size={12} className="text-white" strokeWidth={2.5} />}
+                    </div>
+                    <span className={`text-sm font-inter leading-relaxed ${customAnswers[idx] ? "text-emerald-800" : "text-zinc-600"}`}>
+                      {q}
+                    </span>
+                    <input type="checkbox" className="sr-only"
+                      checked={!!customAnswers[idx]}
+                      onChange={e => setCustomAnswers(prev => ({ ...prev, [idx]: e.target.checked }))} />
+                  </label>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* Agreements */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
