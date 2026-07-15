@@ -34,8 +34,9 @@ export default function ConsentFormPage() {
   const [error, setError] = useState("");
 
   const [fullName, setFullName] = useState(user?.name || "");
-  const [healthChecks, setHealthChecks] = useState(
-    Object.fromEntries(HEALTH_QUESTIONS.map(q => [q.key, false]))
+  // null = not yet answered, "ja" = confirmed, "nein" = denied
+  const [healthAnswers, setHealthAnswers] = useState(
+    Object.fromEntries(HEALTH_QUESTIONS.map(q => [q.key, null]))
   );
   const [allergyNotes, setAllergyNotes] = useState("");
   const [medicationNotes, setMedicationNotes] = useState("");
@@ -61,7 +62,7 @@ export default function ConsentFormPage() {
         if (cRes.data?.status === "submitted") setAlreadySubmitted(true);
         const cqs = cRes.data?.consent_config?.custom_questions || [];
         setCustomQuestions(cqs);
-        setCustomAnswers(Object.fromEntries(cqs.map((_, i) => [i, false])));
+        setCustomAnswers(Object.fromEntries(cqs.map((_, i) => [i, null])));
       } catch (e) {
         setError("Buchung nicht gefunden oder kein Zugriff.");
       } finally {
@@ -141,16 +142,15 @@ export default function ConsentFormPage() {
     setHasSignature(false);
   };
 
-  const allHealthChecked = Object.values(healthChecks).every(Boolean);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     if (!fullName.trim()) { setError("Bitte gib deinen vollständigen Namen ein."); return; }
-    if (!allHealthChecked) { setError("Bitte bestätige alle Gesundheitsfragen."); return; }
-    const allCustomChecked = customQuestions.every((_, i) => customAnswers[i]);
-    if (!allCustomChecked) { setError("Bitte bestätige alle Zusatzfragen des Studios."); return; }
+    const allHealthAnswered = HEALTH_QUESTIONS.every(q => healthAnswers[q.key] !== null);
+    if (!allHealthAnswered) { setError("Bitte beantworte alle Gesundheitsfragen mit Ja oder Nein."); return; }
+    const allCustomAnswered = customQuestions.every((_, i) => customAnswers[i] !== null);
+    if (!allCustomAnswered) { setError("Bitte beantworte alle Zusatzfragen des Studios."); return; }
     if (!hasSignature) { setError("Bitte unterschreibe das Formular im Unterschriftenfeld."); return; }
     if (!agreesTerms || !agreesAftercare) { setError("Bitte bestätige alle Pflichtfelder."); return; }
 
@@ -216,10 +216,17 @@ export default function ConsentFormPage() {
         no_known_allergies: "Keine bekannten Allergien gegen Tattoo-Tinten, Latex oder Desinfektionsmittel",
         no_infectious_diseases: "Keine übertragbaren Infektionskrankheiten",
       };
-      Object.entries(healthChecks).forEach(([key, val]) => {
-        doc.setTextColor(val ? 22 : 220, val ? 163 : 38, val ? 74 : 38);
-        doc.text(`${val ? "✓" : "✗"} ${QUESTION_LABELS[key] || key}`, 15, y);
-        y += 6;
+      HEALTH_QUESTIONS.forEach(({ key }) => {
+        const ans = healthAnswers[key];
+        const jaColor = [22, 163, 74];
+        const neinColor = [220, 38, 38];
+        const neutral = [113, 113, 122];
+        doc.setTextColor(...(ans === "ja" ? jaColor : ans === "nein" ? neinColor : neutral));
+        const label = QUESTION_LABELS[key] || key;
+        const ansLabel = ans === "ja" ? "Ja" : ans === "nein" ? "Nein" : "–";
+        const lines = doc.splitTextToSize(`${ansLabel}: ${label}`, W - 30);
+        doc.text(lines, 15, y);
+        y += lines.length * 5 + 1;
       });
       y += 2;
 
@@ -294,16 +301,24 @@ export default function ConsentFormPage() {
 
     setSubmitting(true);
     try {
+      // Convert "ja"/"nein" answers to booleans for backend (backend fields are named "no_X" so "ja" = true = confirms no condition)
+      const healthBooleans = Object.fromEntries(
+        HEALTH_QUESTIONS.map(q => [q.key, healthAnswers[q.key] === "ja"])
+      );
+      // Convert custom answers similarly
+      const customBooleans = Object.fromEntries(
+        Object.entries(customAnswers).map(([k, v]) => [k, v === "ja"])
+      );
       await axios.post(`${API}/bookings/${bookingId}/consent`, {
         full_name: fullName.trim(),
-        ...healthChecks,
+        ...healthBooleans,
         allergy_notes: allergyNotes,
         medication_notes: medicationNotes,
         agrees_to_terms: agreesTerms,
         agrees_to_aftercare: agreesAftercare,
         signature_data: signatureData,
         pdf_data: pdfDataUrl,
-        custom_answers: customAnswers,
+        custom_answers: customBooleans,
       }, { withCredentials: true });
       setSubmitted(true);
     } catch (err) {
@@ -419,30 +434,43 @@ export default function ConsentFormPage() {
             transition={{ delay: 0.1, duration: 0.35 }}
             className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
             <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-1">Gesundheitserklärung</h3>
-            <p className="text-xs font-inter text-zinc-400 mb-5">Bitte bestätige alle Aussagen mit einem Häkchen.</p>
+            <p className="text-xs font-inter text-zinc-400 mb-5">Bitte beantworte jede Frage wahrheitsgemäß mit <strong>Ja</strong> oder <strong>Nein</strong>.</p>
             <div className="space-y-3">
-              {HEALTH_QUESTIONS.map((q) => (
-                <label key={q.key}
-                  className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all select-none ${
-                    healthChecks[q.key]
-                      ? "bg-emerald-50 border-emerald-200"
-                      : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
-                  }`}>
-                  <div
-                    className={`flex-shrink-0 w-5 h-5 rounded-md border-2 mt-0.5 flex items-center justify-center transition-all ${
-                      healthChecks[q.key] ? "bg-emerald-600 border-emerald-600" : "border-zinc-300 bg-white"
-                    }`}
-                    onClick={() => setHealthChecks(prev => ({ ...prev, [q.key]: !prev[q.key] }))}>
-                    {healthChecks[q.key] && <CheckCircle size={12} className="text-white" strokeWidth={2.5} />}
+              {HEALTH_QUESTIONS.map((q) => {
+                const ans = healthAnswers[q.key];
+                return (
+                  <div key={q.key}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      ans === "ja" ? "bg-emerald-50 border-emerald-200"
+                      : ans === "nein" ? "bg-red-50 border-red-200"
+                      : "bg-zinc-50 border-zinc-200"
+                    }`}>
+                    <p className={`text-sm font-inter leading-relaxed mb-2.5 ${
+                      ans === "ja" ? "text-emerald-800" : ans === "nein" ? "text-red-800" : "text-zinc-700"
+                    }`}>{q.label}</p>
+                    <div className="flex gap-2">
+                      <button type="button"
+                        onClick={() => setHealthAnswers(prev => ({ ...prev, [q.key]: "ja" }))}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-inter font-semibold border transition-all ${
+                          ans === "ja"
+                            ? "bg-emerald-600 border-emerald-600 text-white"
+                            : "bg-white border-zinc-300 text-zinc-600 hover:border-emerald-400 hover:text-emerald-700"
+                        }`}>
+                        {ans === "ja" && <CheckCircle size={10} strokeWidth={2.5} />} Ja
+                      </button>
+                      <button type="button"
+                        onClick={() => setHealthAnswers(prev => ({ ...prev, [q.key]: "nein" }))}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-inter font-semibold border transition-all ${
+                          ans === "nein"
+                            ? "bg-red-500 border-red-500 text-white"
+                            : "bg-white border-zinc-300 text-zinc-600 hover:border-red-300 hover:text-red-600"
+                        }`}>
+                        {ans === "nein" && <X size={10} strokeWidth={2.5} />} Nein
+                      </button>
+                    </div>
                   </div>
-                  <span className={`text-sm font-inter leading-relaxed ${healthChecks[q.key] ? "text-emerald-800" : "text-zinc-600"}`}>
-                    {q.label}
-                  </span>
-                  <input type="checkbox" className="sr-only"
-                    checked={healthChecks[q.key]}
-                    onChange={e => setHealthChecks(prev => ({ ...prev, [q.key]: e.target.checked }))} />
-                </label>
-              ))}
+                );
+              })}
             </div>
 
             {/* Optional notes */}
@@ -480,30 +508,43 @@ export default function ConsentFormPage() {
               transition={{ delay: 0.13, duration: 0.35 }}
               className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-playfair font-semibold text-lg text-zinc-900 mb-1">Studio-Zusatzfragen</h3>
-              <p className="text-xs font-inter text-zinc-400 mb-5">Diese Fragen wurden vom Studio hinzugefügt. Bitte bestätige jede Aussage.</p>
+              <p className="text-xs font-inter text-zinc-400 mb-5">Diese Fragen wurden vom Studio hinzugefügt. Bitte beantworte jede mit <strong>Ja</strong> oder <strong>Nein</strong>.</p>
               <div className="space-y-3">
-                {customQuestions.map((q, idx) => (
-                  <label key={idx}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all select-none ${
-                      customAnswers[idx]
-                        ? "bg-emerald-50 border-emerald-200"
-                        : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
-                    }`}>
-                    <div
-                      className={`flex-shrink-0 w-5 h-5 rounded-md border-2 mt-0.5 flex items-center justify-center transition-all ${
-                        customAnswers[idx] ? "bg-emerald-600 border-emerald-600" : "border-zinc-300 bg-white"
-                      }`}
-                      onClick={() => setCustomAnswers(prev => ({ ...prev, [idx]: !prev[idx] }))}>
-                      {customAnswers[idx] && <CheckCircle size={12} className="text-white" strokeWidth={2.5} />}
+                {customQuestions.map((q, idx) => {
+                  const ans = customAnswers[idx];
+                  return (
+                    <div key={idx}
+                      className={`p-3.5 rounded-xl border transition-all ${
+                        ans === "ja" ? "bg-emerald-50 border-emerald-200"
+                        : ans === "nein" ? "bg-red-50 border-red-200"
+                        : "bg-zinc-50 border-zinc-200"
+                      }`}>
+                      <p className={`text-sm font-inter leading-relaxed mb-2.5 ${
+                        ans === "ja" ? "text-emerald-800" : ans === "nein" ? "text-red-800" : "text-zinc-700"
+                      }`}>{q}</p>
+                      <div className="flex gap-2">
+                        <button type="button"
+                          onClick={() => setCustomAnswers(prev => ({ ...prev, [idx]: "ja" }))}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-inter font-semibold border transition-all ${
+                            ans === "ja"
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "bg-white border-zinc-300 text-zinc-600 hover:border-emerald-400 hover:text-emerald-700"
+                          }`}>
+                          {ans === "ja" && <CheckCircle size={10} strokeWidth={2.5} />} Ja
+                        </button>
+                        <button type="button"
+                          onClick={() => setCustomAnswers(prev => ({ ...prev, [idx]: "nein" }))}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-inter font-semibold border transition-all ${
+                            ans === "nein"
+                              ? "bg-red-500 border-red-500 text-white"
+                              : "bg-white border-zinc-300 text-zinc-600 hover:border-red-300 hover:text-red-600"
+                          }`}>
+                          {ans === "nein" && <X size={10} strokeWidth={2.5} />} Nein
+                        </button>
+                      </div>
                     </div>
-                    <span className={`text-sm font-inter leading-relaxed ${customAnswers[idx] ? "text-emerald-800" : "text-zinc-600"}`}>
-                      {q}
-                    </span>
-                    <input type="checkbox" className="sr-only"
-                      checked={!!customAnswers[idx]}
-                      onChange={e => setCustomAnswers(prev => ({ ...prev, [idx]: e.target.checked }))} />
-                  </label>
-                ))}
+                  );
+                })}
               </div>
             </motion.div>
           )}
