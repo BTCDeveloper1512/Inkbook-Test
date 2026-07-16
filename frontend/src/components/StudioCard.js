@@ -4,6 +4,7 @@ import { Star, Heart } from "lucide-react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { notify } from "./InkNotify";
+import { prefetchStudio } from "../utils/studiosCache";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -47,6 +48,7 @@ export default function StudioCard({ studio, index = 0, favorited = false, onTog
     <div
       className="group cursor-pointer"
       onClick={() => navigate(`/studios/${studio.studio_id}`)}
+      onMouseEnter={() => prefetchStudio(studio.studio_id)}
       data-testid={`studio-card-${studio.studio_id}`}
     >
       <div

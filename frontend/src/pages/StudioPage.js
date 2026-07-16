@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
@@ -16,6 +16,7 @@ import CircularGallery from "../components/CircularGallery/CircularGallery";
 import GradualBlur from "../components/GradualBlur/GradualBlur";
 import StudioMap from "../components/StudioMap";
 import { notify } from "../components/InkNotify";
+import { getStudioCache, setStudioCache, fetchStudio } from "../utils/studiosCache";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -527,30 +528,44 @@ export default function StudioPage() {
   }, [studioId, calMonth, bookingType, selectedCapArtist]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [studioRes, reviewsRes, artistsRes, shopRes] = await Promise.all([
-          axios.get(`${API}/studios/${studioId}`),
-          axios.get(`${API}/studios/${studioId}/reviews`),
-          axios.get(`${API}/studios/${studioId}/artists`),
-          axios.get(`${API}/studios/${studioId}/shop`).catch(() => ({ data: [] })),
-        ]);
-        setStudio(studioRes.data);
-        setReviews(reviewsRes.data);
-        setArtists(artistsRes.data);
-        setShopProducts(shopRes.data || []);
-        if (artistsRes.data.length > 1) setSelectedCapArtist(artistsRes.data[0].artist_id);
-        if (window.posthog) {
-          window.posthog.capture("studio_viewed", {
-            studio_id: studioRes.data.studio_id,
-            studio_name: studioRes.data.name,
-            city: studioRes.data.city,
-            avg_rating: studioRes.data.avg_rating,
-          });
-        }
-      } catch { navigate("/"); } finally { setLoading(false); }
+    const applyData = (cached) => {
+      setStudio(cached.studio);
+      setReviews(cached.reviews);
+      setArtists(cached.artists);
+      setShopProducts(cached.shop || []);
+      if ((cached.artists || []).length > 1) setSelectedCapArtist(cached.artists[0].artist_id);
+      if (window.posthog) {
+        window.posthog.capture("studio_viewed", {
+          studio_id: cached.studio.studio_id,
+          studio_name: cached.studio.name,
+          city: cached.studio.city,
+          avg_rating: cached.studio.avg_rating,
+        });
+      }
     };
-    fetchData();
+
+    const hit = getStudioCache(studioId);
+    if (hit) {
+      // Instant display from cache
+      applyData(hit);
+      setLoading(false);
+      // Silent background refresh
+      fetchStudio(studioId).then((fresh) => {
+        if (fresh) { setStudioCache(studioId, fresh); applyData(fresh); }
+      }).catch(() => {});
+      return;
+    }
+
+    // No cache — show spinner while fetching
+    setLoading(true);
+    fetchStudio(studioId)
+      .then((data) => {
+        if (!data) { navigate("/"); return; }
+        setStudioCache(studioId, data);
+        applyData(data);
+      })
+      .catch(() => navigate("/"))
+      .finally(() => setLoading(false));
   }, [studioId]);
 
   // Re-fetch slots whenever date OR bookingType changes
@@ -670,11 +685,17 @@ export default function StudioPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-zinc-50"><Navbar />
-      <div className="max-w-5xl mx-auto px-6 py-12 space-y-4">
-        <div className="h-72 bg-zinc-100 animate-pulse rounded-3xl" />
-        <div className="h-6 bg-zinc-100 animate-pulse rounded-full w-48" />
-        <div className="h-4 bg-zinc-100 animate-pulse rounded-full w-full" />
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="relative flex items-center justify-center">
+          <svg className="animate-spin" width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="22" stroke="#e4e4e7" strokeWidth="3" />
+            <path d="M26 4a22 22 0 0 1 22 22" stroke="#18181b" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          <span className="absolute font-playfair font-semibold text-zinc-900 text-[11px] tracking-tight select-none">OS</span>
+        </div>
+        <p className="text-sm font-inter text-zinc-400">Studio wird geladen…</p>
       </div>
     </div>
   );
