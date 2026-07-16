@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { Menu, X, Globe, ChevronDown, Bell, MessageSquare, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
+import { prefetchStudios } from "../utils/studiosCache";
 import axios from "axios";
 import BlurText from "./BlurText/BlurText";
 import { StudioOSMark } from "./StudioOSLogo";
@@ -135,6 +136,7 @@ export default function Navbar() {
               <Link
                 key={link.to}
                 to={link.to}
+                onMouseEnter={link.to === "/search" ? prefetchStudios : undefined}
                 className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full font-inter transition-all duration-200"
                 data-testid={`nav-${link.to.replace("/", "") || "home"}-link`}
               >

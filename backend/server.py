@@ -1319,6 +1319,9 @@ async def google_session(data: GoogleSessionRequest):
     return resp
 
 # ─── Studios ──────────────────────────────────────────────────────────────────
+_studios_list_cache: Dict[str, Any] = {"data": None, "ts": 0.0}
+_STUDIOS_CACHE_TTL = 20  # seconds
+
 @api_router.get("/studios")
 async def list_studios(
     city: Optional[str] = None,
@@ -1329,6 +1332,14 @@ async def list_studios(
     skip: int = 0,
     limit: int = 200
 ):
+    import time as _time
+    no_filters = not any([city, style, price_range, min_rating, search]) and skip == 0
+
+    if no_filters:
+        now = _time.monotonic()
+        if _studios_list_cache["data"] is not None and (now - _studios_list_cache["ts"]) < _STUDIOS_CACHE_TTL:
+            return _studios_list_cache["data"]
+
     query: Dict[str, Any] = {"is_active": {"$ne": False}}
     if city:
         query["city"] = {"$regex": city, "$options": "i"}
@@ -1346,6 +1357,12 @@ async def list_studios(
         ]
 
     studios = await db.studios.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+
+    if no_filters:
+        import time as _time2
+        _studios_list_cache["data"] = studios
+        _studios_list_cache["ts"] = _time2.monotonic()
+
     return studios
 
 @api_router.get("/studios/{studio_id}")

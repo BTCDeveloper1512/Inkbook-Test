@@ -1,8 +1,9 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ArrowRight, CheckCircle, Star, MapPin, Check, Calendar, Zap, Shield, BarChart2 } from "lucide-react";
 import SplashScreen from "../components/SplashScreen";
+import { prefetchStudios } from "../utils/studiosCache";
 
 /* ── Design-Tokens (Apple-inspiriert) ─────────────────── */
 const FONT = "'Cooper Hewitt', 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -534,7 +535,7 @@ export default function LandingPage() {
           </p>
 
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
+            <Link to="/search" onMouseEnter={prefetchStudios} style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
               Studio finden <ArrowRight size={15} strokeWidth={1.5} />
             </Link>
             <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>

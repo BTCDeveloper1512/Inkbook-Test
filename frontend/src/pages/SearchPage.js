@@ -11,6 +11,7 @@ import {
   Search, SlidersHorizontal, X, MapPin, Palette,
   Star, ChevronDown
 } from "lucide-react";
+import { getStudiosCache, setStudiosCache, fetchStudios } from "../utils/studiosCache";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -90,32 +91,40 @@ function DropPanel({ label, icon, open, onToggle, children }) {
   );
 }
 
+function buildFilterData(data) {
+  const cities = [...new Set(data.map((s) => s.city).filter(Boolean))].sort();
+  const styleCounts = {};
+  data.forEach((s) => (s.styles || []).forEach((st) => { styleCounts[st] = (styleCounts[st] || 0) + 1; }));
+  const styles = Object.entries(styleCounts).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }));
+  return { cities, styles };
+}
+
 export default function SearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [allStudios, setAllStudios] = useState(null); // null = initial load pending
-  const [loading, setLoading] = useState(true);
+  // Initialise from module-level cache → zero loading flash on return visits
+  const cached = getStudiosCache();
+  const [allStudios, setAllStudios] = useState(cached || null);
+  const [loading, setLoading] = useState(!cached);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [city, setCity] = useState("");
   const [activeStyles, setActiveStyles] = useState([]);
   const [minRating, setMinRating] = useState("");
   const [openPanel, setOpenPanel] = useState(null);
-  const [filterData, setFilterData] = useState({ cities: [], styles: [] });
+  const [filterData, setFilterData] = useState(cached ? buildFilterData(cached) : { cities: [], styles: [] });
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const { user } = useAuth();
 
-  // Single fetch on mount — provides both filter options AND initial results
   useEffect(() => {
-    axios.get(`${API}/studios`).then(({ data }) => {
+    fetchStudios().then((data) => {
+      if (!data) return;
+      setStudiosCache(data);
       setAllStudios(data);
-      const cities = [...new Set(data.map((s) => s.city).filter(Boolean))].sort();
-      const styleCounts = {};
-      data.forEach((s) => (s.styles || []).forEach((st) => { styleCounts[st] = (styleCounts[st] || 0) + 1; }));
-      const styles = Object.entries(styleCounts).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }));
-      setFilterData({ cities, styles });
-    }).catch(() => setAllStudios([])).finally(() => setLoading(false));
+      setFilterData(buildFilterData(data));
+      setLoading(false);
+    });
   }, []);
 
   // Fetch favorites for logged-in users
@@ -379,14 +388,15 @@ export default function SearchPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="space-y-3">
-                <div className="aspect-[4/3] bg-zinc-100 rounded-2xl animate-pulse" />
-                <div className="h-4 bg-zinc-100 rounded animate-pulse w-3/4" />
-                <div className="h-3 bg-zinc-100 rounded animate-pulse w-1/2" />
-              </div>
-            ))}
+          <div className="flex flex-col items-center justify-center py-32 gap-6">
+            <div className="relative flex items-center justify-center">
+              <svg className="animate-spin" width="52" height="52" viewBox="0 0 52 52" fill="none">
+                <circle cx="26" cy="26" r="22" stroke="#e4e4e7" strokeWidth="3" />
+                <path d="M26 4a22 22 0 0 1 22 22" stroke="#18181b" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              <span className="absolute font-playfair font-semibold text-zinc-900 text-[11px] tracking-tight select-none">OS</span>
+            </div>
+            <p className="text-sm font-inter text-zinc-400">Studios werden geladen…</p>
           </div>
         ) : studios.length === 0 ? (
           <motion.div
