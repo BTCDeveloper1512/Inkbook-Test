@@ -1615,8 +1615,9 @@ async def get_available_dates(studio_id: str, year: int, month: int, slot_type: 
 
 # ─── Booking system-message helper ───────────────────────────────────────────
 async def _post_system_message(customer_id: str, studio_owner_id: str, text: str, triggered_by_id: str = None):
-    """Inserts an automated StudioOS system message in the customer↔studio conversation.
-    triggered_by_id: the user_id of whoever triggered the action (determines left/right alignment in chat)."""
+    """Disabled: automated StudioOS system messages are no longer inserted into
+    customer↔studio conversations. Kept as a no-op so existing call sites stay intact."""
+    return
     if not customer_id or not studio_owner_id:
         return
     participants = sorted([customer_id, studio_owner_id])
@@ -3624,21 +3625,6 @@ async def delete_conversation(other_user_id: str, current_user: dict = Depends(g
 
     participants = sorted([user_id, other_user_id])
     conv_id = f"conv_{'_'.join(participants)}"
-
-    # Add system message so the other party sees what happened
-    system_msg = {
-        "message_id": f"msg_{uuid.uuid4().hex[:12]}",
-        "sender_id": user_id,
-        "recipient_id": other_user_id,
-        "sender_name": user_name,
-        "content": f"{user_name} hat die Unterhaltung gelöscht und beendet.",
-        "image_url": "",
-        "is_system": True,
-        "slot_offer": None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "read": True
-    }
-    await db.messages.insert_one(system_msg)
 
     # Mark conversation as deleted by this user
     await db.conversations.update_one(
