@@ -1,758 +1,238 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, useInView, AnimatePresence } from "framer-motion";
-import { ArrowRight, CheckCircle, Star, MapPin, Check, Calendar, Zap, Shield, BarChart2 } from "lucide-react";
-import SplashScreen from "../components/SplashScreen";
-import { prefetchStudios } from "../utils/studiosCache";
+import { motion, useInView } from "framer-motion";
+import {
+  ArrowRight,
+  Bell,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Clock3,
+  CreditCard,
+  FileCheck2,
+  Image as ImageIcon,
+  LayoutDashboard,
+  Menu,
+  MessageCircle,
+  MoreHorizontal,
+  PenLine,
+  Plus,
+  ShieldCheck,
+  Users,
+  X,
+} from "lucide-react";
 
-/* ── Design-Tokens (Apple-inspiriert) ─────────────────── */
-const FONT = "'Cooper Hewitt', 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif";
-const C = {
-  bg:      "#ffffff",
-  gray:    "#f5f5f7",   /* Apple's Seite-Grau           */
-  line:    "#d2d2d7",   /* Apple's Trennlinie           */
-  ink:     "#1d1d1f",   /* Apple's Schwarz              */
-  mid:     "#6e6e73",   /* Apple's Grau-Text            */
-  faint:   "#86868b",   /* Noch heller                  */
-  button:  "#1d1d1f",
-  btnTxt:  "#ffffff",
-};
+const bronze = "#b9895d";
 
-/* ── FadeIn ──────────────────────────────────────────── */
-function FadeIn({ children, delay = 0, style }) {
+function Reveal({ children, delay = 0, className = "" }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const visible = useInView(ref, { once: true, margin: "-80px" });
   return (
-    <motion.div ref={ref} style={style}
-      initial={{ opacity: 0, y: 24 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
-    >{children}</motion.div>
-  );
-}
-
-/* ── MacBook 3-D ─────────────────────────────────────── */
-function MacBook() {
-  const [open,     setOpen]     = useState(false);
-  const [screenOn, setScreenOn] = useState(false);
-  const [logoIn,   setLogoIn]   = useState(false);
-  const [uiIn,     setUiIn]     = useState(false);
-
-  useEffect(() => {
-    const t1 = setTimeout(() => setOpen(true),     350);
-    const t2 = setTimeout(() => setScreenOn(true), 1750);
-    const t3 = setTimeout(() => setLogoIn(true),   2100);
-    const t4 = setTimeout(() => setUiIn(true),     2550);
-    return () => [t1, t2, t3, t4].forEach(clearTimeout);
-  }, []);
-
-  const W      = 420;
-  const H_LID  = 260;
-  const H_BASE = 17;
-  const BEZEL  = 12;
-
-  return (
-    <div style={{
-      perspective: 1300, perspectiveOrigin: "50% 140%",
-      width: W + 100, height: H_LID + H_BASE + 80,
-      display: "flex", alignItems: "flex-end", justifyContent: "center",
-      flexShrink: 0,
-    }}>
-      <div style={{ position: "relative", width: W, transform: "rotateX(20deg)", transformStyle: "preserve-3d" }}>
-
-        {/* DECKEL */}
-        <motion.div
-          initial={{ rotateX: -112 }}
-          animate={{ rotateX: open ? -16 : -112 }}
-          transition={{ duration: 1.45, ease: [0.22, 1, 0.36, 1] }}
-          style={{
-            position: "absolute", bottom: H_BASE, width: W, height: H_LID,
-            transformOrigin: "bottom center", transformStyle: "preserve-3d",
-            borderRadius: "12px 12px 3px 3px",
-            background: "linear-gradient(165deg, #3a3a3c, #2a2a2c)",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.22), 0 2px 0 rgba(255,255,255,0.06) inset",
-          }}
-        >
-          {/* Displayrahmen */}
-          <div style={{ position: "absolute", inset: BEZEL, borderRadius: "7px 7px 3px 3px", background: "#111", overflow: "hidden" }}>
-            {/* Bildschirm */}
-            <motion.div
-              animate={{ opacity: screenOn ? 1 : 0, background: screenOn ? "#f8f8f8" : "#000" }}
-              transition={{ duration: 0.55 }}
-              style={{ position: "absolute", inset: 2, borderRadius: 5, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, overflow: "hidden" }}
-            >
-              {/* Menüleiste */}
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 14, background: "rgba(0,0,0,0.07)", display: "flex", alignItems: "center", padding: "0 8px", gap: 4, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 5, height: 5, borderRadius: "50%", background: c }} />)}
-                <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                  {[36, 24, 28].map((w, i) => <div key={i} style={{ width: w, height: 3.5, borderRadius: 3, background: "rgba(0,0,0,0.1)" }} />)}
-                </div>
-              </div>
-
-              {/* StudioOS Logo */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.86 }}
-                animate={{ opacity: logoIn ? 1 : 0, scale: logoIn ? 1 : 0.86 }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                style={{ textAlign: "center" }}
-              >
-                <p style={{ fontSize: 26, fontWeight: 300, color: C.ink, fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 4 }}>
-                  Studio<span style={{ opacity: 0.3 }}>OS</span>
-                </p>
-                <motion.p
-                  initial={{ opacity: 0 }} animate={{ opacity: logoIn ? 1 : 0 }}
-                  transition={{ delay: 0.3, duration: 0.4 }}
-                  style={{ fontSize: 7.5, letterSpacing: "0.2em", textTransform: "uppercase", color: C.mid, fontFamily: FONT, fontWeight: 300 }}
-                >
-                  Das Studio-Betriebssystem
-                </motion.p>
-              </motion.div>
-
-              {/* Mini-App-Vorschau */}
-              <motion.div
-                initial={{ opacity: 0, y: 6 }} animate={{ opacity: uiIn ? 1 : 0, y: uiIn ? 0 : 6 }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                style={{ width: "82%", background: "#f0f0f0", borderRadius: 6, overflow: "hidden", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 4px 14px rgba(0,0,0,0.07)" }}
-              >
-                <div style={{ height: 14, background: "#e4e4e4", display: "flex", alignItems: "center", padding: "0 8px", gap: 3, borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-                  {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 4, height: 4, borderRadius: "50%", background: c }} />)}
-                </div>
-                <div style={{ display: "flex", gap: 0 }}>
-                  <div style={{ width: 48, height: 46, background: "linear-gradient(135deg,#3a3a3c,#111)" }} />
-                  <div style={{ flex: 1, padding: "6px 8px" }}>
-                    <div style={{ fontSize: 7.5, fontWeight: 600, color: C.ink, fontFamily: FONT, marginBottom: 2 }}>JohannINK</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
-                      <Star size={6} color="#f59e0b" fill="#f59e0b" />
-                      <span style={{ fontSize: 6, color: C.mid, fontFamily: FONT }}>5.0 · Fine Line</span>
-                    </div>
-                    <div style={{ width: 50, height: 9, background: C.ink, borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: 5, color: "#fff", fontFamily: FONT }}>Termin anfragen</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-            {/* Kamera */}
-            <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: 5, height: 5, borderRadius: "50%", background: "#333" }} />
-          </div>
-        </motion.div>
-
-        {/* BASIS */}
-        <div style={{ width: W, height: H_BASE, background: "linear-gradient(to bottom, #3a3a3c, #2c2c2e)", borderRadius: "0 0 12px 12px", position: "relative" }}>
-          <div style={{ position: "absolute", top: 0, left: "8%", right: "8%", height: 2, background: "rgba(0,0,0,0.3)", borderRadius: "0 0 2px 2px" }} />
-          <div style={{ position: "absolute", top: 3, left: "7%", right: "7%", bottom: 4, background: "rgba(255,255,255,0.03)", borderRadius: 3 }}>
-            <div style={{ position: "absolute", inset: 2, backgroundImage: "repeating-linear-gradient(90deg,rgba(255,255,255,0.03) 0,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 10px),repeating-linear-gradient(rgba(255,255,255,0.03) 0,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 7px)" }} />
-          </div>
-          <div style={{ position: "absolute", bottom: 2, left: "38%", right: "38%", height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 2 }} />
-        </div>
-
-        {/* Schatten auf weißem Hintergrund */}
-        <div style={{ position: "absolute", bottom: -40, left: "5%", right: "5%", height: 32, background: "radial-gradient(ellipse at 50% 0%, rgba(0,0,0,0.18), transparent 70%)", filter: "blur(14px)", pointerEvents: "none" }} />
-
-        {/* Screen-Glow auf Keyboard */}
-        <motion.div
-          animate={{ opacity: screenOn ? 1 : 0 }} transition={{ duration: 0.6 }}
-          style={{ position: "absolute", top: -4, left: "12%", right: "12%", height: 8, background: "radial-gradient(ellipse at 50% 100%, rgba(120,120,255,0.08), transparent 70%)", filter: "blur(4px)", pointerEvents: "none" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ── App-Mockup Phasen ───────────────────────────────── */
-const PHASE_DUR = 2800;
-const Z = { 950:"#09090b",900:"#18181b",700:"#3f3f46",600:"#52525b",500:"#71717a",400:"#a1a1aa",200:"#e4e4e7",100:"#f4f4f5",50:"#fafafa" };
-const MF   = "'Cooper Hewitt', 'Barlow', sans-serif";
-const TEAL = "#2dd4bf";
-
-function MNav() {
-  return (
-    <div style={{ height: 36, borderBottom: `1px solid ${Z[100]}`, background: "#fff", display: "flex", alignItems: "center", padding: "0 12px", gap: 6, flexShrink: 0 }}>
-      <div style={{ width: 14, height: 14, borderRadius: 3, background: Z[950], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <div style={{ width: 8, height: 8, borderRadius: 2, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 4, height: 4, borderRadius: 1, background: Z[950] }} />
-        </div>
-      </div>
-      <span style={{ fontSize: 9, fontWeight: 400, color: Z[950], fontFamily: MF, flex: 1, letterSpacing: "-0.01em" }}>StudioOS</span>
-      <span style={{ fontSize: 7.5, color: Z[400], fontFamily: MF }}>Anmelden</span>
-    </div>
-  );
-}
-
-function PhaseSearch() {
-  return (
-    <motion.div key="search"
-      initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-      style={{ flex: 1, background: Z[50], padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={{ opacity: 0, y: 28 }}
+      animate={visible ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.75, delay, ease: [0.22, 1, 0.36, 1] }}
     >
-      <p style={{ fontSize: 6.5, letterSpacing: "0.22em", textTransform: "uppercase", color: Z[400], fontFamily: MF, marginBottom: 2 }}>Studios entdecken</p>
-      <p style={{ fontSize: 18, fontWeight: 300, color: Z[950], fontFamily: MF, lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 6 }}>Dein<br/>perfektes Studio.</p>
-      <div style={{ border: `1.5px solid ${Z[950]}`, borderRadius: 9, padding: "6px 10px", background: "#fff", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", border: `1.5px solid ${Z[500]}` }} />
-        <span style={{ fontSize: 8, color: Z[400], fontFamily: MF, flex: 1 }}>Studioname, Stil oder Stadt …</span>
-      </div>
-      <motion.div
-        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, duration: 0.45 }}
-        style={{ background: "#fff", borderRadius: 12, border: `1.5px solid ${Z[950]}`, boxShadow: "0 4px 18px rgba(0,0,0,0.08)", display: "flex", overflow: "hidden" }}
-      >
-        <div style={{ width: 64, flexShrink: 0, background: `linear-gradient(145deg, ${Z[950]}, ${Z[700]})`, position: "relative" }}>
-          <img src="https://images.unsplash.com/photo-1598371839696-5c5bb00bdc28?w=200&h=200&fit=crop&q=70"
-            alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: 0.75 }}
-          />
-          <div style={{ position: "absolute", top: 5, left: 4, background: "rgba(9,9,11,0.85)", borderRadius: 3, padding: "1.5px 5px" }}>
-            <span style={{ fontSize: 5, color: "#fff", fontFamily: MF }}>Verifiziert</span>
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: "8px 10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, color: Z[950], fontFamily: MF, lineHeight: 1.1 }}>JohannINK</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Star size={8} color="#f59e0b" fill="#f59e0b" />
-              <span style={{ fontSize: 8, fontWeight: 600, color: Z[950], fontFamily: MF }}>5.0</span>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 6 }}>
-            <MapPin size={7} color={Z[400]} strokeWidth={1.5} />
-            <span style={{ fontSize: 7, color: Z[500], fontFamily: MF }}>Wardenburg</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 3 }}>
-              {["Fine Line","Realism"].map(s => (
-                <span key={s} style={{ fontSize: 6, padding: "1.5px 6px", borderRadius: 20, background: Z[100], color: Z[500], fontFamily: MF, border: `1px solid ${Z[200]}` }}>{s}</span>
-              ))}
-            </div>
-            <motion.div
-              animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 1.6, repeat: Infinity, delay: 0.8 }}
-              style={{ padding: "3.5px 9px", borderRadius: 7, background: Z[950] }}
-            >
-              <span style={{ fontSize: 7, color: "#fff", fontFamily: MF }}>Termin anfragen</span>
-            </motion.div>
-          </div>
-        </div>
-      </motion.div>
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 0.45, y: 0 }} transition={{ delay: 0.38 }}
-        style={{ background: "#fff", borderRadius: 10, border: `1px solid ${Z[200]}`, display: "flex", overflow: "hidden", height: 48 }}
-      >
-        <div style={{ width: 48, flexShrink: 0, background: `linear-gradient(145deg, ${Z[700]}, ${Z[500]})` }} />
-        <div style={{ flex: 1, padding: "8px 10px" }}>
-          <span style={{ fontSize: 9, fontWeight: 500, color: Z[900], fontFamily: MF }}>Sacred Needles</span>
-          <p style={{ fontSize: 7, color: Z[400], fontFamily: MF, marginTop: 2 }}>Hamburg · Traditional</p>
-        </div>
-      </motion.div>
+      {children}
     </motion.div>
   );
 }
 
-const CAL  = [[null,1,2,3,4,5,6],[7,8,9,10,11,12,13],[14,15,16,17,18,19,20],[21,22,23,24,25,26,27],[28,29,30,null,null,null,null]];
-const AV   = {1:"t",2:"t",3:"t",4:"y",5:"t",8:"t",9:"t",10:"r",11:"t",14:"t",15:"t",17:"t",18:"y",21:"t",22:"t",23:"y",24:"t",25:"r",28:"t",29:"t",30:"y"};
-const AC   = { t: TEAL, y: "#facc15", r: "#fb7185" };
-const HDR  = ["Mo","Di","Mi","Do","Fr","Sa","So"];
-const WDAY = ["So","Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di","Mi","Do","Fr","Sa","Mo","Di","Mi","Do","Fr","Sa","So","Mo","Di"];
-
-function PhaseCalendar() {
-  const [sel, setSel] = useState(null);
-  useEffect(() => {
-    const days = [15, 22, 18]; let i = 0;
-    const iv = setInterval(() => { setSel(days[i % days.length]); i++; }, 700);
-    return () => clearInterval(iv);
-  }, []);
+function Logo({ light = false }) {
   return (
-    <motion.div key="cal"
-      initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-      style={{ flex: 1, background: "#fff", padding: "10px 12px", overflow: "hidden" }}
-    >
-      <p style={{ fontSize: 9, fontWeight: 500, color: Z[950], fontFamily: MF, marginBottom: 6 }}>Termin anfragen</p>
-      <p style={{ fontSize: 6, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: MF, marginBottom: 5 }}>Wunschdatum</p>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-        <span style={{ fontSize: 6, color: Z[400] }}>‹</span>
-        <span style={{ fontSize: 7.5, fontWeight: 500, color: Z[900], fontFamily: MF }}>Juni 2026</span>
-        <span style={{ fontSize: 6, color: Z[400] }}>›</span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 2 }}>
-        {HDR.map(d => <div key={d} style={{ textAlign: "center", fontSize: 5, color: Z[400], paddingBottom: 3 }}>{d}</div>)}
-      </div>
-      {CAL.map((wk, wi) => (
-        <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 1 }}>
-          {wk.map((d, di) => {
-            if (!d) return <div key={di} />;
-            const isSel = d === sel, av = AV[d];
-            return (
-              <motion.div key={di}
-                animate={isSel ? { scale: 1.2 } : { scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 24 }}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "1.5px 0", borderRadius: 4, background: isSel ? Z[950] : "transparent" }}
-              >
-                <span style={{ fontSize: 6.5, color: isSel ? "#fff" : Z[700], fontWeight: isSel ? 500 : 400, lineHeight: 1 }}>{d}</span>
-                {av && <div style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: isSel ? "#fff" : AC[av], marginTop: 1 }} />}
-              </motion.div>
-            );
-          })}
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 5 }}>
-        {[[TEAL,"Verfügbar"],["#facc15","Begrenzt"],["#fb7185","Voll"]].map(([col, l]) => (
-          <div key={l} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <div style={{ width: 4, height: 4, borderRadius: "50%", background: col }} />
-            <span style={{ fontSize: 5.5, color: Z[400], fontFamily: MF }}>{l}</span>
-          </div>
-        ))}
-      </div>
-      <AnimatePresence mode="wait">
-        {sel && (
-          <motion.div key={sel}
-            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            style={{ marginTop: 7, padding: "5px 8px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0" }}
-          >
-            <p style={{ fontSize: 7, fontWeight: 500, color: "#15803d", fontFamily: MF }}>{WDAY[sel - 1]}, {sel}. Juni 2026</p>
-            <p style={{ fontSize: 6, color: "#16a34a", fontFamily: MF }}>Gut verfügbar</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    <span className={`so-logo ${light ? "so-logo-light" : ""}`}>
+      Studio<span>OS</span>
+    </span>
   );
 }
 
-function PhaseForm() {
-  const [sizeIdx, setSizeIdx] = useState(1);
-  const sizes = ["Mini","Small","Medium","Large","XL"];
-  useEffect(() => {
-    let i = 1;
-    const iv = setInterval(() => { i = (i + 1) % 5; setSizeIdx(i); }, 650);
-    return () => clearInterval(iv);
-  }, []);
+function ButtonLink({ children, to, variant = "dark", className = "" }) {
   return (
-    <motion.div key="form"
-      initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-      style={{ flex: 1, background: "#fff", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 7, overflow: "hidden" }}
-    >
-      <p style={{ fontSize: 9, fontWeight: 500, color: Z[950], fontFamily: MF }}>Termin anfragen</p>
-      <div>
-        <p style={{ fontSize: 6, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: MF, marginBottom: 4 }}>Terminart</p>
-        <div style={{ display: "flex", gap: 4 }}>
-          {["Beratung","Tattoo"].map((t, i) => (
-            <div key={t} style={{ flex: 1, padding: "4px 0", textAlign: "center", borderRadius: 7, border: `1px solid ${i === 1 ? Z[950] : Z[200]}`, background: i === 1 ? Z[950] : "#fff" }}>
-              <span style={{ fontSize: 7.5, fontWeight: i === 1 ? 500 : 400, color: i === 1 ? "#fff" : Z[500], fontFamily: MF }}>{t}</span>
-            </div>
-          ))}
-        </div>
+    <Link className={`so-button so-button-${variant} ${className}`} to={to}>
+      {children}
+      <ArrowRight size={16} strokeWidth={1.7} />
+    </Link>
+  );
+}
+
+function MiniBar({ width, accent = false }) {
+  return <div className={`mini-bar ${accent ? "mini-bar-accent" : ""}`} style={{ width }} />;
+}
+
+function DashboardMockup({ compact = false }) {
+  return (
+    <div className={`browser-frame ${compact ? "browser-compact" : ""}`}>
+      <div className="browser-top">
+        <div className="browser-dots"><i /><i /><i /></div>
+        <div className="browser-address">studioos / arbeitsplatz</div>
+        <MoreHorizontal size={15} />
       </div>
-      <div>
-        <p style={{ fontSize: 6, letterSpacing: "0.15em", textTransform: "uppercase", color: Z[400], fontFamily: MF, marginBottom: 4 }}>Tattoo-Größe</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {sizes.map((s, i) => (
-            <motion.div key={s}
-              animate={i === sizeIdx ? { scale: 1.02, x: 1 } : { scale: 1, x: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              style={{ padding: "4px 8px", borderRadius: 7, border: `1px solid ${i === sizeIdx ? Z[950] : Z[100]}`, background: i === sizeIdx ? Z[950] : "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-            >
-              <span style={{ fontSize: 7.5, fontWeight: i === sizeIdx ? 500 : 400, color: i === sizeIdx ? "#fff" : Z[600], fontFamily: MF }}>{s}</span>
-              <span style={{ fontSize: 6, color: i === sizeIdx ? "rgba(255,255,255,0.4)" : Z[400], fontFamily: MF }}>{[1,2,3,5,8][i]} Pkt.</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}
-        style={{ padding: "5px 8px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: 6 }}
-      >
-        <Calendar size={10} color="#16a34a" strokeWidth={1.5} />
-        <span style={{ fontSize: 7.5, fontWeight: 500, color: "#15803d", fontFamily: MF }}>Mi, 22. Juni 2026</span>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function PhaseSuccess() {
-  return (
-    <motion.div key="success"
-      initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      style={{ flex: 1, background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 14px", gap: 10 }}
-    >
-      <motion.div
-        initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.15 }}
-        style={{ width: 54, height: 54, borderRadius: "50%", background: Z[950], display: "flex", alignItems: "center", justifyContent: "center" }}
-      >
-        <Check size={24} color="#fff" strokeWidth={2} />
-      </motion.div>
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 13, fontWeight: 500, color: Z[950], fontFamily: MF, marginBottom: 5 }}>Termin angefragt!</p>
-        <p style={{ fontSize: 7.5, color: Z[500], fontFamily: MF, lineHeight: 1.55 }}>JohannINK bestätigt deinen<br/>Termin in Kürze.</p>
-      </motion.div>
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-        style={{ width: "100%", padding: "8px 10px", borderRadius: 10, border: `1px solid ${Z[100]}`, background: Z[50] }}
-      >
-        {[["Studio","JohannINK"],["Datum","Mi, 22. Juni 2026"],["Größe","Small · 2 Punkte"],["Anzahlung","€ 50 bezahlt"]].map(([l, v]) => (
-          <div key={l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-            <span style={{ fontSize: 7, color: Z[400], fontFamily: MF }}>{l}</span>
-            <span style={{ fontSize: 7, fontWeight: 500, color: Z[700], fontFamily: MF }}>{v}</span>
+      <div className="dashboard-shell">
+        <aside className="dashboard-side">
+          <div className="dash-mark">s</div>
+          {!compact && <div className="dash-studio">Morrow Studio <ChevronDown size={11} /></div>}
+          <nav>
+            <span className="active"><LayoutDashboard size={14} />Übersicht</span>
+            <span><CalendarDays size={14} />Kalender</span>
+            <span><Users size={14} />Kund:innen</span>
+            <span><CreditCard size={14} />Zahlungen</span>
+          </nav>
+          {!compact && <div className="dash-side-bottom"><span><ShieldCheck size={13} />Studio geschützt</span></div>}
+        </aside>
+        <main className="dashboard-main">
+          <div className="dash-head">
+            <div><p className="dash-eyebrow">Dienstag, 18. Juni</p><h3>Guten Morgen, Mira.</h3></div>
+            <button className="dash-add"><Plus size={14} />Termin</button>
           </div>
-        ))}
-      </motion.div>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
-        style={{ padding: "6px 16px", borderRadius: 20, background: Z[950], marginTop: 4 }}
-      >
-        <span style={{ fontSize: 8, color: "#fff", fontFamily: MF }}>In der App ansehen</span>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function AppMockup() {
-  const ref    = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  const [phase, setPhase] = useState(0);
-  useEffect(() => {
-    const iv = setInterval(() => setPhase(p => (p + 1) % 4), PHASE_DUR);
-    return () => clearInterval(iv);
-  }, []);
-  const labels = ["Studios entdecken","Datum wählen","Details eingeben","Buchung bestätigt"];
-  return (
-    <div ref={ref} style={{ perspective: 1200 }}>
-      <motion.div
-        initial={{ opacity: 0, rotateY: 20, rotateX: 6, y: 44 }}
-        animate={inView ? { opacity: 1, rotateY: -8, rotateX: 3, y: 0 } : {}}
-        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-        whileHover={{ rotateY: -3, rotateX: 1, transition: { duration: 0.7 } }}
-        style={{ transformStyle: "preserve-3d", maxWidth: 320, margin: "0 auto" }}
-      >
-        <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 40px 100px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)", background: "#fff" }}>
-          <div style={{ height: 36, background: "#e8e8e8", borderBottom: "1px solid rgba(0,0,0,0.07)", display: "flex", alignItems: "center", padding: "0 14px", gap: 8 }}>
-            <div style={{ display: "flex", gap: 5 }}>
-              {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 9, height: 9, borderRadius: "50%", background: c }} />)}
-            </div>
-            <div style={{ flex: 1, height: 20, borderRadius: 5, background: "rgba(0,0,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 9, color: "#888", fontFamily: MF }}>app.studio-os.de</span>
-            </div>
+          <div className="dash-cards">
+            <div><span>Heute</span><strong>06</strong><small>Termine</small></div>
+            <div><span>Offen</span><strong>03</strong><small>Anfragen</small></div>
+            <div><span>Gesichert</span><strong>€ 1.240</strong><small>Anzahlungen</small></div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", height: 520 }}>
-            <MNav />
-            <AnimatePresence mode="wait">
-              {phase === 0 && <PhaseSearch key="s" />}
-              {phase === 1 && <PhaseCalendar key="c" />}
-              {phase === 2 && <PhaseForm key="f" />}
-              {phase === 3 && <PhaseSuccess key="ok" />}
-            </AnimatePresence>
-          </div>
-          <div style={{ padding: "8px 14px", background: "#f4f4f5", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[0,1,2,3].map(i => (
-                <motion.div key={i}
-                  animate={{ width: i === phase ? 16 : 5, background: i === phase ? Z[950] : Z[400] }}
-                  transition={{ duration: 0.35 }}
-                  style={{ height: 5, borderRadius: 10 }}
-                />
-              ))}
-            </div>
-            <span style={{ fontSize: 8, color: Z[400], fontFamily: MF }}>{labels[phase]}</span>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════
-   HAUPT-KOMPONENTE
-═══════════════════════════════════════════════════════ */
-export default function LandingPage() {
-  const [done, setDone] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handler, { passive: true });
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-
-  if (!done) return <SplashScreen onDone={() => setDone(true)} />;
-
-  const px = isMobile ? "20px" : "44px";
-
-  return (
-    <div style={{ fontFamily: FONT, background: C.bg, overflowX: "hidden", color: C.ink, maxWidth: "100vw" }}>
-
-      {/* ── Navigation ───────────────────────────────── */}
-      <nav style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
-        height: 56, padding: `0 ${px}`,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "rgba(255,255,255,0.92)", backdropFilter: "blur(20px) saturate(180%)",
-        borderBottom: `1px solid ${C.line}`,
-        paddingTop: "env(safe-area-inset-top, 0px)",
-      }}>
-        <span style={{ fontSize: 17, fontWeight: 300, color: C.ink, letterSpacing: "-0.03em", fontFamily: FONT }}>
-          Studio<span style={{ opacity: 0.32 }}>OS</span>
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 32 }}>
-          {!isMobile && <>
-            <Link to="/search"    style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Studios finden</Link>
-            <Link to="/ueber-uns" style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Über uns</Link>
-            <Link to="/login"     style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Anmelden</Link>
-          </>}
-          {isMobile && <Link to="/login" style={{ fontSize: 13, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT }}>Login</Link>}
-          <Link to="/register?role=studio" style={{
-            fontSize: 13, fontWeight: 400, color: C.btnTxt, background: C.button,
-            padding: isMobile ? "7px 14px" : "8px 20px", borderRadius: 100, textDecoration: "none", fontFamily: FONT,
-            whiteSpace: "nowrap",
-          }}>
-            {isMobile ? "Starten" : "Als Studio starten"}
-          </Link>
-        </div>
-      </nav>
-
-      {/* ══════════════════════════════════════════════
-          SEKTION 1 — HERO
-      ══════════════════════════════════════════════ */}
-      <section style={{ minHeight: "100dvh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: isMobile ? 80 : 92, overflow: "hidden", position: "relative" }}>
-
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 55% at 50% 90%, rgba(0,0,0,0.03), transparent)", pointerEvents: "none" }} />
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          style={{ textAlign: "center", maxWidth: 800, padding: `0 ${px}`, position: "relative", zIndex: 2, width: "100%" }}
-        >
-          <motion.p
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-            style={{ fontSize: 11, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: isMobile ? 16 : 22, fontFamily: FONT }}
-          >
-            Das Studio-Betriebssystem
-          </motion.p>
-
-          <h1 style={{ fontSize: isMobile ? "clamp(38px, 11vw, 58px)" : "clamp(44px, 7vw, 86px)", fontWeight: 300, color: C.ink, lineHeight: 1.0, letterSpacing: "-0.04em", marginBottom: isMobile ? 16 : 22, fontFamily: FONT }}>
-            Tattoo-Buchungen.<br />
-            <span style={{ color: "rgba(29,29,31,0.22)" }}>Endlich digital.</span>
-          </h1>
-
-          <p style={{ fontSize: isMobile ? 15 : "clamp(15px, 1.6vw, 18px)", color: C.mid, maxWidth: 480, margin: `0 auto ${isMobile ? 28 : 36}px`, lineHeight: 1.65, fontWeight: 300, fontFamily: FONT }}>
-            Kunden buchen per Echtzeit-Kalender, zahlen per Stripe —
-            kein WhatsApp-Chaos, keine verpassten Anfragen.
-          </p>
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link to="/search" onMouseEnter={prefetchStudios} style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-              Studio finden <ArrowRight size={15} strokeWidth={1.5} />
-            </Link>
-            <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: isMobile ? "13px 22px" : "14px 28px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-              {isMobile ? "Studio registrieren" : "Als Studio registrieren"}
-            </Link>
-          </div>
-          <p style={{ fontSize: 12, color: C.faint, marginTop: 16, fontFamily: FONT, fontWeight: 300 }}>Kostenlos · Keine Kreditkarte erforderlich</p>
-        </motion.div>
-
-        {/* MacBook — skaliert auf Mobile */}
-        {!isMobile && (
-          <motion.div
-            initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            style={{ marginTop: 44, position: "relative", zIndex: 1 }}
-          >
-            <MacBook />
-          </motion.div>
-        )}
-        {isMobile && (
-          <motion.div
-            initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            style={{ marginTop: 36, width: "100%", overflow: "hidden", display: "flex", justifyContent: "center" }}
-          >
-            <div style={{ transform: "scale(0.62)", transformOrigin: "center top", marginBottom: -136 }}>
-              <MacBook />
-            </div>
-          </motion.div>
-        )}
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          SEKTION 2 — STATS (Apple-Grau)
-      ══════════════════════════════════════════════ */}
-      <section style={{ background: C.gray, padding: isMobile ? "48px 20px" : "72px 44px", borderTop: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: isMobile ? 32 : 0 }}>
-          {[
-            ["500+","Buchungen / Monat","und wachsend"],
-            ["< 60 s","von Suche bis Buchung","vollständig digital"],
-            ["100 %","sichere Zahlung","via Stripe, automatisch"],
-          ].map(([num, title, sub], i) => (
-            <FadeIn key={i} delay={i * 0.1}>
-              <div style={{ padding: isMobile ? "0" : "0 40px", borderRight: (!isMobile && i < 2) ? `1px solid ${C.line}` : "none", borderBottom: (isMobile && i < 2) ? `1px solid ${C.line}` : "none", paddingBottom: (isMobile && i < 2) ? 32 : 0 }}>
-                <p style={{ fontSize: isMobile ? "clamp(36px,10vw,52px)" : "clamp(38px,5vw,60px)", fontWeight: 300, color: C.ink, fontFamily: FONT, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 8 }}>{num}</p>
-                <p style={{ fontSize: 15, fontWeight: 300, color: C.ink, fontFamily: FONT, marginBottom: 4 }}>{title}</p>
-                <p style={{ fontSize: 13, fontWeight: 300, color: C.faint, fontFamily: FONT }}>{sub}</p>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          SEKTION 3 — MOCKUP + TEXT (Weiß)
-      ══════════════════════════════════════════════ */}
-      <section style={{ background: C.bg, padding: isMobile ? "64px 20px 72px" : "110px 44px 130px", borderTop: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 40 : 80, alignItems: "center" }}>
-          <FadeIn>
-            <p style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: 20, fontFamily: FONT }}>Für Studios & Kunden</p>
-            <h2 style={{ fontSize: "clamp(34px, 4vw, 56px)", fontWeight: 300, color: C.ink, lineHeight: 1.05, letterSpacing: "-0.04em", marginBottom: 22, fontFamily: FONT }}>
-              Dein Studio.<br/>Professionell<br/>buchbar.
-            </h2>
-            <p style={{ fontSize: 16, fontWeight: 300, color: C.mid, lineHeight: 1.7, marginBottom: 40, fontFamily: FONT, maxWidth: 440 }}>
-              Echter Echtzeit-Kalender, Artist-Auswahl und sichere Anzahlung —
-              alles in einem einzigen Buchungsschritt.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 44 }}>
+          <div className="dash-content-grid">
+            <div className="dash-panel">
+              <div className="panel-title"><span>Dein Tag</span><small>Alle anzeigen <ArrowRight size={11} /></small></div>
               {[
-                "Echtzeit-Kalender farbcodiert nach Verfügbarkeit",
-                "Größe, Körperstelle und Artist in einem Schritt",
-                "Sichere Anzahlung via Stripe — automatisch verwaltet",
-                "Alle Anfragen zentral im Studio-Dashboard",
-              ].map((item, i) => (
-                <motion.div key={i}
-                  initial={{ opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }} transition={{ delay: i * 0.09, duration: 0.5 }}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 12 }}
-                >
-                  <CheckCircle size={15} strokeWidth={1.5} color={C.ink} style={{ flexShrink: 0, marginTop: 3 }} />
-                  <span style={{ fontSize: 14, fontWeight: 300, color: C.mid, lineHeight: 1.55, fontFamily: FONT }}>{item}</span>
-                </motion.div>
+                ["10:00", "Mara H.", "Fine Line · Beratung", "MH"],
+                ["13:30", "Jonas R.", "Sleeve · Session", "JR"],
+                ["16:00", "Nina S.", "Piercing · Lobe", "NS"],
+              ].map(([time, name, type, initials], index) => (
+                <div className="appointment" key={name}>
+                  <time>{time}</time><div className="avatar">{initials}</div><div className="appointment-copy"><b>{name}</b><span>{type}</span></div>
+                  <span className={`appointment-state ${index === 1 ? "pending" : ""}`}>{index === 1 ? "Anfrage" : "Bestätigt"}</span>
+                </div>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "13px 26px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-                Kostenlos starten <ArrowRight size={14} strokeWidth={1.5} />
-              </Link>
-              <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "13px 26px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: 14, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-                Studio suchen
-              </Link>
+            <div className="dash-panel focus-panel">
+              <div className="panel-title"><span>Im Fokus</span><MoreHorizontal size={14} /></div>
+              <div className="focus-icon"><Bell size={17} /></div>
+              <b>2 Anfragen warten</b>
+              <p>Alle Infos sind schon da. Nur noch prüfen und bestätigen.</p>
+              <div className="focus-line"><span /><span /><span /></div>
             </div>
-          </FadeIn>
-
-          {!isMobile && (
-            <FadeIn delay={0.14}>
-              <AppMockup />
-            </FadeIn>
-          )}
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          SEKTION 4 — FEATURES (Apple-Grau)
-      ══════════════════════════════════════════════ */}
-      <section style={{ background: C.gray, padding: isMobile ? "56px 20px" : "100px 44px", borderTop: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-          <FadeIn style={{ textAlign: "center", maxWidth: 640, margin: isMobile ? "0 auto 40px" : "0 auto 64px" }}>
-            <p style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.26em", textTransform: "uppercase", color: C.faint, marginBottom: 18, fontFamily: FONT }}>Warum StudioOS</p>
-            <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 300, color: C.ink, lineHeight: 1.05, letterSpacing: "-0.04em", fontFamily: FONT }}>
-              Alles was dein Studio braucht
-            </h2>
-          </FadeIn>
-
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: isMobile ? 14 : 20 }}>
-            {[
-              [Zap,       "Sofort-Buchung",  "Kunden buchen direkt — ohne DM oder Telefonanfragen. Dein Kalender füllt sich automatisch."],
-              [Shield,    "Sichere Zahlung", "Anzahlungen über Stripe schützen vor No-Shows. Automatisch, rechtssicher, simpel."],
-              [BarChart2, "Dashboard",       "Alle Buchungen, Kunden und Einnahmen auf einen Blick — von überall verwaltbar."],
-            ].map(([Icon, title, text], i) => (
-              <FadeIn key={i} delay={i * 0.1}>
-                <div style={{ padding: 36, borderRadius: 20, background: C.bg, border: `1px solid ${C.line}` }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: C.gray, border: `1px solid ${C.line}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 22 }}>
-                    <Icon size={20} color={C.ink} strokeWidth={1.5} />
-                  </div>
-                  <p style={{ fontSize: 17, fontWeight: 300, color: C.ink, fontFamily: FONT, marginBottom: 10, letterSpacing: "-0.02em" }}>{title}</p>
-                  <p style={{ fontSize: 14, fontWeight: 300, color: C.mid, fontFamily: FONT, lineHeight: 1.65 }}>{text}</p>
-                </div>
-              </FadeIn>
-            ))}
           </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          SEKTION 5 — EDITORIAL CTA (Weiß, nicht-standard)
-      ══════════════════════════════════════════════ */}
-      <section style={{ background: C.bg, padding: isMobile ? "64px 20px 72px" : "120px 44px 100px", borderTop: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-          <FadeIn>
-            <h2 style={{
-              fontSize: isMobile ? "clamp(44px, 12vw, 72px)" : "clamp(56px, 10vw, 140px)", fontWeight: 300,
-              color: C.ink, letterSpacing: "-0.05em", lineHeight: 0.92,
-              fontFamily: FONT, marginBottom: isMobile ? 32 : 48,
-            }}>
-              Bereit, dein<br/>
-              <span style={{ color: "rgba(29,29,31,0.18)" }}>Studio zu starten?</span>
-            </h2>
-          </FadeIn>
-
-          <FadeIn delay={0.12}>
-            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", gap: isMobile ? 20 : 24, paddingTop: 36, borderTop: `1px solid ${C.line}` }}>
-              <p style={{ fontSize: isMobile ? 15 : 17, fontWeight: 300, color: C.mid, fontFamily: FONT, maxWidth: 440, lineHeight: 1.6 }}>
-                Registriere dein Studio kostenlos, richte deinen Kalender ein und nimm in wenigen Minuten Buchungen entgegen.
-              </p>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Link to="/register?role=studio" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 24px" : "16px 32px", borderRadius: 100, background: C.button, color: C.btnTxt, fontSize: isMobile ? 14 : 15, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-                  Jetzt registrieren <ArrowRight size={15} strokeWidth={1.5} />
-                </Link>
-                <Link to="/search" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 24px" : "16px 32px", borderRadius: 100, border: `1px solid ${C.line}`, color: C.mid, fontSize: isMobile ? 14 : 15, fontWeight: 300, textDecoration: "none", fontFamily: FONT }}>
-                  Studios ansehen
-                </Link>
-              </div>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          FOOTER — Editorial, nicht-standard
-      ══════════════════════════════════════════════ */}
-      <footer style={{ background: C.gray, borderTop: `1px solid ${C.line}`, padding: isMobile ? "48px 20px 36px" : "80px 44px 44px" }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-
-          {/* Riesiger Logo-Text */}
-          <FadeIn>
-            <p style={{ fontSize: isMobile ? "clamp(44px, 14vw, 80px)" : "clamp(52px, 11vw, 144px)", fontWeight: 300, color: C.ink, letterSpacing: "-0.06em", lineHeight: 0.88, fontFamily: FONT, marginBottom: isMobile ? 36 : 56 }}>
-              Studio<span style={{ opacity: 0.18 }}>OS</span>
-            </p>
-          </FadeIn>
-
-          {/* Links */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "2fr 1fr 1fr 1fr", gap: isMobile ? 28 : 40, marginBottom: isMobile ? 40 : 64, paddingTop: 32, borderTop: `1px solid ${C.line}` }}>
-            {!isMobile && (
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 300, color: C.mid, fontFamily: FONT, lineHeight: 1.7, maxWidth: 260 }}>
-                  Das Betriebssystem für moderne Tattoo-Studios — von der Buchung bis zur Bezahlung.
-                </p>
-              </div>
-            )}
-
-            {[
-              ["Plattform", [["Studios finden","/search"],["Als Studio starten","/register?role=studio"],["Anmelden","/login"],["FAQ","/faq"]]],
-              ["Unternehmen", [["Über uns","/ueber-uns"],["Kontakt","/ueber-uns"]]],
-              ["Rechtliches", [["Impressum","/impressum"],["Datenschutz","/datenschutz"],["AGB","/agb"]]],
-            ].map(([heading, links]) => (
-              <div key={heading}>
-                <p style={{ fontSize: 10, fontWeight: 400, letterSpacing: "0.2em", textTransform: "uppercase", color: C.faint, marginBottom: 14, fontFamily: FONT }}>
-                  {heading}
-                </p>
-                {links.map(([l, h]) => (
-                  <Link key={l} to={h} style={{ display: "block", fontSize: isMobile ? 13 : 14, fontWeight: 300, color: C.mid, textDecoration: "none", fontFamily: FONT, marginBottom: 9, letterSpacing: "-0.01em" }}>
-                    {l}
-                  </Link>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          {/* Untere Zeile */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 28, borderTop: `1px solid ${C.line}`, flexWrap: "wrap", gap: 12 }}>
-            <p style={{ fontSize: 12, fontWeight: 300, color: C.faint, fontFamily: FONT }}>© 2026 StudioOS</p>
-            <p style={{ fontSize: 12, fontWeight: 300, color: C.faint, fontFamily: FONT }}>Made with ♥ in Deutschland</p>
-          </div>
-        </div>
-      </footer>
-
+        </main>
+      </div>
     </div>
   );
 }
+
+function ChaosCard({ icon, title, copy, tone }) {
+  return (
+    <motion.div className={`chaos-card chaos-${tone}`} whileHover={{ y: -6, rotate: tone === "paper" ? -1 : 0 }}>
+      <div className="chaos-card-top">{icon}<span>offen</span></div>
+      <h3>{title}</h3><p>{copy}</p>
+      <div className="chaos-lines"><MiniBar width="84%" /><MiniBar width="63%" /><MiniBar width="72%" /></div>
+    </motion.div>
+  );
+}
+
+function FeatureVisual({ type }) {
+  if (type === "calendar") return <div className="feature-visual calendar-visual"><div className="fv-heading"><span>Juni 2024</span><MoreHorizontal size={14} /></div><div className="week-labels">{["M", "D", "M", "D", "F", "S", "S"].map((x, i) => <span key={`${x}-${i}`}>{x}</span>)}</div><div className="calendar-grid">{Array.from({ length: 28 }, (_, i) => <span className={i === 11 || i === 19 ? "selected" : i % 7 === 2 ? "has-event" : ""} key={i}>{i + 1}</span>)}</div></div>;
+  if (type === "payments") return <div className="feature-visual payment-visual"><div className="payment-total"><span>Diese Woche</span><strong>€ 2.840</strong><small>+12,4 %</small></div><div className="payment-bars">{[42, 63, 50, 76, 58, 88, 68].map((height, i) => <span style={{ height: `${height}%` }} className={i === 5 ? "bar-active" : ""} key={i} />)}</div></div>;
+  return <div className="feature-visual form-visual"><div className="form-top"><FileCheck2 size={16} /><span>Gesundheitsbogen · Mara H.</span><Check size={14} /></div><div className="form-row"><span /> <MiniBar width="68%" /></div><div className="form-row"><span /> <MiniBar width="82%" /></div><div className="form-row"><span /> <MiniBar width="54%" /></div><div className="form-sign"><PenLine size={13} /> digital unterschrieben</div></div>;
+}
+
+function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(0);
+  const [activeTab, setActiveTab] = useState("Kalender");
+  const tabs = ["Kalender", "Kund:innen", "Zahlungen"];
+  useEffect(() => {
+    const onKey = (event) => event.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="studio-page">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+        :root { --paper:#f3f0ea; --paper-deep:#e9e3d9; --graphite:#242321; --muted:#77736c; --bronze:${bronze}; --line:rgba(36,35,33,.14); }
+        * { box-sizing:border-box; } .studio-page { background:var(--paper); color:var(--graphite); font-family:'DM Sans',sans-serif; overflow:hidden; }
+        .studio-page a { color:inherit; text-decoration:none; } .so-wrap { width:min(1180px,calc(100% - 48px)); margin:auto; }
+        .so-nav { height:80px; display:flex; align-items:center; justify-content:space-between; position:absolute; z-index:5; inset:0 0 auto; color:var(--paper); }
+        .so-logo { font:500 22px 'DM Sans',sans-serif; letter-spacing:-.07em; } .so-logo span { color:var(--bronze); font-weight:400; }
+        .so-logo-light { color:var(--paper); } .so-nav-links { display:flex; gap:32px; align-items:center; font-size:13px; color:rgba(243,240,234,.7); }
+        .so-nav-links a:hover { color:var(--paper); } .nav-login { color:var(--paper)!important; border-bottom:1px solid rgba(243,240,234,.45); padding-bottom:4px; }
+        .nav-start { border:1px solid rgba(185,137,93,.7); padding:11px 17px; color:var(--paper)!important; } .mobile-menu { display:none; background:none; color:var(--paper); border:0; }
+        .hero { min-height:760px; background:var(--graphite); color:var(--paper); padding:178px 0 120px; position:relative; isolation:isolate; }
+        .hero:after { content:""; position:absolute; inset:auto -10% -240px; height:470px; background:radial-gradient(ellipse,rgba(185,137,93,.16),transparent 62%); z-index:-1; }
+        .hero-grid { display:grid; grid-template-columns: .9fr 1.1fr; gap:70px; align-items:center; } .eyebrow { font:11px 'DM Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--bronze); }
+        .hero h1 { font-size:clamp(52px,6.8vw,96px); line-height:.94; letter-spacing:-.075em; font-weight:500; margin:24px 0 28px; max-width:650px; }
+        .hero h1 em, .serif { font-family:'Instrument Serif',serif; font-weight:400; letter-spacing:-.04em; } .hero-copy { color:rgba(243,240,234,.63); line-height:1.7; font-size:16px; max-width:440px; }
+        .hero-actions { display:flex; gap:14px; align-items:center; margin-top:38px; } .so-button { display:inline-flex; align-items:center; gap:17px; padding:15px 18px; font-size:13px; transition:transform .3s,background .3s; } .so-button:hover { transform:translateY(-3px); }
+        .so-button-dark { background:var(--paper); color:var(--graphite)!important; } .so-button-dark:hover { background:#fff; } .so-button-ghost { color:var(--paper)!important; border:1px solid rgba(243,240,234,.25); } .so-button-bronze { background:var(--bronze); color:var(--paper)!important; }
+        .hero-note { display:flex; align-items:center; gap:9px; color:rgba(243,240,234,.45); font-size:11px; margin-top:22px; } .hero-note svg { color:var(--bronze); }
+        .browser-frame { background:#d9d5ce; border-radius:18px; padding:9px; box-shadow:0 38px 80px rgba(0,0,0,.32); transform:perspective(1200px) rotateY(-5deg) rotateX(2deg); transition:transform .8s; } .browser-frame:hover { transform:perspective(1200px) rotateY(-1deg) rotateX(1deg); }
+        .browser-top { height:28px; display:flex; align-items:center; gap:12px; color:#8d8981; padding:0 8px; font-size:9px; } .browser-dots { display:flex; gap:4px; } .browser-dots i { width:7px;height:7px;border-radius:50%;background:#aaa59d; } .browser-address { flex:1; background:#ece9e3; border-radius:4px; text-align:center; padding:5px; font:9px 'DM Mono',monospace; }
+        .dashboard-shell { display:flex; min-height:424px; background:#f9f8f5; border-radius:11px; overflow:hidden; } .dashboard-side { width:142px; padding:18px 12px; background:#282725; color:#a6a29b; display:flex; flex-direction:column; } .dash-mark { width:25px;height:25px;border:1px solid #b9895d;color:#b9895d;display:grid;place-items:center;font:italic 18px 'Instrument Serif'; margin-bottom:23px; } .dash-studio { color:#edeae3; font-size:10px; display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; } .dashboard-side nav { display:grid;gap:7px;font-size:10px; } .dashboard-side nav span { display:flex;gap:9px;align-items:center;padding:8px 7px; } .dashboard-side nav .active { background:#3b3935;color:#f5f0e8; } .dash-side-bottom { margin-top:auto; font-size:8px; color:#b9895d; } .dash-side-bottom span { display:flex;align-items:center;gap:5px; }
+        .dashboard-main { flex:1; padding:27px 30px; } .dash-head { display:flex;justify-content:space-between;align-items:start; } .dash-eyebrow { margin:0 0 4px; color:#928e86; font:9px 'DM Mono',monospace; } .dash-head h3 { font-size:20px;letter-spacing:-.05em;margin:0;font-weight:500; } .dash-add { display:flex;align-items:center;gap:5px;background:#292826;color:white;border:0;padding:8px 11px;font-size:10px; }
+        .dash-cards { display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:25px 0 14px; } .dash-cards>div { background:#eeece7;padding:12px;display:grid;gap:4px; } .dash-cards span,.dash-cards small { font-size:9px;color:#8c877f; } .dash-cards strong { font-size:23px; font-weight:500; letter-spacing:-.06em; } .dash-content-grid { display:grid;grid-template-columns:1.5fr 1fr;gap:12px; } .dash-panel { background:#fff;border:1px solid #e5e1da;padding:15px; } .panel-title { display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:11px; } .panel-title small { color:#9a958e;font-size:9px;display:flex;align-items:center;gap:3px;font-weight:400; } .appointment { display:flex;align-items:center;border-top:1px solid #efede8;padding:10px 0;gap:8px; } .appointment time { color:#9c978e;font:8px 'DM Mono';width:28px; } .avatar { width:24px;height:24px;border-radius:50%;background:#d8c3af;display:grid;place-items:center;font-size:8px; } .appointment-copy { display:grid;gap:2px;flex:1;font-size:10px; } .appointment-copy span { color:#99948c;font-size:8px; } .appointment-state { background:#e1eee5;color:#53745d;padding:4px 5px;font-size:7px; } .appointment-state.pending { background:#f3eadf;color:#9a7048; } .focus-panel { background:#ece6dd; } .focus-icon { width:32px;height:32px;background:#292826;color:#c99b70;display:grid;place-items:center;margin:30px 0 12px; } .focus-panel b { font-size:12px; } .focus-panel p { color:#8e887f;font-size:9px;line-height:1.5;max-width:150px; } .focus-line { display:flex;gap:4px;margin-top:18px; } .focus-line span { height:3px;background:#c3a487;width:18px; }.focus-line span:first-child { width:40px; background:#292826; }
+        .section { padding:145px 0; } .section-header { max-width:650px; } .section h2 { font-size:clamp(42px,5.5vw,74px);line-height:.98;letter-spacing:-.075em;font-weight:500;margin:18px 0 25px; } .section-intro { color:var(--muted);font-size:16px;line-height:1.7;max-width:500px; } .section-dark { background:var(--graphite);color:var(--paper); } .section-dark .section-intro { color:rgba(243,240,234,.57); }
+        .chaos-wrap { margin-top:65px;display:grid;grid-template-columns:repeat(4,1fr);gap:13px; } .chaos-card { min-height:190px;padding:19px;background:#302f2c;border:1px solid rgba(243,240,234,.11);color:var(--paper); } .chaos-card:nth-child(2) { transform:translateY(32px); } .chaos-card:nth-child(4) { transform:translateY(60px); } .chaos-card-top { display:flex;justify-content:space-between;color:#a39c92; }.chaos-card-top svg { color:var(--bronze); }.chaos-card-top span { font:8px 'DM Mono';opacity:.65; } .chaos-card h3 { font-size:18px;margin:34px 0 6px;letter-spacing:-.04em; } .chaos-card p { color:#9b958b;font-size:11px;line-height:1.5;margin:0; } .chaos-lines { margin-top:22px;display:grid;gap:5px; } .mini-bar { height:4px;background:#514d47; } .mini-bar-accent { background:var(--bronze); }
+        .split-story { display:grid;grid-template-columns:1fr 1fr;gap:100px;align-items:center; } .check-list { display:grid;gap:20px;margin-top:35px; } .check-list div { display:flex;align-items:center;gap:14px;color:#716c64;font-size:15px; } .check-list svg { color:var(--bronze);border:1px solid rgba(185,137,93,.5);padding:4px;width:25px;height:25px; } .before-after { background:#e8e1d7;padding:26px; } .ba-top { display:flex;justify-content:space-between;color:#8e877d;font:10px 'DM Mono';text-transform:uppercase;letter-spacing:.08em;margin-bottom:22px; } .ba-stack { display:grid;gap:10px; } .ba-row { display:flex;align-items:center;gap:10px;background:var(--paper);padding:13px; } .ba-row.dim { opacity:.45; } .ba-row span:first-child { width:25px;height:25px;background:#d2c2b2;display:grid;place-items:center;color:#7e6855; } .ba-row b { font-size:11px;font-weight:500;flex:1; } .ba-row small { color:#9b958b;font-size:9px; } .ba-arrow { text-align:center;color:var(--bronze);padding:7px; }
+        .steps { margin-top:80px;display:grid;grid-template-columns:repeat(3,1fr); } .step { padding:24px 36px 24px 0;border-top:1px solid var(--line);position:relative; } .step:not(:last-child) { margin-right:45px; } .step:not(:last-child):after { content:"";position:absolute;right:17px;top:26px;width:35px;height:1px;background:var(--bronze); } .step-num { color:var(--bronze);font:12px 'DM Mono'; } .step h3 { font-size:23px;letter-spacing:-.05em;margin:38px 0 10px;font-weight:500; } .step p { color:var(--muted);font-size:13px;line-height:1.6;margin:0; }
+        .product-section { background:#ddd8cf;padding-bottom:80px; } .product-browser { margin-top:68px; } .product-browser .browser-frame { transform:none;max-width:1000px;margin:auto; } .product-browser .dashboard-shell { min-height:500px; } .product-tabs { display:flex;gap:8px;justify-content:center;margin-top:25px; } .product-tabs button { border:1px solid #beb7ad;background:transparent;padding:10px 17px;color:#777168;font:12px 'DM Sans';cursor:pointer; } .product-tabs button.active { background:var(--graphite);color:var(--paper);border-color:var(--graphite); }
+        .bento { display:grid;grid-template-columns:1.2fr .8fr 1fr;grid-auto-rows:240px;gap:14px;margin-top:70px; } .bento-card { background:#e8e3da;padding:26px;position:relative;overflow:hidden; } .bento-card.dark { background:var(--graphite);color:var(--paper); } .bento-card.tall { grid-row:span 2; } .bento-card.wide { grid-column:span 2; } .bento-card h3 { font-size:22px;letter-spacing:-.06em;margin:0 0 9px;font-weight:500; } .bento-card p { color:var(--muted);font-size:12px;line-height:1.55;max-width:220px;margin:0; } .bento-card.dark p { color:#aaa49b; } .bento-icon { color:var(--bronze);margin-bottom:35px; } .feature-visual { position:absolute;right:23px;bottom:0;left:23px;background:#f6f3ed;border:1px solid #d8d0c5;padding:13px;color:var(--graphite); } .calendar-visual { height:130px; } .fv-heading,.form-top { display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:12px; } .week-labels,.calendar-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center; } .week-labels { color:#aaa39a;font:8px 'DM Mono';margin-bottom:5px; } .calendar-grid span { font-size:8px;padding:4px 0; } .calendar-grid .selected { color:#fff;background:var(--graphite); } .calendar-grid .has-event { color:var(--bronze);border-bottom:2px solid var(--bronze); } .payment-visual { height:132px;display:flex;gap:28px;align-items:flex-end; } .payment-total { display:grid;align-self:flex-start;gap:4px; } .payment-total span,.payment-total small { color:#9b958b;font-size:8px; }.payment-total strong { font-size:20px;letter-spacing:-.06em; }.payment-total small { color:#65816a; }.payment-bars { display:flex;gap:5px;height:78px;align-items:flex-end;flex:1; }.payment-bars span { background:#cbb8a6;flex:1; }.payment-bars .bar-active { background:var(--bronze); }.form-visual { height:135px; }.form-top { border-bottom:1px solid #dfd9cf;padding-bottom:10px; }.form-top svg:last-child { color:#6e876d; }.form-row { display:flex;align-items:center;gap:8px;margin:10px 0; }.form-row>span { width:10px;height:10px;border:1px solid #bdb5aa; }.form-sign { color:#65816a;font-size:9px;margin-top:11px;display:flex;gap:6px;align-items:center; }
+        .day-section { background:#292826;color:var(--paper); } .day-grid { display:grid;grid-template-columns:1fr 1.4fr;gap:100px;align-items:start;margin-top:65px; } .day-list { display:grid;gap:0; } .day-item { padding:25px 0;border-top:1px solid rgba(243,240,234,.16);display:grid;grid-template-columns:100px 1fr;cursor:default; } .day-item:last-child { border-bottom:1px solid rgba(243,240,234,.16); } .day-item time { color:var(--bronze);font:11px 'DM Mono'; }.day-item h3 { margin:0 0 5px;font-size:23px;font-weight:500;letter-spacing:-.05em; }.day-item p { margin:0;color:#9d978e;font-size:12px; }.day-quote { padding:38px;background:#34312d;min-height:260px;display:flex;flex-direction:column;justify-content:space-between; }.day-quote p { font:italic 33px/1.08 'Instrument Serif';margin:0;max-width:450px; }.day-quote span { color:var(--bronze);font:10px 'DM Mono';letter-spacing:.13em;text-transform:uppercase; }
+        .faq { max-width:790px;margin:60px auto 0; }.faq-item { border-top:1px solid var(--line); }.faq-item:last-child { border-bottom:1px solid var(--line); }.faq-button { width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;padding:22px 0;text-align:left;font:500 16px 'DM Sans';color:var(--graphite);cursor:pointer; }.faq-answer { overflow:hidden;color:var(--muted);font-size:13px;line-height:1.7;max-width:650px; }.faq-answer p { margin:0 0 22px; }.final-cta { background:var(--graphite);color:var(--paper);padding:150px 0;text-align:center;position:relative; }.final-cta h2 { max-width:800px;margin:16px auto 35px;font-size:clamp(48px,6vw,86px);line-height:.95;letter-spacing:-.08em;font-weight:500; }.final-cta p { color:#a39d93;font-size:13px;margin-top:20px; }.footer { background:var(--graphite);color:var(--paper);border-top:1px solid rgba(243,240,234,.12);padding:32px 0 40px; }.footer-row { display:flex;align-items:end;justify-content:space-between; }.footer-copy { color:#827d75;font-size:11px;margin-top:45px; }.footer-links { display:flex;gap:24px;color:#9d978e;font-size:11px; }.footer-links a:hover { color:var(--paper); }
+        @media (max-width:800px) { .so-wrap { width:min(100% - 36px,600px); } .so-nav { height:68px; }.so-nav-links { display:none;position:absolute;top:58px;left:18px;right:18px;background:#302e2a;padding:20px;flex-direction:column;align-items:flex-start;gap:18px;box-shadow:0 15px 30px #0005; }.so-nav-links.open { display:flex; }.mobile-menu { display:block; }.nav-start { margin-left:auto;margin-right:12px;padding:9px 12px;font-size:11px; }.hero { padding:130px 0 82px;min-height:auto; }.hero-grid { display:block; }.hero h1 { font-size:clamp(53px,14vw,82px); }.hero-copy { font-size:14px; }.hero-actions { flex-wrap:wrap; }.hero .browser-frame { margin-top:68px; }.browser-frame { transform:none; }.dashboard-side { width:62px;padding:14px 10px; }.dash-studio,.dashboard-side nav span:not(.active) svg,.dashboard-side nav span:not(.active),.dash-side-bottom { font-size:0; }.dashboard-side nav span.active { font-size:0;justify-content:center; }.dashboard-main { padding:19px 14px; }.dash-head h3 { font-size:16px; }.dash-cards strong { font-size:17px; }.dash-content-grid { display:block; }.focus-panel { display:none; }.section { padding:90px 0; }.chaos-wrap { grid-template-columns:1fr 1fr; }.chaos-card:nth-child(2),.chaos-card:nth-child(4) { transform:none; }.split-story,.day-grid { display:block; }.before-after { margin-top:55px; }.steps { display:block;margin-top:55px; }.step { margin:0!important;padding:23px 0 30px!important; }.step:after { display:none; }.step h3 { margin:20px 0 8px; }.bento { grid-template-columns:1fr 1fr;grid-auto-rows:210px; }.bento-card.tall { grid-row:span 1; }.bento-card.wide { grid-column:span 2; }.bento-card h3 { font-size:18px; }.bento-card p { font-size:11px; }.day-quote { margin-top:50px; }.footer-row { display:block; }.footer-links { margin-top:25px;flex-wrap:wrap; }.final-cta { padding:100px 0; } }
+        @media (max-width:480px) { .hero-actions .so-button { width:100%;justify-content:space-between; }.browser-top { padding:0 3px; }.browser-address { font-size:7px; }.dashboard-shell { min-height:350px; }.dash-cards { gap:5px; }.dash-cards>div { padding:8px; }.dash-cards span,.dash-cards small { font-size:7px; }.dash-cards strong { font-size:14px; }.appointment-state { display:none; }.chaos-wrap { grid-template-columns:1fr; }.bento { display:block; }.bento-card { min-height:200px;margin-bottom:12px; }.bento-card.wide { min-height:235px; }.product-tabs { overflow:auto;justify-content:flex-start;margin-left:18px;margin-right:18px;padding-bottom:5px; }.product-tabs button { white-space:nowrap; }.day-item { grid-template-columns:75px 1fr; }.day-item h3 { font-size:20px; } }
+        @media (prefers-reduced-motion:reduce) { *,*:before,*:after { scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important; } .browser-frame { transform:none; } }
+      `}</style>
+      <header className="hero">
+        <nav className="so-nav so-wrap">
+          <Link to="/"><Logo light /></Link>
+          <div className={`so-nav-links ${menuOpen ? "open" : ""}`}>
+            <a href="#system" onClick={() => setMenuOpen(false)}>Das System</a>
+            <a href="#alltag" onClick={() => setMenuOpen(false)}>Der Alltag</a>
+            <a href="#fragen" onClick={() => setMenuOpen(false)}>Fragen</a>
+            <Link className="nav-login" to="/login">Anmelden</Link>
+          </div>
+          <Link className="nav-start" to="/register?role=studio">Studio starten</Link>
+          <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menü öffnen">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
+        </nav>
+        <div className="so-wrap hero-grid">
+          <div>
+            <Reveal><p className="eyebrow">Das Betriebssystem für Studios</p><h1>Mehr Zeit für <em>Kunst.</em><br />Weniger Zeit für Chaos.</h1><p className="hero-copy">StudioOS übernimmt Termine, Anzahlungen, Formulare und Kundenkommunikation. Damit dein Studio läuft, auch wenn du gerade an der Maschine sitzt.</p><div className="hero-actions"><ButtonLink to="/register?role=studio">Kostenlos starten</ButtonLink><a className="so-button so-button-ghost" href="#system">System ansehen <ArrowRight size={16} /></a></div><div className="hero-note"><Check size={14} /> Keine Kreditkarte. In wenigen Minuten eingerichtet.</div></Reveal>
+          </div>
+          <Reveal delay={.18}><DashboardMockup /></Reveal>
+        </div>
+      </header>
+
+      <main>
+        <section className="section section-dark">
+          <div className="so-wrap">
+            <Reveal><p className="eyebrow">Der Alltag, wie er wirklich ist</p><h2>Kommt dir das<br /><span className="serif">bekannt</span> vor?</h2><p className="section-intro">Ein Termin steckt in den DMs. Eine Anzahlung wartet auf deine Antwort. Drei Referenzbilder liegen irgendwo im Chat. Dein Kopf hält alles zusammen — bis er es nicht mehr tut.</p></Reveal>
+            <div className="chaos-wrap">
+              <Reveal delay={.05}><ChaosCard tone="dm" icon={<MessageCircle size={18} />} title="Instagram DMs" copy="„Hast du im August noch etwas frei?“ — zum achten Mal heute." /></Reveal>
+              <Reveal delay={.1}><ChaosCard tone="phone" icon={<Clock3 size={18} />} title="Terminchaos" copy="Zwischen Walk-in, Rückruf und Doppelbuchung den Überblick behalten." /></Reveal>
+              <Reveal delay={.15}><ChaosCard tone="paper" icon={<PenLine size={18} />} title="Papier & Listen" copy="Informationen verteilt über Notizen, Kalender und Tabellen." /></Reveal>
+              <Reveal delay={.2}><ChaosCard tone="money" icon={<CreditCard size={18} />} title="Anzahlungen" copy="Hinterherlaufen, erinnern, nachfragen. Immer wieder." /></Reveal>
+            </div>
+          </div>
+        </section>
+
+        <section className="section" id="system"><div className="so-wrap split-story"><Reveal><p className="eyebrow">Der Wechsel</p><h2>Du machst Kunst.<br /><span className="serif">StudioOS macht den Rest.</span></h2><p className="section-intro">Keine neue Aufgabe auf deiner Liste. Ein ruhiger Ort, an dem jede Information ankommt, wohin sie gehört.</p><div className="check-list"><div><Check /> Alles an einem Ort</div><div><Check /> Automatische Erinnerungen</div><div><Check /> Anzahlungen online</div><div><Check /> Kund:innen kommen vorbereitet</div></div></Reveal><Reveal delay={.15}><div className="before-after"><div className="ba-top"><span>Vorher</span><span>Mit StudioOS</span></div><div className="ba-stack"><div className="ba-row dim"><span><X size={13} /></span><b>Termin vergessen</b><small>09:42 · DM</small></div><div className="ba-row dim"><span><X size={13} /></span><b>Anzahlung offen</b><small>gestern</small></div><div className="ba-arrow"><ArrowRight size={18} /></div><div className="ba-row"><span><Check size={13} /></span><b>Mara H. · 10:00</b><small>bestätigt</small></div><div className="ba-row"><span><Check size={13} /></span><b>€ 160 · gesichert</b><small>bezahlt</small></div></div></div></Reveal></div></section>
+
+        <section className="section" style={{ paddingTop: 20 }}><div className="so-wrap"><Reveal><p className="eyebrow">Einmal einrichten. Ruhiger arbeiten.</p><h2>So einfach<br /><span className="serif">funktioniert es.</span></h2></Reveal><div className="steps"><Reveal delay={.05}><div className="step"><span className="step-num">01</span><h3>Studio einrichten</h3><p>Deine Leistungen, Verfügbarkeiten und Regeln. Klar und in deinem Tempo.</p></div></Reveal><Reveal delay={.12}><div className="step"><span className="step-num">02</span><h3>Link teilen</h3><p>In deine Bio, auf deine Website oder direkt in die nächste Nachricht.</p></div></Reveal><Reveal delay={.19}><div className="step"><span className="step-num">03</span><h3>Studio läuft</h3><p>Anfragen kommen vollständig an. Erinnerungen gehen automatisch raus.</p></div></Reveal></div></div></section>
+
+        <section className="section product-section"><div className="so-wrap"><Reveal><p className="eyebrow">Alles, was du brauchst. Nichts, was dich aufhält.</p><h2>Dein Studio.<br /><span className="serif">Ein ruhiger Blick.</span></h2><p className="section-intro">StudioOS bringt Ordnung in die vielen kleinen Dinge, die zwischen zwei Sessions passieren. Hier ist alles, was heute zählt.</p></Reveal><div className="product-browser"><Reveal delay={.1}><DashboardMockup /></Reveal><div className="product-tabs">{tabs.map(tab => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}</div></div></div></section>
+
+        <section className="section" style={{ paddingTop: 100 }}><div className="so-wrap" id="features"><Reveal><p className="eyebrow">Für den ganzen Studioalltag</p><h2>Weniger suchen.<br /><span className="serif">Mehr machen.</span></h2></Reveal><div className="bento"><Reveal><div className="bento-card tall"><CalendarDays className="bento-icon" size={21} /><h3>Ein Kalender, der mitdenkt.</h3><p>Termine, Anfragen und Verfügbarkeiten in einem Blick. Ohne Seitenwechsel.</p><FeatureVisual type="calendar" /></div></Reveal><Reveal delay={.08}><div className="bento-card dark"><Bell className="bento-icon" size={21} /><h3>Keine Erinnerung vergessen.</h3><p>StudioOS hält den Kontakt, auch wenn du gerade arbeitest.</p></div></Reveal><Reveal delay={.14}><div className="bento-card"><FileCheck2 className="bento-icon" size={21} /><h3>Formulare digital.</h3><p>Vorbereitet ankommen. Sicher archiviert.</p><FeatureVisual type="form" /></div></Reveal><Reveal delay={.18}><div className="bento-card wide"><CreditCard className="bento-icon" size={21} /><h3>Anzahlungen, die einfach passieren.</h3><p>Ein klarer Schritt bei der Buchung. Mehr Sicherheit für beide Seiten.</p><FeatureVisual type="payments" /></div></Reveal><Reveal delay={.24}><div className="bento-card"><ImageIcon className="bento-icon" size={21} /><h3>Referenzen am richtigen Ort.</h3><p>Alle Bilder und Wünsche direkt beim Termin.</p></div></Reveal></div></div></section>
+
+        <section className="section day-section" id="alltag"><div className="so-wrap"><Reveal><p className="eyebrow">Ein besserer Studioalltag</p><h2>Du merkst es<br /><span className="serif">an deinem Tag.</span></h2><p className="section-intro">Nicht an einer Statistik. Sondern daran, dass zwischen zwei Kund:innen wieder Luft ist.</p></Reveal><div className="day-grid"><div className="day-list"><Reveal delay={.1}><div className="day-item"><time>09:00</time><div><h3>Morgens</h3><p>Ein Blick auf den Tag. Alles vorbereitet, nichts offen.</p></div></div></Reveal><Reveal delay={.15}><div className="day-item"><time>14:30</time><div><h3>Zwischendurch</h3><p>Eine Anfrage kommt vollständig an. Du antwortest, wenn es passt.</p></div></div></Reveal><Reveal delay={.2}><div className="day-item"><time>18:00</time><div><h3>Abends</h3><p>Der letzte Termin geht. Dein Studio bleibt organisiert.</p></div></div></Reveal></div><Reveal delay={.25}><div className="day-quote"><p>„Endlich muss ich nicht mehr gleichzeitig Künstler:in und Büro sein.“</p><span>Der Anspruch hinter StudioOS</span></div></Reveal></div></div></section>
+
+        <section className="section" id="fragen"><div className="so-wrap"><Reveal><p className="eyebrow">Fragen, die häufig kommen</p><h2>Passt StudioOS<br /><span className="serif">zu deinem Studio?</span></h2></Reveal><div className="faq">{[["Für welche Studios ist StudioOS gedacht?", "Für Tattoo-, Piercing- und PMU-Studios — vom Einzelstudio bis zum Team mit mehreren Artists. Du stellst dein Studio so ein, wie du arbeitest."],["Muss ich meine Website ändern?", "Nein. Dein StudioOS Buchungslink kann direkt in deine Bio, Website oder Nachrichten eingefügt werden. Bestehende Kanäle bleiben, wie sie sind."],["Wie schnell kann ich starten?", "Die Grundeinrichtung dauert nur wenige Minuten. Du kannst Leistungen, Verfügbarkeiten und Studio-Infos direkt selbst anlegen und jederzeit ändern."],["Kann ich StudioOS erst ausprobieren?", "Ja. Du kannst kostenlos starten und dein Studio in Ruhe einrichten. Für den Anfang ist keine Kreditkarte erforderlich."]].map(([question, answer], i) => <div className="faq-item" key={question}><button className="faq-button" onClick={() => setFaqOpen(faqOpen === i ? -1 : i)}>{question}{faqOpen === i ? <X size={18} /> : <Plus size={18} />}</button><motion.div className="faq-answer" initial={false} animate={{ height: faqOpen === i ? "auto" : 0, opacity: faqOpen === i ? 1 : 0 }}><p>{answer}</p></motion.div></div>)}</div></div></section>
+
+        <section className="final-cta"><div className="so-wrap"><Reveal><p className="eyebrow">Der nächste ruhige Schritt</p><h2>Dein Studio verdient mehr Zeit für das, was wirklich zählt.</h2><ButtonLink to="/register?role=studio" variant="bronze">Jetzt kostenlos starten</ButtonLink><p>Keine Kreditkarte erforderlich. In wenigen Minuten eingerichtet.</p></Reveal></div></section>
+      </main>
+      <footer className="footer"><div className="so-wrap"><div className="footer-row"><Logo light /><div className="footer-links"><Link to="/login">Anmelden</Link><Link to="/register?role=studio">Studio starten</Link><a href="#fragen">Fragen</a></div></div><p className="footer-copy">StudioOS — das Betriebssystem für Tattoo, Piercing und PMU Studios.</p></div></footer>
+    </div>
+  );
+}
+
+export default App;

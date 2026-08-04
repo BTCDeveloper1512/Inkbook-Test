@@ -628,8 +628,8 @@ export default function CustomerDashboard() {
                     {b.studio_name} · {b.date ? new Date(b.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""} {b.start_time} – {b.end_time} wurde vom Studio storniert.
                   </p>
                 ))}
-                <Link to="/search" className="text-xs text-red-700 font-inter font-semibold underline underline-offset-2 mt-1.5 inline-block">
-                  Neues Studio finden →
+                <Link to="/" className="text-xs text-red-700 font-inter font-semibold underline underline-offset-2 mt-1.5 inline-block">
+                  Zur StudioOS Startseite →
                 </Link>
               </div>
               <button
@@ -717,7 +717,6 @@ export default function CustomerDashboard() {
             { id: "today", label: `Heutige Termine (${todayBookings.length})` },
             { id: "upcoming", label: `${t("dashboard.upcoming")} (${upcoming.length})` },
             { id: "past", label: `${t("dashboard.past")} (${past.length})` },
-            { id: "favorites", label: `Favoriten (${favoriteStudios.length})` },
             { id: "waitlist", label: `Warteliste (${waitlistEntries.length})` }
           ].map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === "favorites") fetchFavorites(); if (tab.id === "waitlist") fetchWaitlist(); }}
@@ -756,8 +755,8 @@ export default function CustomerDashboard() {
                   <p className="text-zinc-400 font-inter text-sm mb-7 text-center max-w-xs">
                     Klicke auf das Herz-Symbol auf einer Studio-Kachel, um sie hier zu speichern.
                   </p>
-                  <Link to="/search" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
-                    <Search size={13} strokeWidth={1.5} /> Studios entdecken
+                  <Link to="/" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                    <Search size={13} strokeWidth={1.5} /> Zur Startseite
                   </Link>
                 </motion.div>
               ) : (
@@ -863,8 +862,8 @@ export default function CustomerDashboard() {
                 </p>
                 {activeTab === "upcoming" && (
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Link to="/search" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
-                      <Search size={13} strokeWidth={1.5} /> Studio finden
+                    <Link to="/" className="inline-flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white text-sm font-inter rounded-full hover:bg-zinc-800 transition-colors shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                      <Search size={13} strokeWidth={1.5} /> Zur Startseite
                     </Link>
                   </motion.div>
                 )}

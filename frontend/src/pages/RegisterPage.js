@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
@@ -11,7 +11,9 @@ export default function RegisterPage() {
   const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "", name: "", role: "customer" });
+  const [searchParams] = useSearchParams();
+  const initialRole = searchParams.get("role") === "customer" ? "customer" : "studio_owner";
+  const [form, setForm] = useState({ email: "", password: "", name: "", role: initialRole });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -54,16 +56,15 @@ export default function RegisterPage() {
             <span className="text-lg font-playfair font-semibold text-zinc-900">Studio<span className="font-bold">OS</span></span>
           </Link>
 
-          <h1 className="text-3xl font-playfair font-semibold text-zinc-900 mb-1">{t("auth.register")}</h1>
+          <h1 className="text-3xl font-playfair font-semibold text-zinc-900 mb-1">{form.role === "studio_owner" ? "Dein Studio einrichten" : t("auth.register")}</h1>
           <p className="text-sm text-zinc-500 font-inter mb-6">
             {t("auth.haveAccount")} <Link to="/login" className="text-zinc-900 font-medium hover:underline">{t("auth.login")}</Link>
           </p>
 
-          {/* Role Selection */}
           <div className="grid grid-cols-2 gap-2 mb-6">
             {[
-              { role: "customer", label: "Als Kunde", icon: <Users size={16} strokeWidth={1.5} /> },
-              { role: "studio_owner", label: "Als Studio", icon: <Scissors size={16} strokeWidth={1.5} /> }
+              { role: "studio_owner", label: "Studio", icon: <Scissors size={16} strokeWidth={1.5} /> },
+              { role: "customer", label: "Kunde", icon: <Users size={16} strokeWidth={1.5} /> }
             ].map(opt => (
               <motion.button key={opt.role} whileTap={{ scale: 0.97 }} type="button" onClick={() => setForm({ ...form, role: opt.role })}
                 className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-inter text-sm transition-all duration-200 ${form.role === opt.role ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-100 bg-white text-zinc-600 hover:border-zinc-300"}`}

@@ -118,10 +118,10 @@ export default function UeberUnsPage() {
               <ArrowRight size={14} strokeWidth={1.5} />
             </Link>
             <Link
-              to="/search"
+              to="/register?role=studio"
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-sm font-inter font-medium border border-zinc-700 text-zinc-300 hover:border-zinc-500 transition-colors"
             >
-              Studios entdecken
+              Studio einrichten
             </Link>
           </div>
         </div>

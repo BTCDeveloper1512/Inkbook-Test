@@ -124,7 +124,7 @@ export default function StudioDashboard() {
   const [bookCalYear, setBookCalYear] = useState(now0.getFullYear());
   const [bookCalSelected, setBookCalSelected] = useState(null);
   const [showCreateStudio, setShowCreateStudio] = useState(false);
-  const [studioForm, setStudioForm] = useState({ name: "", description: "", address: "", city: "", phone: "", email: "", website: "", styles: [], price_range: "medium", images: [] });
+  const [studioForm, setStudioForm] = useState({ name: "", slug: "", description: "", address: "", city: "", phone: "", email: "", website: "", styles: [], price_range: "medium", images: [] });
   // Edit profile
   const [editForm, setEditForm] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -1093,6 +1093,14 @@ export default function StudioDashboard() {
             <div>
               <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Studio-Name *</label>
               <input type="text" value={studioForm.name} onChange={e => setStudioForm({...studioForm, name: e.target.value})} required className="input-base w-full" data-testid="studio-name-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Dein Studio-Link</label>
+              <div className="flex items-center rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                <span className="pl-4 text-sm text-zinc-400 font-inter">studioos.de/s/</span>
+                <input type="text" value={studioForm.slug} onChange={e => setStudioForm({...studioForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-")})} placeholder="dein-studio" className="flex-1 px-1 py-3 outline-none text-sm font-inter" data-testid="studio-slug-input" />
+              </div>
+              <p className="mt-1.5 text-xs text-zinc-400 font-inter">Leer lassen, um automatisch einen Link aus dem Studionamen zu erstellen.</p>
             </div>
             <div>
               <label className="block text-xs font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-2">Beschreibung *</label>
@@ -3986,8 +3994,8 @@ export default function StudioDashboard() {
             </div>
 
             {/* ── Buchungslink ── */}
-            {stats?.studio?.studio_id && (() => {
-              const bookingUrl = `${window.location.origin}/studios/${stats.studio.studio_id}?book=true`;
+            {editForm?.slug && (() => {
+              const bookingUrl = `${window.location.origin}/s/${editForm.slug}?book=true`;
               return (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
                   <div className="flex items-center justify-between gap-4">
@@ -3996,7 +4004,7 @@ export default function StudioDashboard() {
                         <Link2 size={14} className="text-zinc-600" strokeWidth={1.5} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-inter font-semibold text-zinc-900 leading-tight">Dein Buchungslink</p>
+                        <p className="text-sm font-inter font-semibold text-zinc-900 leading-tight">Deine öffentliche Studio-Seite</p>
                         <p className="text-[11px] text-zinc-400 font-inter font-mono truncate">{bookingUrl}</p>
                       </div>
                     </div>
@@ -4033,6 +4041,20 @@ export default function StudioDashboard() {
                   <select value={editForm.price_range || "medium"} onChange={e => setEditForm({...editForm, price_range: e.target.value})} className="input-base w-full" data-testid="edit-price-range">
                     <option value="budget">Günstig</option><option value="medium">Mittel</option><option value="premium">Premium</option><option value="luxury">Luxus</option>
                   </select>
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Studio-Link</label>
+                  <div className="flex items-center rounded-xl border border-zinc-200 bg-white overflow-hidden focus-within:border-zinc-400">
+                    <span className="pl-4 pr-1 text-sm text-zinc-400 font-inter">{window.location.host}/s/</span>
+                    <input
+                      type="text"
+                      value={editForm.slug || ""}
+                      onChange={e => setEditForm({ ...editForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
+                      className="flex-1 py-3 pr-4 text-sm text-zinc-900 outline-none font-inter"
+                      data-testid="edit-studio-slug"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-zinc-400 font-inter">Für Instagram, Website, Google Business und QR-Codes.</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-inter font-semibold tracking-widest uppercase text-zinc-400 mb-1.5">Stadt</label>

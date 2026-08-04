@@ -14,24 +14,23 @@ export default function Footer() {
               <StudioOSMark size={30} />
               <span className="text-lg font-playfair font-semibold">Studio<strong>OS</strong></span>
             </div>
-            <p className="text-zinc-500 text-sm font-inter leading-relaxed">Die Premium-Plattform für Tattoo-Studios und ihre Kunden.</p>
+            <p className="text-zinc-500 text-sm font-inter leading-relaxed">Das Betriebssystem für einen ruhigeren Studioalltag.</p>
           </div>
 
           {/* Link columns */}
           {[
             {
-              title: "Kunden",
+              title: "Produkt",
               links: [
-                { to: "/search",    label: "Studios finden" },
-                { to: "/dashboard", label: "Meine Buchungen" },
-                { to: "/messages",  label: "Nachrichten" },
-                { to: "/faq",       label: "FAQ & Hilfe" },
+                { to: "/#produkt", label: "Funktionen" },
+                { to: "/guide", label: "Studio Guide" },
+                { to: "/faq", label: "FAQ & Hilfe" },
               ]
             },
             {
               title: "Studios",
               links: [
-                { to: "/register",          label: "Studio registrieren" },
+                 { to: "/register?role=studio", label: "Studio einrichten" },
                 { to: "/studio-dashboard",  label: "Studio Dashboard" },
               ]
             },

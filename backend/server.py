@@ -15,6 +15,8 @@ import secrets
 import bcrypt
 import jwt
 import json
+import re
+import unicodedata
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import base64
@@ -537,6 +539,7 @@ class StudioCreate(BaseModel):
     styles: List[str] = []
     price_range: str = "medium"  # budget | medium | premium | luxury
     images: List[str] = []
+    slug: Optional[str] = None
 
 class StudioUpdate(BaseModel):
     name: Optional[str] = None
@@ -563,6 +566,7 @@ class StudioUpdate(BaseModel):
     tax_number: Optional[str] = None    # Steuernummer or USt-IdNr.
     consent_required: Optional[bool] = None  # Require digital consent form from customer
     consent_config: Optional[dict] = None    # {"custom_questions": ["q1", "q2", ...]}
+    slug: Optional[str] = None
 
 class SlotCreate(BaseModel):
     date: str  # YYYY-MM-DD
@@ -712,6 +716,9 @@ async def register(data: UserRegister, response: JSONResponse = None):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    if data.role not in {"customer", "studio_owner"}:
+        raise HTTPException(status_code=400, detail="Ungültige Kontoart")
+
     user_doc = {
         "email": email,
         "password_hash": await asyncio.to_thread(hash_password, data.password),
@@ -1322,6 +1329,37 @@ async def google_session(data: GoogleSessionRequest):
 _studios_list_cache: Dict[str, Any] = {"data": None, "ts": 0.0}
 _STUDIOS_CACHE_TTL = 20  # seconds
 
+def _slugify(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", (value or "").strip().lower())
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_value).strip("-")
+    return slug[:60] or "studio"
+
+async def _unique_studio_slug(value: str, exclude_studio_id: Optional[str] = None) -> str:
+    base = _slugify(value)
+    candidate = base
+    suffix = 2
+    while True:
+        existing = await db.studios.find_one({"slug": candidate})
+        if not existing or existing.get("studio_id") == exclude_studio_id:
+            return candidate
+        candidate = f"{base[:54]}-{suffix}"
+        suffix += 1
+
+async def _ensure_studio_tenant_fields(studio: dict) -> dict:
+    """Backfill tenant fields lazily so existing studios remain reachable."""
+    updates = {}
+    if not studio.get("workspace_id"):
+        updates["workspace_id"] = f"ws_{uuid.uuid4().hex[:12]}"
+    if not studio.get("slug"):
+        updates["slug"] = await _unique_studio_slug(studio.get("name") or studio["studio_id"], studio["studio_id"])
+    if "published" not in studio:
+        updates["published"] = studio.get("is_active", True)
+    if updates:
+        await db.studios.update_one({"studio_id": studio["studio_id"]}, {"$set": updates})
+        studio = {**studio, **updates}
+    return studio
+
 @api_router.get("/studios")
 async def list_studios(
     city: Optional[str] = None,
@@ -1332,6 +1370,10 @@ async def list_studios(
     skip: int = 0,
     limit: int = 200
 ):
+    raise HTTPException(
+        status_code=410,
+        detail="Die öffentliche Studiosuche wurde eingestellt. Nutze den direkten Link deines Studios.",
+    )
     import time as _time
     no_filters = not any([city, style, price_range, min_rating, search]) and skip == 0
 
@@ -1367,14 +1409,21 @@ async def list_studios(
 
 @api_router.get("/studios/{studio_id}")
 async def get_studio(studio_id: str, request: Request = None):
-    studio = await db.studios.find_one({"studio_id": studio_id}, {"_id": 0})
+    studio = await db.studios.find_one(
+        {"$or": [{"studio_id": studio_id}, {"slug": studio_id}]},
+        {"_id": 0},
+    )
     if not studio:
         raise HTTPException(status_code=404, detail="Studio not found")
+    studio = await _ensure_studio_tenant_fields(studio)
+    if studio.get("published") is False or studio.get("is_active") is False:
+        raise HTTPException(status_code=404, detail="Studio not found")
+    resolved_studio_id = studio["studio_id"]
     # Record page view asynchronously (fire-and-forget)
     async def _record_view():
         try:
             await db.studio_page_views.insert_one({
-                "studio_id": studio_id,
+                "studio_id": resolved_studio_id,
                 "viewed_at": datetime.now(timezone.utc).isoformat(),
             })
         except Exception:
@@ -1430,19 +1479,34 @@ async def create_studio(data: StudioCreate, current_user: dict = Depends(get_cur
         raise HTTPException(status_code=400, detail="You already have a studio")
     
     studio_id = f"studio_{uuid.uuid4().hex[:12]}"
+    workspace_id = f"ws_{uuid.uuid4().hex[:12]}"
     owner_id = current_user.get("id") or current_user.get("user_id")
+    studio_data = data.model_dump()
+    requested_slug = studio_data.pop("slug", None) or data.name
+    slug = await _unique_studio_slug(requested_slug)
     studio_doc = {
         "studio_id": studio_id,
+        "workspace_id": workspace_id,
+        "slug": slug,
         "owner_id": owner_id,
         "owner_name": current_user.get("name", ""),
-        **data.model_dump(),
+        **studio_data,
         "avg_rating": 0.0,
         "review_count": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "is_verified": False,
-        "is_active": True
+        "is_active": True,
+        "published": True,
     }
     await db.studios.insert_one(studio_doc)
+    await db.workspace_memberships.insert_one({
+        "membership_id": f"member_{uuid.uuid4().hex[:12]}",
+        "workspace_id": workspace_id,
+        "studio_id": studio_id,
+        "user_id": owner_id,
+        "role": "owner",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
     studio_doc.pop("_id", None)
     return studio_doc
 
@@ -1453,8 +1517,10 @@ async def update_studio(studio_id: str, data: StudioUpdate, current_user: dict =
     if not studio or (studio.get("owner_id") != owner_id and current_user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Not authorized")
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "slug" in update_data:
+        update_data["slug"] = await _unique_studio_slug(update_data["slug"], studio_id)
     await db.studios.update_one({"studio_id": studio_id}, {"$set": update_data})
-    return {"message": "Studio updated"}
+    return {"message": "Studio updated", "slug": update_data.get("slug", studio.get("slug"))}
 
 @api_router.get("/studios/{studio_id}/reviews")
 async def get_studio_reviews(studio_id: str):

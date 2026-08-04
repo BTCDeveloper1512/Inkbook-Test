@@ -44,13 +44,13 @@ export function setStudioCache(studioId, data) {
 export function prefetchStudio(studioId) {
   if (!studioId) return;
   if (_studioCache[studioId] || _studioPromise[studioId]) return;
-  _studioPromise[studioId] = Promise.all([
-    axios.get(`${API}/studios/${studioId}`),
-    axios.get(`${API}/studios/${studioId}/reviews`),
-    axios.get(`${API}/studios/${studioId}/artists`),
-    axios.get(`${API}/studios/${studioId}/shop`).catch(() => ({ data: [] })),
-  ])
-    .then(([studioRes, reviewsRes, artistsRes, shopRes]) => {
+  _studioPromise[studioId] = axios.get(`${API}/studios/${studioId}`).then(async (studioRes) => {
+    const resolvedId = studioRes.data.studio_id;
+    const [reviewsRes, artistsRes, shopRes] = await Promise.all([
+      axios.get(`${API}/studios/${resolvedId}/reviews`),
+      axios.get(`${API}/studios/${resolvedId}/artists`),
+      axios.get(`${API}/studios/${resolvedId}/shop`).catch(() => ({ data: [] })),
+    ]);
       _studioCache[studioId] = {
         studio: studioRes.data,
         reviews: reviewsRes.data,
@@ -65,12 +65,13 @@ export function prefetchStudio(studioId) {
 export function fetchStudio(studioId) {
   if (_studioCache[studioId]) return Promise.resolve(_studioCache[studioId]);
   if (_studioPromise[studioId]) return _studioPromise[studioId].then(() => _studioCache[studioId]);
-  return Promise.all([
-    axios.get(`${API}/studios/${studioId}`),
-    axios.get(`${API}/studios/${studioId}/reviews`),
-    axios.get(`${API}/studios/${studioId}/artists`),
-    axios.get(`${API}/studios/${studioId}/shop`).catch(() => ({ data: [] })),
-  ]).then(([studioRes, reviewsRes, artistsRes, shopRes]) => {
+  return axios.get(`${API}/studios/${studioId}`).then(async (studioRes) => {
+    const resolvedId = studioRes.data.studio_id;
+    const [reviewsRes, artistsRes, shopRes] = await Promise.all([
+      axios.get(`${API}/studios/${resolvedId}/reviews`),
+      axios.get(`${API}/studios/${resolvedId}/artists`),
+      axios.get(`${API}/studios/${resolvedId}/shop`).catch(() => ({ data: [] })),
+    ]);
     const cached = {
       studio: studioRes.data,
       reviews: reviewsRes.data,

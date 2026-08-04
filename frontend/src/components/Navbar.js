@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext";
 import { Menu, X, Globe, ChevronDown, Bell, MessageSquare, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPushPermission, registerPushNotifications } from "../utils/pushNotifications";
-import { prefetchStudios } from "../utils/studiosCache";
 import axios from "axios";
 import BlurText from "./BlurText/BlurText";
 import { StudioOSMark } from "./StudioOSLogo";
@@ -130,19 +129,11 @@ export default function Navbar() {
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-1">
-            {[
-              { to: "/search", label: t("nav.search") },
-            ].map(link => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onMouseEnter={link.to === "/search" ? prefetchStudios : undefined}
-                className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full font-inter transition-all duration-200"
-                data-testid={`nav-${link.to.replace("/", "") || "home"}-link`}
-              >
-                {link.label}
+            {!user && (
+              <Link to="/#produkt" className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full font-inter transition-all duration-200">
+                Produkt
               </Link>
-            ))}
+            )}
             {user && (
               <Link to="/messages" className="relative px-4 py-2 text-sm text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full font-inter transition-all duration-200 flex items-center gap-1.5" data-testid="nav-messages-link">
                 <MessageSquare size={14} strokeWidth={1.5} />
@@ -271,7 +262,7 @@ export default function Navbar() {
             ) : (
               <div className="hidden sm:flex items-center gap-2">
                 <Link to="/login" className="px-4 py-2 text-sm font-inter text-zinc-600 hover:text-zinc-900 transition-colors" data-testid="nav-login-btn">{t("nav.login")}</Link>
-                <Link to="/register?role=studio" className="btn-primary text-sm px-5 py-2" data-testid="nav-register-btn">Als Studio registrieren</Link>
+                <Link to="/register?role=studio" className="btn-primary text-sm px-5 py-2" data-testid="nav-register-btn">Studio einrichten</Link>
               </div>
             )}
 
@@ -286,13 +277,12 @@ export default function Navbar() {
           {mobileOpen && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t border-zinc-100 py-3 space-y-1 overflow-hidden">
               {[
-                { to: "/search", label: t("nav.search") },
                 ...(user ? [
                   { to: dashboardPath, label: t("nav.dashboard") },
                   { to: "/messages", label: "Nachrichten", badge: countToShow }
                 ] : [
                   { to: "/login", label: t("nav.login") },
-                  { to: "/register?role=studio", label: "Als Studio registrieren" }
+                  { to: "/register?role=studio", label: "Studio einrichten" }
                 ]),
               ].map(link => (
                 <Link key={link.to} to={link.to} className="block px-3 py-2.5 text-sm font-inter text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl flex items-center justify-between" onClick={() => setMobileOpen(false)}>

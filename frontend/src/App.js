@@ -1,5 +1,5 @@
 import "./i18n";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CookieBanner from "./components/CookieBanner";
@@ -10,8 +10,8 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import SearchPage from "./pages/SearchPage";
 import StudioPage from "./pages/StudioPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerSettingsPage from "./pages/CustomerSettingsPage";
 import StudioDashboard from "./pages/StudioDashboard";
@@ -41,12 +41,13 @@ function AppRouter() {
       <Routes>
         <Route path="/"              element={<LandingPage />} />
         <Route path="/home"          element={<LandingPage />} />
-        <Route path="/search"        element={<SearchPage />} />
+        <Route path="/search"        element={<Navigate to="/" replace />} />
         <Route path="/login"         element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/register"      element={<RegisterPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/studios/:studioId" element={<StudioPage />} />
+        <Route path="/s/:slug" element={<StudioPage />} />
         <Route path="/impressum"     element={<ImpressumPage />} />
         <Route path="/datenschutz"   element={<DatenschutzPage />} />
         <Route path="/agb"           element={<AGBPage />} />
@@ -79,7 +80,7 @@ function AppRouter() {
         } />
         <Route path="/video" element={<VideoTemplate />} />
         <Route path="/guide" element={<StudioGuide />} />
-        <Route path="*" element={<SearchPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <CookieBanner />
       <SupportChat />

@@ -388,13 +388,15 @@ function ArtistModal({ artist, lottieData, onClose, onOpenLightbox }) {
 }
 
 export default function StudioPage() {
-  const { studioId } = useParams();
+  const { studioId: legacyStudioId, slug } = useParams();
+  const studioKey = slug || legacyStudioId;
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const bookingRef = useRef(null);
   const [studio, setStudio] = useState(null);
+  const studioId = studio?.studio_id || studioKey;
   const [slots, setSlots] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [artists, setArtists] = useState([]);
@@ -530,6 +532,9 @@ export default function StudioPage() {
   useEffect(() => {
     const applyData = (cached) => {
       setStudio(cached.studio);
+      if (legacyStudioId && cached.studio.slug) {
+        navigate(`/s/${cached.studio.slug}${location.search}`, { replace: true });
+      }
       setReviews(cached.reviews);
       setArtists(cached.artists);
       setShopProducts(cached.shop || []);
@@ -544,29 +549,29 @@ export default function StudioPage() {
       }
     };
 
-    const hit = getStudioCache(studioId);
+    const hit = getStudioCache(studioKey);
     if (hit) {
       // Instant display from cache
       applyData(hit);
       setLoading(false);
       // Silent background refresh
-      fetchStudio(studioId).then((fresh) => {
-        if (fresh) { setStudioCache(studioId, fresh); applyData(fresh); }
+      fetchStudio(studioKey).then((fresh) => {
+        if (fresh) { setStudioCache(studioKey, fresh); applyData(fresh); }
       }).catch(() => {});
       return;
     }
 
     // No cache — show spinner while fetching
     setLoading(true);
-    fetchStudio(studioId)
+    fetchStudio(studioKey)
       .then((data) => {
         if (!data) { navigate("/"); return; }
-        setStudioCache(studioId, data);
+        setStudioCache(studioKey, data);
         applyData(data);
       })
       .catch(() => navigate("/"))
       .finally(() => setLoading(false));
-  }, [studioId]);
+  }, [studioKey, legacyStudioId, location.search, navigate]);
 
   // Re-fetch slots whenever date OR bookingType changes
   useEffect(() => {
