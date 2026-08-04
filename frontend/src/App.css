@@ -25,7 +25,7 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   font-family: 'Cooper Hewitt', 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-weight: 300;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-secondary);
@@ -36,17 +36,17 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Cooper Hewitt', 'Barlow', -apple-system, sans-serif;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 input, textarea, select, button {
   font-family: 'Cooper Hewitt', 'Barlow', -apple-system, sans-serif;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 /* Typography */
-.font-playfair { font-family: 'Cooper Hewitt', 'Barlow', sans-serif; font-weight: 300; }
-.font-inter, .font-outfit { font-family: 'Cooper Hewitt', 'Barlow', sans-serif; font-weight: 300; }
+.font-playfair { font-family: 'Cooper Hewitt', 'Barlow', sans-serif; font-weight: 400; }
+.font-inter, .font-outfit { font-family: 'Cooper Hewitt', 'Barlow', sans-serif; font-weight: 400; }
 
 /* Smooth transitions on all interactive elements */
 a, button, [role="button"] {
@@ -76,7 +76,7 @@ a, button, [role="button"] {
   outline: none;
   transition: all 0.2s ease;
   font-family: 'Cooper Hewitt', 'Barlow', sans-serif;
-  font-weight: 300;
+  font-weight: 400;
   font-size: 14px;
 }
 .input-base:focus {
@@ -93,7 +93,7 @@ a, button, [role="button"] {
   padding: 12px 24px;
   font-family: 'Cooper Hewitt', 'Barlow', sans-serif;
   font-size: 14px;
-  font-weight: 300;
+  font-weight: 400;
   border: none;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
@@ -112,7 +112,7 @@ a, button, [role="button"] {
   padding: 12px 24px;
   font-family: 'Cooper Hewitt', 'Barlow', sans-serif;
   font-size: 14px;
-  font-weight: 300;
+  font-weight: 400;
   border: 1px solid rgba(0,0,0,0.1);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
@@ -185,7 +185,7 @@ a, button, [role="button"] {
   border-radius: 100px;
   font-size: 13px;
   font-family: 'Cooper Hewitt', 'Barlow', sans-serif;
-  font-weight: 300;
+  font-weight: 400;
   box-shadow: 0 8px 30px rgba(0,0,0,0.2);
   animation: slideUp 0.3s ease;
   white-space: nowrap;

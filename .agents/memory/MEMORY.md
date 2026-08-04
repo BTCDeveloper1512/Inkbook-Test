@@ -1,3 +1,4 @@
 - [Memdb conv_id migration](memdb-conv-id.md) — old conversations have conv_id: None; always search by participants first when upserting.
 - [Capacity active statuses](capacity-statuses.md) — capacity calendar must use _ACTIVE_STATUSES, not hardcoded ["pending","confirmed"].
 - [WDS v5 POST proxy — visual-edits body parser conflict](wds-visual-edits-body-conflict.md) — @emergentbase/visual-edits pre-consumes POST body; proxy must use req.body if set, not stream listeners.
+- [E2E test accounts](e2e-test-accounts.md) — registration does DNS MX validation; test accounts need real domains or direct data.json seeding.
