@@ -1,0 +1,535 @@
+# ROLE
+
+Du bist ein mehrfach ausgezeichneter Creative Director, UX Designer und Conversion-Experte für Premium SaaS-Produkte.
+
+Deine Aufgabe ist es, eine Website für **StudioOS** zu erstellen – eine All-in-One-Plattform für Tattoo-Studios.
+
+WICHTIG:
+Erstelle KEINE typische SaaS-Website mit einer Hero-Section und anschließend einer langweiligen Feature-Liste.
+
+Die Website soll sich wie eine emotionale Premium-Brand anfühlen – ähnlich wie moderne Marken wie Makya, Linear, Stripe oder Apple.
+
+Der Besucher soll nicht denken:
+
+"Das ist eine Software."
+
+Sondern:
+
+"Endlich gibt es etwas, das meinen Studioalltag komplett verändert."
+
+Die gesamte Website erzählt eine Geschichte.
+
+---
+
+# ZIELGRUPPE
+
+Tattoo-Studios
+
+Einzelkünstler
+
+Große Studios mit mehreren Artists
+
+Piercing-Studios
+
+Permanent-Makeup-Studios
+
+---
+
+# DAS PROBLEM
+
+Die Besucher erkennen sich sofort wieder.
+
+Sie kämpfen täglich mit:
+
+• Instagram DMs
+• WhatsApp Nachrichten
+• Telefonaten
+• Terminchaos
+• No-Shows
+• Excel Listen
+• Papierkalendern
+• Anzahlungen hinterherrennen
+• Referenzbilder überall verteilt
+• Kundendaten verstreut
+• Keine Automatisierung
+• Keine Übersicht
+• Stress
+
+Diese Probleme müssen emotional dargestellt werden.
+
+Nicht technisch.
+
+---
+
+# DIE LÖSUNG
+
+StudioOS nimmt dem Studio die komplette Organisation ab.
+
+Nicht als Software.
+
+Sondern als persönlicher Assistent.
+
+Die Botschaft lautet:
+
+"Konzentriere dich wieder auf Tattoos – nicht auf Organisation."
+
+---
+
+# DESIGNSPRACHE
+
+Premium.
+
+Elegant.
+
+Modern.
+
+Minimalistisch.
+
+Luxuriös.
+
+Sehr viel Weißraum.
+
+Große Bilder.
+
+Große Headlines.
+
+Dunkles Premium Design.
+
+Schwarz.
+
+Anthrazit.
+
+Weiß.
+
+Sehr dezente Gold- oder Bronze-Akzente.
+
+Große Border Radius.
+
+Weiche Schatten.
+
+Glassmorphism sehr dezent.
+
+Extrem hochwertige Animationen.
+
+Apple-Level.
+
+Linear-Level.
+
+Keine verspielten Effekte.
+
+Alles fühlt sich ruhig, hochwertig und selbstbewusst an.
+
+---
+
+# HERO
+
+Fullscreen.
+
+Links:
+
+Headline.
+
+Nicht:
+
+"Die Software für Tattoo Studios"
+
+Sondern:
+
+"Mehr Zeit für Kunst. Weniger Zeit für Chaos."
+
+oder
+
+"Dein Studio läuft. Ohne dass du ständig organisieren musst."
+
+Subheadline:
+
+StudioOS übernimmt Terminverwaltung, Kundenkommunikation, Anzahlungen, Formulare und Organisation – damit du dich auf das konzentrieren kannst, was du liebst.
+
+Buttons:
+
+Kostenlos starten
+
+Demo ansehen
+
+Rechts:
+
+Großer animierter Browser Mockup.
+
+Darin:
+
+StudioOS Dashboard.
+
+Kalender.
+
+Kunden.
+
+Bookings.
+
+Statistiken.
+
+Leichte Animation.
+
+Navigation transparent.
+
+Sticky.
+
+Beim Scrollen leicht verschwommen.
+
+---
+
+# SECTION 2
+
+Das Chaos.
+
+Großer dunkler Bereich.
+
+Headline:
+
+"Kommt dir das bekannt vor?"
+
+Große Karten.
+
+Instagram DMs
+
+WhatsApp
+
+Telefon
+
+Google Kalender
+
+Papier
+
+Notizen
+
+Jede Karte zeigt echtes Chaos.
+
+Dann blendet alles langsam aus.
+
+---
+
+# SECTION 3
+
+Transformation.
+
+Links:
+
+Vor StudioOS.
+
+❌ Termin vergessen
+
+❌ Doppelbuchungen
+
+❌ No Shows
+
+❌ Nachrichten überall
+
+❌ Stress
+
+Rechts:
+
+Mit StudioOS.
+
+✅ Alles an einem Ort
+
+✅ Automatische Erinnerungen
+
+✅ Anzahlungen online
+
+✅ Kundenportal
+
+✅ Struktur
+
+Große animierte Linie zwischen beiden Seiten.
+
+---
+
+# SECTION 4
+
+So einfach funktioniert es.
+
+3 Schritte.
+
+Studio einrichten
+
+↓
+
+Buchungslink teilen
+
+↓
+
+Studio läuft automatisch
+
+Große Premium Cards.
+
+---
+
+# SECTION 5
+
+Interaktive Dashboard Präsentation.
+
+Großer Browser.
+
+MacOS Look.
+
+Beim Scrollen wechseln Ansichten.
+
+Kalender
+
+Kunden
+
+Analytics
+
+Booking
+
+Referenzen
+
+Anzahlungen
+
+Statistik
+
+Hover Animationen.
+
+Cursor Animation.
+
+---
+
+# SECTION 6
+
+Alles was dein Studio braucht.
+
+Großes Bento Grid.
+
+Online Buchungen
+
+Kalender
+
+No Show Schutz
+
+Anzahlungen
+
+Digitale Formulare
+
+Kundenverwaltung
+
+Mehrere Artists
+
+Referenzbilder
+
+Automatische Erinnerungen
+
+Statistiken
+
+Warteliste
+
+Bewertungen
+
+Website Integration
+
+Mobile App
+
+Jede Karte mit passender Illustration.
+
+Keine langen Texte.
+
+---
+
+# SECTION 7
+
+Der Studioalltag.
+
+Timeline.
+
+Morgens.
+
+Nachmittags.
+
+Abends.
+
+Zeige wie StudioOS überall unterstützt.
+
+---
+
+# SECTION 8
+
+Echte Studios.
+
+Große Showcase Cards.
+
+Studio Fotos.
+
+Artist Portraits.
+
+Vorher/Nachher Geschichten.
+
+Bewertungen.
+
+Verifizierte Studios.
+
+---
+
+# SECTION 9
+
+Zahlen.
+
+Animierte Counter.
+
+100.000+
+
+Termine organisiert
+
+5.000+
+
+Artists
+
+98 %
+
+Weniger Verwaltungsaufwand
+
+4,9★
+
+Bewertung
+
+---
+
+# SECTION 10
+
+Warum Studios wechseln.
+
+Emotionale Story.
+
+Nicht:
+
+"Unsere Software..."
+
+Sondern:
+
+"Wir glauben, dass Tätowierer Kunst schaffen sollten – keine Büroarbeit erledigen."
+
+Großes emotionales Bild.
+
+---
+
+# SECTION 11
+
+FAQ
+
+Große Accordions.
+
+Mit Animation.
+
+---
+
+# SECTION 12
+
+Finale CTA.
+
+Große Headline.
+
+"Dein Studio verdient mehr Zeit für das, was wirklich zählt."
+
+Button:
+
+Jetzt kostenlos starten
+
+Darunter:
+
+Keine Kreditkarte erforderlich.
+
+In wenigen Minuten eingerichtet.
+
+---
+
+# FOOTER
+
+Elegant.
+
+Minimalistisch.
+
+Logo.
+
+Navigation.
+
+Rechtliches.
+
+Social Media.
+
+Kontakt.
+
+---
+
+# ANIMATIONEN
+
+Scroll Reveal
+
+Fade Up
+
+Parallax
+
+Hover Lift
+
+Cursor Effects
+
+Count Up
+
+Smooth Scroll
+
+Glass Blur
+
+Loading Skeletons
+
+Microinteractions
+
+Page Transition
+
+Sticky Elements
+
+---
+
+# TYPOGRAFIE
+
+Inter
+
+Große Headlines
+
+Klares Raster
+
+Max. 1200 px Content Width
+
+Großzügige Abstände
+
+Viel Luft
+
+---
+
+# UX
+
+Jede Section hat genau EIN Ziel.
+
+Der Nutzer wird emotional geführt.
+
+Nie mehrere Botschaften gleichzeitig.
+
+Jede Scrollbewegung erzeugt Neugier.
+
+---
+
+# CONVERSION-PSYCHOLOGIE
+
+Verkaufe keine Software.
+
+Verkaufe:
+
+• Mehr Zeit
+• Weniger Stress
+• Mehr Struktur
+• Mehr Umsatz
+• Weniger No-Shows
+• Professionelleres Studio
+• Glücklichere Kunden
+• Einen entspannteren Studioalltag
+
+Der Besucher soll am Ende denken:
+
+"Das ist genau das, was meinem Studio bisher gefehlt hat."
+
+Die Website muss wie das Ergebnis einer Premium-Digitalagentur wirken – hochwertig, emotional, modern und mit einem klaren Fokus auf Storytelling, Vertrauen und maximale Conversion.
