@@ -77,7 +77,7 @@ function laneLayout(sessions) {
   return { lanes, laneCount: Math.max(1, laneEnds.length) };
 }
 
-export default function StudioCalendarTab({ bookings, artists, studio, onBookingsChange }) {
+export default function StudioCalendarTab({ bookings, artists, studio, onBookingsChange, onCreateOffer }) {
   const [day, setDay] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -130,27 +130,11 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
     [bookings]
   );
 
-  // The queue: the customer accepted an offer, but nobody has put it on the
-  // plan yet. Duration comes from the offer that was actually agreed.
-  const queue = useMemo(
-    () =>
-      bookings
-        .filter((b) => b.status === "angenommen" && !(b.sessions || []).length)
-        .map((b) => {
-          const offer = (b.offers || []).find((o) => o.status === "angenommen") || (b.offers || [])[0];
-          return {
-            id: `queue-${b.id}`,
-            projectId: b.id,
-            isQueue: true,
-            raw: null,
-            project: b,
-            offer,
-            customerName: b.customers?.name || "—",
-            startMin: null,
-            duration: offer?.duration_minutes || DEFAULT_DURATION,
-            artistId: b.artist_id || null,
-          };
-        }),
+  // Requests still waiting for an offer. Since an accepted offer now creates
+  // its own session, nothing arrives on the calendar unplaced — so the rail
+  // earns its space by showing what still needs a price and a time.
+  const openRequests = useMemo(
+    () => bookings.filter((b) => ["anfrage", "abgelehnt"].includes(b.status)),
     [bookings]
   );
 
@@ -206,37 +190,25 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
     const artistId = preview.columnId === UNASSIGNED ? null : preview.columnId;
 
     try {
-      if (item.isQueue) {
-        // No session exists yet — placing it is what creates one.
-        const { data: session } = await studioApi.post(`/studios/me/bookings/${item.projectId}/schedule`, {
-          startTime,
-          artistId,
-          estimatedDurationMinutes: preview.duration,
-        });
-        onBookingsChange((prev) =>
-          prev.map((b) => (b.id === item.projectId ? { ...b, status: "in_planung", sessions: [...(b.sessions || []), session] } : b))
-        );
-      } else {
-        onBookingsChange((prev) =>
-          prev.map((b) =>
-            b.id === item.project.id
-              ? {
-                  ...b,
-                  sessions: (b.sessions || []).map((s) =>
-                    s.id === item.id
-                      ? { ...s, start_time: startTime, artist_id: artistId, estimated_duration_minutes: preview.duration }
-                      : s
-                  ),
-                }
-              : b
-          )
-        );
-        await studioApi.patch(`/studios/me/sessions/${item.id}`, {
-          startTime,
-          artistId,
-          estimatedDurationMinutes: preview.duration,
-        });
-      }
+      onBookingsChange((prev) =>
+        prev.map((b) =>
+          b.id === item.project.id
+            ? {
+                ...b,
+                sessions: (b.sessions || []).map((s) =>
+                  s.id === item.id
+                    ? { ...s, start_time: startTime, artist_id: artistId, estimated_duration_minutes: preview.duration }
+                    : s
+                ),
+              }
+            : b
+        )
+      );
+      await studioApi.patch(`/studios/me/sessions/${item.id}`, {
+        startTime,
+        artistId,
+        estimatedDurationMinutes: preview.duration,
+      });
       setError("");
     } catch (err) {
       onBookingsChange(() => snapshot);
@@ -253,7 +225,7 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       columnId: item.artistId || UNASSIGNED,
       startMin: item.startMin,
       duration: item.duration,
-      grabOffset: kind === "queue" ? item.duration / 2 : 0,
+      grabOffset: 0,
       moved: false,
       pointer: { x: e.clientX, y: e.clientY },
       preview: null,
@@ -284,10 +256,8 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       setDragView(null);
       if (!drag) return;
       if (!drag.moved) {
-        if (!drag.item.isQueue) {
-          setSelectedId(drag.item.id);
-          setDurationDraft("");
-        }
+        setSelectedId(drag.item.id);
+        setDurationDraft("");
         return;
       }
       if (drag.preview) applySchedule(drag.item, drag.preview);
@@ -557,47 +527,49 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <Inbox size={13} className="text-zinc-400" />
-            <span className="text-[11px] font-inter font-medium text-zinc-600 uppercase tracking-wide">Einzuplanen</span>
-            {queue.length > 0 && (
-              <span className="ml-auto text-[10px] font-inter bg-teal-100 text-teal-700 rounded-full px-1.5">{queue.length}</span>
+            <span className="text-[11px] font-inter font-medium text-zinc-600 uppercase tracking-wide">Offene Anfragen</span>
+            {openRequests.length > 0 && (
+              <span className="ml-auto text-[10px] font-inter bg-amber-100 text-amber-700 rounded-full px-1.5">{openRequests.length}</span>
             )}
           </div>
-          {queue.length === 0 ? (
+          {openRequests.length === 0 ? (
             <p className="text-[11px] font-inter text-zinc-400 py-4 text-center">
-              Nichts offen. Hier landen Buchungen, sobald der Kunde dein Angebot angenommen hat.
+              Keine offenen Anfragen. Zugesagte Angebote stehen direkt im Kalender.
             </p>
           ) : (
             <div className="space-y-1.5">
               <AnimatePresence>
-                {queue.map((s) => (
-                  <motion.div
-                    key={s.id}
+                {openRequests.map((b) => (
+                  <motion.button
+                    key={b.id}
+                    type="button"
                     layout
                     initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: dragView?.item?.id === s.id && dragView?.moved ? 0.3 : 1, x: 0 }}
+                    animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={{ scale: 1.015 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    onPointerDown={(e) => startDrag(e, s, "queue")}
-                    className="rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-2 cursor-grab active:cursor-grabbing"
+                    onClick={() => onCreateOffer?.(b)}
+                    className="w-full text-left rounded-xl border border-amber-200 bg-amber-50 hover:border-amber-300 px-2.5 py-2 transition-colors"
                   >
-                    <div className="text-[11px] font-inter font-medium text-zinc-900 truncate">{s.customerName}</div>
+                    <div className="text-[11px] font-inter font-medium text-zinc-900 truncate">{b.customers?.name || "—"}</div>
                     <div className="text-[10px] font-inter text-zinc-500 truncate">
-                      {TYPE_LABEL[s.project.appointment_type]} · {s.duration} Min.
-                      {s.offer?.price_total != null && <> · {Number(s.offer.price_total).toFixed(0)} €</>}
+                      {TYPE_LABEL[b.appointment_type]}
+                      {b.title && <> · {b.title}</>}
                     </div>
-                    {s.offer?.offer_date && (
-                      <div className="text-[10px] font-inter text-teal-700 truncate mt-0.5">
-                        Zugesagt: {new Date(s.offer.offer_date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
-                        {s.offer.offer_slot && <>, {SLOT_LABEL[s.offer.offer_slot]?.toLowerCase()}</>}
+                    {b.preferred_date && (
+                      <div className="text-[10px] font-inter text-amber-700 truncate mt-0.5">
+                        Wunsch: {new Date(b.preferred_date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
+                        {b.preferred_slot && <>, {SLOT_LABEL[b.preferred_slot]?.toLowerCase()}</>}
                       </div>
                     )}
-                  </motion.div>
+                  </motion.button>
                 ))}
               </AnimatePresence>
             </div>
           )}
           <p className="text-[10px] font-inter text-zinc-400 mt-2 leading-snug">
-            Karte in den Kalender ziehen, um sie einzuplanen. Blöcke lassen sich verschieben und an der Unterkante verlängern.
+            Anfrage anklicken, um ein Angebot mit Uhrzeit zu senden. Bestehende Blöcke lassen sich verschieben und an der Unterkante verlängern.
           </p>
         </div>
       </div>

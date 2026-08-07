@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { studioApi } from "../../lib/studioApi";
+import { useLiveUpdates } from "../../lib/useLiveUpdates";
 import { SLOT_LABEL } from "../../lib/daySlots";
 import { studioOsAuth } from "../../lib/studioOsAuth";
 import { StudioOSWordmark } from "../../components/StudioOSLogo";
@@ -151,6 +152,14 @@ export default function StudioOsDashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // A customer accepting an offer puts a booking straight into this calendar,
+  // so the dashboard has to hear about writes it didn't make itself.
+  const refreshBookings = useCallback(async () => {
+    const { data } = await studioApi.get("/studios/me/bookings");
+    setBookings(data);
+  }, []);
+  useLiveUpdates("/studios/me/stream", refreshBookings, !loading);
 
   const stats = useMemo(
     () => ({
@@ -464,7 +473,13 @@ export default function StudioOsDashboard() {
                   <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">Offene Anfragen</div>
                 </div>
               </div>
-              <StudioCalendarTab bookings={bookings} artists={artists} studio={studio} onBookingsChange={setBookings} />
+              <StudioCalendarTab
+                bookings={bookings}
+                artists={artists}
+                studio={studio}
+                onBookingsChange={setBookings}
+                onCreateOffer={setOfferModal}
+              />
             </section>
           )}
 

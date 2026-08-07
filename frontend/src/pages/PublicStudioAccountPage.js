@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, LogOut, CheckCircle, Clock } from "lucide-react";
+import { Loader2, LogOut, CheckCircle, Clock, Bell } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
+import { useLiveUpdates } from "../lib/useLiveUpdates";
 import { SLOT_LABEL } from "../lib/daySlots";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
 import { Button } from "../components/ui/button";
@@ -38,6 +39,39 @@ export default function PublicStudioAccountPage() {
   const [loggingIn, setLoggingIn] = useState(false);
   const [responding, setResponding] = useState(null);
   const [respondError, setRespondError] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const [bellOpen, setBellOpen] = useState(false);
+
+  const unread = notifications.filter((n) => !n.read_at).length;
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const { data } = await studioApi.get(`/t/${slug}/notifications`);
+      setNotifications(data);
+    } catch {
+      /* not signed in yet */
+    }
+  }, [slug]);
+
+  // The studio changing a status has to reach the customer without a reload —
+  // that's the whole point of them having an account page open.
+  const onLive = useCallback(
+    (type) => {
+      if (type === "notification") loadNotifications();
+      load();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadNotifications]
+  );
+  useLiveUpdates(`/t/${slug}/stream`, onLive, !!customer);
+
+  async function openBell() {
+    setBellOpen((v) => !v);
+    if (!bellOpen && unread > 0) {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
+      await studioApi.post(`/t/${slug}/notifications/read`, {});
+    }
+  }
 
   async function respondToOffer(offerId, accept) {
     setResponding(offerId);
@@ -68,6 +102,7 @@ export default function PublicStudioAccountPage() {
 
   useEffect(() => {
     load();
+    loadNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
@@ -137,8 +172,55 @@ export default function PublicStudioAccountPage() {
       <header className="bg-white border-b border-zinc-100">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <StudioOSWordmark markSize={22} textSize="text-sm" />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="text-xs font-inter text-zinc-400">{customer.name}</span>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={openBell}
+                className="relative p-2 rounded-xl hover:bg-zinc-100 transition-colors"
+                title="Benachrichtigungen"
+              >
+                <Bell size={16} className="text-zinc-500" />
+                {unread > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-violet-600 text-white text-[9px] font-inter flex items-center justify-center"
+                  >
+                    {unread}
+                  </motion.span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {bellOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                    className="absolute right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-white rounded-2xl shadow-xl border border-zinc-100 z-50 p-2"
+                  >
+                    {notifications.length === 0 ? (
+                      <p className="text-[11px] font-inter text-zinc-400 text-center py-6">Noch nichts passiert.</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <div key={n.id} className="px-2.5 py-2 rounded-xl hover:bg-zinc-50">
+                          <div className="text-xs font-inter font-medium text-zinc-900">{n.title}</div>
+                          <div className="text-[11px] font-inter text-zinc-500">{n.body}</div>
+                          <div className="text-[10px] font-inter text-zinc-300 mt-0.5">
+                            {new Date(n.created_at).toLocaleString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <Button variant="outline" size="sm" onClick={logout} className="rounded-lg font-inter">
               <LogOut size={14} className="mr-1.5" /> Abmelden
             </Button>
@@ -207,8 +289,23 @@ export default function PublicStudioAccountPage() {
                         <div className="grid grid-cols-2 gap-y-1.5 text-xs font-inter mb-3">
                           <span className="text-violet-500">Termin</span>
                           <span className="text-violet-900 font-medium">
-                            {new Date(openOffer.offer_date).toLocaleDateString("de-DE", { day: "2-digit", month: "long" })}
-                            {openOffer.offer_slot && <>, {SLOT_LABEL[openOffer.offer_slot]?.toLowerCase()}</>}
+                            {openOffer.offer_starts_at ? (
+                              <>
+                                {new Date(openOffer.offer_starts_at).toLocaleString("de-DE", {
+                                  weekday: "short",
+                                  day: "2-digit",
+                                  month: "long",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}{" "}
+                                Uhr
+                              </>
+                            ) : (
+                              <>
+                                {new Date(openOffer.offer_date).toLocaleDateString("de-DE", { day: "2-digit", month: "long" })}
+                                {openOffer.offer_slot && <>, {SLOT_LABEL[openOffer.offer_slot]?.toLowerCase()}</>}
+                              </>
+                            )}
                           </span>
                           <span className="text-violet-500">Dauer</span>
                           <span className="text-violet-900 font-medium">{openOffer.duration_minutes} Minuten</span>
@@ -218,7 +315,7 @@ export default function PublicStudioAccountPage() {
                         {openOffer.notes && <p className="text-xs font-inter text-violet-700 italic mb-3">"{openOffer.notes}"</p>}
                         <p className="text-[11px] font-inter text-violet-600 mb-3 flex items-start gap-1">
                           <Clock size={11} className="mt-0.5 flex-shrink-0" />
-                          Die genaue Uhrzeit legt das Studio fest, sobald du zusagst.
+                          Mit deiner Zusage ist der Termin verbindlich gebucht.
                         </p>
                         {respondError[openOffer.id] && (
                           <p className="text-xs font-inter text-red-600 mb-2">{respondError[openOffer.id]}</p>
