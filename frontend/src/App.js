@@ -15,6 +15,7 @@ import PublicStudioPage from "./pages/PublicStudioPage";
 import PublicStudioAccountPage from "./pages/PublicStudioAccountPage";
 import StudioOsLoginPage from "./pages/os/StudioOsLoginPage";
 import StudioOsDashboard from "./pages/os/StudioOsDashboard";
+import StudioOnboardingPage from "./pages/os/StudioOnboardingPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerSettingsPage from "./pages/CustomerSettingsPage";
@@ -57,6 +58,7 @@ function AppRouter() {
         <Route path="/t/:slug/konto" element={<PublicStudioAccountPage />} />
         <Route path="/os/login" element={<StudioOsLoginPage />} />
         <Route path="/os/dashboard" element={<StudioOsDashboard />} />
+        <Route path="/os/onboarding" element={<StudioOnboardingPage />} />
         <Route path="/impressum"     element={<ImpressumPage />} />
         <Route path="/datenschutz"   element={<DatenschutzPage />} />
         <Route path="/agb"           element={<AGBPage />} />

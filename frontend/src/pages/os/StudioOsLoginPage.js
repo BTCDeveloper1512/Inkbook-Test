@@ -29,10 +29,11 @@ export default function StudioOsLoginPage() {
     try {
       if (mode === "login") {
         await studioOsAuth.login(email, password);
+        navigate("/os/dashboard");
       } else {
         await studioOsAuth.register(email, password, name, studioName);
+        navigate("/os/onboarding");
       }
-      navigate("/os/dashboard");
     } catch (err) {
       setError(err.response?.data?.error || "Etwas ist schiefgelaufen.");
     } finally {

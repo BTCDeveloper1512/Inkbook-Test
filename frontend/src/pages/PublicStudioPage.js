@@ -1,10 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Instagram, MapPin, Loader2 } from "lucide-react";
+import { Instagram, MapPin, Loader2, Phone, Clock, ShieldCheck } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
 import StudioBookingWidget from "../components/StudioBookingWidget";
 import StudioWaitlistCard from "../components/StudioWaitlistCard";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
+
+const DAY_LABELS = {
+  monday: "Mo",
+  tuesday: "Di",
+  wednesday: "Mi",
+  thursday: "Do",
+  friday: "Fr",
+  saturday: "Sa",
+  sunday: "So",
+};
+const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 /**
  * The only way a customer reaches a studio: its own link, e.g. /t/some-slug.
@@ -87,6 +98,57 @@ export default function PublicStudioPage() {
                   ))}
                 </div>
               )}
+            </section>
+          )}
+
+          {(studio.phone || studio.address || Object.values(studio.opening_hours || {}).some(Boolean) || studio.settings?.cancellationHours || studio.settings?.depositRequired) && (
+            <section className="bg-white rounded-3xl shadow-card p-6 sm:p-8 mb-6">
+              <h2 className="font-playfair text-lg text-zinc-900 mb-4">Gut zu wissen</h2>
+              <div className="grid sm:grid-cols-2 gap-5">
+                {(studio.address || studio.phone) && (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-inter uppercase tracking-wide text-zinc-400 mb-2">
+                      <Phone size={12} /> Kontakt
+                    </div>
+                    {studio.address && <p className="text-sm font-inter text-zinc-700">{studio.address}</p>}
+                    {studio.phone && <p className="text-sm font-inter text-zinc-700">{studio.phone}</p>}
+                  </div>
+                )}
+
+                {Object.values(studio.opening_hours || {}).some(Boolean) && (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-inter uppercase tracking-wide text-zinc-400 mb-2">
+                      <Clock size={12} /> Öffnungszeiten
+                    </div>
+                    <div className="space-y-0.5">
+                      {DAY_ORDER.filter((d) => studio.opening_hours?.[d]).map((d) => (
+                        <div key={d} className="flex justify-between text-sm font-inter text-zinc-700 gap-4">
+                          <span className="text-zinc-400">{DAY_LABELS[d]}</span>
+                          <span>{studio.opening_hours[d]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(studio.settings?.depositRequired || studio.settings?.cancellationHours) && (
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center gap-1.5 text-xs font-inter uppercase tracking-wide text-zinc-400 mb-2">
+                      <ShieldCheck size={12} /> Richtlinien
+                    </div>
+                    {studio.settings?.depositRequired && (
+                      <p className="text-sm font-inter text-zinc-700">
+                        Anzahlung von {studio.settings.depositPercent}% bei Buchung erforderlich.
+                      </p>
+                    )}
+                    {studio.settings?.cancellationHours > 0 && (
+                      <p className="text-sm font-inter text-zinc-700">
+                        Kostenlose Stornierung bis {studio.settings.cancellationHours} Stunden vor dem Termin.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </section>
           )}
 
