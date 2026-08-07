@@ -4,14 +4,10 @@ import {
   Loader2,
   Plus,
   LogOut,
-  Copy,
-  Check,
-  ExternalLink,
   LayoutGrid,
   BookOpen,
   Users,
   Settings2,
-  Link2,
   Calendar,
   Search,
   X,
@@ -29,6 +25,7 @@ import { StudioOSWordmark } from "../../components/StudioOSLogo";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import StudioProfileTab from "./StudioProfileTab";
 
 const STATUS_OPTIONS = ["anfrage", "in_planung", "laufend", "abgeschlossen", "abgebrochen"];
 const STATUS_LABEL = {
@@ -110,44 +107,6 @@ function EmptyState({ heading, subtext }) {
       <Calendar size={28} className="text-zinc-200 mb-3" strokeWidth={1.5} />
       <p className="font-playfair text-base text-zinc-700">{heading}</p>
       {subtext && <p className="text-xs font-inter text-zinc-400 mt-1">{subtext}</p>}
-    </div>
-  );
-}
-
-function CopyLinkCard({ slug }) {
-  const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}/t/${slug}`;
-  return (
-    <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
-          <Link2 size={16} className="text-zinc-600" />
-        </div>
-        <div>
-          <div className="font-inter font-medium text-sm text-zinc-900">Deine öffentliche Studio-Seite</div>
-          <div className="text-xs font-inter text-zinc-500">Der einzige Weg zu deinem Studio — kein Verzeichnis, keine Suche.</div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <code className="flex-1 text-xs font-mono text-zinc-600 bg-zinc-50 rounded-lg px-3 py-2 truncate">{url}</code>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="rounded-lg font-inter flex-shrink-0"
-          onClick={() => {
-            navigator.clipboard.writeText(url);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
-          {copied ? "Kopiert" : "Kopieren"}
-        </Button>
-        <a href={url} target="_blank" rel="noreferrer" className="p-2 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0">
-          <ExternalLink size={14} className="text-zinc-500" />
-        </a>
-      </div>
     </div>
   );
 }
@@ -676,26 +635,7 @@ export default function StudioOsDashboard() {
           {tab === "profil" && (
             <section>
               <SectionHeader title="Profil & Link" subtitle="So sehen Kunden dein Studio" />
-              <div className="space-y-4">
-                {studio?.slug && <CopyLinkCard slug={studio.slug} />}
-                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-                  <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-3">Studio-Daten</div>
-                  <dl className="space-y-2.5 text-sm font-inter">
-                    <div className="flex justify-between">
-                      <dt className="text-zinc-500">Name</dt>
-                      <dd className="text-zinc-900 font-medium">{studio?.name}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-zinc-500">Stadt</dt>
-                      <dd className="text-zinc-900">{studio?.city || "—"}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-zinc-500">Status</dt>
-                      <dd className="text-zinc-900">{studio?.is_active ? "Aktiv" : "Inaktiv"}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
+              <StudioProfileTab studio={studio} staff={staff} onStudioUpdate={setStudio} onStaffUpdate={setStaff} />
             </section>
           )}
         </main>

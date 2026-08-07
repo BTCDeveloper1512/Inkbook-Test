@@ -10,4 +10,6 @@ export const studioOsAuth = {
     studioApi.post("/auth/register", { email, password, name, studioName }).then((r) => r.data),
   me: () => studioApi.get("/auth/me").then((r) => r.data),
   logout: () => studioApi.post("/auth/logout").then((r) => r.data),
+  patchMe: (fields) => studioApi.patch("/auth/me", fields).then((r) => r.data),
+  changePassword: (password) => studioApi.post("/auth/me/password", { password }).then((r) => r.data),
 };
