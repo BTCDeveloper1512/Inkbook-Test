@@ -25,12 +25,20 @@ import { StudioOSWordmark } from "../../components/StudioOSLogo";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import OfferModal from "./OfferModal";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import BookingDetailDialog from "./BookingDetailDialog";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger } from "../../components/ui/select";
 import StudioProfileTab from "./StudioProfileTab";
 import StudioArtistsTab from "./StudioArtistsTab";
 import StudioCalendarTab from "./StudioCalendarTab";
 
-const STATUS_OPTIONS = ["anfrage", "angebot_gesendet", "angenommen", "abgelehnt", "in_planung", "laufend", "abgeschlossen", "abgebrochen"];
+// Grouped rather than one flat list of eight: the dropdown otherwise reads as
+// an undifferentiated wall, and these three phases are how a studio actually
+// thinks about where a booking stands.
+const STATUS_GROUPS = [
+  { label: "Angebotsphase", items: ["anfrage", "angebot_gesendet", "angenommen", "abgelehnt"] },
+  { label: "Umsetzung", items: ["in_planung", "laufend"] },
+  { label: "Beendet", items: ["abgeschlossen", "abgebrochen"] },
+];
 const STATUS_LABEL = {
   anfrage: "Anfrage",
   angebot_gesendet: "Angebot läuft",
@@ -53,16 +61,6 @@ const STATUS_DOT = {
   abgeschlossen: "bg-emerald-500",
   abgebrochen: "bg-red-500",
 };
-const STATUS_BADGE = {
-  anfrage: "bg-amber-50 text-amber-700 border-amber-200",
-  angebot_gesendet: "bg-violet-50 text-violet-700 border-violet-200",
-  angenommen: "bg-teal-50 text-teal-700 border-teal-200",
-  abgelehnt: "bg-zinc-100 text-zinc-500 border-zinc-200",
-  in_planung: "bg-blue-50 text-blue-700 border-blue-200",
-  laufend: "bg-violet-50 text-violet-700 border-violet-200",
-  abgeschlossen: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  abgebrochen: "bg-red-50 text-red-700 border-red-200",
-};
 const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_session: "Termin" };
 
 const NAV_ITEMS = [
@@ -73,15 +71,6 @@ const NAV_ITEMS = [
   { key: "artists", label: "Artists", icon: Users },
   { key: "profil", label: "Profil & Link", icon: Settings2 },
 ];
-
-function StatusBadge({ status }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-inter font-medium ${STATUS_BADGE[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status]}`} />
-      {STATUS_LABEL[status]}
-    </span>
-  );
-}
 
 function StatCard({ icon: Icon, value, label }) {
   return (
@@ -126,6 +115,7 @@ export default function StudioOsDashboard() {
   const [search, setSearch] = useState("");
   const [waitlist, setWaitlist] = useState([]);
   const [offerModal, setOfferModal] = useState(null);
+  const [detailBooking, setDetailBooking] = useState(null);
 
   function handleOfferSent(projectId, offer) {
     setBookings((prev) =>
@@ -197,11 +187,6 @@ export default function StudioOsDashboard() {
   async function updateStatus(projectId, status) {
     setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, status } : b)));
     await studioApi.patch(`/studios/me/bookings/${projectId}`, { status });
-  }
-
-  async function updatePrice(projectId, priceFinal) {
-    setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, price_final: priceFinal } : b)));
-    await studioApi.patch(`/studios/me/bookings/${projectId}`, { priceFinal });
   }
 
   const planningStats = useMemo(() => {
@@ -364,8 +349,20 @@ export default function StudioOsDashboard() {
                 ) : (
                   <div className="divide-y divide-zinc-100">
                     {filteredBookings.map((b) => (
-                      <div key={b.id} className="flex items-center justify-between gap-4 p-4">
-                        <div className="min-w-0">
+                      <div
+                        key={b.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setDetailBooking(b)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setDetailBooking(b);
+                          }
+                        }}
+                        className="flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-3 p-4 cursor-pointer hover:bg-zinc-50/80 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
                           <div className="font-inter font-medium text-sm text-zinc-900 truncate">
                             {b.customers?.name || "—"}
                             <span className="ml-2 text-[10px] font-inter uppercase tracking-wide text-zinc-400">{TYPE_LABEL[b.appointment_type]}</span>
@@ -398,7 +395,12 @@ export default function StudioOsDashboard() {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
+                        {/* Controls stop the row's own click from opening the
+                            detail dialog underneath them. */}
+                        <div
+                          className="flex items-center gap-2 flex-wrap justify-end min-w-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) && (
                             <Button
                               size="sm"
@@ -408,30 +410,31 @@ export default function StudioOsDashboard() {
                               {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
                             </Button>
                           )}
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              defaultValue={b.price_final ?? ""}
-                              onBlur={(e) => {
-                                const v = e.target.value === "" ? null : Number(e.target.value);
-                                if (v !== (b.price_final ?? null)) updatePrice(b.id, v);
-                              }}
-                              placeholder="Preis"
-                              className="w-20 h-9 rounded-lg text-xs pl-5"
-                            />
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-zinc-400">€</span>
-                          </div>
-                          <StatusBadge status={b.status} />
                           <Select value={b.status} onValueChange={(v) => updateStatus(b.id, v)}>
-                            <SelectTrigger className="w-[140px] rounded-lg h-9 text-xs font-inter">
-                              <SelectValue />
+                            <SelectTrigger className="w-[150px] max-w-full rounded-lg h-9 text-xs font-inter">
+                              <span className="flex items-center gap-2 min-w-0">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[b.status]}`} />
+                                <span className="truncate">{STATUS_LABEL[b.status]}</span>
+                              </span>
                             </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_OPTIONS.map((s) => (
-                                <SelectItem key={s} value={s} className="text-xs font-inter">
-                                  {STATUS_LABEL[s]}
-                                </SelectItem>
+                            <SelectContent className="rounded-xl">
+                              {STATUS_GROUPS.map((group, gi) => (
+                                <React.Fragment key={group.label}>
+                                  {gi > 0 && <SelectSeparator />}
+                                  <SelectGroup>
+                                    <SelectLabel className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 px-2 py-1">
+                                      {group.label}
+                                    </SelectLabel>
+                                    {group.items.map((s) => (
+                                      <SelectItem key={s} value={s} className="text-xs font-inter rounded-lg">
+                                        <span className="flex items-center gap-2">
+                                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]}`} />
+                                          {STATUS_LABEL[s]}
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </React.Fragment>
                               ))}
                             </SelectContent>
                           </Select>
@@ -517,6 +520,15 @@ export default function StudioOsDashboard() {
 
       <AnimatePresence>
         {offerModal && <OfferModal booking={offerModal} onClose={() => setOfferModal(null)} onSent={handleOfferSent} />}
+        {detailBooking && (
+          <BookingDetailDialog
+            booking={bookings.find((b) => b.id === detailBooking.id) || detailBooking}
+            statusLabel={STATUS_LABEL[detailBooking.status]}
+            statusDot={STATUS_DOT[detailBooking.status]}
+            onClose={() => setDetailBooking(null)}
+            onCreateOffer={setOfferModal}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
