@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, LogOut, CheckCircle, Clock, Bell } from "lucide-react";
+import { Loader2, LogOut, CheckCircle, Clock, Bell, XCircle, CalendarCheck, Hourglass, ArrowLeftRight } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
 import { useLiveUpdates } from "../lib/useLiveUpdates";
 import { SLOT_LABEL } from "../lib/daySlots";
@@ -18,14 +18,22 @@ const STATUS_LABEL = {
   in_planung: "Termin steht",
   laufend: "Läuft",
   abgeschlossen: "Abgeschlossen",
-  abgebrochen: "Abgebrochen",
+  abgebrochen: "Storniert",
 };
 const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_session: "Termin" };
+const CLOSED = ["abgeschlossen", "abgebrochen"];
+
+/** Earliest session that still counts — a cancelled one shouldn't set the date. */
+function nextSession(b) {
+  return (b.sessions || [])
+    .filter((s) => s.status !== "storniert")
+    .sort((a, c) => new Date(a.start_time) - new Date(c.start_time))[0];
+}
 
 /**
- * A customer's own account at ONE studio (/t/:slug/konto) — not a global
- * "my account" across studios, since a customer's identity is scoped per
- * studio here (see the tenancy notes in studioApi.js / backend auth).
+ * A customer's dashboard at ONE studio. Their identity is global but their
+ * record is per studio, so this is scoped to /t/:slug — /konto picks the
+ * studio first and sends them here.
  */
 export default function PublicStudioAccountPage() {
   const { slug } = useParams();
@@ -41,8 +49,32 @@ export default function PublicStudioAccountPage() {
   const [respondError, setRespondError] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
+  const [tab, setTab] = useState("anstehend");
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancellationHours, setCancellationHours] = useState(48);
 
   const unread = notifications.filter((n) => !n.read_at).length;
+
+  const load = useCallback(async () => {
+    try {
+      const me = await studioApi.get(`/t/${slug}/auth/me`).then((r) => r.data);
+      const list = await studioApi.get(`/t/${slug}/bookings`).then((r) => r.data);
+      // The studio's own cancellation window, so the confirm dialog can say
+      // whether this particular cancellation is still free instead of leaving
+      // the customer to guess.
+      studioApi
+        .get(`/t/${slug}`)
+        .then(({ data }) => setCancellationHours(Number(data?.settings?.cancellationHours ?? 48)))
+        .catch(() => {});
+      setCustomer(me);
+      setBookings(list);
+    } catch {
+      setCustomer(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [slug]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -53,17 +85,45 @@ export default function PublicStudioAccountPage() {
     }
   }, [slug]);
 
-  // The studio changing a status has to reach the customer without a reload —
-  // that's the whole point of them having an account page open.
+  useEffect(() => {
+    load();
+    loadNotifications();
+  }, [load, loadNotifications]);
+
+  // The studio changing something has to reach the customer without a reload.
   const onLive = useCallback(
     (type) => {
       if (type === "notification") loadNotifications();
       load();
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [loadNotifications]
+    [load, loadNotifications]
   );
   useLiveUpdates(`/t/${slug}/stream`, onLive, !!customer);
+
+  const groups = useMemo(() => {
+    const now = new Date();
+    const heute = [];
+    const anstehend = [];
+    const vergangen = [];
+    for (const b of bookings) {
+      const s = nextSession(b);
+      const start = s ? new Date(s.start_time) : null;
+      if (CLOSED.includes(b.status) || (start && start < now && !s)) vergangen.push(b);
+      else if (start && start.toDateString() === now.toDateString()) heute.push(b);
+      else if (start && start < now) vergangen.push(b);
+      else anstehend.push(b);
+    }
+    return { heute, anstehend, vergangen };
+  }, [bookings]);
+
+  const stats = useMemo(
+    () => ({
+      offen: bookings.filter((b) => ["anfrage", "angebot_gesendet"].includes(b.status)).length,
+      bestaetigt: bookings.filter((b) => ["in_planung", "laufend", "angenommen"].includes(b.status)).length,
+      storniert: bookings.filter((b) => b.status === "abgebrochen").length,
+    }),
+    [bookings]
+  );
 
   async function openBell() {
     setBellOpen((v) => !v);
@@ -86,25 +146,18 @@ export default function PublicStudioAccountPage() {
     }
   }
 
-  async function load() {
-    setLoading(true);
+  async function confirmCancel() {
+    setCancelBusy(true);
     try {
-      const me = await studioApi.get(`/t/${slug}/auth/me`).then((r) => r.data);
-      const list = await studioApi.get(`/t/${slug}/bookings`).then((r) => r.data);
-      setCustomer(me);
-      setBookings(list);
-    } catch {
-      setCustomer(null);
+      await studioApi.post(`/t/${slug}/bookings/${cancelTarget.booking.id}/cancel`);
+      setCancelTarget(null);
+      await load();
+    } catch (err) {
+      setRespondError((prev) => ({ ...prev, cancel: err.response?.data?.error || "Stornieren fehlgeschlagen." }));
     } finally {
-      setLoading(false);
+      setCancelBusy(false);
     }
   }
-
-  useEffect(() => {
-    load();
-    loadNotifications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
 
   async function submitLogin(e) {
     e.preventDefault();
@@ -113,6 +166,7 @@ export default function PublicStudioAccountPage() {
     try {
       await studioApi.post(`/t/${slug}/auth/login`, { email, password });
       await load();
+      await loadNotifications();
     } catch (err) {
       setLoginError(err.response?.data?.error || "Anmeldung fehlgeschlagen.");
     } finally {
@@ -124,6 +178,7 @@ export default function PublicStudioAccountPage() {
     await studioApi.post(`/t/${slug}/auth/logout`);
     setCustomer(null);
     setBookings([]);
+    setNotifications([]);
   }
 
   if (loading) {
@@ -155,11 +210,7 @@ export default function PublicStudioAccountPage() {
               {loggingIn ? <Loader2 size={16} className="animate-spin" /> : "Anmelden"}
             </Button>
           </form>
-          <button
-            type="button"
-            onClick={() => navigate(`/t/${slug}`)}
-            className="w-full text-center text-xs font-inter text-zinc-400 hover:text-zinc-600 mt-4"
-          >
+          <button type="button" onClick={() => navigate(`/t/${slug}`)} className="w-full text-center text-xs font-inter text-zinc-400 hover:text-zinc-600 mt-4">
             Zurück zur Studioseite
           </button>
         </div>
@@ -167,21 +218,18 @@ export default function PublicStudioAccountPage() {
     );
   }
 
+  const shown = groups[tab] || [];
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="bg-white border-b border-zinc-100">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <StudioOSWordmark markSize={22} textSize="text-sm" />
           <div className="flex items-center gap-3">
-            <span className="text-xs font-inter text-zinc-400">{customer.name}</span>
+            <span className="text-xs font-inter text-zinc-400 hidden sm:inline">{customer.name}</span>
 
             <div className="relative">
-              <button
-                type="button"
-                onClick={openBell}
-                className="relative p-2 rounded-xl hover:bg-zinc-100 transition-colors"
-                title="Benachrichtigungen"
-              >
+              <button type="button" onClick={openBell} className="relative p-2 rounded-xl hover:bg-zinc-100 transition-colors" title="Benachrichtigungen">
                 <Bell size={16} className="text-zinc-500" />
                 {unread > 0 && (
                   <motion.span
@@ -221,22 +269,65 @@ export default function PublicStudioAccountPage() {
               </AnimatePresence>
             </div>
 
+            <button type="button" onClick={() => navigate("/konto")} className="p-2 rounded-xl hover:bg-zinc-100 transition-colors" title="Studio wechseln">
+              <ArrowLeftRight size={15} className="text-zinc-500" />
+            </button>
             <Button variant="outline" size="sm" onClick={logout} className="rounded-lg font-inter">
-              <LogOut size={14} className="mr-1.5" /> Abmelden
+              <LogOut size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Abmelden</span>
             </Button>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8">
-        <h1 className="font-playfair text-xl text-zinc-900 mb-4">Deine Termine</h1>
-        {bookings.length === 0 ? (
-          <p className="text-sm text-zinc-400 font-inter">Noch keine Termine bei diesem Studio.</p>
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[
+            { icon: Hourglass, value: stats.offen, label: "Offen" },
+            { icon: CalendarCheck, value: stats.bestaetigt, label: "Bestätigt" },
+            { icon: XCircle, value: stats.storniert, label: "Storniert" },
+          ].map(({ icon: Icon, value, label }, i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="bg-white rounded-2xl shadow-card px-4 py-3"
+            >
+              <Icon size={15} className="text-zinc-400 mb-2" strokeWidth={1.5} />
+              <div className="font-playfair text-xl text-zinc-900">{value}</div>
+              <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">{label}</div>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="flex gap-1 mb-5 bg-white rounded-2xl shadow-card p-1.5 w-fit max-w-full overflow-x-auto">
+          {[
+            { id: "heute", label: `Heute (${groups.heute.length})` },
+            { id: "anstehend", label: `Anstehend (${groups.anstehend.length})` },
+            { id: "vergangen", label: `Vergangen (${groups.vergangen.length})` },
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-inter font-medium transition-colors ${
+                tab === t.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {shown.length === 0 ? (
+          <p className="text-sm text-zinc-400 font-inter text-center py-12">Hier ist gerade nichts.</p>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false}>
-              {bookings.map((b, i) => {
+              {shown.map((b, i) => {
                 const openOffer = (b.offers || []).find((o) => o.status === "gesendet");
+                const session = nextSession(b);
+                const cancellable = !CLOSED.includes(b.status);
                 return (
                   <motion.div
                     key={b.id}
@@ -247,10 +338,10 @@ export default function PublicStudioAccountPage() {
                     transition={{ type: "spring", stiffness: 320, damping: 28, delay: i * 0.04 }}
                     className="bg-white rounded-2xl shadow-card p-5"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-inter font-medium text-sm text-zinc-900">{b.title || TYPE_LABEL[b.appointment_type]}</span>
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <span className="font-inter font-medium text-sm text-zinc-900 truncate">{b.title || TYPE_LABEL[b.appointment_type]}</span>
                       <span
-                        className={`text-[11px] font-inter px-2 py-0.5 rounded-full ${
+                        className={`text-[11px] font-inter px-2 py-0.5 rounded-full flex-shrink-0 ${
                           openOffer ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
                         }`}
                       >
@@ -259,9 +350,9 @@ export default function PublicStudioAccountPage() {
                     </div>
                     <p className="text-xs font-inter text-zinc-500">{TYPE_LABEL[b.appointment_type]}</p>
 
-                    {b.sessions?.[0]?.start_time ? (
-                      <p className="text-xs font-inter text-zinc-400 mt-1">
-                        {new Date(b.sessions[0].start_time).toLocaleString("de-DE", {
+                    {session ? (
+                      <p className="text-xs font-inter text-zinc-700 mt-1">
+                        {new Date(session.start_time).toLocaleString("de-DE", {
                           weekday: "long",
                           day: "2-digit",
                           month: "long",
@@ -279,13 +370,13 @@ export default function PublicStudioAccountPage() {
                       )
                     )}
 
+                    {b.price_final != null && (
+                      <p className="text-xs font-inter text-zinc-500 mt-1">Endpreis: {Number(b.price_final).toFixed(0)} €</p>
+                    )}
+
                     {openOffer && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        className="mt-4 rounded-2xl border border-zinc-900/10 bg-zinc-50 p-4"
-                      >
-                        <p className="text-xs font-inter font-semibold text-zinc-900 mb-2">🎨 Studio-Angebot erhalten</p>
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 rounded-2xl border border-zinc-900/10 bg-zinc-50 p-4">
+                        <p className="text-xs font-inter font-semibold text-zinc-900 mb-2">Studio-Angebot erhalten</p>
                         <div className="grid grid-cols-2 gap-y-1.5 text-xs font-inter mb-3">
                           <span className="text-zinc-400">Termin</span>
                           <span className="text-zinc-900 font-medium">
@@ -317,9 +408,7 @@ export default function PublicStudioAccountPage() {
                           <Clock size={11} className="mt-0.5 flex-shrink-0" />
                           Mit deiner Zusage ist der Termin verbindlich gebucht.
                         </p>
-                        {respondError[openOffer.id] && (
-                          <p className="text-xs font-inter text-red-600 mb-2">{respondError[openOffer.id]}</p>
-                        )}
+                        {respondError[openOffer.id] && <p className="text-xs font-inter text-red-600 mb-2">{respondError[openOffer.id]}</p>}
                         <div className="flex gap-2">
                           <Button
                             onClick={() => respondToOffer(openOffer.id, true)}
@@ -340,6 +429,16 @@ export default function PublicStudioAccountPage() {
                         </div>
                       </motion.div>
                     )}
+
+                    {cancellable && !openOffer && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelTarget({ booking: b, session })}
+                        className="text-[11px] font-inter text-zinc-400 hover:text-red-600 transition-colors mt-3"
+                      >
+                        Termin stornieren
+                      </button>
+                    )}
                   </motion.div>
                 );
               })}
@@ -347,6 +446,63 @@ export default function PublicStudioAccountPage() {
           </div>
         )}
       </main>
+
+      <AnimatePresence>
+        {cancelTarget && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setCancelTarget(null);
+            }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm"
+              initial={{ scale: 0.94, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 26 }}
+            >
+              <h3 className="font-playfair text-xl text-zinc-900 mb-2">Termin stornieren?</h3>
+              <p className="text-sm font-inter text-zinc-600 mb-4">
+                {cancelTarget.session
+                  ? `${new Date(cancelTarget.session.start_time).toLocaleString("de-DE", {
+                      weekday: "long",
+                      day: "2-digit",
+                      month: "long",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })} Uhr`
+                  : cancelTarget.booking.title || "Diese Anfrage"}
+              </p>
+              {(() => {
+                const start = cancelTarget.session ? new Date(cancelTarget.session.start_time) : null;
+                const free = !start || new Date() < new Date(start.getTime() - cancellationHours * 3600_000);
+                return free ? (
+                  <p className="text-xs font-inter text-zinc-500 mb-4">
+                    Kostenlos: die Stornofrist von {cancellationHours} Stunden vor dem Termin läuft noch. Das Studio wird sofort benachrichtigt.
+                  </p>
+                ) : (
+                  <p className="text-xs font-inter text-red-600 mb-4">
+                    Die Stornofrist von {cancellationHours} Stunden vor dem Termin ist abgelaufen — eine geleistete Anzahlung verfällt.
+                  </p>
+                );
+              })()}
+              {respondError.cancel && <p className="text-xs font-inter text-red-600 mb-2">{respondError.cancel}</p>}
+              <div className="flex gap-2">
+                <Button onClick={confirmCancel} disabled={cancelBusy} className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-inter">
+                  {cancelBusy ? "…" : "Ja, stornieren"}
+                </Button>
+                <Button variant="outline" onClick={() => setCancelTarget(null)} className="h-11 rounded-xl font-inter">
+                  Zurück
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

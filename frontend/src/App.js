@@ -13,6 +13,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import StudioPage from "./pages/StudioPage";
 import PublicStudioPage from "./pages/PublicStudioPage";
 import PublicStudioAccountPage from "./pages/PublicStudioAccountPage";
+import CustomerStudioPicker from "./pages/CustomerStudioPicker";
 import StudioOsLoginPage from "./pages/os/StudioOsLoginPage";
 import StudioOsDashboard from "./pages/os/StudioOsDashboard";
 import StudioOnboardingPage from "./pages/os/StudioOnboardingPage";
@@ -56,6 +57,7 @@ function AppRouter() {
         {/* New backend (StudioOS TS/Supabase): the actual public studio page going forward. */}
         <Route path="/t/:slug" element={<PublicStudioPage />} />
         <Route path="/t/:slug/konto" element={<PublicStudioAccountPage />} />
+        <Route path="/konto" element={<CustomerStudioPicker />} />
         <Route path="/os/login" element={<StudioOsLoginPage />} />
         <Route path="/os/dashboard" element={<StudioOsDashboard />} />
         <Route path="/os/onboarding" element={<StudioOnboardingPage />} />

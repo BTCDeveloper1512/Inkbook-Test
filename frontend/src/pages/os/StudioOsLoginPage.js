@@ -16,7 +16,6 @@ import { Label } from "../../components/ui/label";
 export default function StudioOsLoginPage() {
   const navigate = useNavigate();
   const [role, setRole] = useState(null); // null | "studio" | "customer"
-  const [studioLink, setStudioLink] = useState("");
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,19 +43,6 @@ export default function StudioOsLoginPage() {
     }
   }
 
-  // A customer's account lives at their studio's own link, so "Ich bin Kunde"
-  // can't just show a password form — it has to find out which studio first.
-  function goToCustomerAccount(e) {
-    e.preventDefault();
-    const raw = studioLink.trim();
-    const slug = (raw.match(/\/t\/([^/?#]+)/) || [])[1] || raw.replace(/^\/+|\/+$/g, "");
-    if (!slug) {
-      setError("Bitte den Link oder Namen deines Studios eingeben.");
-      return;
-    }
-    navigate(`/t/${slug}/konto`);
-  }
-
   if (!role) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-6">
@@ -81,6 +67,13 @@ export default function StudioOsLoginPage() {
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 onClick={() => {
+                  // Customers have their own entry point now: it authenticates
+                  // first and works out which studios they belong to, instead
+                  // of asking them to produce a link from memory.
+                  if (value === "customer") {
+                    navigate("/konto");
+                    return;
+                  }
                   setRole(value);
                   setError("");
                 }}
@@ -96,50 +89,6 @@ export default function StudioOsLoginPage() {
               </motion.button>
             ))}
           </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (role === "customer") {
-    return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-6">
-        <motion.div
-          initial={{ opacity: 0, x: 12 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-full max-w-sm bg-white rounded-3xl shadow-card p-8"
-        >
-          <StudioOSWordmark className="mb-6" />
-          <h1 className="font-playfair text-lg text-zinc-900 mb-1">Dein Konto</h1>
-          <p className="text-sm text-zinc-500 font-inter mb-5">
-            Dein Konto gehört zu deinem Studio. Gib den Link ein, über den du gebucht hast.
-          </p>
-          <form onSubmit={goToCustomerAccount} className="space-y-3">
-            <div>
-              <Label className="text-xs font-inter text-zinc-500 mb-1.5 block">Studio-Link oder -Kürzel</Label>
-              <Input
-                value={studioLink}
-                onChange={(e) => setStudioLink(e.target.value)}
-                placeholder="z.B. black-needle"
-                className="rounded-xl h-10"
-                autoFocus
-              />
-            </div>
-            {error && <p className="text-xs text-red-600 font-inter">{error}</p>}
-            <Button type="submit" className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter mt-2">
-              Weiter zum Konto
-            </Button>
-          </form>
-          <button
-            type="button"
-            onClick={() => {
-              setRole(null);
-              setError("");
-            }}
-            className="w-full text-center text-xs font-inter text-zinc-400 hover:text-zinc-600 mt-4"
-          >
-            Zurück
-          </button>
         </motion.div>
       </div>
     );
@@ -202,7 +151,7 @@ export default function StudioOsLoginPage() {
           }}
           className="w-full text-center text-xs font-inter text-zinc-400 hover:text-zinc-600 mt-4"
         >
-          Ich bin doch Kunde
+          Ich bin Kunde
         </button>
       </motion.div>
     </div>
