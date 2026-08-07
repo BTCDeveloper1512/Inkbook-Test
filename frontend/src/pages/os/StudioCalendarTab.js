@@ -99,7 +99,10 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   const columns = useMemo(
     () => [
       ...artists.map((a, i) => ({ id: a.id, name: a.name, color: artistColor(i), photo: a.photo_url })),
-      { id: UNASSIGNED, name: "Ohne Artist", color: "#a1a1aa", photo: null },
+      // Green, not grey: an appointment with nobody assigned yet is still a
+      // confirmed booking, and grey read as "inactive" next to the coloured
+      // artist columns.
+      { id: UNASSIGNED, name: "Ohne Artist", color: "#10b981", photo: null },
     ],
     [artists]
   );
