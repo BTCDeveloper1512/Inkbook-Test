@@ -406,6 +406,15 @@ export default function StudioOsDashboard() {
                             {b.title && <>{b.title} · </>}
                             {b.sessions?.[0]?.start_time && new Date(b.sessions[0].start_time).toLocaleString("de-DE")}
                           </div>
+                          {b.reference_images?.length > 0 && (
+                            <div className="flex gap-1.5 mt-2">
+                              {b.reference_images.map((url) => (
+                                <a key={url} href={url} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-100">
+                                  <img src={url} alt="Referenz" className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
                           <StatusBadge status={b.status} />

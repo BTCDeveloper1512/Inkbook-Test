@@ -127,6 +127,31 @@ export default function StudioBookingWidget({ slug, artists }) {
   const [time, setTime] = useState("10:00");
   const [title, setTitle] = useState("");
   const [motif, setMotif] = useState("");
+  const [referenceImages, setReferenceImages] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  async function handleReferenceUpload(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      for (const file of files) {
+        const form = new FormData();
+        form.append("file", file);
+        const { data } = await studioApi.post("/upload/reference-image", form);
+        setReferenceImages((prev) => [...prev, data.url]);
+      }
+    } catch {
+      // A failed reference-image upload shouldn't block the rest of the booking.
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  }
+
+  function removeReferenceImage(url) {
+    setReferenceImages((prev) => prev.filter((u) => u !== url));
+  }
 
   const [authMode, setAuthMode] = useState("login"); // "login" | "register"
   const [email, setEmail] = useState("");
@@ -169,6 +194,7 @@ export default function StudioBookingWidget({ slug, artists }) {
         title: title || undefined,
         motifDescription: motif || undefined,
         startTime: startTimeIso(),
+        referenceImages,
       });
       setResult(data);
       setStep(4);
@@ -263,6 +289,29 @@ export default function StudioBookingWidget({ slug, artists }) {
                 <div>
                   <Label className="text-xs font-inter text-zinc-500 mb-1.5 block">Beschreibung</Label>
                   <Textarea value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Erzähl uns kurz von deiner Idee..." className="rounded-xl min-h-[80px]" />
+                </div>
+                <div>
+                  <Label className="text-xs font-inter text-zinc-500 mb-1.5 block">Referenzbilder (optional)</Label>
+                  {referenceImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {referenceImages.map((url) => (
+                        <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden group">
+                          <img src={url} alt="Referenz" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeReferenceImage(url)}
+                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs"
+                          >
+                            Entfernen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="flex items-center justify-center gap-2 h-10 rounded-xl border border-dashed border-zinc-300 text-xs font-inter text-zinc-500 cursor-pointer hover:border-zinc-400 transition-colors">
+                    {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : "Bilder hochladen"}
+                    <input type="file" accept="image/*" multiple onChange={handleReferenceUpload} className="hidden" disabled={uploadingImage} />
+                  </label>
                 </div>
               </div>
             )}
