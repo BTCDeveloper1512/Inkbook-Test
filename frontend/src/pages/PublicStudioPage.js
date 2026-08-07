@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Instagram, MapPin, Loader2 } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
 import StudioBookingWidget from "../components/StudioBookingWidget";
+import StudioWaitlistCard from "../components/StudioWaitlistCard";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
 
 /**
@@ -116,8 +117,9 @@ export default function PublicStudioPage() {
           )}
         </div>
 
-        <div className="lg:sticky lg:top-10 self-start">
+        <div className="lg:sticky lg:top-10 self-start space-y-4">
           <StudioBookingWidget slug={slug} artists={artists} />
+          <StudioWaitlistCard slug={slug} />
         </div>
       </main>
     </div>

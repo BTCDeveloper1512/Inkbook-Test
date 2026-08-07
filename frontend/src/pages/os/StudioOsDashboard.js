@@ -16,6 +16,8 @@ import {
   Search,
   X,
   BadgeCheck,
+  Bell,
+  Trash2,
 } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
@@ -53,6 +55,7 @@ const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_sessio
 const NAV_ITEMS = [
   { key: "uebersicht", label: "Übersicht", icon: LayoutGrid },
   { key: "buchungen", label: "Buchungen", icon: BookOpen, badgeFrom: "anfrage" },
+  { key: "warteliste", label: "Warteliste", icon: Bell, badgeFrom: "waitlist" },
   { key: "artists", label: "Artists", icon: Users },
   { key: "profil", label: "Profil & Link", icon: Settings2 },
 ];
@@ -148,19 +151,22 @@ export default function StudioOsDashboard() {
   const [showArtistForm, setShowArtistForm] = useState(false);
   const [artistName, setArtistName] = useState("");
   const [savingArtist, setSavingArtist] = useState(false);
+  const [waitlist, setWaitlist] = useState([]);
 
   const load = useCallback(async () => {
     try {
-      const [me, studioRes, bookingsRes, artistsRes] = await Promise.all([
+      const [me, studioRes, bookingsRes, artistsRes, waitlistRes] = await Promise.all([
         studioOsAuth.me(),
         studioApi.get("/studios/me"),
         studioApi.get("/studios/me/bookings"),
         studioApi.get("/studios/me/artists"),
+        studioApi.get("/studios/me/waitlist"),
       ]);
       setStaff(me);
       setStudio(studioRes.data);
       setBookings(bookingsRes.data);
       setArtists(artistsRes.data);
+      setWaitlist(waitlistRes.data);
     } catch {
       navigate("/os/login");
     } finally {
@@ -178,8 +184,9 @@ export default function StudioOsDashboard() {
       anfrage: bookings.filter((b) => b.status === "anfrage").length,
       in_planung: bookings.filter((b) => b.status === "in_planung").length,
       abgeschlossen: bookings.filter((b) => b.status === "abgeschlossen").length,
+      waitlist: waitlist.length,
     }),
-    [bookings]
+    [bookings, waitlist]
   );
 
   const filteredBookings = useMemo(() => {
@@ -205,6 +212,11 @@ export default function StudioOsDashboard() {
     } finally {
       setSavingArtist(false);
     }
+  }
+
+  async function removeWaitlistEntry(entryId) {
+    setWaitlist((prev) => prev.filter((w) => w.id !== entryId));
+    await studioApi.delete(`/studios/me/waitlist/${entryId}`);
   }
 
   async function logout() {
@@ -347,6 +359,40 @@ export default function StudioOsDashboard() {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {tab === "warteliste" && (
+            <section>
+              <SectionHeader title="Warteliste" subtitle="Kunden, die auf einen freien Termin warten" />
+              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
+                {waitlist.length === 0 ? (
+                  <EmptyState heading="Niemand wartet aktuell" subtext="Einträge erscheinen hier, sobald Kunden sich auf deiner Studioseite eintragen." />
+                ) : (
+                  <div className="divide-y divide-zinc-100">
+                    {waitlist.map((w) => (
+                      <div key={w.id} className="flex items-center justify-between gap-4 p-4">
+                        <div className="min-w-0">
+                          <div className="font-inter font-medium text-sm text-zinc-900 truncate">{w.customers?.name || "—"}</div>
+                          <div className="text-xs font-inter text-zinc-500 mt-0.5 truncate">
+                            {w.desired_period}
+                            {w.motif_rough && <> · {w.motif_rough}</>}
+                            {w.artists?.name && <> · bei {w.artists.name}</>}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeWaitlistEntry(w.id)}
+                          className="p-2 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0"
+                          title="Entfernen"
+                        >
+                          <Trash2 size={14} className="text-zinc-400" />
+                        </button>
                       </div>
                     ))}
                   </div>
