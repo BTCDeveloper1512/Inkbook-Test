@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, LogOut } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, LogOut, CheckCircle, Clock } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
+import { SLOT_LABEL } from "../lib/daySlots";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -9,7 +11,10 @@ import { Label } from "../components/ui/label";
 
 const STATUS_LABEL = {
   anfrage: "Anfrage gesendet",
-  in_planung: "In Planung",
+  angebot_gesendet: "Angebot erhalten",
+  angenommen: "Zugesagt",
+  abgelehnt: "Abgelehnt",
+  in_planung: "Termin steht",
   laufend: "Läuft",
   abgeschlossen: "Abgeschlossen",
   abgebrochen: "Abgebrochen",
@@ -31,6 +36,21 @@ export default function PublicStudioAccountPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
+  const [responding, setResponding] = useState(null);
+  const [respondError, setRespondError] = useState({});
+
+  async function respondToOffer(offerId, accept) {
+    setResponding(offerId);
+    setRespondError((prev) => ({ ...prev, [offerId]: "" }));
+    try {
+      await studioApi.post(`/t/${slug}/offers/${offerId}/respond`, { accept });
+      await load();
+    } catch (err) {
+      setRespondError((prev) => ({ ...prev, [offerId]: err.response?.data?.error || "Konnte nicht gesendet werden." }));
+    } finally {
+      setResponding(null);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -132,18 +152,101 @@ export default function PublicStudioAccountPage() {
           <p className="text-sm text-zinc-400 font-inter">Noch keine Termine bei diesem Studio.</p>
         ) : (
           <div className="space-y-3">
-            {bookings.map((b) => (
-              <div key={b.id} className="bg-white rounded-2xl shadow-card p-5">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-inter font-medium text-sm text-zinc-900">{b.title || TYPE_LABEL[b.appointment_type]}</span>
-                  <span className="text-[11px] font-inter px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">{STATUS_LABEL[b.status]}</span>
-                </div>
-                <p className="text-xs font-inter text-zinc-500">{TYPE_LABEL[b.appointment_type]}</p>
-                {b.sessions?.[0]?.start_time && (
-                  <p className="text-xs font-inter text-zinc-400 mt-1">{new Date(b.sessions[0].start_time).toLocaleString("de-DE")}</p>
-                )}
-              </div>
-            ))}
+            <AnimatePresence initial={false}>
+              {bookings.map((b, i) => {
+                const openOffer = (b.offers || []).find((o) => o.status === "gesendet");
+                return (
+                  <motion.div
+                    key={b.id}
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 28, delay: i * 0.04 }}
+                    className="bg-white rounded-2xl shadow-card p-5"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-inter font-medium text-sm text-zinc-900">{b.title || TYPE_LABEL[b.appointment_type]}</span>
+                      <span
+                        className={`text-[11px] font-inter px-2 py-0.5 rounded-full ${
+                          openOffer ? "bg-violet-100 text-violet-700" : "bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        {STATUS_LABEL[b.status] || b.status}
+                      </span>
+                    </div>
+                    <p className="text-xs font-inter text-zinc-500">{TYPE_LABEL[b.appointment_type]}</p>
+
+                    {b.sessions?.[0]?.start_time ? (
+                      <p className="text-xs font-inter text-zinc-400 mt-1">
+                        {new Date(b.sessions[0].start_time).toLocaleString("de-DE", {
+                          weekday: "long",
+                          day: "2-digit",
+                          month: "long",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        Uhr
+                      </p>
+                    ) : (
+                      b.preferred_date && (
+                        <p className="text-xs font-inter text-zinc-400 mt-1">
+                          Wunsch: {new Date(b.preferred_date).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "long" })}
+                          {b.preferred_slot && <>, {SLOT_LABEL[b.preferred_slot]?.toLowerCase()}</>}
+                        </p>
+                      )
+                    )}
+
+                    {openOffer && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4"
+                      >
+                        <p className="text-xs font-inter font-semibold text-violet-800 mb-2">🎨 Studio-Angebot erhalten</p>
+                        <div className="grid grid-cols-2 gap-y-1.5 text-xs font-inter mb-3">
+                          <span className="text-violet-500">Termin</span>
+                          <span className="text-violet-900 font-medium">
+                            {new Date(openOffer.offer_date).toLocaleDateString("de-DE", { day: "2-digit", month: "long" })}
+                            {openOffer.offer_slot && <>, {SLOT_LABEL[openOffer.offer_slot]?.toLowerCase()}</>}
+                          </span>
+                          <span className="text-violet-500">Dauer</span>
+                          <span className="text-violet-900 font-medium">{openOffer.duration_minutes} Minuten</span>
+                          <span className="text-violet-500">Gesamtpreis</span>
+                          <span className="text-violet-900 font-medium">{Number(openOffer.price_total).toFixed(0)} €</span>
+                        </div>
+                        {openOffer.notes && <p className="text-xs font-inter text-violet-700 italic mb-3">"{openOffer.notes}"</p>}
+                        <p className="text-[11px] font-inter text-violet-600 mb-3 flex items-start gap-1">
+                          <Clock size={11} className="mt-0.5 flex-shrink-0" />
+                          Die genaue Uhrzeit legt das Studio fest, sobald du zusagst.
+                        </p>
+                        {respondError[openOffer.id] && (
+                          <p className="text-xs font-inter text-red-600 mb-2">{respondError[openOffer.id]}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => respondToOffer(openOffer.id, true)}
+                            disabled={responding === openOffer.id}
+                            className="flex-1 h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-inter text-xs"
+                          >
+                            <CheckCircle size={13} className="mr-1.5" />
+                            {responding === openOffer.id ? "…" : "Angebot annehmen"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => respondToOffer(openOffer.id, false)}
+                            disabled={responding === openOffer.id}
+                            className="h-10 rounded-xl font-inter text-xs"
+                          >
+                            Ablehnen
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         )}
       </main>

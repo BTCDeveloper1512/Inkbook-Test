@@ -17,18 +17,25 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { studioApi } from "../../lib/studioApi";
+import { SLOT_LABEL } from "../../lib/daySlots";
 import { studioOsAuth } from "../../lib/studioOsAuth";
 import { StudioOSWordmark } from "../../components/StudioOSLogo";
+import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import OfferModal from "./OfferModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import StudioProfileTab from "./StudioProfileTab";
 import StudioArtistsTab from "./StudioArtistsTab";
 import StudioCalendarTab from "./StudioCalendarTab";
 
-const STATUS_OPTIONS = ["anfrage", "in_planung", "laufend", "abgeschlossen", "abgebrochen"];
+const STATUS_OPTIONS = ["anfrage", "angebot_gesendet", "angenommen", "abgelehnt", "in_planung", "laufend", "abgeschlossen", "abgebrochen"];
 const STATUS_LABEL = {
   anfrage: "Anfrage",
+  angebot_gesendet: "Angebot läuft",
+  angenommen: "Angenommen",
+  abgelehnt: "Abgelehnt",
   in_planung: "In Planung",
   laufend: "Läuft",
   abgeschlossen: "Abgeschlossen",
@@ -38,6 +45,9 @@ const STATUS_LABEL = {
 // "needs attention", blue/violet for in-progress, green for done, red for cancelled.
 const STATUS_DOT = {
   anfrage: "bg-amber-500",
+  angebot_gesendet: "bg-violet-500",
+  angenommen: "bg-teal-500",
+  abgelehnt: "bg-zinc-400",
   in_planung: "bg-blue-500",
   laufend: "bg-violet-500",
   abgeschlossen: "bg-emerald-500",
@@ -45,6 +55,9 @@ const STATUS_DOT = {
 };
 const STATUS_BADGE = {
   anfrage: "bg-amber-50 text-amber-700 border-amber-200",
+  angebot_gesendet: "bg-violet-50 text-violet-700 border-violet-200",
+  angenommen: "bg-teal-50 text-teal-700 border-teal-200",
+  abgelehnt: "bg-zinc-100 text-zinc-500 border-zinc-200",
   in_planung: "bg-blue-50 text-blue-700 border-blue-200",
   laufend: "bg-violet-50 text-violet-700 border-violet-200",
   abgeschlossen: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -112,6 +125,17 @@ export default function StudioOsDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [waitlist, setWaitlist] = useState([]);
+  const [offerModal, setOfferModal] = useState(null);
+
+  function handleOfferSent(projectId, offer) {
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === projectId
+          ? { ...b, status: "angebot_gesendet", price_estimated: offer.price_total, offers: [offer, ...(b.offers || [])] }
+          : b
+      )
+    );
+  }
 
   const load = useCallback(async () => {
     try {
@@ -348,8 +372,22 @@ export default function StudioOsDashboard() {
                           </div>
                           <div className="text-xs font-inter text-zinc-500 mt-0.5 truncate">
                             {b.title && <>{b.title} · </>}
-                            {b.sessions?.[0]?.start_time && new Date(b.sessions[0].start_time).toLocaleString("de-DE")}
+                            {b.sessions?.[0]?.start_time
+                              ? new Date(b.sessions[0].start_time).toLocaleString("de-DE")
+                              : b.preferred_date && (
+                                  <>
+                                    Wunsch: {new Date(b.preferred_date).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "short" })}
+                                    {b.preferred_slot && <>, {SLOT_LABEL[b.preferred_slot]?.toLowerCase()}</>}
+                                    {b.preferred_time && <> ({b.preferred_time})</>}
+                                  </>
+                                )}
                           </div>
+                          {b.offers?.some((o) => o.status === "gesendet") && (
+                            <div className="text-[11px] font-inter text-violet-600 mt-1">
+                              Angebot läuft: {Number(b.offers.find((o) => o.status === "gesendet").price_total).toFixed(0)} € ·{" "}
+                              {b.offers.find((o) => o.status === "gesendet").duration_minutes} Min.
+                            </div>
+                          )}
                           {b.reference_images?.length > 0 && (
                             <div className="flex gap-1.5 mt-2">
                               {b.reference_images.map((url) => (
@@ -361,6 +399,15 @@ export default function StudioOsDashboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
+                          {["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) && (
+                            <Button
+                              size="sm"
+                              onClick={() => setOfferModal(b)}
+                              className="h-9 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-inter text-xs"
+                            >
+                              {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
+                            </Button>
+                          )}
                           <div className="relative">
                             <Input
                               type="number"
@@ -399,7 +446,7 @@ export default function StudioOsDashboard() {
 
           {tab === "kalender" && (
             <section>
-              <SectionHeader title="Kalender" subtitle="Anfragen aus der Warteschlange in den Tagesplan ziehen" />
+              <SectionHeader title="Kalender" subtitle="Zugesagte Angebote in den Tagesplan ziehen" />
               <div className="grid grid-cols-3 gap-3 mb-5">
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] px-4 py-3">
                   <div className="font-playfair text-xl text-zinc-900">{planningStats.today}</div>
@@ -414,7 +461,7 @@ export default function StudioOsDashboard() {
                   <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">Offene Anfragen</div>
                 </div>
               </div>
-              <StudioCalendarTab bookings={bookings} artists={artists} onBookingsChange={setBookings} />
+              <StudioCalendarTab bookings={bookings} artists={artists} studio={studio} onBookingsChange={setBookings} />
             </section>
           )}
 
@@ -467,6 +514,10 @@ export default function StudioOsDashboard() {
           )}
         </main>
       </div>
+
+      <AnimatePresence>
+        {offerModal && <OfferModal booking={offerModal} onClose={() => setOfferModal(null)} onSent={handleOfferSent} />}
+      </AnimatePresence>
     </div>
   );
 }

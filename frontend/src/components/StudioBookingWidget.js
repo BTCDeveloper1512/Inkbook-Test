@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Sparkles, Palette, Scissors } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
+import { DAY_SLOTS } from "../lib/daySlots";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -146,7 +147,8 @@ export default function StudioBookingWidget({ slug, artists }) {
   const [appointmentType, setAppointmentType] = useState(null);
   const [artistId, setArtistId] = useState("");
   const [date, setDate] = useState(null);
-  const [time, setTime] = useState("10:00");
+  const [slot, setSlot] = useState(null);
+  const [wishTime, setWishTime] = useState("");
   const [title, setTitle] = useState("");
   const [motif, setMotif] = useState("");
   const [referenceImages, setReferenceImages] = useState([]);
@@ -183,12 +185,12 @@ export default function StudioBookingWidget({ slug, artists }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
-  const startTimeIso = () => {
+  // Local YYYY-MM-DD — toISOString() would shift the date across midnight for
+  // anyone east of UTC, which is everyone using this.
+  const preferredDateStr = () => {
     if (!date) return null;
-    const [h, m] = time.split(":").map(Number);
-    const dt = new Date(date);
-    dt.setHours(h, m, 0, 0);
-    return dt.toISOString();
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
   async function submitBooking() {
@@ -215,7 +217,9 @@ export default function StudioBookingWidget({ slug, artists }) {
         artistId: artistId || undefined,
         title: title || undefined,
         motifDescription: motif || undefined,
-        startTime: startTimeIso(),
+        preferredDate: preferredDateStr(),
+        preferredSlot: slot,
+        preferredTime: wishTime || undefined,
         referenceImages,
       });
       setResult(data);
@@ -227,7 +231,7 @@ export default function StudioBookingWidget({ slug, artists }) {
     }
   }
 
-  const canContinueStep2 = date !== null;
+  const canContinueStep2 = date !== null && slot !== null;
   const canSubmitStep3 = email && password && (authMode === "login" || name);
 
   return (
@@ -293,7 +297,7 @@ export default function StudioBookingWidget({ slug, artists }) {
         {step === 2 && (
           <motion.div key="step2" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}>
             <h3 className="font-playfair text-xl text-zinc-900 mb-1">Wann passt es dir?</h3>
-            <p className="text-sm text-zinc-500 font-inter mb-5">Datum und Uhrzeit auswählen.</p>
+            <p className="text-sm text-zinc-500 font-inter mb-5">Tag und Tageszeit auswählen.</p>
 
             <MonthCalendar selectedDate={date} onSelectDate={setDate} slug={slug} artistId={artistId} />
             {artistId && (
@@ -304,9 +308,37 @@ export default function StudioBookingWidget({ slug, artists }) {
               </div>
             )}
 
+            <div className="mt-5">
+              <Label className="text-xs font-inter text-zinc-500 mb-2 block">Wann am Tag?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {DAY_SLOTS.map(({ value, label, hint }) => (
+                  <motion.button
+                    key={value}
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setSlot(value)}
+                    className={`px-3 py-2.5 rounded-2xl border text-left transition-colors ${
+                      slot === value ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 hover:border-zinc-400"
+                    }`}
+                  >
+                    <div className="font-inter text-sm font-medium">{label}</div>
+                    <div className={`font-inter text-[10px] ${slot === value ? "text-zinc-300" : "text-zinc-400"}`}>{hint}</div>
+                  </motion.button>
+                ))}
+              </div>
+              <p className="text-[11px] font-inter text-zinc-400 mt-2">
+                Die genaue Uhrzeit legt das Studio fest und schickt sie dir als Angebot.
+              </p>
+            </div>
+
             <div className="mt-4">
-              <Label className="text-xs font-inter text-zinc-500 mb-1.5 block">Uhrzeit</Label>
-              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-xl h-10" />
+              <Label className="text-xs font-inter text-zinc-500 mb-1.5 block">Wunschzeit (optional)</Label>
+              <Input
+                value={wishTime}
+                onChange={(e) => setWishTime(e.target.value)}
+                placeholder="z.B. eher früh, oder erst nach 16 Uhr"
+                className="rounded-xl h-10"
+              />
             </div>
 
             {appointmentType !== "consultation" && (
