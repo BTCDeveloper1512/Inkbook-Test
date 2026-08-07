@@ -41,6 +41,11 @@ const atMinutes = (day, minutes) => {
 };
 const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(Math.round(m) % 60).padStart(2, "0")}`;
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+/** Local YYYY-MM-DD — used as a column id in week view. */
+const dateKey = (d) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
 
 /**
  * Opening hours are free text per weekday ("10:00 - 19:00", "Geschlossen"),
@@ -75,9 +80,23 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  const [view, setView] = useState("tag"); // "tag" | "woche"
   const [dragView, setDragView] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState("");
+
+  const isWeek = view === "woche";
+
+  const weekDays = useMemo(() => {
+    const start = new Date(day);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // Monday first
+    start.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [day]);
 
   const gridRef = useRef(null);
   const dragRef = useRef(null);
@@ -88,24 +107,46 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   // rounded out to whole hours — this is what stops the calendar from being a
   // fixed 08–21 wall of empty rows.
   const { dayStartMin, dayEndMin } = useMemo(() => {
-    const hours = parseOpeningHours(studio?.opening_hours?.[WEEKDAY_KEYS[day.getDay()]]);
-    if (!hours) return { dayStartMin: 9 * 60, dayEndMin: 20 * 60 };
+    // In week view the grid has to cover every day it shows, so take the
+    // widest opening window across the week rather than one day's.
+    const days = isWeek ? weekDays : [day];
+    const windows = days.map((d) => parseOpeningHours(studio?.opening_hours?.[WEEKDAY_KEYS[d.getDay()]])).filter(Boolean);
+    if (!windows.length) return { dayStartMin: 9 * 60, dayEndMin: 20 * 60 };
     return {
-      dayStartMin: Math.floor(hours.from / 60) * 60,
-      dayEndMin: Math.ceil(hours.to / 60) * 60,
+      dayStartMin: Math.floor(Math.min(...windows.map((w) => w.from)) / 60) * 60,
+      dayEndMin: Math.ceil(Math.max(...windows.map((w) => w.to)) / 60) * 60,
     };
-  }, [studio, day]);
+  }, [studio, day, isWeek, weekDays]);
 
-  const columns = useMemo(
-    () => [
+  /**
+   * Columns are artists on a day, and days across a week. The drag code only
+   * ever asks "which column is the pointer over", so switching what a column
+   * means is enough to get a second view out of the same machinery.
+   */
+  const columns = useMemo(() => {
+    if (isWeek) {
+      return weekDays.map((d) => ({
+        id: dateKey(d),
+        name: d.toLocaleDateString("de-DE", { weekday: "short" }),
+        sub: d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
+        date: d,
+        color: "#10b981",
+        photo: null,
+      }));
+    }
+    return [
       ...artists.map((a, i) => ({ id: a.id, name: a.name, color: artistColor(i), photo: a.photo_url })),
       // Green, not grey: an appointment with nobody assigned yet is still a
       // confirmed booking, and grey read as "inactive" next to the coloured
       // artist columns.
       { id: UNASSIGNED, name: "Ohne Artist", color: "#10b981", photo: null },
-    ],
-    [artists]
-  );
+    ];
+  }, [artists, isWeek, weekDays]);
+
+  // Blocks keep their artist's colour in both views — in week view the column
+  // no longer carries it.
+  const colorForArtist = useMemo(() => Object.fromEntries(artists.map((a, i) => [a.id, artistColor(i)])), [artists]);
+  const blockColor = (s) => colorForArtist[s.artistId] || "#10b981";
 
   const allSessions = useMemo(
     () =>
@@ -133,9 +174,13 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   );
 
   const dayColumns = useMemo(() => {
-    const placed = allSessions.filter((s) => sameDay(s.raw.start_time, day));
+    const placed = isWeek
+      ? allSessions.filter((s) => weekDays.some((d) => sameDay(s.raw.start_time, d)))
+      : allSessions.filter((s) => sameDay(s.raw.start_time, day));
     return columns.map((col) => {
-      const items = placed.filter((s) => (s.artistId || UNASSIGNED) === col.id);
+      const items = isWeek
+        ? placed.filter((s) => dateKey(new Date(s.raw.start_time)) === col.id)
+        : placed.filter((s) => (s.artistId || UNASSIGNED) === col.id);
       const { lanes, laneCount } = laneLayout(items);
       const conflicts = new Set();
       for (const a of items) {
@@ -147,7 +192,7 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       }
       return { ...col, items, lanes, laneCount, conflicts };
     });
-  }, [allSessions, columns, day]);
+  }, [allSessions, columns, day, isWeek, weekDays]);
 
   const selected = useMemo(() => allSessions.find((s) => s.id === selectedId) || null, [allSessions, selectedId]);
 
@@ -180,8 +225,11 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
 
   async function applySchedule(item, preview) {
     const snapshot = bookingsRef.current;
-    const startTime = atMinutes(day, preview.startMin).toISOString();
-    const artistId = preview.columnId === UNASSIGNED ? null : preview.columnId;
+    // A column means a different thing per view: in week view dropping into
+    // one moves the appointment to that day and leaves the artist alone.
+    const targetDay = isWeek ? columns.find((c) => c.id === preview.columnId)?.date || day : day;
+    const artistId = isWeek ? item.artistId ?? null : preview.columnId === UNASSIGNED ? null : preview.columnId;
+    const startTime = atMinutes(targetDay, preview.startMin).toISOString();
 
     try {
       onBookingsChange((prev) =>
@@ -268,17 +316,25 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   const hours = [];
   for (let m = dayStartMin; m <= dayEndMin; m += 60) hours.push(m);
   const gridHeight = (dayEndMin - dayStartMin) * PX_PER_MIN;
-  const isToday = sameDay(day, new Date());
+  // "Is now on screen" — which in week view means anywhere in the week.
+  const isToday = isWeek ? weekDays.some((d) => sameDay(d, new Date())) : sameDay(day, new Date());
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
   function shiftDay(delta) {
     setDay((d) => {
       const next = new Date(d);
-      next.setDate(next.getDate() + delta);
+      next.setDate(next.getDate() + delta * (isWeek ? 7 : 1));
       return next;
     });
   }
+
+  const rangeLabel = isWeek
+    ? `${weekDays[0].toLocaleDateString("de-DE", { day: "2-digit", month: "short" })} – ${weekDays[6].toLocaleDateString("de-DE", {
+        day: "2-digit",
+        month: "short",
+      })}`
+    : day.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" });
 
   const previewColumnIndex = dragView?.preview ? columns.findIndex((c) => c.id === dragView.preview.columnId) : -1;
 
@@ -296,15 +352,13 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
             <div className="ml-2">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={day.toDateString()}
+                  key={`${view}-${day.toDateString()}`}
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.15 }}
                 >
-                  <div className="font-playfair text-base text-zinc-900">
-                    {day.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" })}
-                  </div>
+                  <div className="font-playfair text-base text-zinc-900">{rangeLabel}</div>
                   <div className="text-[11px] font-inter text-zinc-400">
                     {dayColumns.reduce((n, c) => n + c.items.length, 0)} Termine · {fmt(dayStartMin)}–{fmt(dayEndMin)}
                   </div>
@@ -312,20 +366,39 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
               </AnimatePresence>
             </div>
           </div>
-          {!isToday && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const d = new Date();
-                d.setHours(0, 0, 0, 0);
-                setDay(d);
-              }}
-              className="h-8 rounded-lg font-inter text-xs"
-            >
-              Heute
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isToday && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const d = new Date();
+                  d.setHours(0, 0, 0, 0);
+                  setDay(d);
+                }}
+                className="h-8 rounded-lg font-inter text-xs"
+              >
+                Heute
+              </Button>
+            )}
+            <div className="flex gap-0.5 bg-zinc-100 rounded-lg p-0.5">
+              {[
+                { id: "tag", label: "Tag" },
+                { id: "woche", label: "Woche" },
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setView(v.id)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-inter font-medium transition-colors ${
+                    view === v.id ? "bg-white shadow-soft text-zinc-900" : "text-zinc-500 hover:text-zinc-800"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <AnimatePresence>
@@ -346,13 +419,24 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
             <div className="w-12 flex-shrink-0" />
             {columns.map((c) => (
               <div key={c.id} className="flex-1 min-w-0 px-2 py-2.5 flex items-center gap-1.5 border-l border-zinc-100">
-                <span
-                  className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-inter font-semibold text-white overflow-hidden"
-                  style={{ backgroundColor: c.color }}
-                >
-                  {c.photo ? <img src={c.photo} alt={c.name} className="w-full h-full object-cover" /> : initials(c.name)}
-                </span>
-                <span className="text-[11px] font-inter text-zinc-600 truncate">{c.name}</span>
+                {isWeek ? (
+                  <span className="min-w-0">
+                    <span className={`text-[11px] font-inter ${sameDay(c.date, new Date()) ? "text-zinc-900 font-semibold" : "text-zinc-600"}`}>
+                      {c.name}
+                    </span>
+                    <span className="block text-[10px] font-inter text-zinc-400 leading-tight">{c.sub}</span>
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-inter font-semibold text-white overflow-hidden"
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {c.photo ? <img src={c.photo} alt={c.name} className="w-full h-full object-cover" /> : initials(c.name)}
+                    </span>
+                    <span className="text-[11px] font-inter text-zinc-600 truncate">{c.name}</span>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -409,8 +493,8 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
                         height: Math.max(22, s.duration * PX_PER_MIN - 2),
                         left: `calc(${colLeft}% + ${(lane * colWidth) / col.laneCount}% + 3px)`,
                         width: `calc(${colWidth / col.laneCount}% - 6px)`,
-                        backgroundColor: `${col.color}1a`,
-                        borderLeft: `3px solid ${col.color}`,
+                        backgroundColor: `${blockColor(s)}1a`,
+                        borderLeft: `3px solid ${blockColor(s)}`,
                       }}
                     >
                       <div className="text-[10px] font-inter font-medium text-zinc-900 truncate leading-tight">{s.customerName}</div>
