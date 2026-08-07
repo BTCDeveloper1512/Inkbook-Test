@@ -20,6 +20,8 @@ import {
   Trash2,
   CalendarDays,
   Clock,
+  Wallet,
+  TrendingUp,
 } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
@@ -200,6 +202,21 @@ export default function StudioOsDashboard() {
     [bookings, waitlist]
   );
 
+  const revenueStats = useMemo(() => {
+    const completed = bookings.filter((b) => b.status === "abgeschlossen" && b.price_final);
+    const revenue = completed.reduce((sum, b) => sum + Number(b.price_final || 0), 0);
+    const customerIds = new Set(bookings.map((b) => b.customer_id).filter(Boolean));
+    return {
+      revenue,
+      completedCount: completed.length,
+      avgPerBooking: completed.length ? revenue / completed.length : 0,
+      customerCount: customerIds.size,
+      history: [...completed].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8),
+    };
+  }, [bookings]);
+
+  const eur = (n) => n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
   const filteredBookings = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return bookings;
@@ -209,6 +226,11 @@ export default function StudioOsDashboard() {
   async function updateStatus(projectId, status) {
     setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, status } : b)));
     await studioApi.patch(`/studios/me/bookings/${projectId}`, { status });
+  }
+
+  async function updatePrice(projectId, priceFinal) {
+    setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, price_final: priceFinal } : b)));
+    await studioApi.patch(`/studios/me/bookings/${projectId}`, { priceFinal });
   }
 
   async function addArtist(e) {
@@ -360,12 +382,39 @@ export default function StudioOsDashboard() {
           {tab === "uebersicht" && (
             <section>
               <SectionHeader title="Übersicht" subtitle={`Angemeldet als ${staff?.name} · ${staff?.role}`} />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 <StatCard icon={BookOpen} value={stats.total} label="Buchungen" />
                 <StatCard icon={Calendar} value={stats.anfrage} label="Anfragen" />
                 <StatCard icon={LayoutGrid} value={stats.in_planung} label="In Planung" />
                 <StatCard icon={BadgeCheck} value={stats.abgeschlossen} label="Abgeschlossen" />
               </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                <StatCard icon={Wallet} value={eur(revenueStats.revenue)} label="Umsatz gesamt" />
+                <StatCard icon={Users} value={revenueStats.customerCount} label="Kunden gesamt" />
+                <StatCard icon={TrendingUp} value={eur(revenueStats.avgPerBooking)} label="Ø pro Buchung" />
+              </div>
+
+              <SectionHeader title="Umsatz-Historie" subtitle="Zuletzt abgeschlossene Buchungen" />
+              {revenueStats.history.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
+                  <EmptyState heading="Noch kein Umsatz erfasst" subtext="Trag bei abgeschlossenen Buchungen einen Preis ein, um Historie zu sehen." />
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] divide-y divide-zinc-100">
+                  {revenueStats.history.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-4 p-4">
+                      <div className="min-w-0">
+                        <div className="font-inter text-sm text-zinc-900 truncate">{b.customers?.name || "—"}</div>
+                        <div className="text-xs font-inter text-zinc-500 mt-0.5">
+                          {b.created_at && new Date(b.created_at).toLocaleDateString("de-DE")} · {TYPE_LABEL[b.appointment_type]}
+                        </div>
+                      </div>
+                      <div className="font-playfair text-sm text-zinc-900 flex-shrink-0">{eur(Number(b.price_final))}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -417,6 +466,20 @@ export default function StudioOsDashboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min="0"
+                              defaultValue={b.price_final ?? ""}
+                              onBlur={(e) => {
+                                const v = e.target.value === "" ? null : Number(e.target.value);
+                                if (v !== (b.price_final ?? null)) updatePrice(b.id, v);
+                              }}
+                              placeholder="Preis"
+                              className="w-20 h-9 rounded-lg text-xs pl-5"
+                            />
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-zinc-400">€</span>
+                          </div>
                           <StatusBadge status={b.status} />
                           <Select value={b.status} onValueChange={(v) => updateStatus(b.id, v)}>
                             <SelectTrigger className="w-[140px] rounded-lg h-9 text-xs font-inter">
