@@ -16,25 +16,34 @@ const APPOINTMENT_TYPES = [
 
 const LEVEL_DOT = { free: "bg-emerald-400", tight: "bg-amber-400", full: "bg-red-400" };
 
-function MonthCalendar({ selectedDate, onSelectDate, slug, artistId }) {
+function MonthCalendar({ selectedDate, onSelectDate, slug, artistId, onLoad }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [load, setLoad] = useState({});
 
+  // Loaded whether or not an artist is picked: how full the studio is that day
+  // is worth knowing before you've chosen who does the work.
   useEffect(() => {
-    if (!artistId) {
-      setLoad({});
-      return;
-    }
     let cancelled = false;
     studioApi
-      .get(`/t/${slug}/availability`, { params: { year: view.year, month: view.month + 1, artistId } })
-      .then(({ data }) => !cancelled && setLoad(data))
-      .catch(() => !cancelled && setLoad({}));
+      .get(`/t/${slug}/availability`, {
+        params: { year: view.year, month: view.month + 1, ...(artistId ? { artistId } : {}) },
+      })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setLoad(data);
+        onLoad?.(data);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoad({});
+        onLoad?.({});
+      });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, artistId, view.year, view.month]);
 
   const first = new Date(view.year, view.month, 1);
@@ -149,6 +158,7 @@ export default function StudioBookingWidget({ slug, artists }) {
   const [date, setDate] = useState(null);
   const [slot, setSlot] = useState(null);
   const [wishTime, setWishTime] = useState("");
+  const [dayLoad, setDayLoad] = useState({});
   const [title, setTitle] = useState("");
   const [motif, setMotif] = useState("");
   const [referenceImages, setReferenceImages] = useState([]);
@@ -231,6 +241,14 @@ export default function StudioBookingWidget({ slug, artists }) {
     }
   }
 
+  const selectedDayLoad = date ? dayLoad[preferredDateStr()] : null;
+
+  // Picking a new day can make the chosen band impossible; drop it rather
+  // than letting a request go out for a slot that's already gone.
+  useEffect(() => {
+    if (slot && selectedDayLoad?.slots?.[slot] && !selectedDayLoad.slots[slot].bookable) setSlot(null);
+  }, [selectedDayLoad, slot]);
+
   const canContinueStep2 = date !== null && slot !== null;
   const canSubmitStep3 = email && password && (authMode === "login" || name);
 
@@ -299,32 +317,43 @@ export default function StudioBookingWidget({ slug, artists }) {
             <h3 className="font-playfair text-xl text-zinc-900 mb-1">Wann passt es dir?</h3>
             <p className="text-sm text-zinc-500 font-inter mb-5">Tag und Tageszeit auswählen.</p>
 
-            <MonthCalendar selectedDate={date} onSelectDate={setDate} slug={slug} artistId={artistId} />
-            {artistId && (
-              <div className="flex items-center gap-3 mt-2 text-[10px] font-inter text-zinc-400">
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> frei</span>
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> eng</span>
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> ausgebucht</span>
-              </div>
-            )}
+            <MonthCalendar selectedDate={date} onSelectDate={setDate} slug={slug} artistId={artistId} onLoad={setDayLoad} />
+            <div className="flex items-center gap-3 mt-2 text-[10px] font-inter text-zinc-400">
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> frei</span>
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> eng</span>
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> ausgebucht</span>
+            </div>
 
             <div className="mt-5">
               <Label className="text-xs font-inter text-zinc-500 mb-2 block">Wann am Tag?</Label>
               <div className="grid grid-cols-2 gap-2">
-                {DAY_SLOTS.map(({ value, label, hint }) => (
-                  <motion.button
-                    key={value}
-                    type="button"
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setSlot(value)}
-                    className={`px-3 py-2.5 rounded-2xl border text-left transition-colors ${
-                      slot === value ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 hover:border-zinc-400"
-                    }`}
-                  >
-                    <div className="font-inter text-sm font-medium">{label}</div>
-                    <div className={`font-inter text-[10px] ${slot === value ? "text-zinc-300" : "text-zinc-400"}`}>{hint}</div>
-                  </motion.button>
-                ))}
+                {DAY_SLOTS.map(({ value, label, hint }) => {
+                  // A band with under an hour left isn't worth offering, so it
+                  // is shown as taken rather than letting someone ask for it.
+                  const info = selectedDayLoad?.slots?.[value];
+                  const voll = info ? !info.bookable : false;
+                  return (
+                    <motion.button
+                      key={value}
+                      type="button"
+                      disabled={voll}
+                      whileTap={voll ? undefined : { scale: 0.97 }}
+                      onClick={() => setSlot(value)}
+                      className={`px-3 py-2.5 rounded-2xl border text-left transition-colors ${
+                        voll
+                          ? "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                          : slot === value
+                          ? "border-zinc-900 bg-zinc-900 text-white"
+                          : "border-zinc-200 hover:border-zinc-400"
+                      }`}
+                    >
+                      <div className="font-inter text-sm font-medium">{label}</div>
+                      <div className={`font-inter text-[10px] ${slot === value ? "text-zinc-300" : voll ? "text-zinc-300" : "text-zinc-400"}`}>
+                        {voll ? "ausgebucht" : hint}
+                      </div>
+                    </motion.button>
+                  );
+                })}
               </div>
               <p className="text-[11px] font-inter text-zinc-400 mt-2">
                 Die genaue Uhrzeit legt das Studio fest und schickt sie dir als Angebot.
