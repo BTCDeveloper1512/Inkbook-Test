@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Loader2,
-  Plus,
   LogOut,
   LayoutGrid,
   BookOpen,
@@ -26,6 +25,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import StudioProfileTab from "./StudioProfileTab";
+import StudioArtistsTab from "./StudioArtistsTab";
 
 const STATUS_OPTIONS = ["anfrage", "in_planung", "laufend", "abgeschlossen", "abgebrochen"];
 const STATUS_LABEL = {
@@ -120,9 +120,6 @@ export default function StudioOsDashboard() {
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showArtistForm, setShowArtistForm] = useState(false);
-  const [artistName, setArtistName] = useState("");
-  const [savingArtist, setSavingArtist] = useState(false);
   const [waitlist, setWaitlist] = useState([]);
 
   const load = useCallback(async () => {
@@ -190,20 +187,6 @@ export default function StudioOsDashboard() {
   async function updatePrice(projectId, priceFinal) {
     setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, price_final: priceFinal } : b)));
     await studioApi.patch(`/studios/me/bookings/${projectId}`, { priceFinal });
-  }
-
-  async function addArtist(e) {
-    e.preventDefault();
-    if (!artistName.trim()) return;
-    setSavingArtist(true);
-    try {
-      const { data } = await studioApi.post("/studios/me/artists", { name: artistName, type: "resident" });
-      setArtists((prev) => [...prev, data]);
-      setArtistName("");
-      setShowArtistForm(false);
-    } finally {
-      setSavingArtist(false);
-    }
   }
 
   const sessionsByDate = useMemo(() => {
@@ -585,50 +568,8 @@ export default function StudioOsDashboard() {
 
           {tab === "artists" && (
             <section>
-              <SectionHeader
-                title="Artists"
-                subtitle="Dein Team, sichtbar auf der Buchungsseite"
-                action={
-                  <Button size="sm" onClick={() => setShowArtistForm((v) => !v)} className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter">
-                    <Plus size={14} className="mr-1.5" /> Artist
-                  </Button>
-                }
-              />
-
-              {showArtistForm && (
-                <form onSubmit={addArtist} className="flex gap-2 mb-4">
-                  <Input
-                    value={artistName}
-                    onChange={(e) => setArtistName(e.target.value)}
-                    placeholder="Name des Artists"
-                    className="rounded-xl h-10 bg-white"
-                    autoFocus
-                  />
-                  <Button type="submit" disabled={savingArtist} className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white flex-shrink-0">
-                    {savingArtist ? <Loader2 size={14} className="animate-spin" /> : "Speichern"}
-                  </Button>
-                </form>
-              )}
-
-              <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
-                {artists.length === 0 ? (
-                  <EmptyState heading="Noch keine Artists" subtext="Füge dein Team hinzu, damit Kunden gezielt buchen können." />
-                ) : (
-                  <div className="divide-y divide-zinc-100">
-                    {artists.map((a) => (
-                      <div key={a.id} className="flex items-center gap-3 p-4">
-                        <div className="w-10 h-10 rounded-full bg-zinc-200 flex-shrink-0 overflow-hidden">
-                          {a.photo_url && <img src={a.photo_url} alt={a.name} className="w-full h-full object-cover" />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-inter font-medium text-sm text-zinc-900">{a.name}</div>
-                          {a.bio && <div className="text-xs font-inter text-zinc-500 truncate">{a.bio}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <SectionHeader title="Artists" subtitle="Dein Team, sichtbar auf der Buchungsseite" />
+              <StudioArtistsTab artists={artists} bookings={bookings} onArtistsChange={setArtists} />
             </section>
           )}
 

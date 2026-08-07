@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Sparkles, Palette, Scissors } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
@@ -13,10 +13,28 @@ const APPOINTMENT_TYPES = [
   { value: "single_session", label: "Normaler Termin", desc: "Ein Tattoo, ein Termin", icon: Scissors },
 ];
 
-function MonthCalendar({ selectedDate, onSelectDate }) {
+const LEVEL_DOT = { free: "bg-emerald-400", tight: "bg-amber-400", full: "bg-red-400" };
+
+function MonthCalendar({ selectedDate, onSelectDate, slug, artistId }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const [load, setLoad] = useState({});
+
+  useEffect(() => {
+    if (!artistId) {
+      setLoad({});
+      return;
+    }
+    let cancelled = false;
+    studioApi
+      .get(`/t/${slug}/availability`, { params: { year: view.year, month: view.month + 1, artistId } })
+      .then(({ data }) => !cancelled && setLoad(data))
+      .catch(() => !cancelled && setLoad({}));
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, artistId, view.year, view.month]);
 
   const first = new Date(view.year, view.month, 1);
   const last = new Date(view.year, view.month + 1, 0);
@@ -58,16 +76,17 @@ function MonthCalendar({ selectedDate, onSelectDate }) {
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {days.map((day, i) =>
-          day === null ? (
-            <div key={i} />
-          ) : (
+        {days.map((day, i) => {
+          if (day === null) return <div key={i} />;
+          const iso = `${view.year}-${String(view.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const level = load[iso]?.level;
+          return (
             <button
               type="button"
               key={i}
               disabled={isPast(day)}
               onClick={() => onSelectDate(new Date(view.year, view.month, day))}
-              className={`aspect-square rounded-lg text-xs font-inter transition-colors ${
+              className={`relative aspect-square rounded-lg text-xs font-inter transition-colors ${
                 isSelected(day)
                   ? "bg-zinc-900 text-white font-semibold"
                   : isPast(day)
@@ -76,9 +95,12 @@ function MonthCalendar({ selectedDate, onSelectDate }) {
               }`}
             >
               {day}
+              {level && level !== "closed" && !isSelected(day) && (
+                <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${LEVEL_DOT[level]}`} />
+              )}
             </button>
-          )
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -273,7 +295,14 @@ export default function StudioBookingWidget({ slug, artists }) {
             <h3 className="font-playfair text-xl text-zinc-900 mb-1">Wann passt es dir?</h3>
             <p className="text-sm text-zinc-500 font-inter mb-5">Datum und Uhrzeit auswählen.</p>
 
-            <MonthCalendar selectedDate={date} onSelectDate={setDate} />
+            <MonthCalendar selectedDate={date} onSelectDate={setDate} slug={slug} artistId={artistId} />
+            {artistId && (
+              <div className="flex items-center gap-3 mt-2 text-[10px] font-inter text-zinc-400">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> frei</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> eng</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> ausgebucht</span>
+              </div>
+            )}
 
             <div className="mt-4">
               <Label className="text-xs font-inter text-zinc-500 mb-1.5 block">Uhrzeit</Label>

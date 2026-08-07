@@ -5,6 +5,7 @@ import { studioApi } from "../lib/studioApi";
 import StudioBookingWidget from "../components/StudioBookingWidget";
 import StudioWaitlistCard from "../components/StudioWaitlistCard";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
+import { artistColor, initials } from "../lib/artistColors";
 
 const DAY_LABELS = {
   monday: "Mo",
@@ -26,6 +27,7 @@ export default function PublicStudioPage() {
   const { slug } = useParams();
   const [studio, setStudio] = useState(null);
   const [artists, setArtists] = useState([]);
+  const [expandedArtist, setExpandedArtist] = useState(null);
   const [state, setState] = useState("loading"); // loading | ok | not-found
 
   useEffect(() => {
@@ -156,24 +158,57 @@ export default function PublicStudioPage() {
             <section className="bg-white rounded-3xl shadow-card p-6 sm:p-8">
               <h2 className="font-playfair text-lg text-zinc-900 mb-4">Unsere Artists</h2>
               <div className="grid sm:grid-cols-2 gap-4">
-                {artists.map((a) => (
-                  <div key={a.id} className="flex gap-3 items-start p-3 rounded-2xl border border-zinc-100">
-                    <div className="w-12 h-12 rounded-full bg-zinc-200 flex-shrink-0 overflow-hidden">
-                      {a.photo_url && <img src={a.photo_url} alt={a.name} className="w-full h-full object-cover" />}
+                {artists.map((a, i) => {
+                  const expanded = expandedArtist === a.id;
+                  return (
+                    <div key={a.id} className={`rounded-2xl border border-zinc-100 overflow-hidden ${expanded ? "sm:col-span-2" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedArtist(expanded ? null : a.id)}
+                        className="w-full flex gap-3 items-start p-3 text-left"
+                      >
+                        <div
+                          className="w-12 h-12 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-white font-inter font-semibold text-sm"
+                          style={{ backgroundColor: artistColor(i) }}
+                        >
+                          {a.photo_url ? <img src={a.photo_url} alt={a.name} className="w-full h-full object-cover" /> : initials(a.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-inter font-medium text-sm text-zinc-900">{a.name}</div>
+                          {a.bio && <p className="font-inter text-xs text-zinc-500 mt-0.5 line-clamp-2">{a.bio}</p>}
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {a.instagram_handle && (
+                              <span className="flex items-center gap-1 text-[11px] text-zinc-400 font-inter">
+                                <Instagram size={11} /> {a.instagram_handle}
+                              </span>
+                            )}
+                            {a.experience_years != null && (
+                              <span className="text-[11px] text-zinc-400 font-inter">{a.experience_years} Jahre Erfahrung</span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                      {a.portfolio_images?.length > 0 && !expanded && (
+                        <div className="flex gap-1 px-3 pb-3">
+                          {a.portfolio_images.slice(0, 4).map((url) => (
+                            <div key={url} className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {expanded && a.portfolio_images?.length > 0 && (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 p-3 pt-0">
+                          {a.portfolio_images.map((url) => (
+                            <div key={url} className="aspect-square rounded-lg overflow-hidden">
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <div className="font-inter font-medium text-sm text-zinc-900">{a.name}</div>
-                      {a.bio && <p className="font-inter text-xs text-zinc-500 mt-0.5 line-clamp-2">{a.bio}</p>}
-                      <div className="flex items-center gap-2 mt-1">
-                        {a.instagram_handle && (
-                          <span className="flex items-center gap-1 text-[11px] text-zinc-400 font-inter">
-                            <Instagram size={11} /> {a.instagram_handle}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}
