@@ -120,7 +120,19 @@ export default function StudioOsDashboard() {
   const [offerModal, setOfferModal] = useState(null);
   const [detailBooking, setDetailBooking] = useState(null);
 
-  function handleOfferSent(projectId, offer) {
+  /**
+   * A waitlist entry has no booking behind it, so one is created first and the
+   * normal offer dialog takes over. The entry is only removed once the offer
+   * actually goes out — backing out of the dialog shouldn't cost someone their
+   * place in the queue.
+   */
+  async function offerFromWaitlist(entry) {
+    const { data: project } = await studioApi.post(`/studios/me/waitlist/${entry.id}/project`);
+    setBookings((prev) => [project, ...prev]);
+    setOfferModal({ ...project, _waitlistEntryId: entry.id });
+  }
+
+  function handleOfferSent(projectId, offer, waitlistEntryId) {
     setBookings((prev) =>
       prev.map((b) =>
         b.id === projectId
@@ -128,6 +140,10 @@ export default function StudioOsDashboard() {
           : b
       )
     );
+    if (waitlistEntryId) {
+      setWaitlist((prev) => prev.filter((w) => w.id !== waitlistEntryId));
+      studioApi.delete(`/studios/me/waitlist/${waitlistEntryId}`).catch(() => {});
+    }
   }
 
   const load = useCallback(async () => {
@@ -504,14 +520,23 @@ export default function StudioOsDashboard() {
                             {w.artists?.name && <> · bei {w.artists.name}</>}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeWaitlistEntry(w.id)}
-                          className="p-2 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0"
-                          title="Entfernen"
-                        >
-                          <Trash2 size={14} className="text-zinc-400" />
-                        </button>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={() => offerFromWaitlist(w)}
+                            className="h-9 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs"
+                          >
+                            Termin anbieten
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => removeWaitlistEntry(w.id)}
+                            className="p-2 rounded-lg hover:bg-zinc-100 transition-colors"
+                            title="Entfernen"
+                          >
+                            <Trash2 size={14} className="text-zinc-400" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

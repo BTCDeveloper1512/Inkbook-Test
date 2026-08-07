@@ -53,6 +53,12 @@ export default function PublicStudioAccountPage() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancellationHours, setCancellationHours] = useState(48);
+  const [waitlist, setWaitlist] = useState([]);
+
+  async function leaveWaitlist(entryId) {
+    setWaitlist((prev) => prev.filter((w) => w.id !== entryId));
+    await studioApi.delete(`/t/${slug}/waitlist/${entryId}`);
+  }
 
   const unread = notifications.filter((n) => !n.read_at).length;
 
@@ -66,6 +72,10 @@ export default function PublicStudioAccountPage() {
       studioApi
         .get(`/t/${slug}`)
         .then(({ data }) => setCancellationHours(Number(data?.settings?.cancellationHours ?? 48)))
+        .catch(() => {});
+      studioApi
+        .get(`/t/${slug}/waitlist`)
+        .then(({ data }) => setWaitlist(data))
         .catch(() => {});
       setCustomer(me);
       setBookings(list);
@@ -305,6 +315,7 @@ export default function PublicStudioAccountPage() {
             { id: "heute", label: `Heute (${groups.heute.length})` },
             { id: "anstehend", label: `Anstehend (${groups.anstehend.length})` },
             { id: "vergangen", label: `Vergangen (${groups.vergangen.length})` },
+            { id: "warteliste", label: `Warteliste (${waitlist.length})` },
           ].map((t) => (
             <button
               key={t.id}
@@ -319,7 +330,51 @@ export default function PublicStudioAccountPage() {
           ))}
         </div>
 
-        {shown.length === 0 ? (
+        {tab === "warteliste" ? (
+          waitlist.length === 0 ? (
+            <p className="text-sm text-zinc-400 font-inter text-center py-12">
+              Du stehst auf keiner Warteliste. Trag dich auf der Studioseite ein, wenn dein Wunschzeitraum ausgebucht ist.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <AnimatePresence initial={false}>
+                {waitlist.map((w, i) => (
+                  <motion.div
+                    key={w.id}
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 28, delay: i * 0.04 }}
+                    className="bg-white rounded-2xl shadow-card p-5"
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <span className="font-inter font-medium text-sm text-zinc-900 truncate">{w.motif_rough || "Wartelisten-Platz"}</span>
+                      <span className="text-[11px] font-inter px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">Wartet</span>
+                    </div>
+                    <p className="text-xs font-inter text-zinc-500">
+                      Zeitraum: {w.desired_period || "flexibel"}
+                      {w.artists?.name && <> · bei {w.artists.name}</>}
+                    </p>
+                    <p className="text-xs font-inter text-zinc-400 mt-1">
+                      Eingetragen am {new Date(w.created_at).toLocaleDateString("de-DE", { day: "2-digit", month: "long" })}
+                    </p>
+                    <p className="text-[11px] font-inter text-zinc-400 mt-2">
+                      Wird ein Platz frei, schickt dir das Studio ein Angebot — du bekommst hier eine Benachrichtigung.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => leaveWaitlist(w.id)}
+                      className="text-[11px] font-inter text-zinc-400 hover:text-red-600 transition-colors mt-3"
+                    >
+                      Von der Warteliste nehmen
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )
+        ) : shown.length === 0 ? (
           <p className="text-sm text-zinc-400 font-inter text-center py-12">Hier ist gerade nichts.</p>
         ) : (
           <div className="space-y-3">

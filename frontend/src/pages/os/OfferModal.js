@@ -55,7 +55,7 @@ export default function OfferModal({ booking, onClose, onSent }) {
         offerStartsAt: startsAt.toISOString(),
         notes: form.notes || undefined,
       });
-      onSent(booking.id, data);
+      onSent(booking.id, data, booking._waitlistEntryId);
       if (data.clash) {
         window.alert(
           `Hinweis: Zu dieser Zeit steht bereits ein Termin (${new Date(data.clash.startTime).toLocaleString("de-DE")}). Das Angebot wurde trotzdem gesendet.`
