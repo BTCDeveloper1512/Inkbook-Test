@@ -187,7 +187,7 @@ export default function PublicStudioAccountPage() {
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-violet-600 text-white text-[9px] font-inter flex items-center justify-center"
+                    className="absolute top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-zinc-900 text-white text-[9px] font-inter flex items-center justify-center"
                   >
                     {unread}
                   </motion.span>
@@ -251,7 +251,7 @@ export default function PublicStudioAccountPage() {
                       <span className="font-inter font-medium text-sm text-zinc-900">{b.title || TYPE_LABEL[b.appointment_type]}</span>
                       <span
                         className={`text-[11px] font-inter px-2 py-0.5 rounded-full ${
-                          openOffer ? "bg-violet-100 text-violet-700" : "bg-zinc-100 text-zinc-600"
+                          openOffer ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
                         }`}
                       >
                         {STATUS_LABEL[b.status] || b.status}
@@ -283,12 +283,12 @@ export default function PublicStudioAccountPage() {
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
-                        className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4"
+                        className="mt-4 rounded-2xl border border-zinc-900/10 bg-zinc-50 p-4"
                       >
-                        <p className="text-xs font-inter font-semibold text-violet-800 mb-2">🎨 Studio-Angebot erhalten</p>
+                        <p className="text-xs font-inter font-semibold text-zinc-900 mb-2">🎨 Studio-Angebot erhalten</p>
                         <div className="grid grid-cols-2 gap-y-1.5 text-xs font-inter mb-3">
-                          <span className="text-violet-500">Termin</span>
-                          <span className="text-violet-900 font-medium">
+                          <span className="text-zinc-400">Termin</span>
+                          <span className="text-zinc-900 font-medium">
                             {openOffer.offer_starts_at ? (
                               <>
                                 {new Date(openOffer.offer_starts_at).toLocaleString("de-DE", {
@@ -307,13 +307,13 @@ export default function PublicStudioAccountPage() {
                               </>
                             )}
                           </span>
-                          <span className="text-violet-500">Dauer</span>
-                          <span className="text-violet-900 font-medium">{openOffer.duration_minutes} Minuten</span>
-                          <span className="text-violet-500">Gesamtpreis</span>
-                          <span className="text-violet-900 font-medium">{Number(openOffer.price_total).toFixed(0)} €</span>
+                          <span className="text-zinc-400">Dauer</span>
+                          <span className="text-zinc-900 font-medium">{openOffer.duration_minutes} Minuten</span>
+                          <span className="text-zinc-400">Gesamtpreis</span>
+                          <span className="text-zinc-900 font-medium">{Number(openOffer.price_total).toFixed(0)} €</span>
                         </div>
-                        {openOffer.notes && <p className="text-xs font-inter text-violet-700 italic mb-3">"{openOffer.notes}"</p>}
-                        <p className="text-[11px] font-inter text-violet-600 mb-3 flex items-start gap-1">
+                        {openOffer.notes && <p className="text-xs font-inter text-zinc-600 italic mb-3">"{openOffer.notes}"</p>}
+                        <p className="text-[11px] font-inter text-zinc-500 mb-3 flex items-start gap-1">
                           <Clock size={11} className="mt-0.5 flex-shrink-0" />
                           Mit deiner Zusage ist der Termin verbindlich gebucht.
                         </p>
@@ -324,7 +324,7 @@ export default function PublicStudioAccountPage() {
                           <Button
                             onClick={() => respondToOffer(openOffer.id, true)}
                             disabled={responding === openOffer.id}
-                            className="flex-1 h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-inter text-xs"
+                            className="flex-1 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs"
                           >
                             <CheckCircle size={13} className="mr-1.5" />
                             {responding === openOffer.id ? "…" : "Angebot annehmen"}

@@ -50,15 +50,17 @@ const STATUS_LABEL = {
   abgeschlossen: "Abgeschlossen",
   abgebrochen: "Abgebrochen",
 };
-// Same visual language as the old dashboard's statusColors map: amber for
-// "needs attention", blue/violet for in-progress, green for done, red for cancelled.
+// Amber means "waiting on the studio", black means "the studio's move is out
+// with the customer", the blue pair is the execution track, green done, red
+// cancelled. Black rather than a colour for the offer so it reads as part of
+// the same monochrome language as the rest of the app.
 const STATUS_DOT = {
   anfrage: "bg-amber-500",
-  angebot_gesendet: "bg-violet-500",
+  angebot_gesendet: "bg-zinc-900",
   angenommen: "bg-teal-500",
   abgelehnt: "bg-zinc-400",
   in_planung: "bg-blue-500",
-  laufend: "bg-violet-500",
+  laufend: "bg-blue-700",
   abgeschlossen: "bg-emerald-500",
   abgebrochen: "bg-red-500",
 };
@@ -389,7 +391,7 @@ export default function StudioOsDashboard() {
                                 )}
                           </div>
                           {b.offers?.some((o) => o.status === "gesendet") && (
-                            <div className="text-[11px] font-inter text-violet-600 mt-1">
+                            <div className="text-[11px] font-inter text-zinc-500 mt-1">
                               Angebot läuft: {Number(b.offers.find((o) => o.status === "gesendet").price_total).toFixed(0)} € ·{" "}
                               {b.offers.find((o) => o.status === "gesendet").duration_minutes} Min.
                             </div>
@@ -414,7 +416,7 @@ export default function StudioOsDashboard() {
                             <Button
                               size="sm"
                               onClick={() => setOfferModal(b)}
-                              className="h-9 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-inter text-xs"
+                              className="h-9 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs"
                             >
                               {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
                             </Button>
@@ -458,7 +460,7 @@ export default function StudioOsDashboard() {
 
           {tab === "kalender" && (
             <section>
-              <SectionHeader title="Kalender" subtitle="Zugesagte Angebote in den Tagesplan ziehen" />
+              <SectionHeader title="Kalender" subtitle="Termin anklicken für Aktionen, ziehen zum Umbuchen" />
               <div className="grid grid-cols-3 gap-3 mb-5">
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] px-4 py-3">
                   <div className="font-playfair text-xl text-zinc-900">{planningStats.today}</div>
@@ -479,6 +481,7 @@ export default function StudioOsDashboard() {
                 studio={studio}
                 onBookingsChange={setBookings}
                 onCreateOffer={setOfferModal}
+                onRefresh={refreshBookings}
               />
             </section>
           )}

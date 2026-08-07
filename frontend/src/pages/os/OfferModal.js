@@ -8,14 +8,15 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 
 /**
- * What the studio sends back to a request. Deliberately no clock time: the
- * customer agrees to a price, a duration and a rough time of day, and the
- * studio picks the exact slot afterwards by dragging it into the calendar.
+ * What the studio sends back to a request: price, duration and the actual
+ * appointment time. Accepting it books that time outright, so this form is
+ * the last point at which the studio can still choose it freely.
  *
  * Visual language (blurred backdrop, spring panel) is lifted from the old
  * dashboard's offer modal so the two halves of the product don't feel like
  * they were built by different people.
  */
+
 /** Sensible clock time for a band, so the studio nudges rather than types. */
 function slotDefaultTime(slot) {
   return `${String(slotStartHour(slot || "nachmittags")).padStart(2, "0")}:00`;
@@ -98,9 +99,9 @@ export default function OfferModal({ booking, onClose, onSent }) {
         </p>
 
         {(booking.preferred_date || booking.preferred_time) && (
-          <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl bg-violet-50 border border-violet-100 mb-4">
-            <Tag size={12} className="text-violet-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-violet-700 font-inter">
+          <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 mb-4">
+            <Tag size={12} className="text-zinc-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-zinc-600 font-inter">
               Wunsch des Kunden:{" "}
               {booking.preferred_date && new Date(booking.preferred_date).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "long" })}
               {booking.preferred_slot && <>, {SLOT_LABEL[booking.preferred_slot]?.toLowerCase()}</>}

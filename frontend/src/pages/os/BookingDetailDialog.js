@@ -18,7 +18,7 @@ const OFFER_STATUS_LABEL = {
   verfallen: "ersetzt",
 };
 const OFFER_STATUS_CLS = {
-  gesendet: "bg-violet-100 text-violet-700",
+  gesendet: "bg-zinc-900 text-white",
   angenommen: "bg-teal-100 text-teal-700",
   abgelehnt: "bg-red-100 text-red-700",
   verfallen: "bg-zinc-100 text-zinc-500",
@@ -191,7 +191,7 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                 onClose();
                 onCreateOffer(b);
               }}
-              className="w-full h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-inter text-sm transition-colors"
+              className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-sm transition-colors"
             >
               {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
             </button>

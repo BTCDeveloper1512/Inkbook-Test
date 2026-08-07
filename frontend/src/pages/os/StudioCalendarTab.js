@@ -1,18 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock, AlertTriangle, Inbox, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, Inbox } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { artistColor, initials } from "../../lib/artistColors";
 import { SLOT_LABEL } from "../../lib/daySlots";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import SessionDialog from "./SessionDialog";
 
 /**
- * Drag-to-schedule day planner. The rail holds bookings the customer has
- * already agreed to — an accepted offer with no session yet — and the grid is
- * one column per artist. Dropping a card is what brings the session into
- * existence, which is why nothing reaches this queue before the customer has
- * said yes: the calendar is a plan, not a wish list.
+ * The studio's day planner: one column per artist, and a rail listing requests
+ * that still need an offer. Appointments arrive here on their own — accepting
+ * an offer books its time — so dragging a block is rescheduling, not first
+ * placement, and clicking one opens the actions for a booked slot.
  *
  * Drag is hand-rolled on pointer events rather than a DnD library: snapping to
  * a time grid, a live time readout and edge-resize on the same blocks are more
@@ -27,13 +26,6 @@ const GRID_MAX_HEIGHT = 560;
 
 const WEEKDAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-const SESSION_STATUS_LABEL = {
-  geplant: "Geplant",
-  bestaetigt: "Bestätigt",
-  abgeschlossen: "Abgeschlossen",
-  no_show: "No-Show",
-  storniert: "Storniert",
-};
 const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_session: "Termin" };
 
 const snap = (m) => Math.round(m / SNAP_MIN) * SNAP_MIN;
@@ -77,7 +69,7 @@ function laneLayout(sessions) {
   return { lanes, laneCount: Math.max(1, laneEnds.length) };
 }
 
-export default function StudioCalendarTab({ bookings, artists, studio, onBookingsChange, onCreateOffer }) {
+export default function StudioCalendarTab({ bookings, artists, studio, onBookingsChange, onCreateOffer, onRefresh }) {
   const [day, setDay] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -85,7 +77,6 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   });
   const [dragView, setDragView] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [durationDraft, setDurationDraft] = useState("");
   const [error, setError] = useState("");
 
   const gridRef = useRef(null);
@@ -257,7 +248,6 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       if (!drag) return;
       if (!drag.moved) {
         setSelectedId(drag.item.id);
-        setDurationDraft("");
         return;
       }
       if (drag.preview) applySchedule(drag.item, drag.preview);
@@ -271,20 +261,6 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragActive, computePreview, day]);
-
-  async function updateSessionStatus(item, patch) {
-    onBookingsChange((prev) =>
-      prev.map((b) =>
-        b.id === item.project.id
-          ? { ...b, sessions: (b.sessions || []).map((s) => (s.id === item.id ? { ...s, ...patch } : s)) }
-          : b
-      )
-    );
-    const body = {};
-    if (patch.status) body.status = patch.status;
-    if (patch.actual_duration_minutes) body.actualDurationMinutes = patch.actual_duration_minutes;
-    await studioApi.patch(`/studios/me/sessions/${item.id}`, body);
-  }
 
   const hours = [];
   for (let m = dayStartMin; m <= dayEndMin; m += 60) hours.push(m);
@@ -472,58 +448,6 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       </div>
 
       <div className="lg:w-60 flex-shrink-0 space-y-3">
-        <AnimatePresence>
-          {selected && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-3"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="min-w-0">
-                  <div className="font-inter text-sm text-zinc-900 truncate">{selected.customerName}</div>
-                  <div className="text-[10px] font-inter text-zinc-400">
-                    {TYPE_LABEL[selected.project.appointment_type]} · {SESSION_STATUS_LABEL[selected.raw.status]}
-                  </div>
-                </div>
-                <button type="button" onClick={() => setSelectedId(null)} className="p-1 rounded hover:bg-zinc-100">
-                  <X size={12} className="text-zinc-400" />
-                </button>
-              </div>
-              <div className="text-[11px] font-inter text-zinc-500 mb-2 flex items-center gap-1">
-                <Clock size={11} /> {fmt(selected.startMin)}–{fmt(selected.startMin + selected.duration)} · {selected.duration} Min.
-              </div>
-              {selected.raw.status !== "abgeschlossen" && (
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={durationDraft}
-                    onChange={(e) => setDurationDraft(e.target.value)}
-                    placeholder="Ist-Dauer"
-                    className="h-8 rounded-lg text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      const minutes = parseInt(durationDraft, 10);
-                      updateSessionStatus(selected, {
-                        status: "abgeschlossen",
-                        ...(minutes > 0 ? { actual_duration_minutes: minutes } : {}),
-                      });
-                      setDurationDraft("");
-                    }}
-                    className="h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs flex-shrink-0"
-                  >
-                    Fertig
-                  </Button>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <Inbox size={13} className="text-zinc-400" />
@@ -573,6 +497,17 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
           </p>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selected && (
+          <SessionDialog
+            item={selected}
+            artistName={columns.find((c) => c.id === (selected.artistId || UNASSIGNED))?.name || "Ohne Artist"}
+            onClose={() => setSelectedId(null)}
+            onChanged={onRefresh}
+          />
+        )}
+      </AnimatePresence>
 
       {dragView?.moved && !dragView.preview && (
         <div
