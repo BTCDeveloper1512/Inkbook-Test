@@ -14,18 +14,17 @@ import {
   Bell,
   Trash2,
   CalendarDays,
-  Clock,
   Wallet,
   TrendingUp,
 } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
 import { StudioOSWordmark } from "../../components/StudioOSLogo";
-import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import StudioProfileTab from "./StudioProfileTab";
 import StudioArtistsTab from "./StudioArtistsTab";
+import StudioCalendarTab from "./StudioCalendarTab";
 
 const STATUS_OPTIONS = ["anfrage", "in_planung", "laufend", "abgeschlossen", "abgebrochen"];
 const STATUS_LABEL = {
@@ -52,14 +51,6 @@ const STATUS_BADGE = {
   abgebrochen: "bg-red-50 text-red-700 border-red-200",
 };
 const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_session: "Termin" };
-
-const SESSION_STATUS_LABEL = {
-  geplant: "Geplant",
-  bestaetigt: "Bestätigt",
-  abgeschlossen: "Abgeschlossen",
-  no_show: "No-Show",
-  storniert: "Storniert",
-};
 
 const NAV_ITEMS = [
   { key: "uebersicht", label: "Übersicht", icon: LayoutGrid },
@@ -189,20 +180,6 @@ export default function StudioOsDashboard() {
     await studioApi.patch(`/studios/me/bookings/${projectId}`, { priceFinal });
   }
 
-  const sessionsByDate = useMemo(() => {
-    const flat = bookings.flatMap((b) =>
-      (b.sessions || []).map((s) => ({ ...s, project: b }))
-    );
-    flat.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-    const groups = new Map();
-    for (const s of flat) {
-      const dateKey = new Date(s.start_time).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "long" });
-      if (!groups.has(dateKey)) groups.set(dateKey, []);
-      groups.get(dateKey).push(s);
-    }
-    return groups;
-  }, [bookings]);
-
   const planningStats = useMemo(() => {
     const now = new Date();
     const todayKey = now.toDateString();
@@ -216,30 +193,6 @@ export default function StudioOsDashboard() {
       }).length,
     };
   }, [bookings]);
-
-  const [durationDraft, setDurationDraft] = useState({}); // sessionId -> string
-
-  async function updateSession(sessionId, patch) {
-    setBookings((prev) =>
-      prev.map((b) => ({
-        ...b,
-        sessions: (b.sessions || []).map((s) => (s.id === sessionId ? { ...s, ...patch } : s)),
-      }))
-    );
-    const body = {};
-    if (patch.status) body.status = patch.status;
-    if (patch.actual_duration_minutes) body.actualDurationMinutes = patch.actual_duration_minutes;
-    await studioApi.patch(`/studios/me/sessions/${sessionId}`, body);
-  }
-
-  function completeSession(sessionId) {
-    const minutes = parseInt(durationDraft[sessionId], 10);
-    updateSession(sessionId, {
-      status: "abgeschlossen",
-      ...(minutes > 0 ? { actual_duration_minutes: minutes } : {}),
-    });
-    setDurationDraft((prev) => ({ ...prev, [sessionId]: undefined }));
-  }
 
   async function removeWaitlistEntry(entryId) {
     setWaitlist((prev) => prev.filter((w) => w.id !== entryId));
@@ -446,7 +399,7 @@ export default function StudioOsDashboard() {
 
           {tab === "kalender" && (
             <section>
-              <SectionHeader title="Kalender" subtitle="Deine anstehenden Termine, nach Tag sortiert" />
+              <SectionHeader title="Kalender" subtitle="Anfragen aus der Warteschlange in den Tagesplan ziehen" />
               <div className="grid grid-cols-3 gap-3 mb-5">
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] px-4 py-3">
                   <div className="font-playfair text-xl text-zinc-900">{planningStats.today}</div>
@@ -461,74 +414,7 @@ export default function StudioOsDashboard() {
                   <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">Offene Anfragen</div>
                 </div>
               </div>
-              {sessionsByDate.size === 0 ? (
-                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
-                  <EmptyState heading="Noch keine Termine" subtext="Sobald Buchungen reinkommen, erscheinen sie hier chronologisch." />
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {Array.from(sessionsByDate.entries()).map(([date, sessions]) => (
-                    <div key={date}>
-                      <div className="text-xs font-inter font-medium text-zinc-500 uppercase tracking-wide mb-2">{date}</div>
-                      <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] divide-y divide-zinc-100">
-                        {sessions.map((s) => (
-                          <div key={s.id} className="flex items-center justify-between gap-4 p-4">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex items-center gap-1.5 text-sm font-inter font-medium text-zinc-900 flex-shrink-0 w-14">
-                                <Clock size={12} className="text-zinc-400" />
-                                {new Date(s.start_time).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-inter text-sm text-zinc-900 truncate">
-                                  {s.project.customers?.name || "—"}
-                                  <span className="ml-2 text-[10px] font-inter uppercase tracking-wide text-zinc-400">
-                                    {TYPE_LABEL[s.project.appointment_type]}
-                                  </span>
-                                </div>
-                                <div className="text-xs font-inter text-zinc-500 mt-0.5">
-                                  {SESSION_STATUS_LABEL[s.status]}
-                                  {s.estimated_duration_minutes && <> · geschätzt {s.estimated_duration_minutes} Min.</>}
-                                  {s.actual_duration_minutes && <> · tatsächlich {s.actual_duration_minutes} Min.</>}
-                                </div>
-                              </div>
-                            </div>
-
-                            {s.status !== "abgeschlossen" && s.status !== "storniert" && s.status !== "no_show" && (
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                {durationDraft[s.id] !== undefined ? (
-                                  <>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      value={durationDraft[s.id] || ""}
-                                      onChange={(e) => setDurationDraft((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                                      placeholder="Min."
-                                      className="w-20 h-8 rounded-lg text-xs"
-                                      autoFocus
-                                    />
-                                    <Button size="sm" onClick={() => completeSession(s.id)} className="h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs">
-                                      Fertig
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setDurationDraft((prev) => ({ ...prev, [s.id]: "" }))}
-                                    className="h-8 rounded-lg font-inter text-xs"
-                                  >
-                                    Abschließen
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <StudioCalendarTab bookings={bookings} artists={artists} onBookingsChange={setBookings} />
             </section>
           )}
 
