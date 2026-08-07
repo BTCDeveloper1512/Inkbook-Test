@@ -346,9 +346,12 @@ export default function StudioBookingWidget({ slug, artists }) {
               <CheckCircle2 size={26} className="text-white" />
             </div>
             <h3 className="font-playfair text-xl text-zinc-900 mb-1">Anfrage gesendet</h3>
-            <p className="text-sm text-zinc-500 font-inter">
+            <p className="text-sm text-zinc-500 font-inter mb-4">
               Das Studio meldet sich bei dir, sobald der Termin bestätigt ist.
             </p>
+            <a href={`/t/${slug}/konto`} className="text-xs font-inter text-zinc-500 underline hover:text-zinc-800">
+              Alle meine Termine ansehen
+            </a>
           </motion.div>
         )}
       </AnimatePresence>

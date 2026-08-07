@@ -12,6 +12,9 @@ import RegisterPage from "./pages/RegisterPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import StudioPage from "./pages/StudioPage";
 import PublicStudioPage from "./pages/PublicStudioPage";
+import PublicStudioAccountPage from "./pages/PublicStudioAccountPage";
+import StudioOsLoginPage from "./pages/os/StudioOsLoginPage";
+import StudioOsDashboard from "./pages/os/StudioOsDashboard";
 import NotFoundPage from "./pages/NotFoundPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerSettingsPage from "./pages/CustomerSettingsPage";
@@ -51,6 +54,9 @@ function AppRouter() {
         <Route path="/s/:slug" element={<StudioPage />} />
         {/* New backend (StudioOS TS/Supabase): the actual public studio page going forward. */}
         <Route path="/t/:slug" element={<PublicStudioPage />} />
+        <Route path="/t/:slug/konto" element={<PublicStudioAccountPage />} />
+        <Route path="/os/login" element={<StudioOsLoginPage />} />
+        <Route path="/os/dashboard" element={<StudioOsDashboard />} />
         <Route path="/impressum"     element={<ImpressumPage />} />
         <Route path="/datenschutz"   element={<DatenschutzPage />} />
         <Route path="/agb"           element={<AGBPage />} />
