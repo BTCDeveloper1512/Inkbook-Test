@@ -121,29 +121,36 @@ export default function StudioOsDashboard() {
   const [detailBooking, setDetailBooking] = useState(null);
 
   /**
-   * A waitlist entry has no booking behind it, so one is created first and the
-   * normal offer dialog takes over. The entry is only removed once the offer
-   * actually goes out — backing out of the dialog shouldn't cost someone their
-   * place in the queue.
+   * Someone on the waitlist has no booking yet, and shouldn't get one until
+   * they've actually been offered something — otherwise they'd appear in the
+   * bookings list and the calendar's open-requests rail while still just
+   * waiting. The dialog opens against the entry; the booking is created
+   * server-side together with the offer.
    */
-  async function offerFromWaitlist(entry) {
-    const { data: project } = await studioApi.post(`/studios/me/waitlist/${entry.id}/project`);
-    setBookings((prev) => [project, ...prev]);
-    setOfferModal({ ...project, _waitlistEntryId: entry.id });
+  function offerFromWaitlist(entry) {
+    setOfferModal({
+      id: null,
+      _waitlistEntryId: entry.id,
+      title: entry.motif_rough,
+      preferred_time: entry.desired_period,
+      customers: entry.customers,
+      offers: [],
+    });
   }
 
-  function handleOfferSent(projectId, offer, waitlistEntryId) {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === projectId
-          ? { ...b, status: "angebot_gesendet", price_estimated: offer.price_total, offers: [offer, ...(b.offers || [])] }
-          : b
-      )
-    );
-    if (waitlistEntryId) {
-      setWaitlist((prev) => prev.filter((w) => w.id !== waitlistEntryId));
-      studioApi.delete(`/studios/me/waitlist/${waitlistEntryId}`).catch(() => {});
+  function handleOfferSent(projectId, offer, waitlistEntryId, createdProject) {
+    if (createdProject) {
+      setBookings((prev) => [{ ...createdProject, offers: [offer], sessions: [] }, ...prev]);
+    } else {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === projectId
+            ? { ...b, status: "angebot_gesendet", price_estimated: offer.price_total, offers: [offer, ...(b.offers || [])] }
+            : b
+        )
+      );
     }
+    if (waitlistEntryId) setWaitlist((prev) => prev.filter((w) => w.id !== waitlistEntryId));
   }
 
   const load = useCallback(async () => {

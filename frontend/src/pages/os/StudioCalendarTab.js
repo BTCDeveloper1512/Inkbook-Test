@@ -144,9 +144,15 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   }, [artists, isWeek, weekDays]);
 
   // Blocks keep their artist's colour in both views — in week view the column
-  // no longer carries it.
+  // no longer carries it. Status wins over the artist, though: what a slot is
+  // doing to the day matters more than who was going to work it.
   const colorForArtist = useMemo(() => Object.fromEntries(artists.map((a, i) => [a.id, artistColor(i)])), [artists]);
-  const blockColor = (s) => colorForArtist[s.artistId] || "#10b981";
+  const blockColor = (s) => {
+    if (s.raw.status === "storniert" || s.raw.status === "no_show") return "#ef4444";
+    if (s.raw.status === "abgeschlossen") return "#a1a1aa";
+    return colorForArtist[s.artistId] || "#10b981";
+  };
+  const isSettled = (s) => ["storniert", "no_show", "abgeschlossen"].includes(s.raw.status);
 
   const allSessions = useMemo(
     () =>
@@ -182,9 +188,11 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
         ? placed.filter((s) => dateKey(new Date(s.raw.start_time)) === col.id)
         : placed.filter((s) => (s.artistId || UNASSIGNED) === col.id);
       const { lanes, laneCount } = laneLayout(items);
+      // A cancelled or finished slot occupies nobody, so it can't clash.
+      const live = items.filter((s) => !isSettled(s));
       const conflicts = new Set();
-      for (const a of items) {
-        for (const b of items) {
+      for (const a of live) {
+        for (const b of live) {
           if (a.id !== b.id && a.startMin < b.startMin + b.duration && b.startMin < a.startMin + a.duration) {
             conflicts.add(a.id);
           }
@@ -497,7 +505,17 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
                         borderLeft: `3px solid ${blockColor(s)}`,
                       }}
                     >
-                      <div className="text-[10px] font-inter font-medium text-zinc-900 truncate leading-tight">{s.customerName}</div>
+                      <div
+                        className={`text-[10px] font-inter font-medium truncate leading-tight ${
+                          s.raw.status === "storniert" || s.raw.status === "no_show"
+                            ? "text-zinc-500 line-through"
+                            : s.raw.status === "abgeschlossen"
+                            ? "text-zinc-500"
+                            : "text-zinc-900"
+                        }`}
+                      >
+                        {s.customerName}
+                      </div>
                       <div className="text-[9px] font-inter text-zinc-500 truncate">
                         {fmt(s.startMin)}–{fmt(s.startMin + s.duration)}
                       </div>

@@ -47,15 +47,27 @@ export default function OfferModal({ booking, onClose, onSent }) {
       // Composed here so the clock time means what was typed, in this browser's
       // zone, rather than being reassembled server-side from date + time.
       const startsAt = new Date(`${form.offerDate}T${form.offerTime}:00`);
-      const { data } = await studioApi.post(`/studios/me/bookings/${booking.id}/offer`, {
+      const payload = {
         priceTotal: Number(form.priceTotal),
         durationMinutes: Math.round(Number(form.durationHours) * 60),
         offerDate: form.offerDate,
         offerSlot: form.offerSlot,
         offerStartsAt: startsAt.toISOString(),
         notes: form.notes || undefined,
-      });
-      onSent(booking.id, data, booking._waitlistEntryId);
+      };
+
+      // For someone on the waitlist there is no booking yet — it comes into
+      // existence together with the offer, so nothing shows up in the bookings
+      // list until the studio has actually offered something.
+      if (booking._waitlistEntryId) {
+        const { data } = await studioApi.post(`/studios/me/waitlist/${booking._waitlistEntryId}/offer`, payload);
+        onSent(null, data.offer, booking._waitlistEntryId, data.project);
+        onClose();
+        return;
+      }
+
+      const { data } = await studioApi.post(`/studios/me/bookings/${booking.id}/offer`, payload);
+      onSent(booking.id, data);
       if (data.clash) {
         window.alert(
           `Hinweis: Zu dieser Zeit steht bereits ein Termin (${new Date(data.clash.startTime).toLocaleString("de-DE")}). Das Angebot wurde trotzdem gesendet.`
