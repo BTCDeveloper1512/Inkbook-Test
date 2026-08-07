@@ -152,7 +152,7 @@ function CopyLinkCard({ slug }) {
 
 export default function StudioOsDashboard() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("uebersicht");
+  const [tab, setTab] = useState("kalender");
   const [staff, setStaff] = useState(null);
   const [studio, setStudio] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -237,6 +237,20 @@ export default function StudioOsDashboard() {
       groups.get(dateKey).push(s);
     }
     return groups;
+  }, [bookings]);
+
+  const planningStats = useMemo(() => {
+    const now = new Date();
+    const todayKey = now.toDateString();
+    const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const flat = bookings.flatMap((b) => (b.sessions || []).map((s) => s));
+    return {
+      today: flat.filter((s) => new Date(s.start_time).toDateString() === todayKey).length,
+      week: flat.filter((s) => {
+        const d = new Date(s.start_time);
+        return d >= now && d <= weekAhead;
+      }).length,
+    };
   }, [bookings]);
 
   const [durationDraft, setDurationDraft] = useState({}); // sessionId -> string
@@ -419,6 +433,20 @@ export default function StudioOsDashboard() {
           {tab === "kalender" && (
             <section>
               <SectionHeader title="Kalender" subtitle="Deine anstehenden Termine, nach Tag sortiert" />
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] px-4 py-3">
+                  <div className="font-playfair text-xl text-zinc-900">{planningStats.today}</div>
+                  <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">Heute</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] px-4 py-3">
+                  <div className="font-playfair text-xl text-zinc-900">{planningStats.week}</div>
+                  <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">Nächste 7 Tage</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] px-4 py-3">
+                  <div className="font-playfair text-xl text-zinc-900">{stats.anfrage}</div>
+                  <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">Offene Anfragen</div>
+                </div>
+              </div>
               {sessionsByDate.size === 0 ? (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
                   <EmptyState heading="Noch keine Termine" subtext="Sobald Buchungen reinkommen, erscheinen sie hier chronologisch." />
