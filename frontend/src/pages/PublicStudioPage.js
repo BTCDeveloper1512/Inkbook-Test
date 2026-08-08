@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Instagram, MapPin, Loader2, Phone, Clock, ShieldCheck, X, ChevronLeft, ChevronRight, Globe, UserCircle2 } from "lucide-react";
+import { Instagram, MapPin, Loader2, Phone, Clock, ShieldCheck, X, ChevronLeft, ChevronRight, Globe, UserCircle2, Maximize2 } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
 import StudioBookingWidget from "../components/StudioBookingWidget";
 import StudioWaitlistCard from "../components/StudioWaitlistCard";
@@ -10,6 +10,133 @@ import { artistColor, initials } from "../lib/artistColors";
 
 const DAY_LABELS = { monday: "Mo", tuesday: "Di", wednesday: "Mi", thursday: "Do", friday: "Fr", saturday: "Sa", sunday: "So" };
 const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+const slideVariants = {
+  enter: (dir) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
+};
+
+/**
+ * An artist's work deserves a stage, not thumbnails. Ported from the old
+ * studio page: one large image you can swipe or arrow through, a counter,
+ * dots, and a thumbnail strip that scrolls the active frame into view.
+ * Controls stay hidden until hover so the photo is what you see first.
+ */
+function PortfolioSlider({ images, onOpenLightbox }) {
+  const [current, setCurrent] = useState(0);
+  const dragDir = useRef(0);
+  const thumbsRef = useRef(null);
+
+  const go = (idx) => {
+    dragDir.current = idx > current ? 1 : -1;
+    setCurrent(idx);
+    thumbsRef.current?.children[idx]?.scrollIntoView({ inline: "center", behavior: "smooth", block: "nearest" });
+  };
+  const prev = () => go((current - 1 + images.length) % images.length);
+  const next = () => go((current + 1) % images.length);
+
+  return (
+    <div className="select-none">
+      <div className="relative rounded-2xl overflow-hidden bg-zinc-950 group" style={{ height: 280 }}>
+        <AnimatePresence initial={false} custom={dragDir.current}>
+          <motion.img
+            key={current}
+            src={images[current]}
+            custom={dragDir.current}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 360, damping: 36, mass: 0.75 }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.12}
+            onDragEnd={(_, info) => {
+              if (info.offset.x < -50) next();
+              else if (info.offset.x > 50) prev();
+            }}
+            className="absolute inset-0 w-full h-full object-cover cursor-grab active:cursor-grabbing"
+            draggable={false}
+            alt=""
+          />
+        </AnimatePresence>
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+
+        {images.length > 1 && (
+          <>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.88 }}
+              onClick={prev}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/65 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            >
+              <ChevronLeft size={18} strokeWidth={2} />
+            </motion.button>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.88 }}
+              onClick={next}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/65 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            >
+              <ChevronRight size={18} strokeWidth={2} />
+            </motion.button>
+          </>
+        )}
+
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          onClick={() => onOpenLightbox(images, current)}
+          className="absolute bottom-3 right-3 w-8 h-8 bg-black/40 hover:bg-black/65 backdrop-blur-md rounded-full flex items-center justify-center text-white/80 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          title="Vergrößern"
+        >
+          <Maximize2 size={13} strokeWidth={2} />
+        </motion.button>
+
+        {images.length > 1 && (
+          <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-full z-10">
+            <span className="text-white/80 text-[11px] font-inter tabular-nums">
+              {current + 1} / {images.length}
+            </span>
+          </div>
+        )}
+
+        {images.length > 1 && images.length <= 12 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => go(i)}
+                className={`transition-all duration-300 rounded-full ${i === current ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/40 hover:bg-white/70"}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {images.length > 1 && (
+        <div ref={thumbsRef} className="flex gap-2 mt-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          {images.map((img, i) => (
+            <motion.button
+              key={i}
+              type="button"
+              whileTap={{ scale: 0.94 }}
+              onClick={() => go(i)}
+              className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden transition-all duration-200 ${
+                i === current ? "ring-2 ring-zinc-900 opacity-100 scale-[1.04]" : "opacity-45 hover:opacity-75 hover:scale-[1.02]"
+              }`}
+            >
+              <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
+            </motion.button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Full-screen image viewer, shared by the banner and the artist portfolios. */
 function Lightbox({ images, index, onClose, onIndex }) {
@@ -137,18 +264,7 @@ function ArtistModal({ artist, index, onClose, onOpenImage }) {
               <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mt-5 mb-2">
                 Portfolio · {artist.portfolio_images.length} {artist.portfolio_images.length === 1 ? "Bild" : "Bilder"}
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {artist.portfolio_images.map((url, i) => (
-                  <button
-                    key={url}
-                    type="button"
-                    onClick={() => onOpenImage(artist.portfolio_images, i)}
-                    className="aspect-square rounded-lg overflow-hidden group"
-                  >
-                    <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </button>
-                ))}
-              </div>
+              <PortfolioSlider images={artist.portfolio_images} onOpenLightbox={onOpenImage} />
             </>
           )}
         </div>
