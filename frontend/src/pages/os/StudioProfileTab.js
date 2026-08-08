@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Copy, Check, ExternalLink, Link2, Loader2, ImagePlus, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
+import { Copy, Check, ExternalLink, Link2, Loader2, ImagePlus, Save } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
 import { Button } from "../../components/ui/button";
@@ -26,9 +27,21 @@ function Field({ label, children }) {
   );
 }
 
+/** Section shell — playfair heading over a subtitle, like the old dashboard. */
+function Card({ title, subtitle, children }) {
+  return (
+    <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
+      <h3 className="font-playfair text-lg text-zinc-900">{title}</h3>
+      {subtitle && <p className="text-[11px] font-inter text-zinc-400 mt-0.5 mb-4">{subtitle}</p>}
+      {!subtitle && <div className="mb-4" />}
+      {children}
+    </div>
+  );
+}
+
 function SaveButton({ saving, saved, onClick, label = "Speichern" }) {
   return (
-    <Button type="button" onClick={onClick} disabled={saving} className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter">
+    <Button type="button" onClick={onClick} disabled={saving} className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter flex-shrink-0">
       {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : label}
     </Button>
   );
@@ -72,7 +85,6 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
   const [copied, setCopied] = useState(false);
   const linkUrl = studio?.slug ? `${window.location.origin}/t/${studio.slug}` : "";
 
-  // Studio-Profil
   const [name, setName] = useState(studio?.name || "");
   const [description, setDescription] = useState(studio?.description || "");
   const [city, setCity] = useState(studio?.city || "");
@@ -80,58 +92,44 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
   const [phone, setPhone] = useState(studio?.phone || "");
   const [website, setWebsite] = useState(studio?.website || "");
   const [isActive, setIsActive] = useState(studio?.is_active ?? true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savedProfile, setSavedProfile] = useState(false);
 
-  async function saveProfile() {
-    setSavingProfile(true);
-    try {
-      const { data } = await studioApi.patch("/studios/me", { name, description, city, address, phone, website, isActive });
-      onStudioUpdate(data);
-      setSavedProfile(true);
-      setTimeout(() => setSavedProfile(false), 1500);
-    } finally {
-      setSavingProfile(false);
-    }
-  }
+  const [openingHours, setOpeningHours] = useState(() => {
+    const base = Object.fromEntries(DAYS.map(([k]) => [k, ""]));
+    return { ...base, ...(studio?.opening_hours || {}) };
+  });
 
-  // Bilder
+  const [depositRequired, setDepositRequired] = useState(studio?.settings?.depositRequired || false);
+  const [depositPercent, setDepositPercent] = useState(String(studio?.settings?.depositPercent || 20));
+  const [cancellationHours, setCancellationHours] = useState(String(studio?.settings?.cancellationHours || 48));
+
+  // Images write straight through — there is nothing to "draft" about picking
+  // a file, and holding it back until save would only invite losing it.
   async function saveImage(field, url) {
     const { data } = await studioApi.patch("/studios/me", { [field]: url });
     onStudioUpdate(data);
   }
 
-  // Öffnungszeiten
-  const [openingHours, setOpeningHours] = useState(() => {
-    const base = Object.fromEntries(DAYS.map(([k]) => [k, ""]));
-    return { ...base, ...(studio?.opening_hours || {}) };
-  });
-  const [savingHours, setSavingHours] = useState(false);
-  const [savedHours, setSavedHours] = useState(false);
+  /**
+   * One save for everything that lives on the studio record. Three separate
+   * buttons meant a studio could edit its hours, press save on the policy
+   * card, and quietly lose the hours — the old dashboard's single header
+   * button is the better pattern and this takes it.
+   */
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  async function saveHours() {
-    setSavingHours(true);
-    try {
-      const { data } = await studioApi.patch("/studios/me", { openingHours });
-      onStudioUpdate(data);
-      setSavedHours(true);
-      setTimeout(() => setSavedHours(false), 1500);
-    } finally {
-      setSavingHours(false);
-    }
-  }
-
-  // Richtlinien
-  const [depositRequired, setDepositRequired] = useState(studio?.settings?.depositRequired || false);
-  const [depositPercent, setDepositPercent] = useState(String(studio?.settings?.depositPercent || 20));
-  const [cancellationHours, setCancellationHours] = useState(String(studio?.settings?.cancellationHours || 48));
-  const [savingPolicy, setSavingPolicy] = useState(false);
-  const [savedPolicy, setSavedPolicy] = useState(false);
-
-  async function savePolicy() {
-    setSavingPolicy(true);
+  async function saveAll() {
+    setSaving(true);
     try {
       const { data } = await studioApi.patch("/studios/me", {
+        name,
+        description,
+        city,
+        address,
+        phone,
+        website,
+        isActive,
+        openingHours,
         settings: {
           depositRequired,
           depositPercent: depositRequired ? Number(depositPercent) || 0 : 0,
@@ -139,14 +137,15 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
         },
       });
       onStudioUpdate(data);
-      setSavedPolicy(true);
-      setTimeout(() => setSavedPolicy(false), 1500);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
     } finally {
-      setSavingPolicy(false);
+      setSaving(false);
     }
   }
 
-  // Account
+  // The account sits on a different endpoint, so it keeps its own controls
+  // rather than pretending to be part of the studio record.
   const [accountName, setAccountName] = useState(staff?.name || "");
   const [savingAccountName, setSavingAccountName] = useState(false);
   const [savedAccountName, setSavedAccountName] = useState(false);
@@ -187,17 +186,99 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
   }
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-6">
-      <div className="space-y-4">
-        {/* Studio-Profil */}
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 280, damping: 24 }}
+      className="space-y-5"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-playfair text-xl text-zinc-900">Profil</h2>
+          <p className="text-xs text-zinc-400 font-inter mt-0.5">Studio-Informationen und öffentliche Darstellung</p>
+        </div>
+        <motion.button
+          type="button"
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={saveAll}
+          disabled={saving}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-inter font-semibold transition-colors disabled:opacity-50 flex-shrink-0 ${
+            saved ? "bg-emerald-600 text-white" : "bg-zinc-900 text-white hover:bg-zinc-800"
+          }`}
+        >
+          {saving ? (
+            <>
+              <Loader2 size={14} className="animate-spin" /> Speichern…
+            </>
+          ) : saved ? (
+            <>
+              <Check size={14} strokeWidth={2} /> Gespeichert
+            </>
+          ) : (
+            <>
+              <Save size={14} strokeWidth={1.5} /> Profil speichern
+            </>
+          )}
+        </motion.button>
+      </div>
+
+      {/* The link is the whole product for a studio, so it goes first */}
+      {linkUrl && (
         <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-4">Studio-Profil</div>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                <Link2 size={14} className="text-zinc-600" strokeWidth={1.5} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-inter font-semibold text-zinc-900 leading-tight">Deine öffentliche Studio-Seite</p>
+                <p className="text-[11px] text-zinc-400 font-inter font-mono truncate">{linkUrl}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(linkUrl);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-inter font-semibold transition-colors ${
+                  copied ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <Check size={12} strokeWidth={2} /> Kopiert
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} strokeWidth={1.5} /> Kopieren
+                  </>
+                )}
+              </button>
+              <a
+                href={linkUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-inter font-medium text-zinc-600 border border-zinc-200 hover:bg-zinc-50 transition-colors"
+              >
+                <ExternalLink size={12} strokeWidth={1.5} /> Vorschau
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-2 gap-5 items-start">
+        <Card title="Studio-Profil" subtitle="Was Kunden auf deiner Seite sehen">
           <div className="space-y-3">
             <Field label="Studioname">
               <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl h-10" />
             </Field>
             <Field label="Kurzbeschreibung">
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-xl min-h-[80px]" />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-xl min-h-[70px]" />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Adresse">
@@ -213,37 +294,10 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                 <Input value={website} onChange={(e) => setWebsite(e.target.value)} className="rounded-xl h-10" />
               </Field>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-xl border border-zinc-100">
-              <div>
-                <div className="font-inter font-medium text-sm text-zinc-900">Buchungsseite öffentlich</div>
-                <div className="text-xs font-inter text-zinc-500 mt-0.5">Kund:innen können Anfragen senden</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsActive((v) => !v)}
-                className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${isActive ? "bg-zinc-900" : "bg-zinc-200"}`}
-              >
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${isActive ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
-            </div>
           </div>
-          <div className="flex justify-end mt-4">
-            <SaveButton saving={savingProfile} saved={savedProfile} onClick={saveProfile} />
-          </div>
-        </div>
+        </Card>
 
-        {/* Bilder */}
-        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-4">Bilder</div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <ImageUploadField label="Banner" value={studio?.banner_image} onChange={(url) => saveImage("bannerImage", url)} />
-            <ImageUploadField label="Logo" value={studio?.logo_image} onChange={(url) => saveImage("logoImage", url)} />
-          </div>
-        </div>
-
-        {/* Öffnungszeiten */}
-        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-4">Öffnungszeiten</div>
+        <Card title="Öffnungszeiten" subtitle="Bestimmen das Kalenderraster und welche Zeiten buchbar sind">
           <div className="space-y-2">
             {DAYS.map(([key, label]) => (
               <div key={key} className="flex items-center gap-3">
@@ -257,109 +311,98 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
               </div>
             ))}
           </div>
-          <div className="flex justify-end mt-4">
-            <SaveButton saving={savingHours} saved={savedHours} onClick={saveHours} />
-          </div>
-        </div>
+          <p className="text-[11px] font-inter text-zinc-400 mt-3">Format 10:00-18:00. Leer heißt geschlossen.</p>
+        </Card>
 
-        {/* Richtlinien */}
-        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-4">Richtlinien</div>
-          <div className="flex items-center justify-between p-3 rounded-xl border border-zinc-100 mb-3">
-            <div className="font-inter font-medium text-sm text-zinc-900">Anzahlung erforderlich</div>
-            <button
-              type="button"
-              onClick={() => setDepositRequired((v) => !v)}
-              className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${depositRequired ? "bg-zinc-900" : "bg-zinc-200"}`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${depositRequired ? "translate-x-5" : "translate-x-0.5"}`} />
-            </button>
+        <Card title="Bilder" subtitle="Banner und Logo erscheinen auf deiner Studio-Seite">
+          <div className="space-y-4">
+            <ImageUploadField label="Banner" value={studio?.banner_image} onChange={(url) => saveImage("bannerImage", url)} />
+            <ImageUploadField label="Logo" value={studio?.logo_image} onChange={(url) => saveImage("logoImage", url)} />
+            <p className="text-[11px] font-inter text-zinc-400">Bilder werden sofort gespeichert.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+        </Card>
+
+        <Card title="Richtlinien" subtitle="Gelten für alle Buchungen">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-inter text-zinc-900">Anzahlung verlangen</div>
+                <div className="text-[11px] font-inter text-zinc-400">Noch ohne Zahlungsanbindung</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDepositRequired((v) => !v)}
+                className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${depositRequired ? "bg-zinc-900" : "bg-zinc-200"}`}
+              >
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    depositRequired ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
             {depositRequired && (
               <Field label="Anzahlung in %">
-                <Input type="number" min="0" max="100" value={depositPercent} onChange={(e) => setDepositPercent(e.target.value)} className="rounded-xl h-10" />
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={depositPercent}
+                  onChange={(e) => setDepositPercent(e.target.value)}
+                  className="rounded-xl h-10"
+                />
               </Field>
             )}
-            <Field label="Kostenlose Stornierung bis (Std.)">
+            <Field label="Kostenlose Stornierung bis (Std. vorher)">
               <Input type="number" min="0" value={cancellationHours} onChange={(e) => setCancellationHours(e.target.value)} className="rounded-xl h-10" />
             </Field>
+            <p className="text-[11px] font-inter text-zinc-400">Diese Frist bekommt der Kunde beim Stornieren angezeigt.</p>
           </div>
-          <div className="flex justify-end mt-4">
-            <SaveButton saving={savingPolicy} saved={savedPolicy} onClick={savePolicy} />
-          </div>
-        </div>
+        </Card>
 
-        {/* Zahlungen (Stripe) */}
-        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-3">Zahlungen</div>
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-zinc-50 border border-dashed border-zinc-200">
-            <Sparkles size={16} className="text-zinc-400 flex-shrink-0" />
-            <div>
-              <div className="font-inter font-medium text-sm text-zinc-700">Stripe noch nicht verbunden</div>
-              <div className="text-xs font-inter text-zinc-500 mt-0.5">
-                Online-Zahlungen und Anzahlungen folgen, sobald Stripe angebunden ist.
+        <Card title="Sichtbarkeit" subtitle="Nimmt deine Seite Anfragen entgegen?">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-inter text-zinc-900">{isActive ? "Seite ist aktiv" : "Seite ist offline"}</div>
+              <div className="text-[11px] font-inter text-zinc-400">
+                {isActive ? "Kunden können über deinen Link buchen" : "Der Link zeigt nichts an"}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Account */}
-        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mb-4">Account</div>
-          <div className="flex items-end gap-2 mb-4">
-            <div className="flex-1">
-              <Field label="Dein Name">
-                <Input value={accountName} onChange={(e) => setAccountName(e.target.value)} className="rounded-xl h-10" />
-              </Field>
-            </div>
-            <SaveButton saving={savingAccountName} saved={savedAccountName} onClick={saveAccountName} />
-          </div>
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <Field label="Neues Passwort">
-                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="rounded-xl h-10" />
-              </Field>
-            </div>
-            <SaveButton saving={savingPassword} saved={passwordSaved} onClick={changePassword} label="Ändern" />
-          </div>
-          {passwordError && <p className="text-xs text-red-600 font-inter mt-2">{passwordError}</p>}
-        </div>
-      </div>
-
-      {/* Right column: booking link */}
-      <div className="lg:sticky lg:top-8 self-start space-y-4">
-        <div className="bg-zinc-900 rounded-2xl p-5">
-          <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-500 mb-2">Dein Buchungslink</div>
-          <div className="flex items-center gap-1.5 text-white font-inter text-sm mb-4">
-            <Link2 size={14} className="text-zinc-400" />
-            <span className="truncate">{linkUrl.replace(/^https?:\/\//, "")}</span>
-          </div>
-          <div className="flex gap-2">
-            <Button
+            <button
               type="button"
-              size="sm"
-              className="flex-1 rounded-lg bg-white text-zinc-900 hover:bg-zinc-100 font-inter"
-              onClick={() => {
-                navigator.clipboard.writeText(linkUrl);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }}
+              onClick={() => setIsActive((v) => !v)}
+              className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${isActive ? "bg-zinc-900" : "bg-zinc-200"}`}
             >
-              {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
-              {copied ? "Kopiert" : "Kopieren"}
-            </Button>
-            <a
-              href={linkUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-white/20 text-white text-sm font-inter hover:bg-white/10 transition-colors"
-            >
-              <ExternalLink size={14} /> Vorschau
-            </a>
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${isActive ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
           </div>
-        </div>
+        </Card>
+
+        <Card title="Dein Konto" subtitle="Gilt nur für dich, nicht fürs Studio">
+          <div className="space-y-3">
+            <Field label="Dein Name">
+              <div className="flex gap-2">
+                <Input value={accountName} onChange={(e) => setAccountName(e.target.value)} className="rounded-xl h-10" />
+                <SaveButton saving={savingAccountName} saved={savedAccountName} onClick={saveAccountName} />
+              </div>
+            </Field>
+            <Field label="Neues Passwort">
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="mindestens 8 Zeichen"
+                  className="rounded-xl h-10"
+                />
+                <SaveButton saving={savingPassword} saved={passwordSaved} onClick={changePassword} label="Ändern" />
+              </div>
+            </Field>
+            {passwordError && <p className="text-xs font-inter text-red-600">{passwordError}</p>}
+            <p className="text-[11px] font-inter text-zinc-400">Angemeldet als {staff?.email}</p>
+          </div>
+        </Card>
       </div>
-    </div>
+    </motion.div>
   );
 }
