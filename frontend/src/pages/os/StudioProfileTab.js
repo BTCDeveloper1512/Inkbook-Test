@@ -478,7 +478,7 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
         </div>
       )}
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-10 justify-items-center pt-4 pb-2">
         <FolderTile icon={Store} color="#52525b" title="Studio-Profil" subtitle="Was Kunden sehen" onClick={() => setOpenSection("profil")} />
         <FolderTile icon={Clock} color="#52525b" title="Öffnungszeiten" subtitle="Kalenderraster" onClick={() => setOpenSection("stunden")} />
         <FolderTile icon={Images} color="#52525b" title="Bilder" subtitle="Banner & Logo" onClick={() => setOpenSection("bilder")} />
