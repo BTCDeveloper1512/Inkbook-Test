@@ -1,129 +1,485 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion, useInView } from "framer-motion";
+import { motion, AnimatePresence, useScroll } from "framer-motion";
 import {
-  ArrowRight, Bell, CalendarDays, Check, ChevronDown, Clock3, CreditCard,
-  FileCheck2, Image as ImageIcon, LayoutDashboard, Menu, MessageCircle,
-  MoreHorizontal, PenLine, Plus, ShieldCheck, Users, X,
+  ArrowRight,
+  CalendarDays,
+  MessageCircle,
+  Layers,
+  Clock,
+  ShieldCheck,
+  QrCode,
+  Check,
+  Sparkles,
+  Zap,
+  Star,
 } from "lucide-react";
-import { StudioOSMark } from "../components/StudioOSLogo";
+import { StudioOSWordmark } from "../components/StudioOSLogo";
+import { DragCalendarMockup, ChatMockup, WorkflowActs } from "../components/LandingMockups";
+import MacBookScene from "../components/MacBookScene";
+import DepthText from "../components/DepthText";
+import PlanWheel from "../components/PlanWheel";
 
-function Reveal({ children, delay = 0, className = "" }) {
-  const ref = useRef(null);
-  const visible = useInView(ref, { once: true, margin: "-70px" });
-  return (
-    <motion.div ref={ref} className={className} initial={{ opacity: 0, y: 20 }}
-      animate={visible ? { opacity: 1, y: 0 } : {}} transition={{ duration: .65, delay, ease: [.22, 1, .36, 1] }}>
-      {children}
-    </motion.div>
-  );
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-80px" },
+  transition: { duration: 0.5 },
+};
+
+/** The four things a studio actually does all day. Each pairs with a live mockup. */
+const WORKFLOWS = [
+  {
+    eyebrow: "Zusagen & Umbuchen",
+    title: "Zugesagte Termine stehen sofort im Kalender",
+    body:
+      "Sagt ein Kunde zu, trägt sich der Termin selbst ein — du musst nichts abtippen. Passt die Zeit später doch nicht, ziehst du ihn auf einen neuen Slot, und der Kunde bekommt automatisch Bescheid, um wie viel es sich verschoben hat.",
+    Mockup: DragCalendarMockup,
+  },
+  {
+    eyebrow: "Absprachen im Projekt",
+    title: "Nachrichten dort, wo der Termin ist",
+    body:
+      "Bilder, Sprachnachrichten und Rückfragen hängen am jeweiligen Projekt, statt in WhatsApp zu versanden. Beide Seiten sehen, ob die andere gerade online ist.",
+    Mockup: ChatMockup,
+  },
+];
+
+const FEATURES = [
+  { icon: QrCode, title: "Dein eigener Buchungslink", body: "Als QR-Code im Studio, im Bio-Link oder per WhatsApp. Kunden landen direkt bei dir." },
+  { icon: Layers, title: "Projekte statt Einzeltermine", body: "Mehrere Sessions an einem Tattoo bleiben zusammen — inklusive Verlauf und Referenzen." },
+  { icon: CalendarDays, title: "Auslastung statt Slot-Raster", body: "Freie Zeit wird nach echter Dauer berechnet, nicht nach starren 60-Minuten-Blöcken." },
+  { icon: MessageCircle, title: "Chat mit Bild & Audio", body: "Motivabsprachen mit Referenzbildern und Sprachnachrichten, sauber pro Projekt abgelegt." },
+  { icon: Clock, title: "Warteliste, die arbeitet", body: "Wird ein Platz frei, bietest du ihn mit zwei Klicks den Wartenden an." },
+  { icon: ShieldCheck, title: "DSGVO-konform in der EU", body: "Server in Frankfurt. Kundendaten liegen getrennt pro Studio — sonst sieht sie niemand." },
+];
+
+const PLANS = [
+  {
+    icon: Sparkles,
+    name: "Kostenlos",
+    subtitle: "Zum Reinschnuppern",
+    price: "0 €",
+    period: "",
+    features: ["1 Artist", "5 Termine pro Monat", "Buchungslink & Basis-Profil", "5 Portfolio-Bilder"],
+    cta: "Kostenlos starten",
+    highlight: false,
+  },
+  {
+    icon: Zap,
+    name: "Starter",
+    subtitle: "Für wachsende Studios",
+    price: "19,99 €",
+    period: "/ Monat",
+    features: ["2 Artists", "20 Termine pro Monat", "Chat & Terminbestätigung", "E-Mail-Benachrichtigungen", "Ohne StudioOS-Branding"],
+    cta: "Starter wählen",
+    highlight: false,
+  },
+  {
+    icon: Star,
+    name: "Pro",
+    subtitle: "Für etablierte Studios",
+    price: "49,99 €",
+    period: "/ Monat",
+    features: ["4 Artists", "Unbegrenzte Termine", "Alles aus Starter", "Anzahlungen via Stripe", "Erweiterte Statistiken", "Storno-Management"],
+    cta: "Pro wählen",
+    highlight: true,
+  },
+];
+
+const FAQ = [
+  {
+    q: "Werde ich in einem Verzeichnis gelistet?",
+    a: "Nein. StudioOS ist kein Marktplatz — es gibt keine Suche, kein Ranking und keine Verlinkung zwischen Studios. Deine Seite ist ausschließlich über den Link erreichbar, den du selbst verteilst.",
+  },
+  {
+    q: "Muss ich mein bisheriges System sofort ablösen?",
+    a: "Nein. Viele Studios starten mit den nächsten Anfragen und lassen den alten Kalender parallel weiterlaufen, bis alles Laufende dort erledigt ist.",
+  },
+  {
+    q: "Was passiert, wenn ich wieder aufhören will?",
+    a: "Du kannst dein Studio jederzeit selbst löschen — inklusive aller Buchungen, Termine und Kundendaten. Keine Kündigungsfrist, kein Anruf nötig.",
+  },
+  {
+    q: "Brauchen meine Kunden eine App?",
+    a: "Nein. Sie öffnen deinen Link im Browser, legen beim ersten Mal ein Konto an und sehen dort danach ihre Termine, Angebote und Nachrichten.",
+  },
+];
+
+function SectionLabel({ children }) {
+  return <span className="text-[11px] font-inter uppercase tracking-[0.18em] text-zinc-400">{children}</span>;
 }
 
-function Opening({ onDone }) {
-  const [show, setShow] = useState(true);
-  useEffect(() => {
-    if (sessionStorage.getItem("studioos_landing_opened")) { onDone(); return undefined; }
-    const timer = setTimeout(() => {
-      sessionStorage.setItem("studioos_landing_opened", "1");
-      setShow(false);
-      setTimeout(onDone, 420);
-    }, 1850);
-    return () => clearTimeout(timer);
-  }, [onDone]);
-  return <AnimatePresence>{show && <motion.div className="so-opening" initial={{ opacity: 1 }} exit={{ opacity: 0, y: "-8%" }} transition={{ duration: .42 }}>
-    <motion.div initial={{ scale: .7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: .55, ease: [.22, 1, .36, 1] }}>
-      <StudioOSMark size={58} />
-    </motion.div>
-    <motion.div className="so-opening-name" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .25, duration: .4 }}>Studio<span>OS</span></motion.div>
-    <motion.p className="so-opening-tagline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .48, duration: .45 }}>The Studio Operating System</motion.p>
-    <motion.div className="so-opening-rule" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: .25, duration: 1.25 }} />
-  </motion.div>}</AnimatePresence>;
-}
-
-function ButtonLink({ children, to, variant = "dark", className = "" }) {
-  return <Link className={`so-button so-button-${variant} ${className}`} to={to}>{children}<ArrowRight size={16} /></Link>;
-}
-
-function Browser({ children, className = "" }) {
-  return <div className={`browser-frame ${className}`}><div className="browser-top"><div className="browser-dots"><i /><i /><i /></div><div className="browser-address">studioos / arbeitsplatz</div><MoreHorizontal size={15} /></div>{children}</div>;
-}
-
-function DashboardMockup({ mode = "Kalender" }) {
-  const [day, setDay] = useState(0);
-  const days = ["Dienstag, 18. Juni", "Mittwoch, 19. Juni", "Donnerstag, 20. Juni"];
-  const appointments = [
-    [["10:00", "Mara H.", "Fine Line · Beratung", "MH"], ["13:30", "Jonas R.", "Sleeve · Session", "JR"], ["16:00", "Nina S.", "Piercing · Lobe", "NS"]],
-    [["09:30", "Leonie K.", "PMU · Beratung", "LK"], ["12:00", "Timo W.", "Blackwork · Session", "TW"], ["15:30", "Mara H.", "Fine Line · Follow-up", "MH"]],
-    [["11:00", "Sofia B.", "Piercing · Helix", "SB"], ["14:00", "Jonas R.", "Sleeve · Session", "JR"], ["17:00", "Emil A.", "Tattoo · Beratung", "EA"]],
-  ];
-  const customerRows = [
-    ["Mara H.", "Nächster Termin · 18. Juni", "MH", "Vorbereitet"],
-    ["Jonas R.", "Sleeve · 4. Session", "JR", "Formular offen"],
-    ["Nina S.", "Piercing · Nachsorge", "NS", "Vorbereitet"],
-  ];
-  const paymentRows = [
-    ["Mara H.", "Anzahlung · Fine Line", "€ 160", "Bezahlt"],
-    ["Jonas R.", "Anzahlung · Sleeve", "€ 240", "Ausstehend"],
-    ["Nina S.", "Piercing · Termin", "€ 60", "Bezahlt"],
-  ];
-  const isCustomers = mode === "Kund:innen";
-  const isPayments = mode === "Zahlungen";
-  const rows = isCustomers ? customerRows : isPayments ? paymentRows : appointments[day];
-  const heading = isCustomers ? "Deine Kund:innen." : isPayments ? "Zahlungen im Blick." : "Guten Morgen, Mira.";
-  useEffect(() => { const t = setInterval(() => setDay(v => (v + 1) % 3), 3400); return () => clearInterval(t); }, []);
-  return <Browser><div className="dashboard-shell">
-    <aside className="dashboard-side"><div className="dash-mark"><StudioOSMark size={24} /></div><div className="dash-studio">Morrow Studio <ChevronDown size={11} /></div>
-      <nav><span className={!isCustomers && !isPayments ? "active" : ""}><LayoutDashboard size={14} />Übersicht</span><span><CalendarDays size={14} />Kalender</span><span className={isCustomers ? "active" : ""}><Users size={14} />Kund:innen</span><span className={isPayments ? "active" : ""}><CreditCard size={14} />Zahlungen</span></nav>
-      <div className="dash-side-bottom"><ShieldCheck size={13} />Studio geschützt</div></aside>
-    <main className="dashboard-main"><div className="dash-head"><div><p className="dash-eyebrow">{isCustomers ? "Kundenstamm · aktuell" : isPayments ? "Diese Woche · aktuell" : days[day]}</p><h3>{heading}</h3></div><button className="dash-add"><Plus size={14} />{isCustomers ? "Kund:in" : isPayments ? "Zahlung" : "Termin"}</button></div>
-      <div className="dash-cards"><div><span>{isCustomers ? "Aktiv" : isPayments ? "Eingegangen" : "Heute"}</span><strong>{isCustomers ? "128" : isPayments ? "€ 840" : `0${appointments[day].length}`}</strong><small>{isCustomers ? "Kund:innen" : isPayments ? "diese Woche" : "Termine"}</small></div><div><span>Offen</span><strong>03</strong><small>{isPayments ? "Zahlungen" : "Anfragen"}</small></div><div><span>{isCustomers ? "Formulare" : "Gesichert"}</span><strong>{isCustomers ? "94%" : "€ 1.240"}</strong><small>{isCustomers ? "vollständig" : "Anzahlungen"}</small></div></div>
-      <div className="dash-content-grid"><div className="dash-panel"><div className="panel-title"><span>{isCustomers ? "Zuletzt aktiv" : isPayments ? "Transaktionen" : "Dein Tag"}</span><small>Alle anzeigen <ArrowRight size={11} /></small></div><AnimatePresence mode="wait"><motion.div key={`${mode}-${day}`} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: .32 }}>{rows.map(([first, second, third, fourth], index) => <div className="appointment" key={`${mode}-${first}`}><time>{isCustomers || isPayments ? `${index + 1}`.padStart(2, "0") : first}</time><div className="avatar">{isCustomers ? third : isPayments ? first.split(" ").map(v => v[0]).join("") : fourth}</div><div className="appointment-copy"><b>{isCustomers || isPayments ? first : second}</b><span>{isCustomers || isPayments ? second : third}</span></div><span className={`appointment-state ${index === 1 ? "pending" : ""}`}>{isCustomers || isPayments ? fourth : index === 1 ? "Anfrage" : "Bestätigt"}</span></div>)}</motion.div></AnimatePresence></div>
-        <div className="dash-panel focus-panel"><div className="panel-title"><span>Im Fokus</span><MoreHorizontal size={14} /></div><div className="focus-icon"><Bell size={17} /></div><b>2 Anfragen warten</b><p>Alle Infos sind schon da. Nur noch prüfen und bestätigen.</p><div className="focus-line"><span /><span /><span /></div></div></div>
-    </main></div></Browser>;
-}
-
-function ChaosCard({ icon, title, copy }) { return <motion.div className="chaos-card" whileHover={{ y: -5 }}><div className="chaos-card-top">{icon}<span>offen</span></div><h3>{title}</h3><p>{copy}</p><div className="chaos-lines"><i /><i /><i /></div></motion.div>; }
-
-function FeatureVisual({ type }) {
-  if (type === "calendar") return <div className="feature-visual calendar-visual"><div className="fv-heading"><span>Juni 2024</span><MoreHorizontal size={14} /></div><div className="week-labels">{["M", "D", "M", "D", "F", "S", "S"].map((x, i) => <span key={`${x}-${i}`}>{x}</span>)}</div><div className="calendar-grid">{Array.from({ length: 28 }, (_, i) => <span className={i === 11 || i === 19 ? "selected" : i % 7 === 2 ? "has-event" : ""} key={i}>{i + 1}</span>)}</div></div>;
-  if (type === "payments") return <div className="feature-visual payment-visual"><div className="payment-total"><span>Diese Woche</span><strong>€ 2.840</strong><small>+12,4 %</small></div><div className="payment-bars">{[42, 63, 50, 76, 58, 88, 68].map((height, i) => <span style={{ height: `${height}%` }} className={i === 5 ? "bar-active" : ""} key={i} />)}</div></div>;
-  return <div className="feature-visual form-visual"><div className="form-top"><FileCheck2 size={16} /><span>Gesundheitsbogen · Mara H.</span><Check size={14} /></div>{["68%", "82%", "54%"].map(width => <div className="form-row" key={width}><span /><i style={{ width }} /></div>)}<div className="form-sign"><PenLine size={13} /> digital unterschrieben</div></div>;
-}
 
 export default function LandingPage() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [faqOpen, setFaqOpen] = useState(0);
-  const [activeTab, setActiveTab] = useState("Kalender");
-  const [opened, setOpened] = useState(false);
-  const tabs = ["Kalender", "Kund:innen", "Zahlungen"];
-  const faqs = [["Für welche Studios ist StudioOS gedacht?", "Für Tattoo-, Piercing- und PMU-Studios — vom Einzelstudio bis zum Team mit mehreren Artists. Du stellst dein Studio so ein, wie du arbeitest."], ["Muss ich meine Website ändern?", "Nein. Dein StudioOS Buchungslink kann direkt in deine Bio, Website oder Nachrichten eingefügt werden. Bestehende Kanäle bleiben, wie sie sind."], ["Wie schnell kann ich starten?", "Die Grundeinrichtung dauert nur wenige Minuten. Du kannst Leistungen, Verfügbarkeiten und Studio-Infos direkt selbst anlegen und jederzeit ändern."], ["Kann ich StudioOS erst ausprobieren?", "Ja. Du kannst kostenlos starten und dein Studio in Ruhe einrichten. Für den Anfang ist keine Kreditkarte erforderlich."]];
-  const navClose = () => setMenuOpen(false);
-  return <div className="studio-page">
-    {!opened && <Opening onDone={() => setOpened(true)} />}
-    <style>{`
-      .studio-page{--paper:#fafafa;--wash:#f4f4f5;--ink:#09090b;--muted:#71717a;--line:#e4e4e7;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,sans-serif;overflow:hidden}
-      .studio-page *{box-sizing:border-box}.studio-page a{color:inherit;text-decoration:none}.so-wrap{width:min(1160px,calc(100% - 48px));margin:auto}.so-opening{position:fixed;inset:0;background:#fafafa;color:#09090b;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center}.so-opening-name{font-family:Playfair Display,Georgia,serif;font-size:27px;margin-top:16px;letter-spacing:-.04em}.so-opening-name span{font-weight:700}.so-opening-tagline{margin:9px 0 0;color:#a1a1aa;font:600 9px Inter,sans-serif;letter-spacing:.2em;text-transform:uppercase}.so-opening-rule{height:1px;background:#d4d4d8;width:100px;margin-top:21px;transform-origin:center}
-      .so-nav{height:78px;display:flex;align-items:center;justify-content:space-between;position:absolute;z-index:5;inset:0 0 auto;color:#fff}.so-logo-lockup{display:flex;align-items:center;gap:9px;font:600 21px Playfair Display,Georgia,serif;letter-spacing:-.04em}.so-logo-lockup>svg{border-radius:7px;box-shadow:0 0 0 2px #fafafa}.so-logo-lockup span{font-weight:700}.so-nav-links{display:flex;gap:31px;align-items:center;font-size:12px;color:#a1a1aa}.so-nav-links a:hover{color:#fff}.nav-login{color:#fff!important;border-bottom:1px solid #71717a;padding-bottom:4px}.nav-start{border:1px solid #71717a;padding:10px 15px;color:#fff!important}.mobile-menu{display:none;background:none;color:#fff;border:0}
-      .hero{min-height:750px;background:#09090b;color:#fafafa;padding:175px 0 110px;position:relative}.hero:after{content:"";position:absolute;inset:auto 0 -1px;height:120px;background:linear-gradient(transparent,var(--paper));opacity:.08}.hero-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:65px;align-items:center}.eyebrow{font:600 10px Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#a1a1aa}.hero h1,.section h2,.final-cta h2{font:500 clamp(48px,6.5vw,88px)/.95 Inter,sans-serif;letter-spacing:-.085em;margin:22px 0 26px}.hero h1 em,.serif{font-family:Playfair Display,Georgia,serif;font-weight:400;letter-spacing:-.06em}.hero-copy{color:#a1a1aa;line-height:1.7;font-size:15px;max-width:430px}.hero-actions{display:flex;gap:12px;align-items:center;margin-top:35px}.so-button{display:inline-flex;align-items:center;justify-content:space-between;gap:17px;padding:14px 17px;font-size:12px;transition:transform .25s,background .25s}.so-button:hover{transform:translateY(-3px)}.so-button-dark{background:#fafafa;color:#09090b!important}.so-button-ghost{color:#fafafa!important;border:1px solid #3f3f46}.so-button-ghost:hover{background:#18181b}.hero-note{display:flex;align-items:center;gap:8px;color:#71717a;font-size:11px;margin-top:20px}.hero-note svg{color:#d4d4d8}
-      .browser-frame{background:#d4d4d8;border-radius:15px;padding:8px;box-shadow:0 30px 70px #0008;transform:perspective(1200px) rotateY(-4deg) rotateX(2deg);transition:transform .7s}.browser-frame:hover{transform:perspective(1200px) rotateY(-1deg) rotateX(1deg)}.browser-top{height:27px;display:flex;align-items:center;gap:10px;color:#71717a;padding:0 7px;font-size:9px}.browser-dots{display:flex;gap:4px}.browser-dots i{width:7px;height:7px;border-radius:50%;background:#a1a1aa}.browser-address{flex:1;background:#e4e4e7;border-radius:4px;text-align:center;padding:5px;font-size:9px}.dashboard-shell{display:flex;min-height:420px;background:#fafafa;border-radius:9px;overflow:hidden}.dashboard-side{width:142px;padding:17px 11px;background:#18181b;color:#a1a1aa;display:flex;flex-direction:column}.dash-mark{margin-bottom:18px}.dash-studio{color:#f4f4f5;font-size:10px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.dashboard-side nav{display:grid;gap:6px;font-size:10px}.dashboard-side nav span{display:flex;gap:8px;align-items:center;padding:8px 7px}.dashboard-side nav .active{background:#27272a;color:#fafafa}.dash-side-bottom{margin-top:auto;font-size:8px;color:#a1a1aa;display:flex;align-items:center;gap:5px}.dashboard-main{flex:1;padding:26px 28px}.dash-head{display:flex;justify-content:space-between;align-items:start}.dash-eyebrow{margin:0 0 3px;color:#71717a;font-size:9px}.dash-head h3{font-size:20px;letter-spacing:-.06em;margin:0;font-weight:600}.dash-add{display:flex;align-items:center;gap:5px;background:#18181b;color:#fff;border:0;padding:8px 11px;font-size:10px}.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:23px 0 13px}.dash-cards>div{background:#f4f4f5;padding:11px;display:grid;gap:3px}.dash-cards span,.dash-cards small{font-size:9px;color:#71717a}.dash-cards strong{font-size:22px;font-weight:600;letter-spacing:-.06em}.dash-content-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:11px}.dash-panel{background:#fff;border:1px solid #e4e4e7;padding:14px}.panel-title{display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:9px}.panel-title small{color:#a1a1aa;font-size:9px;display:flex;align-items:center;gap:3px;font-weight:400}.appointment{display:flex;align-items:center;border-top:1px solid #f4f4f5;padding:9px 0;gap:8px}.appointment time{color:#a1a1aa;font-size:8px;width:29px}.avatar{width:24px;height:24px;border-radius:50%;background:#e4e4e7;display:grid;place-items:center;font-size:8px}.appointment-copy{display:grid;gap:2px;flex:1;font-size:10px}.appointment-copy span{color:#a1a1aa;font-size:8px}.appointment-state{background:#e4e4e7;color:#3f3f46;padding:4px 5px;font-size:7px}.appointment-state.pending{background:#f4f4f5;color:#71717a}.focus-panel{background:#f4f4f5}.focus-icon{width:32px;height:32px;background:#18181b;color:#fff;display:grid;place-items:center;margin:28px 0 11px}.focus-panel b{font-size:12px}.focus-panel p{color:#71717a;font-size:9px;line-height:1.5;max-width:150px}.focus-line{display:flex;gap:4px;margin-top:17px}.focus-line span{height:3px;background:#a1a1aa;width:18px}.focus-line span:first-child{width:40px;background:#18181b}
-      .section{padding:135px 0}.section-dark{background:#09090b;color:#fafafa}.section h2{font-size:clamp(42px,5.4vw,72px)}.section-intro{color:var(--muted);font-size:15px;line-height:1.7;max-width:500px}.section-dark .section-intro{color:#a1a1aa}.chaos-wrap{margin-top:62px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.chaos-card{min-height:185px;padding:19px;background:#18181b;border:1px solid #27272a;color:#fafafa}.chaos-card:nth-child(2){transform:translateY(28px)}.chaos-card:nth-child(4){transform:translateY(54px)}.chaos-card-top{display:flex;justify-content:space-between;color:#a1a1aa}.chaos-card-top svg{color:#d4d4d8}.chaos-card-top span{font-size:8px;opacity:.7}.chaos-card h3{font-size:17px;margin:33px 0 6px;letter-spacing:-.04em}.chaos-card p{color:#a1a1aa;font-size:11px;line-height:1.5;margin:0}.chaos-lines{margin-top:20px;display:grid;gap:5px}.chaos-lines i{height:3px;background:#3f3f46;width:80%}.chaos-lines i:nth-child(2){width:61%}.chaos-lines i:nth-child(3){width:70%}
-      .split-story{display:grid;grid-template-columns:1fr 1fr;gap:100px;align-items:center}.check-list{display:grid;gap:18px;margin-top:32px}.check-list div{display:flex;align-items:center;gap:13px;color:#52525b;font-size:14px}.check-list svg{color:#09090b;border:1px solid #d4d4d8;padding:4px;width:24px;height:24px}.before-after{background:#f4f4f5;padding:25px}.ba-top{display:flex;justify-content:space-between;color:#71717a;font-size:9px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:20px}.ba-stack{display:grid;gap:9px}.ba-row{display:flex;align-items:center;gap:10px;background:#fafafa;padding:12px}.ba-row.dim{opacity:.45}.ba-row span:first-child{width:24px;height:24px;background:#e4e4e7;display:grid;place-items:center}.ba-row b{font-size:11px;font-weight:600;flex:1}.ba-row small{color:#a1a1aa;font-size:9px}.ba-arrow{text-align:center;color:#71717a;padding:6px}
-      .steps{margin-top:75px;display:grid;grid-template-columns:repeat(3,1fr)}.step{padding:22px 36px 22px 0;border-top:1px solid var(--line);position:relative}.step:not(:last-child){margin-right:45px}.step:not(:last-child):after{content:"";position:absolute;right:17px;top:25px;width:35px;height:1px;background:#a1a1aa}.step-num{color:#71717a;font-size:11px}.step h3{font-size:22px;letter-spacing:-.05em;margin:35px 0 9px}.step p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}.product-section{background:#e4e4e7;padding-bottom:80px}.product-browser{margin-top:62px}.product-browser .browser-frame{transform:none;max-width:1000px;margin:auto}.product-browser .dashboard-shell{min-height:490px}.product-tabs{display:flex;gap:7px;justify-content:center;margin-top:22px}.product-tabs button{border:1px solid #a1a1aa;background:transparent;padding:9px 16px;color:#52525b;font-size:12px;cursor:pointer}.product-tabs button.active{background:#09090b;color:#fafafa;border-color:#09090b}.bento{display:grid;grid-template-columns:1.2fr .8fr 1fr;grid-auto-rows:235px;gap:13px;margin-top:66px}.bento-card{background:#f4f4f5;padding:25px;position:relative;overflow:hidden}.bento-card.dark{background:#09090b;color:#fafafa}.bento-card.tall{grid-row:span 2}.bento-card.wide{grid-column:span 2}.bento-card h3{font-size:21px;letter-spacing:-.06em;margin:0 0 8px;font-weight:600}.bento-card p{color:#71717a;font-size:12px;line-height:1.55;max-width:220px;margin:0}.bento-card.dark p{color:#a1a1aa}.bento-icon{color:#71717a;margin-bottom:33px}.feature-visual{position:absolute;right:22px;bottom:0;left:22px;background:#fafafa;border:1px solid #d4d4d8;padding:12px;color:#09090b}.calendar-visual{height:128px}.fv-heading,.form-top{display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:11px}.week-labels,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}.week-labels{color:#a1a1aa;font-size:8px;margin-bottom:4px}.calendar-grid span{font-size:8px;padding:4px 0}.calendar-grid .selected{color:#fff;background:#09090b}.calendar-grid .has-event{color:#52525b;border-bottom:2px solid #71717a}.payment-visual{height:130px;display:flex;gap:28px;align-items:flex-end}.payment-total{display:grid;align-self:flex-start;gap:4px}.payment-total span,.payment-total small{color:#a1a1aa;font-size:8px}.payment-total strong{font-size:20px;letter-spacing:-.06em}.payment-total small{color:#52525b}.payment-bars{display:flex;gap:5px;height:77px;align-items:flex-end;flex:1}.payment-bars span{background:#d4d4d8;flex:1}.payment-bars .bar-active{background:#52525b}.form-visual{height:135px}.form-top{border-bottom:1px solid #e4e4e7;padding-bottom:9px}.form-top svg:last-child{color:#52525b}.form-row{display:flex;align-items:center;gap:8px;margin:9px 0}.form-row>span{width:10px;height:10px;border:1px solid #a1a1aa}.form-row i{display:block;height:4px;background:#d4d4d8}.form-sign{color:#52525b;font-size:9px;margin-top:10px;display:flex;gap:6px;align-items:center}
-      .day-section{background:#18181b;color:#fafafa}.day-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:100px;align-items:start;margin-top:62px}.day-list{display:grid}.day-item{padding:24px 0;border-top:1px solid #3f3f46;display:grid;grid-template-columns:100px 1fr}.day-item:last-child{border-bottom:1px solid #3f3f46}.day-item time{color:#a1a1aa;font-size:11px}.day-item h3{margin:0 0 5px;font-size:22px;font-weight:600;letter-spacing:-.05em}.day-item p{margin:0;color:#a1a1aa;font-size:12px}.day-quote{padding:36px;background:#27272a;min-height:250px;display:flex;flex-direction:column;justify-content:space-between}.day-quote p{font:italic 31px/1.08 Playfair Display,Georgia,serif;margin:0;max-width:450px}.day-quote span{color:#a1a1aa;font-size:9px;letter-spacing:.13em;text-transform:uppercase}.faq{max-width:790px;margin:55px auto 0}.faq-item{border-top:1px solid var(--line)}.faq-item:last-child{border-bottom:1px solid var(--line)}.faq-button{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;padding:21px 0;text-align:left;font:600 15px Inter,sans-serif;color:#09090b;cursor:pointer}.faq-answer{overflow:hidden;color:#71717a;font-size:13px;line-height:1.7;max-width:650px}.faq-answer p{margin:0 0 21px}.final-cta{background:#09090b;color:#fafafa;padding:140px 0;text-align:center}.final-cta h2{max-width:800px;margin:16px auto 34px;font-size:clamp(46px,6vw,82px)}.final-cta p{color:#a1a1aa;font-size:12px;margin-top:19px}.footer{background:#09090b;color:#fafafa;border-top:1px solid #27272a;padding:30px 0 38px}.footer-row{display:flex;align-items:end;justify-content:space-between}.footer-links{display:flex;gap:23px;color:#a1a1aa;font-size:11px}.footer-links a:hover{color:#fff}.footer-copy{color:#71717a;font-size:11px;margin-top:42px}
-      @media(max-width:800px){.so-wrap{width:min(100% - 36px,600px)}.so-nav{height:66px}.so-nav-links{display:none;position:absolute;top:58px;left:18px;right:18px;background:#18181b;padding:20px;flex-direction:column;align-items:flex-start;gap:18px;box-shadow:0 15px 30px #0005}.so-nav-links.open{display:flex}.mobile-menu{display:block}.nav-start{margin-left:auto;margin-right:12px;padding:9px 12px;font-size:11px}.hero{padding:125px 0 75px;min-height:auto}.hero-grid{display:block}.hero h1{font-size:clamp(52px,14vw,82px)}.hero-copy{font-size:14px}.hero-actions{flex-wrap:wrap}.hero .browser-frame{margin-top:62px}.browser-frame{transform:none}.dashboard-side{width:60px;padding:14px 9px}.dash-studio,.dashboard-side nav span:not(.active) svg,.dashboard-side nav span:not(.active),.dash-side-bottom{font-size:0}.dashboard-side nav span.active{font-size:0;justify-content:center}.dashboard-main{padding:18px 13px}.dash-head h3{font-size:16px}.dash-cards strong{font-size:17px}.dash-content-grid{display:block}.focus-panel{display:none}.section{padding:88px 0}.chaos-wrap{grid-template-columns:1fr 1fr}.chaos-card:nth-child(2),.chaos-card:nth-child(4){transform:none}.split-story,.day-grid{display:block}.before-after{margin-top:50px}.steps{display:block;margin-top:52px}.step{margin:0!important;padding:22px 0 28px!important}.step:after{display:none}.step h3{margin:19px 0 8px}.bento{grid-template-columns:1fr 1fr;grid-auto-rows:205px}.bento-card.tall{grid-row:span 1}.bento-card.wide{grid-column:span 2}.bento-card h3{font-size:18px}.bento-card p{font-size:11px}.day-quote{margin-top:48px}.footer-row{display:block}.footer-links{margin-top:23px;flex-wrap:wrap}.final-cta{padding:95px 0}}
-      @media(max-width:480px){.hero-actions .so-button{width:100%}.browser-address{font-size:7px}.dashboard-shell{min-height:350px}.dash-cards{gap:5px}.dash-cards>div{padding:8px}.dash-cards span,.dash-cards small{font-size:7px}.dash-cards strong{font-size:14px}.appointment-state{display:none}.chaos-wrap{grid-template-columns:1fr}.bento{display:block}.bento-card{min-height:200px;margin-bottom:12px}.bento-card.wide{min-height:235px}.product-tabs{overflow:auto;justify-content:flex-start;margin:22px 18px 0;padding-bottom:5px}.product-tabs button{white-space:nowrap}.day-item{grid-template-columns:75px 1fr}.day-item h3{font-size:20px}}
-      @media(prefers-reduced-motion:reduce){.studio-page *, .studio-page *:before,.studio-page *:after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}.browser-frame{transform:none}.so-opening{display:none}}
-    `}</style>
-    <header className="hero"><nav className="so-nav so-wrap"><Link to="/" aria-label="StudioOS Startseite"><span className="so-logo-lockup"><StudioOSMark size={27} /><span>Studio<span>OS</span></span></span></Link><div className={`so-nav-links ${menuOpen ? "open" : ""}`}><a href="#system" onClick={navClose}>Das System</a><a href="#alltag" onClick={navClose}>Der Alltag</a><a href="#fragen" onClick={navClose}>Fragen</a><Link className="nav-login" to="/login">Anmelden</Link></div><Link className="nav-start" to="/register?role=studio">Studio starten</Link><button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menü öffnen">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></nav>
-      <div className="so-wrap hero-grid"><div><Reveal><p className="eyebrow">Das Betriebssystem für Studios</p><h1>Mehr Zeit für <em>Kunst.</em><br />Weniger Zeit für Chaos.</h1><p className="hero-copy">StudioOS übernimmt Termine, Anzahlungen, Formulare und Kundenkommunikation. Damit dein Studio läuft, auch wenn du gerade an der Maschine sitzt.</p><div className="hero-actions"><ButtonLink to="/register?role=studio">Kostenlos starten</ButtonLink><a className="so-button so-button-ghost" href="#system">System ansehen <ArrowRight size={16} /></a></div><div className="hero-note"><Check size={14} /> Keine Kreditkarte. In wenigen Minuten eingerichtet.</div></Reveal></div><Reveal delay={.15}><DashboardMockup /></Reveal></div></header>
-    <main><section className="section section-dark"><div className="so-wrap"><Reveal><p className="eyebrow">Der Alltag, wie er wirklich ist</p><h2>Kommt dir das<br /><span className="serif">bekannt</span> vor?</h2><p className="section-intro">Ein Termin steckt in den DMs. Eine Anzahlung wartet auf deine Antwort. Drei Referenzbilder liegen irgendwo im Chat. Dein Kopf hält alles zusammen — bis er es nicht mehr tut.</p></Reveal><div className="chaos-wrap"><Reveal delay={.05}><ChaosCard icon={<MessageCircle size={18} />} title="Instagram DMs" copy="„Hast du im August noch etwas frei?“ — zum achten Mal heute." /></Reveal><Reveal delay={.1}><ChaosCard icon={<Clock3 size={18} />} title="Terminchaos" copy="Zwischen Walk-in, Rückruf und Doppelbuchung den Überblick behalten." /></Reveal><Reveal delay={.15}><ChaosCard icon={<PenLine size={18} />} title="Papier & Listen" copy="Informationen verteilt über Notizen, Kalender und Tabellen." /></Reveal><Reveal delay={.2}><ChaosCard icon={<CreditCard size={18} />} title="Anzahlungen" copy="Hinterherlaufen, erinnern, nachfragen. Immer wieder." /></Reveal></div></div></section>
-      <section className="section" id="system"><div className="so-wrap split-story"><Reveal><p className="eyebrow">Der Wechsel</p><h2>Du machst Kunst.<br /><span className="serif">StudioOS macht den Rest.</span></h2><p className="section-intro">Keine neue Aufgabe auf deiner Liste. Ein ruhiger Ort, an dem jede Information ankommt, wohin sie gehört.</p><div className="check-list"><div><Check /> Alles an einem Ort</div><div><Check /> Automatische Erinnerungen</div><div><Check /> Anzahlungen online</div><div><Check /> Kund:innen kommen vorbereitet</div></div></Reveal><Reveal delay={.15}><div className="before-after"><div className="ba-top"><span>Vorher</span><span>Mit StudioOS</span></div><div className="ba-stack"><div className="ba-row dim"><span><X size={13} /></span><b>Termin vergessen</b><small>09:42 · DM</small></div><div className="ba-row dim"><span><X size={13} /></span><b>Anzahlung offen</b><small>gestern</small></div><div className="ba-arrow"><ArrowRight size={18} /></div><div className="ba-row"><span><Check size={13} /></span><b>Mara H. · 10:00</b><small>bestätigt</small></div><div className="ba-row"><span><Check size={13} /></span><b>€ 160 · gesichert</b><small>bezahlt</small></div></div></div></Reveal></div></section>
-      <section className="section" style={{ paddingTop: 20 }}><div className="so-wrap"><Reveal><p className="eyebrow">Einmal einrichten. Ruhiger arbeiten.</p><h2>So einfach<br /><span className="serif">funktioniert es.</span></h2></Reveal><div className="steps"><Reveal delay={.05}><div className="step"><span className="step-num">01</span><h3>Studio einrichten</h3><p>Deine Leistungen, Verfügbarkeiten und Regeln. Klar und in deinem Tempo.</p></div></Reveal><Reveal delay={.12}><div className="step"><span className="step-num">02</span><h3>Link teilen</h3><p>In deine Bio, auf deine Website oder direkt in die nächste Nachricht.</p></div></Reveal><Reveal delay={.19}><div className="step"><span className="step-num">03</span><h3>Studio läuft</h3><p>Anfragen kommen vollständig an. Erinnerungen gehen automatisch raus.</p></div></Reveal></div></div></section>
-      <section className="section product-section"><div className="so-wrap"><Reveal><p className="eyebrow">Alles, was du brauchst. Nichts, was dich aufhält.</p><h2>Dein Studio.<br /><span className="serif">Ein ruhiger Blick.</span></h2><p className="section-intro">StudioOS bringt Ordnung in die vielen kleinen Dinge, die zwischen zwei Sessions passieren. Hier ist alles, was heute zählt.</p></Reveal><div className="product-browser"><Reveal delay={.1}><DashboardMockup mode={activeTab} /></Reveal><div className="product-tabs">{tabs.map(tab => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}</div></div></div></section>
-      <section className="section" style={{ paddingTop: 100 }}><div className="so-wrap" id="features"><Reveal><p className="eyebrow">Für den ganzen Studioalltag</p><h2>Weniger suchen.<br /><span className="serif">Mehr machen.</span></h2></Reveal><div className="bento"><Reveal><div className="bento-card tall"><CalendarDays className="bento-icon" size={21} /><h3>Ein Kalender, der mitdenkt.</h3><p>Termine, Anfragen und Verfügbarkeiten in einem Blick. Ohne Seitenwechsel.</p><FeatureVisual type="calendar" /></div></Reveal><Reveal delay={.08}><div className="bento-card dark"><Bell className="bento-icon" size={21} /><h3>Keine Erinnerung vergessen.</h3><p>StudioOS hält den Kontakt, auch wenn du gerade arbeitest.</p></div></Reveal><Reveal delay={.14}><div className="bento-card"><FileCheck2 className="bento-icon" size={21} /><h3>Formulare digital.</h3><p>Vorbereitet ankommen. Sicher archiviert.</p><FeatureVisual type="form" /></div></Reveal><Reveal delay={.18}><div className="bento-card wide"><CreditCard className="bento-icon" size={21} /><h3>Anzahlungen, die einfach passieren.</h3><p>Ein klarer Schritt bei der Buchung. Mehr Sicherheit für beide Seiten.</p><FeatureVisual type="payments" /></div></Reveal><Reveal delay={.24}><div className="bento-card"><ImageIcon className="bento-icon" size={21} /><h3>Referenzen am richtigen Ort.</h3><p>Alle Bilder und Wünsche direkt beim Termin.</p></div></Reveal></div></div></section>
-      <section className="section day-section" id="alltag"><div className="so-wrap"><Reveal><p className="eyebrow">Ein besserer Studioalltag</p><h2>Du merkst es<br /><span className="serif">an deinem Tag.</span></h2><p className="section-intro">Nicht an einer Statistik. Sondern daran, dass zwischen zwei Kund:innen wieder Luft ist.</p></Reveal><div className="day-grid"><div className="day-list"><Reveal delay={.1}><div className="day-item"><time>09:00</time><div><h3>Morgens</h3><p>Ein Blick auf den Tag. Alles vorbereitet, nichts offen.</p></div></div></Reveal><Reveal delay={.15}><div className="day-item"><time>14:30</time><div><h3>Zwischendurch</h3><p>Eine Anfrage kommt vollständig an. Du antwortest, wenn es passt.</p></div></div></Reveal><Reveal delay={.2}><div className="day-item"><time>18:00</time><div><h3>Abends</h3><p>Der letzte Termin geht. Dein Studio bleibt organisiert.</p></div></div></Reveal></div><Reveal delay={.25}><div className="day-quote"><p>„Endlich muss ich nicht mehr gleichzeitig Künstler:in und Büro sein.“</p><span>Der Anspruch hinter StudioOS</span></div></Reveal></div></div></section>
-      <section className="section" id="fragen"><div className="so-wrap"><Reveal><p className="eyebrow">Fragen, die häufig kommen</p><h2>Passt StudioOS<br /><span className="serif">zu deinem Studio?</span></h2></Reveal><div className="faq">{faqs.map(([question, answer], i) => <div className="faq-item" key={question}><button className="faq-button" onClick={() => setFaqOpen(faqOpen === i ? -1 : i)}>{question}{faqOpen === i ? <X size={18} /> : <Plus size={18} />}</button><motion.div className="faq-answer" initial={false} animate={{ height: faqOpen === i ? "auto" : 0, opacity: faqOpen === i ? 1 : 0 }}><p>{answer}</p></motion.div></div>)}</div></div></section>
-      <section className="final-cta"><div className="so-wrap"><Reveal><p className="eyebrow">Der nächste ruhige Schritt</p><h2>Dein Studio verdient mehr Zeit für das, was wirklich zählt.</h2><ButtonLink to="/register?role=studio">Jetzt kostenlos starten</ButtonLink><p>Keine Kreditkarte erforderlich. In wenigen Minuten eingerichtet.</p></Reveal></div></section></main>
-    <footer className="footer"><div className="so-wrap"><div className="footer-row"><span className="so-logo-lockup"><StudioOSMark size={27} /><span>Studio<span>OS</span></span></span><div className="footer-links"><Link to="/login">Anmelden</Link><Link to="/register?role=studio">Studio starten</Link><a href="#fragen">Fragen</a></div></div><p className="footer-copy">StudioOS — das Betriebssystem für Tattoo, Piercing und PMU Studios.</p></div></footer>
-  </div>;
+  // The wheel starts on the middle tier, not the recommended one: with an end
+  // option focused the dial has nothing rendered on one side, which both looks
+  // lopsided and hides the fact that it turns at all. An option above and
+  // below is the affordance.
+  const [activePlan, setActivePlan] = useState(1);
+
+  // Progress through the pinned stage: 0 the moment it locks to the top of
+  // the viewport, 1 when the runway is used up and it releases.
+  const stageRef = useRef(null);
+  const { scrollYProgress: stageProgress } = useScroll({
+    target: stageRef,
+    offset: ["start start", "end end"],
+  });
+
+  return (
+    <div className="min-h-screen bg-zinc-50">
+      <header className="sticky top-0 z-40 bg-zinc-50/85 backdrop-blur border-b border-zinc-200/60">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <StudioOSWordmark markSize={26} textSize="text-lg" />
+          <nav className="hidden md:flex items-center gap-7">
+            {[
+              { label: "Funktionen", href: "#funktionen" },
+              { label: "Preise", href: "#preise" },
+              { label: "Fragen", href: "#fragen" },
+            ].map((l) => (
+              <a key={l.href} href={l.href} className="text-sm font-inter text-zinc-500 hover:text-zinc-900 transition-colors">
+                {l.label}
+              </a>
+            ))}
+          </nav>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link to="/os/login" className="text-sm font-inter text-zinc-600 hover:text-zinc-900 px-3 py-2 transition-colors">
+              Anmelden
+            </Link>
+            <Link
+              to="/os/login"
+              className="text-sm font-inter text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl px-4 py-2 transition-colors whitespace-nowrap"
+            >
+              Studio anlegen
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero. Animated on mount rather than on scroll-into-view: this is the
+          first thing above the fold, so there is no "into view" moment to
+          wait for — whileInView would just risk a frame of blank page. */}
+      <section className="max-w-6xl mx-auto px-6 pt-14 pb-8 md:pt-20 md:pb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-2xl mx-auto text-center"
+        >
+          {/* The name as the page's first real statement, extruded so it
+              reads as an object rather than a heading. Dark face on the
+              light page — the same mark reversed out on dark was the reason
+              it barely registered before. */}
+          <div className="mb-7 mt-2 flex justify-center">
+            <DepthText
+              text="StudioOS"
+              layers={34}
+              depth={0.0072}
+              faceColor="#09090b"
+              depthColor="#bfbfc7"
+              tilt={9}
+              className="font-playfair font-black tracking-[-0.02em] text-[17vw] sm:text-7xl md:text-8xl leading-none"
+            />
+          </div>
+
+          <h1 className="font-playfair text-2xl md:text-3xl lg:text-[2.1rem] leading-[1.15] text-zinc-900 mb-5">
+            Mehr Zeit für Kunst.
+            <br />
+            Weniger Zeit für Chaos.
+          </h1>
+          <p className="text-base md:text-lg font-inter text-zinc-600 leading-relaxed mb-8 max-w-xl mx-auto">
+            StudioOS bündelt Anfragen, Angebote, Termine und Absprachen an einem Ort — damit du abends nicht noch
+            Nachrichten sortierst, sondern Feierabend hast.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/os/login"
+              className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-sm transition-colors shadow-btn"
+            >
+              Studio kostenlos anlegen
+              <ArrowRight size={16} />
+            </Link>
+            <a
+              href="mailto:hallo@studioos.de?subject=Demo%20StudioOS"
+              className="inline-flex items-center h-12 px-5 rounded-xl bg-white border border-zinc-200 hover:border-zinc-300 text-zinc-700 font-inter text-sm transition-colors"
+            >
+              Lieber erst reden?
+            </a>
+          </div>
+          <p className="text-xs font-inter text-zinc-400 mt-4">
+            Keine Kreditkarte nötig · In wenigen Minuten eingerichtet · Jederzeit selbst löschbar
+          </p>
+        </motion.div>
+      </section>
+
+      {/* The machine flies in and opens on the real dashboard. Scaled down on
+          narrow screens rather than reflowed — a laptop only reads as a laptop
+          at its own proportions. */}
+      {/* A pinned stage: the machine holds dead centre and stays there while
+          the scroll drives the whole camera move — overhead, down to eye
+          level, lid open, screen lit, then in through the glass. The tall
+          outer section is only the scroll runway for the sticky child, and it
+          is long because the sequence has five beats to get through without
+          any of them feeling rushed. */}
+      <section ref={stageRef} className="relative" style={{ height: "460vh" }}>
+        {/* Clipped at the stage, not the page: at the end of the dive the
+            machine is deliberately wider than the viewport, and without this
+            that overflow becomes real horizontal scroll — body's overflow-x
+            doesn't stop it, since the document scroller is <html>. */}
+        <div className="sticky top-0 h-screen overflow-hidden flex items-center justify-center px-6">
+          {/* Half of what the old wide shot used, because the scene itself is
+              now built at 2×. The dive multiplies back up to exactly 1:1, so
+              the closest frame is native pixels rather than a stretched
+              raster. */}
+          <div className="origin-center scale-[0.21] sm:scale-[0.29] md:scale-[0.37] lg:scale-[0.46] xl:scale-50">
+            {/* The same progress drives the camera and what is on the screen,
+                so the acts can only begin once the dive has actually arrived. */}
+            <MacBookScene progress={stageProgress}>
+              <WorkflowActs progress={stageProgress} />
+            </MacBookScene>
+          </div>
+        </div>
+      </section>
+
+      {/* Workflows */}
+      <section id="funktionen" className="max-w-6xl mx-auto px-6 py-16 md:py-24">
+        <motion.div {...fadeUp} className="mb-14 max-w-2xl">
+          <SectionLabel>So arbeitet StudioOS</SectionLabel>
+          <h2 className="font-playfair text-3xl md:text-4xl text-zinc-900 mt-3 leading-tight">
+            Die Handgriffe, die deinen Tag ausmachen
+          </h2>
+        </motion.div>
+
+        <div className="space-y-20 md:space-y-28">
+          {WORKFLOWS.map(({ eyebrow, title, body, Mockup }, i) => (
+            <motion.div key={title} {...fadeUp} className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className={i % 2 === 1 ? "lg:order-2" : ""}>
+                <SectionLabel>{eyebrow}</SectionLabel>
+                <h3 className="font-playfair text-2xl md:text-3xl text-zinc-900 mt-3 mb-4 leading-snug">{title}</h3>
+                <p className="text-sm md:text-base font-inter text-zinc-600 leading-relaxed max-w-md">{body}</p>
+              </div>
+              <div className={i % 2 === 1 ? "lg:order-1" : ""}>
+                <Mockup />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Feature grid */}
+      <section className="bg-white border-y border-zinc-100">
+        <div className="max-w-6xl mx-auto px-6 py-16 md:py-24">
+          <motion.div {...fadeUp} className="mb-12 max-w-2xl">
+            <SectionLabel>Außerdem drin</SectionLabel>
+            <h2 className="font-playfair text-3xl md:text-4xl text-zinc-900 mt-3 leading-tight">
+              Die Kleinigkeiten, die den Unterschied machen
+            </h2>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {FEATURES.map(({ icon: Icon, title, body }, i) => (
+              <motion.div
+                key={title}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.4, delay: (i % 3) * 0.07 }}
+                className="rounded-2xl border border-zinc-100 p-5 hover:border-zinc-200 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center mb-3.5">
+                  <Icon size={16} className="text-zinc-600" strokeWidth={1.5} />
+                </div>
+                <h3 className="font-inter font-medium text-sm text-zinc-900 mb-1.5">{title}</h3>
+                <p className="text-xs font-inter text-zinc-500 leading-relaxed">{body}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="preise" className="max-w-6xl mx-auto px-6 py-16 md:py-24">
+        <motion.div {...fadeUp} className="mb-12 text-center max-w-2xl mx-auto">
+          <SectionLabel>Preise</SectionLabel>
+          <h2 className="font-playfair text-3xl md:text-4xl text-zinc-900 mt-3 mb-3 leading-tight">
+            Klein anfangen, jederzeit wechseln
+          </h2>
+          <p className="text-sm font-inter text-zinc-500">
+            Monatlich kündbar. Der kostenlose Tarif läuft ohne Zeitlimit — du entscheidest, wann mehr Sinn ergibt.
+          </p>
+        </motion.div>
+
+        {/* A dial instead of three cards side by side — scroll, drag or click
+            the wheel to bring a plan into focus, its details crossfade in
+            next to it. Nothing here is decided until a tier is actually in
+            the middle, same "one thing in focus" idea as the pinned stages
+            above. */}
+        <motion.div
+          {...fadeUp}
+          className="grid md:grid-cols-[260px_1fr] gap-6 md:gap-16 max-w-4xl mx-auto items-center"
+        >
+          <PlanWheel items={PLANS.map((p) => p.name)} active={activePlan} onChange={setActivePlan} />
+
+          {/* Fixed height because the card is absolutely positioned — the
+              outgoing and incoming card overlap during the crossfade, so the
+              column can't be sized by its content without the section
+              jumping on every turn of the wheel. */}
+          <div className="relative min-h-[440px]">
+            <AnimatePresence mode="wait">
+              {PLANS.filter((_, i) => i === activePlan).map(({ icon: Icon, name, subtitle, price, period, features, cta, highlight }) => (
+                <motion.div
+                  key={name}
+                  initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -18, scale: 0.98 }}
+                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                  className={`absolute inset-0 rounded-3xl p-8 flex flex-col ${
+                    highlight
+                      ? "bg-zinc-900 text-white shadow-card-hover"
+                      : "bg-white border border-zinc-200/70 shadow-card"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                          highlight ? "bg-white/10 text-white" : "bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        <Icon size={18} strokeWidth={1.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className={`font-playfair text-xl leading-tight ${highlight ? "text-white" : "text-zinc-900"}`}>
+                          {name}
+                        </h3>
+                        <p className={`text-[11px] font-inter mt-0.5 ${highlight ? "text-zinc-400" : "text-zinc-500"}`}>
+                          {subtitle}
+                        </p>
+                      </div>
+                    </div>
+                    {highlight && (
+                      <span className="text-[10px] font-inter uppercase tracking-widest bg-white/15 rounded-full px-2.5 py-1 flex-shrink-0">
+                        Beliebt
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className={`flex items-baseline gap-1.5 pb-6 mb-6 border-b ${
+                      highlight ? "border-white/10" : "border-zinc-100"
+                    }`}
+                  >
+                    <span className={`font-playfair text-[2.6rem] leading-none ${highlight ? "text-white" : "text-zinc-900"}`}>
+                      {price}
+                    </span>
+                    <span className={`text-xs font-inter ${highlight ? "text-zinc-400" : "text-zinc-500"}`}>{period}</span>
+                  </div>
+
+                  <ul className="space-y-3 mb-8 flex-1">
+                    {features.map((f) => (
+                      <li key={f} className="flex items-start gap-2.5">
+                        <Check
+                          size={14}
+                          strokeWidth={2.5}
+                          className={`mt-px flex-shrink-0 ${highlight ? "text-emerald-400" : "text-emerald-500"}`}
+                        />
+                        <span className={`text-[13px] font-inter leading-snug ${highlight ? "text-zinc-300" : "text-zinc-600"}`}>
+                          {f}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    to="/os/login"
+                    className={`h-12 rounded-2xl font-inter text-sm flex items-center justify-center transition-colors ${
+                      highlight ? "bg-white text-zinc-900 hover:bg-zinc-100" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                    }`}
+                  >
+                    {cta}
+                  </Link>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* FAQ */}
+      <section id="fragen" className="bg-white border-y border-zinc-100">
+        <div className="max-w-3xl mx-auto px-6 py-16 md:py-24">
+          <motion.div {...fadeUp} className="mb-10">
+            <SectionLabel>Häufige Fragen</SectionLabel>
+            <h2 className="font-playfair text-3xl md:text-4xl text-zinc-900 mt-3 leading-tight">Bevor du loslegst</h2>
+          </motion.div>
+
+          <div className="divide-y divide-zinc-100">
+            {FAQ.map(({ q, a }, i) => (
+              <motion.details
+                key={q}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.35, delay: i * 0.05 }}
+                className="group py-5"
+              >
+                <summary className="flex items-center justify-between gap-4 cursor-pointer list-none">
+                  <span className="font-inter font-medium text-sm text-zinc-900">{q}</span>
+                  <span className="text-zinc-300 text-lg leading-none transition-transform group-open:rotate-45 flex-shrink-0">
+                    +
+                  </span>
+                </summary>
+                <p className="text-sm font-inter text-zinc-600 leading-relaxed mt-3 pr-8">{a}</p>
+              </motion.details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Closing CTA */}
+      <section className="max-w-6xl mx-auto px-6 py-20 md:py-28">
+        <motion.div {...fadeUp} className="rounded-3xl bg-zinc-900 px-8 py-14 md:px-16 md:py-20 text-center">
+          <h2 className="font-playfair text-3xl md:text-4xl text-white leading-tight mb-4">
+            Richte dein Studio in ein paar Minuten ein
+          </h2>
+          <p className="text-sm md:text-base font-inter text-zinc-400 max-w-lg mx-auto mb-8 leading-relaxed">
+            Konto anlegen, Öffnungszeiten eintragen, Link teilen — die erste Anfrage kann noch heute reinkommen.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/os/login"
+              className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-white text-zinc-900 hover:bg-zinc-100 font-inter text-sm transition-colors"
+            >
+              Studio kostenlos anlegen
+              <ArrowRight size={16} />
+            </Link>
+            <a
+              href="mailto:hallo@studioos.de?subject=Demo%20StudioOS"
+              className="inline-flex items-center h-12 px-5 rounded-xl border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-600 font-inter text-sm transition-colors"
+            >
+              Demo vereinbaren
+            </a>
+          </div>
+        </motion.div>
+      </section>
+
+      <footer className="border-t border-zinc-200/60">
+        <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-5">
+          <StudioOSWordmark markSize={22} textSize="text-sm" />
+          <div className="flex flex-wrap items-center justify-center gap-5">
+            {[
+              { to: "/impressum", label: "Impressum" },
+              { to: "/datenschutz", label: "Datenschutz" },
+              { to: "/agb", label: "AGB" },
+            ].map((l) => (
+              <Link key={l.to} to={l.to} className="text-xs font-inter text-zinc-500 hover:text-zinc-900 transition-colors">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+          <p className="text-xs font-inter text-zinc-400">© 2026 StudioOS</p>
+        </div>
+      </footer>
+    </div>
+  );
 }

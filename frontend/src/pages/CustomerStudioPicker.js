@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Loader2, ChevronRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { studioApi } from "../lib/studioApi";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
 import { Button } from "../components/ui/button";
@@ -72,33 +72,35 @@ export default function CustomerStudioPicker() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 320, damping: 28 }}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-card p-8"
+        className={`w-full bg-white rounded-3xl shadow-card p-8 ${studios ? "max-w-md" : "max-w-sm"}`}
       >
         <StudioOSWordmark className="mb-6" />
 
         {studios ? (
           <>
-            <h1 className="font-playfair text-lg text-zinc-900 mb-1">Dein Studio</h1>
-            <p className="text-sm text-zinc-500 font-inter mb-5">Bei diesen Studios bist du Kunde.</p>
-            <div className="space-y-2">
-              {studios.map((s) => (
+            <h1 className="font-playfair text-lg text-zinc-900 mb-1">Deine Studios</h1>
+            <p className="text-sm text-zinc-500 font-inter mb-5">Bei diesen Studios bist du Kunde — jedes mit eigenen Terminen.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {studios.map((s, i) => (
                 <motion.button
                   key={s.slug}
                   type="button"
-                  whileHover={{ scale: 1.015 }}
-                  whileTap={{ scale: 0.985 }}
+                  initial={{ opacity: 0, y: 14, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 24, delay: i * 0.06 }}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => navigate(`/t/${s.slug}/konto`)}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-zinc-200 hover:border-zinc-900 text-left transition-colors"
+                  className="flex flex-col items-center gap-2.5 p-5 rounded-2xl border border-zinc-200 hover:border-zinc-900 hover:shadow-card bg-white text-center transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-full bg-zinc-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
                     {s.logo ? (
                       <img src={s.logo} alt={s.studioName} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="font-playfair text-sm text-zinc-500">{(s.studioName || "?")[0]}</span>
+                      <span className="font-playfair text-xl text-zinc-500">{(s.studioName || "?")[0]}</span>
                     )}
                   </div>
-                  <span className="font-inter text-sm text-zinc-900 truncate flex-1">{s.studioName}</span>
-                  <ChevronRight size={15} className="text-zinc-300 flex-shrink-0" />
+                  <span className="font-inter text-sm font-medium text-zinc-900 leading-tight">{s.studioName}</span>
                 </motion.button>
               ))}
             </div>

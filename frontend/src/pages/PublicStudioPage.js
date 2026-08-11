@@ -138,7 +138,7 @@ function ArtistModal({ artist, index, onClose, onOpenImage }) {
               <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 mt-5 mb-2">
                 Portfolio · {artist.portfolio_images.length} {artist.portfolio_images.length === 1 ? "Bild" : "Bilder"}
               </div>
-              <div className="-mx-2 rounded-2xl overflow-hidden bg-zinc-950" style={{ height: 320 }}>
+              <div className="-mx-2 rounded-2xl overflow-hidden bg-white border border-zinc-100" style={{ height: 320 }}>
                 <DepthCarousel
                   items={artist.portfolio_images}
                   cardWidth={190}

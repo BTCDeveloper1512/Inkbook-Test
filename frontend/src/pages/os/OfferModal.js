@@ -22,19 +22,43 @@ function slotDefaultTime(slot) {
   return `${String(slotStartHour(slot || "nachmittags")).padStart(2, "0")}:00`;
 }
 
-export default function OfferModal({ booking, onClose, onSent }) {
-  const [form, setForm] = useState(() => ({
-    priceTotal: booking.price_estimated ?? "",
-    durationHours: "2",
-    offerDate: booking.preferred_date || "",
-    offerSlot: booking.preferred_slot || "nachmittags",
-    offerTime: slotDefaultTime(booking.preferred_slot),
-    notes: "",
-  }));
+export default function OfferModal({ booking, studio, onClose, onSent }) {
+  const depositRequired = !!studio?.settings?.depositRequired;
+  const depositPercent = Number(studio?.settings?.depositPercent || 0);
+
+  const [form, setForm] = useState(() => {
+    const priceTotal = booking.price_estimated ?? "";
+    return {
+      priceTotal,
+      // Pre-filled from the studio's deposit setting, but the studio can
+      // still adjust or clear it per offer — a rough estimate isn't always
+      // the right basis, and not every offer needs a deposit.
+      depositAmount: depositRequired && priceTotal ? Math.round((Number(priceTotal) * depositPercent) / 100) : "",
+      durationHours: "2",
+      offerDate: booking.preferred_date || "",
+      offerSlot: booking.preferred_slot || "nachmittags",
+      offerTime: slotDefaultTime(booking.preferred_slot),
+      notes: "",
+    };
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  function onPriceChange(value) {
+    setForm((f) => {
+      // Only auto-follow the deposit while it still matches the percentage
+      // of the old price — once the studio has touched it by hand, typing a
+      // new price shouldn't silently overwrite their edit. With no old price
+      // yet (the common case: a fresh request has no price_estimated), there
+      // is nothing to diverge from, so the first entry still auto-fills.
+      const autoDeposit =
+        depositRequired && (!f.priceTotal || Math.round((Number(f.priceTotal) * depositPercent) / 100) === Number(f.depositAmount || 0));
+      const depositAmount = autoDeposit && value ? Math.round((Number(value) * depositPercent) / 100) : f.depositAmount;
+      return { ...f, priceTotal: value, depositAmount };
+    });
+  }
 
   async function send() {
     if (!form.priceTotal || !form.offerDate || !form.offerTime || !form.durationHours) {
@@ -49,6 +73,7 @@ export default function OfferModal({ booking, onClose, onSent }) {
       const startsAt = new Date(`${form.offerDate}T${form.offerTime}:00`);
       const payload = {
         priceTotal: Number(form.priceTotal),
+        depositAmount: form.depositAmount ? Number(form.depositAmount) : undefined,
         durationMinutes: Math.round(Number(form.durationHours) * 60),
         offerDate: form.offerDate,
         offerSlot: form.offerSlot,
@@ -75,7 +100,10 @@ export default function OfferModal({ booking, onClose, onSent }) {
       }
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error?.formErrors?.[0] || "Angebot konnte nicht gesendet werden.");
+      // Validation failures come back as a Zod-flatten object; the plan-limit
+      // check (and most other server errors) return a plain string instead.
+      const apiError = err.response?.data?.error;
+      setError((typeof apiError === "string" ? apiError : apiError?.formErrors?.[0]) || "Angebot konnte nicht gesendet werden.");
     } finally {
       setSaving(false);
     }
@@ -132,7 +160,7 @@ export default function OfferModal({ booking, onClose, onSent }) {
                 step="5"
                 placeholder="450"
                 value={form.priceTotal}
-                onChange={(e) => set("priceTotal", e.target.value)}
+                onChange={(e) => onPriceChange(e.target.value)}
                 className="rounded-xl h-10"
               />
             </div>
@@ -184,6 +212,19 @@ export default function OfferModal({ booking, onClose, onSent }) {
           </div>
 
           <div>
+            <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Anzahlung (€)</label>
+            <Input
+              type="number"
+              min="0"
+              step="5"
+              placeholder="0"
+              value={form.depositAmount}
+              onChange={(e) => set("depositAmount", e.target.value)}
+              className="rounded-xl h-10"
+            />
+          </div>
+
+          <div>
             <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Notiz (optional)</label>
             <Textarea
               value={form.notes}
@@ -197,7 +238,9 @@ export default function OfferModal({ booking, onClose, onSent }) {
         {error && <p className="text-xs font-inter text-red-600 mt-3">{error}</p>}
 
         <p className="text-[11px] font-inter text-zinc-400 mt-3 leading-snug">
-          Sagt der Kunde zu, steht der Termin sofort mit dieser Uhrzeit in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag.
+          {Number(form.depositAmount) > 0
+            ? "Sagt der Kunde zu, muss er erst die Anzahlung bezahlen — der Termin steht in deinem Kalender erst danach fix."
+            : "Sagt der Kunde zu, steht der Termin sofort mit dieser Uhrzeit in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag."}
         </p>
 
         <Button

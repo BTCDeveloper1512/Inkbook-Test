@@ -52,7 +52,7 @@ function PortfolioUploader({ images, onChange }) {
   );
 }
 
-function ArtistForm({ initial, onSave, onCancel, saving }) {
+function ArtistForm({ initial, onSave, onCancel, saving, error }) {
   const [name, setName] = useState(initial?.name || "");
   const [bio, setBio] = useState(initial?.bio || "");
   const [instagramHandle, setInstagramHandle] = useState(initial?.instagram_handle || "");
@@ -141,6 +141,8 @@ function ArtistForm({ initial, onSave, onCancel, saving }) {
         <PortfolioUploader images={portfolioImages} onChange={setPortfolioImages} />
       </div>
 
+      {error && <p className="text-xs font-inter text-red-600 mb-3">{error}</p>}
+
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel} className="rounded-xl font-inter">
           Abbrechen
@@ -171,6 +173,7 @@ function ArtistForm({ initial, onSave, onCancel, saving }) {
 export default function StudioArtistsTab({ artists, bookings, onArtistsChange }) {
   const [formMode, setFormMode] = useState(null); // null | "new" | artistId
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const statsByArtist = useMemo(() => {
     const now = Date.now();
@@ -191,10 +194,13 @@ export default function StudioArtistsTab({ artists, bookings, onArtistsChange })
 
   async function createArtist(fields) {
     setSaving(true);
+    setFormError("");
     try {
       const { data } = await studioApi.post("/studios/me/artists", { ...fields, type: "resident" });
       onArtistsChange((prev) => [...prev, data]);
       setFormMode(null);
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Artist konnte nicht angelegt werden.");
     } finally {
       setSaving(false);
     }
@@ -202,10 +208,13 @@ export default function StudioArtistsTab({ artists, bookings, onArtistsChange })
 
   async function updateArtist(id, fields) {
     setSaving(true);
+    setFormError("");
     try {
       const { data } = await studioApi.patch(`/studios/me/artists/${id}`, fields);
       onArtistsChange((prev) => prev.map((a) => (a.id === id ? data : a)));
       setFormMode(null);
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Änderung konnte nicht gespeichert werden.");
     } finally {
       setSaving(false);
     }
@@ -221,14 +230,26 @@ export default function StudioArtistsTab({ artists, bookings, onArtistsChange })
   return (
     <div>
       {formMode === "new" && (
-        <ArtistForm onSave={createArtist} onCancel={() => setFormMode(null)} saving={saving} />
+        <ArtistForm
+          onSave={createArtist}
+          onCancel={() => {
+            setFormMode(null);
+            setFormError("");
+          }}
+          saving={saving}
+          error={formError}
+        />
       )}
       {editingArtist && (
         <ArtistForm
           initial={editingArtist}
           onSave={(fields) => updateArtist(editingArtist.id, fields)}
-          onCancel={() => setFormMode(null)}
+          onCancel={() => {
+            setFormMode(null);
+            setFormError("");
+          }}
           saving={saving}
+          error={formError}
         />
       )}
 

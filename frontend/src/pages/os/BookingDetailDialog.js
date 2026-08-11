@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Mail, Clock, Euro, Image as ImageIcon, CalendarDays } from "lucide-react";
+import { X, Mail, Clock, Euro, Image as ImageIcon, CalendarDays, MessageCircle, ChevronRight, Banknote, RotateCcw } from "lucide-react";
 import { SLOT_LABEL } from "../../lib/daySlots";
 
 /**
@@ -34,11 +34,39 @@ function Row({ label, children }) {
   );
 }
 
-export default function BookingDetailDialog({ booking, statusLabel, statusDot, onClose, onCreateOffer }) {
+export default function BookingDetailDialog({ booking, statusLabel, statusDot, onClose, onCreateOffer, onOpenThread, onDepositCash, onConfirmRefund }) {
   const b = booking;
   const offers = [...(b.offers || [])].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
   const sessions = [...(b.sessions || [])].sort((x, y) => new Date(x.start_time) - new Date(y.start_time));
   const eur = (n) => `${Number(n).toFixed(0)} €`;
+  const unreadMessages = (b.messages || []).filter((m) => m.sender === "customer" && !m.read_at).length;
+  const depositPayment = (b.payments || []).find((p) => p.type === "anzahlung");
+  const [depositBusy, setDepositBusy] = useState(false);
+  const [depositError, setDepositError] = useState("");
+
+  async function handleDepositCash() {
+    setDepositBusy(true);
+    setDepositError("");
+    try {
+      await onDepositCash?.(b.id);
+    } catch (err) {
+      setDepositError(err.response?.data?.error || "Konnte nicht vermerkt werden.");
+    } finally {
+      setDepositBusy(false);
+    }
+  }
+
+  async function handleConfirmRefund() {
+    setDepositBusy(true);
+    setDepositError("");
+    try {
+      await onConfirmRefund?.(depositPayment.id);
+    } catch (err) {
+      setDepositError(err.response?.data?.error || "Konnte nicht bestätigt werden.");
+    } finally {
+      setDepositBusy(false);
+    }
+  }
 
   return (
     <motion.div
@@ -66,6 +94,9 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                 <span className="text-xs font-inter text-zinc-500">
                   {statusLabel} · {TYPE_LABEL[b.appointment_type]}
                 </span>
+                {b.in_progress && (
+                  <span className="text-[10px] font-inter px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">In Bearbeitung</span>
+                )}
               </div>
             </div>
             <button type="button" onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors flex-shrink-0">
@@ -174,6 +205,7 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                     <div className="text-[11px] font-inter text-zinc-500 mt-0.5">
                       {new Date(o.offer_date).toLocaleDateString("de-DE", { day: "2-digit", month: "long" })}
                       {o.offer_slot && <>, {SLOT_LABEL[o.offer_slot]?.toLowerCase()}</>}
+                      {o.deposit_amount > 0 && <> · Anzahlung {eur(o.deposit_amount)}</>}
                     </div>
                     {o.notes && <p className="text-[11px] font-inter text-zinc-500 italic mt-1">"{o.notes}"</p>}
                   </div>
@@ -181,6 +213,85 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
               </div>
             </section>
           )}
+
+          {(depositPayment || b.status === "anzahlung_ausstehend") && (
+            <section>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Banknote size={12} className="text-zinc-400" />
+                <span className="text-[10px] font-inter uppercase tracking-widest text-zinc-400">Anzahlung</span>
+              </div>
+              <div className="rounded-xl border border-zinc-100 px-3 py-2.5">
+                {depositPayment ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-inter font-medium text-zinc-900">{eur(depositPayment.amount)}</span>
+                    <span
+                      className={`text-[10px] font-inter px-1.5 py-0.5 rounded-full ${
+                        depositPayment.status === "paid"
+                          ? "bg-teal-100 text-teal-700"
+                          : depositPayment.status === "refund_pending"
+                            ? "bg-amber-100 text-amber-700"
+                            : depositPayment.status === "refunded"
+                              ? "bg-zinc-100 text-zinc-500"
+                              : "bg-zinc-100 text-zinc-500"
+                      }`}
+                    >
+                      {depositPayment.status === "paid"
+                        ? depositPayment.stripe_payment_id
+                          ? "Bezahlt · Stripe"
+                          : "Bezahlt · Bar"
+                        : depositPayment.status === "refund_pending"
+                          ? "Rückerstattung fällig (bar)"
+                          : depositPayment.status === "refunded"
+                            ? "Erstattet"
+                            : depositPayment.status}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-inter text-zinc-500">Noch nicht bezahlt</span>
+                    <span className="text-[10px] font-inter px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">ausstehend</span>
+                  </div>
+                )}
+                {depositError && <p className="text-[11px] font-inter text-red-600 mt-2">{depositError}</p>}
+                {b.status === "anzahlung_ausstehend" && !depositPayment && (
+                  <button
+                    type="button"
+                    onClick={handleDepositCash}
+                    disabled={depositBusy}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-1.5 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-inter transition-colors"
+                  >
+                    {depositBusy ? "…" : "Anzahlung bar erhalten"}
+                  </button>
+                )}
+                {depositPayment?.status === "refund_pending" && (
+                  <button
+                    type="button"
+                    onClick={handleConfirmRefund}
+                    disabled={depositBusy}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-1.5 h-8 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-inter transition-colors"
+                  >
+                    <RotateCcw size={11} />
+                    {depositBusy ? "…" : "Rückerstattung bestätigt (bar ausgezahlt)"}
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onOpenThread?.(b.id)}
+            className="w-full flex items-center gap-2.5 rounded-xl border border-zinc-100 px-3 py-2.5 hover:bg-zinc-50 transition-colors"
+          >
+            <MessageCircle size={14} className="text-zinc-400 flex-shrink-0" />
+            <span className="text-xs font-inter text-zinc-700 flex-1 text-left">Zu den Nachrichten</span>
+            {unreadMessages > 0 && (
+              <span className="text-[10px] font-inter bg-zinc-900 text-white rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">
+                {unreadMessages}
+              </span>
+            )}
+            <ChevronRight size={14} className="text-zinc-300 flex-shrink-0" />
+          </button>
         </div>
 
         {["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) && (

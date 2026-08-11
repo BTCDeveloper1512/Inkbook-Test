@@ -16,9 +16,14 @@ import {
   CalendarDays,
   Wallet,
   TrendingUp,
+  MessageCircle,
+  CreditCard,
+  Banknote,
+  AlertTriangle,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { studioApi } from "../../lib/studioApi";
+import { planInfo } from "../../lib/plans";
 import { useLiveUpdates } from "../../lib/useLiveUpdates";
 import { SLOT_LABEL } from "../../lib/daySlots";
 import { studioOsAuth } from "../../lib/studioOsAuth";
@@ -27,23 +32,28 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import OfferModal from "./OfferModal";
 import BookingDetailDialog from "./BookingDetailDialog";
+import NachrichtenTab from "./NachrichtenTab";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger } from "../../components/ui/select";
 import StudioProfileTab from "./StudioProfileTab";
 import StudioArtistsTab from "./StudioArtistsTab";
 import StudioCalendarTab from "./StudioCalendarTab";
 
-// Grouped rather than one flat list of eight: the dropdown otherwise reads as
-// an undifferentiated wall, and these three phases are how a studio actually
-// thinks about where a booking stands.
-const STATUS_GROUPS = [
-  { label: "Angebotsphase", items: ["anfrage", "angebot_gesendet", "angenommen", "abgelehnt"] },
-  { label: "Umsetzung", items: ["in_planung", "laufend"] },
+// anfrage/angebot_gesendet/angenommen/anzahlung_ausstehend/abgelehnt are
+// outputs of the offer/deposit pipeline now (createOffer, /respond,
+// confirmDepositPaid) — staff picking one by hand from a dropdown would
+// leave a project "confirmed" with no session behind it, or an offer nobody
+// actually sent. Those are shown as a read-only badge instead; only the
+// three states with no automated path get an editable dropdown.
+const MANUAL_STATUS_GROUPS = [
+  { label: "Umsetzung", items: ["laufend"] },
   { label: "Beendet", items: ["abgeschlossen", "abgebrochen"] },
 ];
+const SYSTEM_MANAGED_STATUSES = ["anfrage", "angebot_gesendet", "angenommen", "anzahlung_ausstehend", "abgelehnt"];
 const STATUS_LABEL = {
   anfrage: "Anfrage",
   angebot_gesendet: "Angebot läuft",
   angenommen: "Angenommen",
+  anzahlung_ausstehend: "Anzahlung ausstehend",
   abgelehnt: "Abgelehnt",
   in_planung: "In Planung",
   laufend: "Läuft",
@@ -58,6 +68,7 @@ const STATUS_DOT = {
   anfrage: "bg-amber-500",
   angebot_gesendet: "bg-zinc-900",
   angenommen: "bg-teal-500",
+  anzahlung_ausstehend: "bg-amber-600",
   abgelehnt: "bg-zinc-400",
   in_planung: "bg-blue-500",
   laufend: "bg-blue-700",
@@ -69,6 +80,7 @@ const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_sessio
 const NAV_ITEMS = [
   { key: "uebersicht", label: "Übersicht", icon: LayoutGrid },
   { key: "buchungen", label: "Buchungen", icon: BookOpen, badgeFrom: "anfrage" },
+  { key: "nachrichten", label: "Nachrichten", icon: MessageCircle, badgeFrom: "unreadMessages" },
   { key: "kalender", label: "Kalender", icon: CalendarDays },
   { key: "warteliste", label: "Warteliste", icon: Bell, badgeFrom: "waitlist" },
   { key: "artists", label: "Artists", icon: Users },
@@ -119,6 +131,14 @@ export default function StudioOsDashboard() {
   const [waitlist, setWaitlist] = useState([]);
   const [offerModal, setOfferModal] = useState(null);
   const [detailBooking, setDetailBooking] = useState(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState(null);
+
+  function openThread(projectId) {
+    setDetailBooking(null);
+    setSelectedThreadId(projectId);
+    setTab("nachrichten");
+  }
 
   /**
    * Someone on the waitlist has no booking yet, and shouldn't get one until
@@ -193,19 +213,58 @@ export default function StudioOsDashboard() {
       in_planung: bookings.filter((b) => b.status === "in_planung").length,
       abgeschlossen: bookings.filter((b) => b.status === "abgeschlossen").length,
       waitlist: waitlist.length,
+      unreadMessages: bookings.reduce((n, b) => n + (b.messages || []).filter((m) => m.sender === "customer" && !m.read_at).length, 0),
     }),
     [bookings, waitlist]
+  );
+
+  // Same "a month" as the backend's enforcement (studioos-backend/src/lib/plans.ts):
+  // non-cancelled sessions whose own start_time falls in the current month.
+  const monthlyUsage = useMemo(
+    () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const used = bookings.reduce(
+        (n, b) =>
+          n +
+          (b.sessions || []).filter((s) => {
+            if (["storniert", "no_show"].includes(s.status)) return false;
+            const t = new Date(s.start_time);
+            return t >= monthStart && t < monthEnd;
+          }).length,
+        0
+      );
+      const limit = planInfo(studio?.subscription_plan).sessionsPerMonth;
+      return { used, limit };
+    },
+    [bookings, studio]
   );
 
   const revenueStats = useMemo(() => {
     const completed = bookings.filter((b) => b.status === "abgeschlossen" && b.price_final);
     const revenue = completed.reduce((sum, b) => sum + Number(b.price_final || 0), 0);
     const customerIds = new Set(bookings.map((b) => b.customer_id).filter(Boolean));
+
+    // A breakdown of what's already inside `revenue` (once its booking is
+    // abgeschlossen, since deposits paid earlier feed into price_final the
+    // same way any other partial payment does) — not an addition on top of
+    // it. Deposits on bookings not yet abgeschlossen are real money the
+    // studio holds, so they're shown here too, just kept out of "Umsatz
+    // gesamt" until that booking actually finishes, exactly as before.
+    const paidDeposits = bookings.flatMap((b) => (b.payments || []).filter((p) => p.type === "anzahlung" && p.status === "paid"));
+    const depositsStripe = paidDeposits.filter((p) => p.stripe_payment_id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const depositsCash = paidDeposits.filter((p) => !p.stripe_payment_id).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const refundsPending = bookings.flatMap((b) => (b.payments || []).filter((p) => p.type === "anzahlung" && p.status === "refund_pending"));
+
     return {
       revenue,
       completedCount: completed.length,
       avgPerBooking: completed.length ? revenue / completed.length : 0,
       customerCount: customerIds.size,
+      depositsStripe,
+      depositsCash,
+      refundsPendingCount: refundsPending.length,
       history: [...completed].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8),
     };
   }, [bookings]);
@@ -221,6 +280,42 @@ export default function StudioOsDashboard() {
   async function updateStatus(projectId, status) {
     setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, status } : b)));
     await studioApi.patch(`/studios/me/bookings/${projectId}`, { status });
+  }
+
+  async function toggleInProgress(projectId, inProgress) {
+    setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, in_progress: inProgress } : b)));
+    await studioApi.patch(`/studios/me/bookings/${projectId}`, { inProgress });
+  }
+
+  async function handleDepositCash(projectId) {
+    await studioApi.post(`/studios/me/bookings/${projectId}/deposit-cash`);
+    await refreshBookings();
+  }
+
+  async function handleConfirmRefund(paymentId) {
+    await studioApi.patch(`/studios/me/payments/${paymentId}/confirm-refund`);
+    await refreshBookings();
+  }
+
+  async function sendMessage(projectId, payload) {
+    setSendingMessage(true);
+    try {
+      const { data: message } = await studioApi.post(`/studios/me/bookings/${projectId}/messages`, payload);
+      setBookings((prev) => prev.map((b) => (b.id === projectId ? { ...b, messages: [...(b.messages || []), message] } : b)));
+    } finally {
+      setSendingMessage(false);
+    }
+  }
+
+  async function markMessagesRead(projectId) {
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === projectId
+          ? { ...b, messages: (b.messages || []).map((m) => (m.sender === "customer" ? { ...m, read_at: m.read_at || new Date().toISOString() } : m)) }
+          : b
+      )
+    );
+    await studioApi.patch(`/studios/me/bookings/${projectId}/messages/read`);
   }
 
   const planningStats = useMemo(() => {
@@ -327,10 +422,23 @@ export default function StudioOsDashboard() {
                 <StatCard icon={BadgeCheck} value={stats.abgeschlossen} label="Abgeschlossen" />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 <StatCard icon={Wallet} value={eur(revenueStats.revenue)} label="Umsatz gesamt" />
                 <StatCard icon={Users} value={revenueStats.customerCount} label="Kunden gesamt" />
                 <StatCard icon={TrendingUp} value={eur(revenueStats.avgPerBooking)} label="Ø pro Buchung" />
+                <StatCard
+                  icon={CalendarDays}
+                  value={monthlyUsage.limit === Infinity ? `${monthlyUsage.used}` : `${monthlyUsage.used}/${monthlyUsage.limit}`}
+                  label="Termine diesen Monat"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <StatCard icon={CreditCard} value={eur(revenueStats.depositsStripe)} label="Anzahlungen via Stripe" />
+                <StatCard icon={Banknote} value={eur(revenueStats.depositsCash)} label="Anzahlungen bar" />
+                {revenueStats.refundsPendingCount > 0 && (
+                  <StatCard icon={AlertTriangle} value={revenueStats.refundsPendingCount} label="Rückerstattung fällig (bar)" />
+                )}
               </div>
 
               <SectionHeader title="Umsatz-Historie" subtitle="Zuletzt abgeschlossene Buchungen" />
@@ -397,9 +505,15 @@ export default function StudioOsDashboard() {
                         className="flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-3 p-4 cursor-pointer hover:bg-zinc-50/80 transition-colors"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="font-inter font-medium text-sm text-zinc-900 truncate">
+                          <div className="font-inter font-medium text-sm text-zinc-900 truncate flex items-center gap-1.5">
                             {b.customers?.name || "—"}
-                            <span className="ml-2 text-[10px] font-inter uppercase tracking-wide text-zinc-400">{TYPE_LABEL[b.appointment_type]}</span>
+                            <span className="text-[10px] font-inter uppercase tracking-wide text-zinc-400">{TYPE_LABEL[b.appointment_type]}</span>
+                            {(b.messages || []).some((m) => m.sender === "customer" && !m.read_at) && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-inter text-white bg-zinc-900 rounded-full px-1.5 py-0.5 flex-shrink-0">
+                                <MessageCircle size={9} />
+                                {(b.messages || []).filter((m) => m.sender === "customer" && !m.read_at).length}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs font-inter text-zinc-500 mt-0.5 truncate">
                             {b.title && <>{b.title} · </>}
@@ -435,6 +549,19 @@ export default function StudioOsDashboard() {
                           className="flex items-center gap-2 flex-wrap justify-end min-w-0"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          {b.status === "anfrage" && (
+                            <button
+                              type="button"
+                              onClick={() => toggleInProgress(b.id, !b.in_progress)}
+                              className={`h-9 px-3 rounded-lg text-xs font-inter border transition-colors ${
+                                b.in_progress
+                                  ? "border-amber-300 bg-amber-50 text-amber-700"
+                                  : "border-zinc-200 text-zinc-500 hover:border-zinc-400"
+                              }`}
+                            >
+                              {b.in_progress ? "In Bearbeitung" : "Als in Bearbeitung markieren"}
+                            </button>
+                          )}
                           {["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) && (
                             <Button
                               size="sm"
@@ -444,34 +571,44 @@ export default function StudioOsDashboard() {
                               {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
                             </Button>
                           )}
-                          <Select value={b.status} onValueChange={(v) => updateStatus(b.id, v)}>
-                            <SelectTrigger className="w-[150px] max-w-full rounded-lg h-9 text-xs font-inter">
-                              <span className="flex items-center gap-2 min-w-0">
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[b.status]}`} />
-                                <span className="truncate">{STATUS_LABEL[b.status]}</span>
-                              </span>
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                              {STATUS_GROUPS.map((group, gi) => (
-                                <React.Fragment key={group.label}>
-                                  {gi > 0 && <SelectSeparator />}
-                                  <SelectGroup>
-                                    <SelectLabel className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 px-2 py-1">
-                                      {group.label}
-                                    </SelectLabel>
-                                    {group.items.map((s) => (
-                                      <SelectItem key={s} value={s} className="text-xs font-inter rounded-lg">
-                                        <span className="flex items-center gap-2">
-                                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]}`} />
-                                          {STATUS_LABEL[s]}
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                </React.Fragment>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {SYSTEM_MANAGED_STATUSES.includes(b.status) ? (
+                            // Read-only: this state came from the offer/deposit
+                            // pipeline, not from a manual choice, so there's
+                            // nothing here for staff to override.
+                            <span className="inline-flex items-center gap-2 h-9 px-3 text-xs font-inter text-zinc-500">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[b.status]}`} />
+                              {STATUS_LABEL[b.status]}
+                            </span>
+                          ) : (
+                            <Select value={b.status} onValueChange={(v) => updateStatus(b.id, v)}>
+                              <SelectTrigger className="w-[150px] max-w-full rounded-lg h-9 text-xs font-inter">
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[b.status]}`} />
+                                  <span className="truncate">{STATUS_LABEL[b.status]}</span>
+                                </span>
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {MANUAL_STATUS_GROUPS.map((group, gi) => (
+                                  <React.Fragment key={group.label}>
+                                    {gi > 0 && <SelectSeparator />}
+                                    <SelectGroup>
+                                      <SelectLabel className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 px-2 py-1">
+                                        {group.label}
+                                      </SelectLabel>
+                                      {group.items.map((s) => (
+                                        <SelectItem key={s} value={s} className="text-xs font-inter rounded-lg">
+                                          <span className="flex items-center gap-2">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]}`} />
+                                            {STATUS_LABEL[s]}
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  </React.Fragment>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -479,6 +616,17 @@ export default function StudioOsDashboard() {
                 )}
               </div>
             </section>
+          )}
+
+          {tab === "nachrichten" && (
+            <NachrichtenTab
+              bookings={bookings}
+              selectedThreadId={selectedThreadId}
+              onSelectThread={setSelectedThreadId}
+              onSendMessage={sendMessage}
+              onMarkMessagesRead={markMessagesRead}
+              sendingMessage={sendingMessage}
+            />
           )}
 
           {tab === "kalender" && (
@@ -569,16 +717,23 @@ export default function StudioOsDashboard() {
       </div>
 
       <AnimatePresence>
-        {offerModal && <OfferModal booking={offerModal} onClose={() => setOfferModal(null)} onSent={handleOfferSent} />}
-        {detailBooking && (
-          <BookingDetailDialog
-            booking={bookings.find((b) => b.id === detailBooking.id) || detailBooking}
-            statusLabel={STATUS_LABEL[detailBooking.status]}
-            statusDot={STATUS_DOT[detailBooking.status]}
-            onClose={() => setDetailBooking(null)}
-            onCreateOffer={setOfferModal}
-          />
-        )}
+        {offerModal && <OfferModal booking={offerModal} studio={studio} onClose={() => setOfferModal(null)} onSent={handleOfferSent} />}
+        {detailBooking &&
+          (() => {
+            const liveBooking = bookings.find((b) => b.id === detailBooking.id) || detailBooking;
+            return (
+              <BookingDetailDialog
+                booking={liveBooking}
+                statusLabel={STATUS_LABEL[liveBooking.status]}
+                statusDot={STATUS_DOT[liveBooking.status]}
+                onClose={() => setDetailBooking(null)}
+                onCreateOffer={setOfferModal}
+                onOpenThread={openThread}
+                onDepositCash={handleDepositCash}
+                onConfirmRefund={handleConfirmRefund}
+              />
+            );
+          })()}
       </AnimatePresence>
     </div>
   );

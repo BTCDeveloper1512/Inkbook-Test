@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Check, ExternalLink, Link2, Loader2, ImagePlus, Save, AlertTriangle, Trash2 } from "lucide-react";
+import { Copy, Check, ExternalLink, Link2, Loader2, ImagePlus, Save, AlertTriangle, Trash2, CreditCard } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
+import { PLAN_LIMITS, planInfo } from "../../lib/plans";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -235,6 +236,33 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const isOwner = staff?.role === "owner";
+  const currentPlan = studio?.subscription_plan || "kostenlos";
+  const [billingBusy, setBillingBusy] = useState(null);
+  const [billingError, setBillingError] = useState("");
+
+  async function startCheckout(plan) {
+    setBillingBusy(plan);
+    setBillingError("");
+    try {
+      const { data } = await studioApi.post("/studios/me/billing/checkout", { plan });
+      window.location.href = data.url;
+    } catch (err) {
+      setBillingError(err.response?.data?.error || "Konnte den Checkout nicht öffnen.");
+      setBillingBusy(null);
+    }
+  }
+
+  async function openBillingPortal() {
+    setBillingBusy("portal");
+    setBillingError("");
+    try {
+      const { data } = await studioApi.post("/studios/me/billing/portal");
+      window.location.href = data.url;
+    } catch (err) {
+      setBillingError(err.response?.data?.error || "Konnte die Abo-Verwaltung nicht öffnen.");
+      setBillingBusy(null);
+    }
+  }
 
   async function deleteStudio() {
     setDeleting(true);
@@ -387,7 +415,12 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
 
         <Card title="Richtlinien" subtitle="Gelten für alle Buchungen">
           <div className="space-y-3">
-            <Toggle checked={depositRequired} onChange={setDepositRequired} label="Anzahlung verlangen" hint="Noch ohne Zahlungsanbindung" />
+            <Toggle
+              checked={depositRequired}
+              onChange={setDepositRequired}
+              label="Anzahlung verlangen"
+              hint="Termin steht erst fix, wenn der Kunde die Anzahlung bezahlt hat"
+            />
             <AnimatePresence initial={false}>
               {depositRequired && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
@@ -432,6 +465,57 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
             <p className="text-[11px] font-inter text-zinc-400">
               Kundendaten liegen getrennt pro Studio — andere Studios sehen deine Kunden nicht.
             </p>
+          </div>
+        </Card>
+
+        <Card title="Abrechnung" subtitle="Dein Tarif bei StudioOS">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2.5">
+              <div>
+                <div className="text-sm font-inter font-semibold text-zinc-900">{planInfo(currentPlan).label}</div>
+                <div className="text-[11px] font-inter text-zinc-400">
+                  {planInfo(currentPlan).price}/Monat · {planInfo(currentPlan).artists} Artist
+                  {planInfo(currentPlan).artists > 1 ? "s" : ""} ·{" "}
+                  {planInfo(currentPlan).sessionsPerMonth === Infinity ? "unbegrenzte" : planInfo(currentPlan).sessionsPerMonth}{" "}
+                  Termine/Monat
+                </div>
+              </div>
+              {studio?.subscription_status && studio.subscription_status !== "active" && (
+                <span className="text-[10px] font-inter px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                  {studio.subscription_status}
+                </span>
+              )}
+            </div>
+
+            {!isOwner ? (
+              <p className="text-[11px] font-inter text-zinc-400">Nur der Studio-Inhaber kann das Abo verwalten.</p>
+            ) : currentPlan === "kostenlos" ? (
+              <div className="flex gap-2">
+                {["starter", "pro"].map((plan) => (
+                  <button
+                    key={plan}
+                    type="button"
+                    onClick={() => startCheckout(plan)}
+                    disabled={!!billingBusy}
+                    className="flex-1 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white font-inter text-xs flex items-center justify-center gap-1.5"
+                  >
+                    {billingBusy === plan ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={12} />}
+                    Zu {PLAN_LIMITS[plan].label} ({PLAN_LIMITS[plan].price})
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={openBillingPortal}
+                disabled={!!billingBusy}
+                className="w-full h-10 rounded-xl border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 text-zinc-700 font-inter text-xs flex items-center justify-center gap-1.5"
+              >
+                {billingBusy === "portal" ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={12} />}
+                Abo verwalten
+              </button>
+            )}
+            {billingError && <p className="text-[11px] font-inter text-red-600">{billingError}</p>}
           </div>
         </Card>
 
