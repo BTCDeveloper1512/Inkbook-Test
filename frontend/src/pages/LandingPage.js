@@ -270,12 +270,17 @@ export default function LandingPage() {
         <div className="space-y-20 md:space-y-28">
           {WORKFLOWS.map(({ eyebrow, title, body, Mockup }, i) => (
             <motion.div key={title} {...fadeUp} className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-              <div className={i % 2 === 1 ? "lg:order-2" : ""}>
+              {/* min-w-0 on both: a grid item's default min-width is auto
+                  (its content's max-content size), which is what let the
+                  Dashboard-tour mockup's intrinsic width push its own
+                  column — and the text column next to it — wider than the
+                  track and off the edge of a narrow screen. */}
+              <div className={`min-w-0 ${i % 2 === 1 ? "lg:order-2" : ""}`}>
                 <SectionLabel>{eyebrow}</SectionLabel>
                 <h3 className="font-playfair text-2xl md:text-3xl text-zinc-900 mt-3 mb-4 leading-snug">{title}</h3>
                 <p className="text-sm md:text-base font-inter text-zinc-600 leading-relaxed max-w-md">{body}</p>
               </div>
-              <div className={i % 2 === 1 ? "lg:order-1" : ""}>
+              <div className={`min-w-0 ${i % 2 === 1 ? "lg:order-1" : ""}`}>
                 <Mockup />
               </div>
             </motion.div>

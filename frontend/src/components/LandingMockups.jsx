@@ -65,14 +65,20 @@ function Frame({ children, label, className = "" }) {
 
 /** A caption under the frame naming the step, so the loop reads as a story. */
 function StepCaption({ steps, active }) {
+  // `overflow-x-auto` rather than letting it wrap: the labels form one
+  // chain ("Step › Step › Step"), and wrapping would break that chain
+  // across lines. The longer step titles (the dashboard tour's four) don't
+  // fit a narrow screen on one line either way — scrolling keeps the row's
+  // own box from being forced wider than its container, which is what was
+  // pushing the whole page into horizontal scroll on mobile.
   return (
-    <div className="flex items-center gap-2 mt-3 px-1">
+    <div className="flex items-center gap-2 mt-3 px-1 overflow-x-auto">
       {steps.map((label, i) => (
-        <div key={label} className="flex items-center gap-2">
+        <div key={label} className="flex items-center gap-2 flex-shrink-0">
           <motion.span animate={{ color: i === active ? "#18181b" : "#d4d4d8" }} className="text-[10px] font-inter whitespace-nowrap">
             {label}
           </motion.span>
-          {i < steps.length - 1 && <span className="text-zinc-200 text-[10px]">›</span>}
+          {i < steps.length - 1 && <span className="text-zinc-200 text-[10px] flex-shrink-0">›</span>}
         </div>
       ))}
     </div>
@@ -439,10 +445,19 @@ export function DashboardTourMockup() {
   return (
     <div ref={ref}>
       <Frame label="Dashboard">
-        <div className="relative overflow-hidden mx-auto" style={{ width: 460, height: 287.5 }}>
+        {/* `container-type: inline-size` turns this box's own rendered width
+            into `cqw` units for the child below — the scale then tracks
+            whatever width the grid column actually gives it (full-bleed on
+            a phone, capped at 460px from there up) instead of a scale
+            baked in for one fixed width, which is what let this overflow
+            the viewport on anything narrower than 460px. */}
+        <div
+          className="relative overflow-hidden mx-auto w-full"
+          style={{ containerType: "inline-size", maxWidth: 460, aspectRatio: "720 / 450" }}
+        >
           <div
             className="absolute top-0 left-0"
-            style={{ width: 720, height: 450, transform: "scale(0.6389)", transformOrigin: "top left" }}
+            style={{ width: 720, height: 450, transform: "scale(calc(100cqw / 720px))", transformOrigin: "top left" }}
           >
             <DashboardMockup />
             <AnimatePresence mode="wait">
