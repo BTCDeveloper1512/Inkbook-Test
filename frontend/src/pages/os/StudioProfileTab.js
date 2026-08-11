@@ -1,7 +1,24 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Check, ExternalLink, Link2, Loader2, ImagePlus, Save, AlertTriangle, Trash2, CreditCard } from "lucide-react";
+import {
+  Copy,
+  Check,
+  ExternalLink,
+  Link2,
+  Loader2,
+  ImagePlus,
+  Save,
+  AlertTriangle,
+  Trash2,
+  CreditCard,
+  Store,
+  Clock,
+  Images,
+  ShieldCheck,
+  Scale,
+  UserCog,
+} from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
 import { PLAN_LIMITS, planInfo } from "../../lib/plans";
@@ -9,6 +26,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
+import Folder from "../../components/Folder";
 
 const DAYS = [
   ["monday", "Mo"],
@@ -25,20 +43,6 @@ function Field({ label, children }) {
     <div>
       <Label className="text-[11px] font-inter text-zinc-500 mb-1 block">{label}</Label>
       {children}
-    </div>
-  );
-}
-
-function Card({ title, subtitle, children, tone }) {
-  return (
-    <div
-      className={`rounded-2xl border p-4 ${
-        tone === "danger" ? "bg-red-50/40 border-red-200" : "bg-white border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]"
-      }`}
-    >
-      <h3 className={`font-playfair text-base ${tone === "danger" ? "text-red-900" : "text-zinc-900"}`}>{title}</h3>
-      {subtitle && <p className="text-[11px] font-inter text-zinc-400 mt-0.5">{subtitle}</p>}
-      <div className="mt-3">{children}</div>
     </div>
   );
 }
@@ -122,9 +126,72 @@ function ImageUploadField({ label, value, onChange }) {
   );
 }
 
+/**
+ * A folder's contents, opened on its own layer rather than inline in the
+ * grid — same overlay/spring-panel language as OfferModal and
+ * BookingDetailDialog, so a settings section reads like the rest of the
+ * app's modals instead of a one-off pattern.
+ */
+function SectionDialog({ title, subtitle, tone, onClose, children }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <motion.div
+        className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto"
+        initial={{ scale: 0.92, opacity: 0, y: 16 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.92, opacity: 0, y: 16 }}
+        transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      >
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <h3 className={`font-playfair text-lg ${tone === "danger" ? "text-red-900" : "text-zinc-900"}`}>{title}</h3>
+            {subtitle && <p className="text-[11px] font-inter text-zinc-400 mt-0.5">{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors flex-shrink-0"
+          >
+            <span className="sr-only">Schließen</span>×
+          </button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/**
+ * One tile in the folder grid. The folder itself is the only interactive
+ * element (it carries its own role="button"/tabIndex) — wrapping it in a
+ * second, outer button would nest two focusable controls inside each other,
+ * and would also block the folder's own CSS :hover fan-out from ever
+ * triggering, since a pointer-events-none folder never receives the hover.
+ */
+function FolderTile({ icon, color, title, subtitle, badge, onClick }) {
+  return (
+    <div className="flex flex-col items-center text-center gap-3 pt-2 pb-1">
+      <Folder icon={icon} color={color} size={1.15} badge={badge} onClick={onClick} />
+      <div>
+        <div className="text-sm font-inter font-medium text-zinc-900">{title}</div>
+        {subtitle && <div className="text-[11px] font-inter text-zinc-400 mt-0.5 max-w-[150px]">{subtitle}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaffUpdate }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [openSection, setOpenSection] = useState(null);
   const linkUrl = studio?.slug ? `${window.location.origin}/t/${studio.slug}` : "";
 
   const [name, setName] = useState(studio?.name || "");
@@ -362,190 +429,221 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-        <Card title="Studio-Profil" subtitle="Was Kunden auf deiner Seite sehen">
-          <div className="space-y-2.5">
-            <Field label="Studioname">
-              <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl h-9" />
-            </Field>
-            <Field label="Kurzbeschreibung">
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-xl min-h-[60px]" />
-            </Field>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Field label="Adresse">
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} className="rounded-xl h-9" />
-              </Field>
-              <Field label="Stadt">
-                <Input value={city} onChange={(e) => setCity(e.target.value)} className="rounded-xl h-9" />
-              </Field>
-              <Field label="Telefon">
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl h-9" />
-              </Field>
-              <Field label="Website">
-                <Input value={website} onChange={(e) => setWebsite(e.target.value)} className="rounded-xl h-9" />
-              </Field>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Öffnungszeiten" subtitle="Bestimmen Kalenderraster und buchbare Zeiten">
-          <div className="space-y-1.5">
-            {DAYS.map(([key, label]) => (
-              <div key={key} className="flex items-center gap-2">
-                <span className="w-7 text-[11px] font-inter text-zinc-500 flex-shrink-0">{label}</span>
-                <Input
-                  value={openingHours[key]}
-                  onChange={(e) => setOpeningHours((prev) => ({ ...prev, [key]: e.target.value }))}
-                  placeholder="Geschlossen"
-                  className="rounded-lg h-8 text-xs"
-                />
-              </div>
-            ))}
-          </div>
-          <p className="text-[11px] font-inter text-zinc-400 mt-2">Format 10:00-18:00, leer heißt geschlossen.</p>
-        </Card>
-
-        <Card title="Bilder" subtitle="Erscheinen auf deiner Studio-Seite">
-          <div className="space-y-3">
-            <ImageUploadField label="Banner" value={studio?.banner_image} onChange={(url) => saveImage("bannerImage", url)} />
-            <ImageUploadField label="Logo" value={studio?.logo_image} onChange={(url) => saveImage("logoImage", url)} />
-            <p className="text-[11px] font-inter text-zinc-400">Bilder speichern sofort.</p>
-          </div>
-        </Card>
-
-        <Card title="Richtlinien" subtitle="Gelten für alle Buchungen">
-          <div className="space-y-3">
-            <Toggle
-              checked={depositRequired}
-              onChange={setDepositRequired}
-              label="Anzahlung verlangen"
-              hint="Termin steht erst fix, wenn der Kunde die Anzahlung bezahlt hat"
-            />
-            <AnimatePresence initial={false}>
-              {depositRequired && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                  <Field label="Anzahlung in %">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={depositPercent}
-                      onChange={(e) => setDepositPercent(e.target.value)}
-                      className="rounded-xl h-9"
-                    />
-                  </Field>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <Field label="Kostenlose Stornierung bis (Std. vorher)">
-              <Input type="number" min="0" value={cancellationHours} onChange={(e) => setCancellationHours(e.target.value)} className="rounded-xl h-9" />
-            </Field>
-            <Toggle
-              checked={isActive}
-              onChange={setIsActive}
-              label={isActive ? "Seite ist aktiv" : "Seite ist offline"}
-              hint={isActive ? "Kunden können über deinen Link buchen" : "Der Link zeigt nichts an"}
-            />
-          </div>
-        </Card>
-
-        <Card title="Rechtliches" subtitle="Auf deiner Studio-Seite verlinkt">
-          <div className="space-y-2.5">
-            <Field label="Impressum">
-              <Textarea value={impressum} onChange={(e) => setImpressum(e.target.value)} placeholder="Anbieterkennzeichnung nach §5 TMG" className="rounded-xl min-h-[70px] text-xs" />
-            </Field>
-            <Field label="Datenschutzerklärung">
-              <Textarea
-                value={privacyPolicy}
-                onChange={(e) => setPrivacyPolicy(e.target.value)}
-                placeholder="Wie du Kundendaten verarbeitest"
-                className="rounded-xl min-h-[70px] text-xs"
-              />
-            </Field>
-            <p className="text-[11px] font-inter text-zinc-400">
-              Kundendaten liegen getrennt pro Studio — andere Studios sehen deine Kunden nicht.
-            </p>
-          </div>
-        </Card>
-
-        <Card title="Abrechnung" subtitle="Dein Tarif bei StudioOS">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2.5">
-              <div>
-                <div className="text-sm font-inter font-semibold text-zinc-900">{planInfo(currentPlan).label}</div>
-                <div className="text-[11px] font-inter text-zinc-400">
-                  {planInfo(currentPlan).price}/Monat · {planInfo(currentPlan).artists} Artist
-                  {planInfo(currentPlan).artists > 1 ? "s" : ""} ·{" "}
-                  {planInfo(currentPlan).sessionsPerMonth === Infinity ? "unbegrenzte" : planInfo(currentPlan).sessionsPerMonth}{" "}
-                  Termine/Monat
-                </div>
-              </div>
-              {studio?.subscription_status && studio.subscription_status !== "active" && (
-                <span className="text-[10px] font-inter px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                  {studio.subscription_status}
-                </span>
-              )}
-            </div>
-
-            {!isOwner ? (
-              <p className="text-[11px] font-inter text-zinc-400">Nur der Studio-Inhaber kann das Abo verwalten.</p>
-            ) : currentPlan === "kostenlos" ? (
-              <div className="flex gap-2">
-                {["starter", "pro"].map((plan) => (
-                  <button
-                    key={plan}
-                    type="button"
-                    onClick={() => startCheckout(plan)}
-                    disabled={!!billingBusy}
-                    className="flex-1 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white font-inter text-xs flex items-center justify-center gap-1.5"
-                  >
-                    {billingBusy === plan ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={12} />}
-                    Zu {PLAN_LIMITS[plan].label} ({PLAN_LIMITS[plan].price})
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={openBillingPortal}
-                disabled={!!billingBusy}
-                className="w-full h-10 rounded-xl border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 text-zinc-700 font-inter text-xs flex items-center justify-center gap-1.5"
-              >
-                {billingBusy === "portal" ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={12} />}
-                Abo verwalten
-              </button>
-            )}
-            {billingError && <p className="text-[11px] font-inter text-red-600">{billingError}</p>}
-          </div>
-        </Card>
-
-        <Card title="Dein Konto" subtitle="Gilt nur für dich, nicht fürs Studio">
-          <div className="space-y-2.5">
-            <Field label="Dein Name">
-              <div className="flex gap-2">
-                <Input value={accountName} onChange={(e) => setAccountName(e.target.value)} className="rounded-xl h-9" />
-                <SaveButton saving={savingAccountName} saved={savedAccountName} onClick={saveAccountName} />
-              </div>
-            </Field>
-            <Field label="Neues Passwort">
-              <div className="flex gap-2">
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="mind. 8 Zeichen"
-                  className="rounded-xl h-9"
-                />
-                <SaveButton saving={savingPassword} saved={passwordSaved} onClick={changePassword} label="Ändern" />
-              </div>
-            </Field>
-            {passwordError && <p className="text-xs font-inter text-red-600">{passwordError}</p>}
-            <p className="text-[11px] font-inter text-zinc-400">Angemeldet als {staff?.email}</p>
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-2">
+        <FolderTile icon={Store} color="#52525b" title="Studio-Profil" subtitle="Was Kunden sehen" onClick={() => setOpenSection("profil")} />
+        <FolderTile icon={Clock} color="#52525b" title="Öffnungszeiten" subtitle="Kalenderraster" onClick={() => setOpenSection("stunden")} />
+        <FolderTile icon={Images} color="#52525b" title="Bilder" subtitle="Banner & Logo" onClick={() => setOpenSection("bilder")} />
+        <FolderTile icon={ShieldCheck} color="#52525b" title="Richtlinien" subtitle="Anzahlung, Storno" onClick={() => setOpenSection("richtlinien")} />
+        <FolderTile icon={Scale} color="#52525b" title="Rechtliches" subtitle="Impressum, DSGVO" onClick={() => setOpenSection("recht")} />
+        <FolderTile icon={CreditCard} color="#52525b" title="Abrechnung" subtitle={planInfo(currentPlan).label} onClick={() => setOpenSection("abrechnung")} />
+        <FolderTile icon={UserCog} color="#52525b" title="Dein Konto" subtitle={staff?.email} onClick={() => setOpenSection("konto")} />
         {isOwner && (
-          <Card title="Studio löschen" subtitle="Unwiderruflich" tone="danger">
+          <FolderTile icon={Trash2} color="#dc2626" title="Studio löschen" subtitle="Unwiderruflich" onClick={() => setOpenSection("loeschen")} />
+        )}
+      </div>
+
+      <AnimatePresence>
+        {openSection === "profil" && (
+          <SectionDialog title="Studio-Profil" subtitle="Was Kunden auf deiner Seite sehen" onClose={() => setOpenSection(null)}>
+            <div className="space-y-2.5">
+              <Field label="Studioname">
+                <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl h-9" />
+              </Field>
+              <Field label="Kurzbeschreibung">
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-xl min-h-[60px]" />
+              </Field>
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="Adresse">
+                  <Input value={address} onChange={(e) => setAddress(e.target.value)} className="rounded-xl h-9" />
+                </Field>
+                <Field label="Stadt">
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} className="rounded-xl h-9" />
+                </Field>
+                <Field label="Telefon">
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl h-9" />
+                </Field>
+                <Field label="Website">
+                  <Input value={website} onChange={(e) => setWebsite(e.target.value)} className="rounded-xl h-9" />
+                </Field>
+              </div>
+              <SaveButton saving={saving} saved={saved} onClick={saveAll} label="Speichern" />
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "stunden" && (
+          <SectionDialog title="Öffnungszeiten" subtitle="Bestimmen Kalenderraster und buchbare Zeiten" onClose={() => setOpenSection(null)}>
+            <div className="space-y-1.5">
+              {DAYS.map(([key, label]) => (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="w-7 text-[11px] font-inter text-zinc-500 flex-shrink-0">{label}</span>
+                  <Input
+                    value={openingHours[key]}
+                    onChange={(e) => setOpeningHours((prev) => ({ ...prev, [key]: e.target.value }))}
+                    placeholder="Geschlossen"
+                    className="rounded-lg h-8 text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] font-inter text-zinc-400 mt-2 mb-3">Format 10:00-18:00, leer heißt geschlossen.</p>
+            <SaveButton saving={saving} saved={saved} onClick={saveAll} label="Speichern" />
+          </SectionDialog>
+        )}
+
+        {openSection === "bilder" && (
+          <SectionDialog title="Bilder" subtitle="Erscheinen auf deiner Studio-Seite" onClose={() => setOpenSection(null)}>
+            <div className="space-y-3">
+              <ImageUploadField label="Banner" value={studio?.banner_image} onChange={(url) => saveImage("bannerImage", url)} />
+              <ImageUploadField label="Logo" value={studio?.logo_image} onChange={(url) => saveImage("logoImage", url)} />
+              <p className="text-[11px] font-inter text-zinc-400">Bilder speichern sofort.</p>
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "richtlinien" && (
+          <SectionDialog title="Richtlinien" subtitle="Gelten für alle Buchungen" onClose={() => setOpenSection(null)}>
+            <div className="space-y-3">
+              <Toggle
+                checked={depositRequired}
+                onChange={setDepositRequired}
+                label="Anzahlung verlangen"
+                hint="Termin steht erst fix, wenn der Kunde die Anzahlung bezahlt hat"
+              />
+              <AnimatePresence initial={false}>
+                {depositRequired && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                    <Field label="Anzahlung in %">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={depositPercent}
+                        onChange={(e) => setDepositPercent(e.target.value)}
+                        className="rounded-xl h-9"
+                      />
+                    </Field>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <Field label="Kostenlose Stornierung bis (Std. vorher)">
+                <Input type="number" min="0" value={cancellationHours} onChange={(e) => setCancellationHours(e.target.value)} className="rounded-xl h-9" />
+              </Field>
+              <Toggle
+                checked={isActive}
+                onChange={setIsActive}
+                label={isActive ? "Seite ist aktiv" : "Seite ist offline"}
+                hint={isActive ? "Kunden können über deinen Link buchen" : "Der Link zeigt nichts an"}
+              />
+              <SaveButton saving={saving} saved={saved} onClick={saveAll} label="Speichern" />
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "recht" && (
+          <SectionDialog title="Rechtliches" subtitle="Auf deiner Studio-Seite verlinkt" onClose={() => setOpenSection(null)}>
+            <div className="space-y-2.5">
+              <Field label="Impressum">
+                <Textarea value={impressum} onChange={(e) => setImpressum(e.target.value)} placeholder="Anbieterkennzeichnung nach §5 TMG" className="rounded-xl min-h-[70px] text-xs" />
+              </Field>
+              <Field label="Datenschutzerklärung">
+                <Textarea
+                  value={privacyPolicy}
+                  onChange={(e) => setPrivacyPolicy(e.target.value)}
+                  placeholder="Wie du Kundendaten verarbeitest"
+                  className="rounded-xl min-h-[70px] text-xs"
+                />
+              </Field>
+              <p className="text-[11px] font-inter text-zinc-400">
+                Kundendaten liegen getrennt pro Studio — andere Studios sehen deine Kunden nicht.
+              </p>
+              <SaveButton saving={saving} saved={saved} onClick={saveAll} label="Speichern" />
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "abrechnung" && (
+          <SectionDialog title="Abrechnung" subtitle="Dein Tarif bei StudioOS" onClose={() => setOpenSection(null)}>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2.5">
+                <div>
+                  <div className="text-sm font-inter font-semibold text-zinc-900">{planInfo(currentPlan).label}</div>
+                  <div className="text-[11px] font-inter text-zinc-400">
+                    {planInfo(currentPlan).price}/Monat · {planInfo(currentPlan).artists} Artist
+                    {planInfo(currentPlan).artists > 1 ? "s" : ""} ·{" "}
+                    {planInfo(currentPlan).sessionsPerMonth === Infinity ? "unbegrenzte" : planInfo(currentPlan).sessionsPerMonth}{" "}
+                    Termine/Monat
+                  </div>
+                </div>
+                {studio?.subscription_status && studio.subscription_status !== "active" && (
+                  <span className="text-[10px] font-inter px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    {studio.subscription_status}
+                  </span>
+                )}
+              </div>
+
+              {!isOwner ? (
+                <p className="text-[11px] font-inter text-zinc-400">Nur der Studio-Inhaber kann das Abo verwalten.</p>
+              ) : currentPlan === "kostenlos" ? (
+                <div className="flex gap-2">
+                  {["starter", "pro"].map((plan) => (
+                    <button
+                      key={plan}
+                      type="button"
+                      onClick={() => startCheckout(plan)}
+                      disabled={!!billingBusy}
+                      className="flex-1 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white font-inter text-xs flex items-center justify-center gap-1.5"
+                    >
+                      {billingBusy === plan ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={12} />}
+                      Zu {PLAN_LIMITS[plan].label} ({PLAN_LIMITS[plan].price})
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openBillingPortal}
+                  disabled={!!billingBusy}
+                  className="w-full h-10 rounded-xl border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 text-zinc-700 font-inter text-xs flex items-center justify-center gap-1.5"
+                >
+                  {billingBusy === "portal" ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={12} />}
+                  Abo verwalten
+                </button>
+              )}
+              {billingError && <p className="text-[11px] font-inter text-red-600">{billingError}</p>}
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "konto" && (
+          <SectionDialog title="Dein Konto" subtitle="Gilt nur für dich, nicht fürs Studio" onClose={() => setOpenSection(null)}>
+            <div className="space-y-2.5">
+              <Field label="Dein Name">
+                <div className="flex gap-2">
+                  <Input value={accountName} onChange={(e) => setAccountName(e.target.value)} className="rounded-xl h-9" />
+                  <SaveButton saving={savingAccountName} saved={savedAccountName} onClick={saveAccountName} />
+                </div>
+              </Field>
+              <Field label="Neues Passwort">
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="mind. 8 Zeichen"
+                    className="rounded-xl h-9"
+                  />
+                  <SaveButton saving={savingPassword} saved={passwordSaved} onClick={changePassword} label="Ändern" />
+                </div>
+              </Field>
+              {passwordError && <p className="text-xs font-inter text-red-600">{passwordError}</p>}
+              <p className="text-[11px] font-inter text-zinc-400">Angemeldet als {staff?.email}</p>
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "loeschen" && isOwner && (
+          <SectionDialog title="Studio löschen" subtitle="Unwiderruflich" tone="danger" onClose={() => setOpenSection(null)}>
             {!deleteOpen ? (
               <>
                 <p className="text-[11px] font-inter text-red-800/80 mb-3">
@@ -589,9 +687,9 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                 </div>
               </motion.div>
             )}
-          </Card>
+          </SectionDialog>
         )}
-      </div>
+      </AnimatePresence>
     </motion.div>
   );
 }

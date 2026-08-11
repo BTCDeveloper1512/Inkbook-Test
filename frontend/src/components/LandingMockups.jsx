@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, useMotionValueEvent } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCheck,
   Send,
@@ -314,21 +314,16 @@ export function DashboardMockup() {
   );
 }
 
-/* ─────────────────── Guided tour (inside the laptop) ─────────────────── */
+/* ─────────────────── Guided tour ─────────────────── */
 
 /**
- * Once the camera is inside the screen, the scroll stops being a camera move
- * and becomes a guided tour of the *same* real dashboard — nothing swaps out
- * from under the reader, a callout just walks over to the next thing and
- * explains it. That is deliberately different from a narrated fake booking:
- * this is the actual Kalender screen (same sidebar, same stat strip, same
- * day agenda as StudioOsDashboard.js), so what's being pointed at is what a
- * studio actually sees on day one.
- *
- * Thresholds are on the same 0→1 stage progress the camera uses, so the tour
- * only starts once the dive has actually landed.
+ * A guided tour of the *same* real dashboard — nothing swaps out from under
+ * the reader, a callout just walks over to the next thing and explains it.
+ * That is deliberately different from a narrated fake booking: this is the
+ * actual Kalender screen (same sidebar, same stat strip, same day agenda as
+ * StudioOsDashboard.js), so what's being pointed at is what a studio
+ * actually sees on day one.
  */
-const STEP_AT = [0.6, 0.72, 0.84, 0.94];
 
 /**
  * Anchor points and callout-card placement, hand-measured against
@@ -431,31 +426,32 @@ function TourCallout({ step, n }) {
   );
 }
 
-function pickStep(v) {
-  let next = -1;
-  for (let i = 0; i < STEP_AT.length; i++) if (v >= STEP_AT[i]) next = i;
-  return next;
-}
-
 /**
- * The laptop's screen for the whole pinned stage: the real dashboard is
- * mounted once and stays mounted — only the callout layer on top changes as
- * the reader scrolls through the tour.
+ * The real dashboard, mounted once and left alone — only the callout layer
+ * on top advances, on the same loop/visibility rhythm as the other mockups
+ * on this page (`useLoop`, pauses off-screen). The 720×450 canvas is native
+ * pixel size for `DashboardMockup`, so it's scaled down in CSS to sit in a
+ * normal in-flow card instead of a full laptop screen.
  */
-export function WorkflowActs({ progress }) {
-  // Seeded from the current value, not just from later changes: this only
-  // mounts once the screen is lit, which is already past the first threshold
-  // on a fast scroll — and "change" would then never fire again if the reader
-  // stopped there, leaving the tour stuck at the dashboard with no callout.
-  const [step, setStep] = useState(() => pickStep(progress.get()));
-  useMotionValueEvent(progress, "change", (v) => setStep(pickStep(v)));
+export function DashboardTourMockup() {
+  const [step, ref] = useLoop(TOUR_STEPS.length, 3400);
 
   return (
-    <div className="relative" style={{ width: 720, height: 450 }}>
-      <DashboardMockup />
-      <AnimatePresence mode="wait">
-        {step >= 0 && <TourCallout key={step} step={TOUR_STEPS[step]} n={step + 1} />}
-      </AnimatePresence>
+    <div ref={ref}>
+      <Frame label="Dashboard">
+        <div className="relative overflow-hidden mx-auto" style={{ width: 460, height: 287.5 }}>
+          <div
+            className="absolute top-0 left-0"
+            style={{ width: 720, height: 450, transform: "scale(0.6389)", transformOrigin: "top left" }}
+          >
+            <DashboardMockup />
+            <AnimatePresence mode="wait">
+              <TourCallout key={step} step={TOUR_STEPS[step]} n={step + 1} />
+            </AnimatePresence>
+          </div>
+        </div>
+      </Frame>
+      <StepCaption steps={TOUR_STEPS.map((s) => s.title)} active={step} />
     </div>
   );
 }

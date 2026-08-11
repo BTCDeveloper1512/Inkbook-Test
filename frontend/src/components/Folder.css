@@ -1,0 +1,110 @@
+.sp-folder {
+  position: relative;
+  transition: transform 0.2s ease-in;
+  cursor: pointer;
+}
+
+.sp-folder:hover {
+  transform: translateY(-8px);
+}
+
+.sp-folder:hover .sp-paper-1 {
+  transform: translate(-70%, -8%) rotateZ(-9deg);
+}
+.sp-folder:hover .sp-paper-2 {
+  transform: translate(-30%, -14%) rotateZ(6deg);
+}
+.sp-folder:hover .sp-paper-3 {
+  transform: translate(-50%, -20%);
+}
+
+.sp-folder:hover .sp-folder__front {
+  transform: skew(15deg) scaleY(0.6);
+}
+.sp-folder:hover .sp-right {
+  transform: skew(-15deg) scaleY(0.6);
+}
+
+.sp-folder__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 4;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #18181b;
+  color: #fff;
+  font-size: 10px;
+  font-family: "Inter", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fafafa;
+}
+
+.sp-folder__back {
+  position: relative;
+  width: 100px;
+  height: 80px;
+  background: var(--sp-folder-back-color, #3f3f46);
+  border-radius: 0 10px 10px 10px;
+}
+
+.sp-folder__back::after {
+  position: absolute;
+  z-index: 0;
+  bottom: 98%;
+  left: 0;
+  content: "";
+  width: 30px;
+  height: 10px;
+  background: var(--sp-folder-back-color, #3f3f46);
+  border-radius: 5px 5px 0 0;
+}
+
+.sp-paper {
+  position: absolute;
+  z-index: 2;
+  bottom: 10%;
+  left: 50%;
+  transform: translate(-50%, 10%);
+  width: 70%;
+  height: 80%;
+  background: #f4f4f5;
+  border-radius: 10px;
+  transition: all 0.3s ease-in-out;
+}
+
+.sp-paper-2 {
+  background: #fafafa;
+  width: 80%;
+  height: 70%;
+}
+
+.sp-paper-3 {
+  background: #ffffff;
+  width: 90%;
+  height: 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-folder__front {
+  position: absolute;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  background: var(--sp-folder-color, #52525b);
+  border-radius: 5px 10px 10px 10px;
+  transform-origin: bottom;
+  transition: all 0.3s ease-in-out;
+}
+
+.sp-folder:focus-visible {
+  outline: 2px solid #18181b;
+  outline-offset: 4px;
+  border-radius: 10px;
+}

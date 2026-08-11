@@ -1,6 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence, useScroll } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   CalendarDays,
@@ -14,11 +14,50 @@ import {
   Zap,
   Star,
 } from "lucide-react";
-import { StudioOSWordmark } from "../components/StudioOSLogo";
-import { DragCalendarMockup, ChatMockup, WorkflowActs } from "../components/LandingMockups";
-import MacBookScene from "../components/MacBookScene";
+import { StudioOSWordmark, StudioOSMark } from "../components/StudioOSLogo";
+import { DragCalendarMockup, ChatMockup, DashboardTourMockup } from "../components/LandingMockups";
 import DepthText from "../components/DepthText";
 import PlanWheel from "../components/PlanWheel";
+
+/**
+ * A badge on a lanyard, standing in for the old scroll-jacked laptop scene —
+ * same "look, it's tangible" impulse, at a fraction of the weight: pure CSS
+ * plus framer-motion's built-in drag physics instead of a three.js/rapier
+ * scene that needed a bundled 3D model to even boot. Grab the badge and let
+ * go — `dragSnapToOrigin` handles the spring-back on its own, and a slow
+ * idle sway keeps it from ever looking static.
+ */
+function LogoBadge() {
+  return (
+    <div className="relative flex flex-col items-center select-none" style={{ height: 300, perspective: 800 }}>
+      {/* Clip at the top, fixed in place — the strap and badge hang from it. */}
+      <div className="w-4 h-4 rounded-full bg-zinc-300 shadow-inner z-10" style={{ marginBottom: -2 }} />
+      <div
+        className="w-[3px]"
+        style={{ height: 92, background: "linear-gradient(180deg, #d4d4d8 0%, #a1a1aa 100%)" }}
+      />
+      <motion.div
+        drag
+        dragElastic={0.55}
+        dragSnapToOrigin
+        dragTransition={{ bounceStiffness: 420, bounceDamping: 14 }}
+        whileTap={{ scale: 1.03 }}
+        animate={{ rotate: [-3.5, 3.5, -3.5] }}
+        transition={{ rotate: { duration: 5.5, repeat: Infinity, ease: "easeInOut" } }}
+        style={{ transformOrigin: "50% -47px", cursor: "grab", touchAction: "none" }}
+        className="w-40 sm:w-44 rounded-[28px] bg-white shadow-card-hover border border-zinc-200/70 py-7 px-5 flex flex-col items-center gap-3"
+      >
+        {/* Punch hole, so the card silhouette reads as an ID badge rather than a generic tile. */}
+        <div className="w-7 h-2 rounded-full bg-zinc-100 border border-zinc-200 -mt-2 mb-1" />
+        <StudioOSMark size={38} />
+        <div className="font-playfair font-semibold text-zinc-900 text-lg tracking-tight">
+          Studio<span className="font-bold">OS</span>
+        </div>
+        <div className="text-[10px] font-inter uppercase tracking-[0.16em] text-zinc-400">Zieh mich</div>
+      </motion.div>
+    </div>
+  );
+}
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -42,6 +81,13 @@ const WORKFLOWS = [
     body:
       "Bilder, Sprachnachrichten und Rückfragen hängen am jeweiligen Projekt, statt in WhatsApp zu versanden. Beide Seiten sehen, ob die andere gerade online ist.",
     Mockup: ChatMockup,
+  },
+  {
+    eyebrow: "Dein Dashboard",
+    title: "Ein Tag, alle Artists, auf einen Blick",
+    body:
+      "Kalender, offene Anfragen und Auslastung liegen auf derselben Seite — das ist keine Skizze, sondern das echte Dashboard, das du nach dem Login siehst.",
+    Mockup: DashboardTourMockup,
   },
 ];
 
@@ -117,14 +163,6 @@ export default function LandingPage() {
   // lopsided and hides the fact that it turns at all. An option above and
   // below is the affordance.
   const [activePlan, setActivePlan] = useState(1);
-
-  // Progress through the pinned stage: 0 the moment it locks to the top of
-  // the viewport, 1 when the runway is used up and it releases.
-  const stageRef = useRef(null);
-  const { scrollYProgress: stageProgress } = useScroll({
-    target: stageRef,
-    offset: ["start start", "end end"],
-  });
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -209,36 +247,15 @@ export default function LandingPage() {
           <p className="text-xs font-inter text-zinc-400 mt-4">
             Keine Kreditkarte nötig · In wenigen Minuten eingerichtet · Jederzeit selbst löschbar
           </p>
-        </motion.div>
-      </section>
 
-      {/* The machine flies in and opens on the real dashboard. Scaled down on
-          narrow screens rather than reflowed — a laptop only reads as a laptop
-          at its own proportions. */}
-      {/* A pinned stage: the machine holds dead centre and stays there while
-          the scroll drives the whole camera move — overhead, down to eye
-          level, lid open, screen lit, then in through the glass. The tall
-          outer section is only the scroll runway for the sticky child, and it
-          is long because the sequence has five beats to get through without
-          any of them feeling rushed. */}
-      <section ref={stageRef} className="relative" style={{ height: "460vh" }}>
-        {/* Clipped at the stage, not the page: at the end of the dive the
-            machine is deliberately wider than the viewport, and without this
-            that overflow becomes real horizontal scroll — body's overflow-x
-            doesn't stop it, since the document scroller is <html>. */}
-        <div className="sticky top-0 h-screen overflow-hidden flex items-center justify-center px-6">
-          {/* Half of what the old wide shot used, because the scene itself is
-              now built at 2×. The dive multiplies back up to exactly 1:1, so
-              the closest frame is native pixels rather than a stretched
-              raster. */}
-          <div className="origin-center scale-[0.21] sm:scale-[0.29] md:scale-[0.37] lg:scale-[0.46] xl:scale-50">
-            {/* The same progress drives the camera and what is on the screen,
-                so the acts can only begin once the dive has actually arrived. */}
-            <MacBookScene progress={stageProgress}>
-              <WorkflowActs progress={stageProgress} />
-            </MacBookScene>
+          {/* Stands in for the old scroll-jacked laptop dive — a badge on a
+              lanyard, draggable, that springs back on its own. Small enough
+              to sit right under the fold instead of eating a whole scroll
+              stage to get to the actual content. */}
+          <div className="mt-2">
+            <LogoBadge />
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Workflows */}
