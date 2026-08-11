@@ -301,6 +301,7 @@ export default function StudioOsDashboard() {
   const statDetails = useMemo(() => {
     const bookingRow = (b) => ({
       id: b.id,
+      bookingId: b.id,
       primary: b.customers?.name || "—",
       secondary: `${b.created_at ? new Date(b.created_at).toLocaleDateString("de-DE") : "—"} · ${TYPE_LABEL[b.appointment_type] || "—"}`,
       value: b.price_final ? eur(Number(b.price_final)) : b.price_estimated ? `${eur(Number(b.price_estimated))} (geschätzt)` : "—",
@@ -322,6 +323,7 @@ export default function StudioOsDashboard() {
       .sort((a, b) => new Date(a.session.start_time) - new Date(b.session.start_time))
       .map(({ booking, session }) => ({
         id: session.id,
+        bookingId: booking.id,
         primary: booking.customers?.name || "—",
         secondary: new Date(session.start_time).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
         value: TYPE_LABEL[booking.appointment_type] || "—",
@@ -341,6 +343,7 @@ export default function StudioOsDashboard() {
 
     const paymentRow = (b, p, method) => ({
       id: p.id,
+      bookingId: b.id,
       primary: b.customers?.name || "—",
       secondary: `${new Date(p.created_at).toLocaleDateString("de-DE")} · ${method}`,
       value: eur(Number(p.amount || 0)),
@@ -358,6 +361,7 @@ export default function StudioOsDashboard() {
         .filter((p) => p.status === "refund_pending")
         .map((p) => ({
           id: p.id,
+          bookingId: b.id,
           primary: b.customers?.name || "—",
           secondary: `${new Date(p.created_at).toLocaleDateString("de-DE")} · Anzahlung bar`,
           value: eur(Number(p.amount || 0)),
@@ -622,18 +626,37 @@ export default function StudioOsDashboard() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] divide-y divide-zinc-100">
-                  {activePanel.rows.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-4 p-4">
-                      <div className="min-w-0">
-                        <div className="font-inter text-sm text-zinc-900 truncate">{r.primary}</div>
-                        <div className="text-xs font-inter text-zinc-500 mt-0.5">{r.secondary}</div>
+                  {activePanel.rows.map((r) => {
+                    const openBooking = r.bookingId ? () => setDetailBooking(bookings.find((b) => b.id === r.bookingId)) : undefined;
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={openBooking}
+                        role={openBooking ? "button" : undefined}
+                        tabIndex={openBooking ? 0 : undefined}
+                        onKeyDown={
+                          openBooking
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  openBooking();
+                                }
+                              }
+                            : undefined
+                        }
+                        className={`flex items-center justify-between gap-4 p-4 ${openBooking ? "cursor-pointer hover:bg-zinc-50/80 transition-colors" : ""}`}
+                      >
+                        <div className="min-w-0">
+                          <div className="font-inter text-sm text-zinc-900 truncate">{r.primary}</div>
+                          <div className="text-xs font-inter text-zinc-500 mt-0.5">{r.secondary}</div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => r.action && e.stopPropagation()}>
+                          {r.value && <span className="font-playfair text-sm text-zinc-900">{r.value}</span>}
+                          {r.action}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {r.value && <span className="font-playfair text-sm text-zinc-900">{r.value}</span>}
-                        {r.action}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
