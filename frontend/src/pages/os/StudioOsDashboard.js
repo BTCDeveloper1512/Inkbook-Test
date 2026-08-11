@@ -87,13 +87,29 @@ const NAV_ITEMS = [
   { key: "profil", label: "Profil & Link", icon: Settings2 },
 ];
 
-function StatCard({ icon: Icon, value, label }) {
+/**
+ * Plain and static on every plan below Pro. On Pro, `statKey` turns it into
+ * a toggle for the detail panel underneath — same card, no visual weight
+ * added for the tiers that can't use it, so it doesn't read as a feature
+ * that's broken for them.
+ */
+function StatCard({ icon: Icon, value, label, statKey, active, onSelect }) {
+  const clickable = !!onSelect;
   return (
-    <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-5">
-      <Icon size={18} className="text-zinc-400 mb-3" strokeWidth={1.5} />
-      <div className="font-playfair text-2xl text-zinc-900">{value}</div>
-      <div className="text-xs font-inter text-zinc-500 mt-0.5">{label}</div>
-    </div>
+    <button
+      type="button"
+      onClick={clickable ? () => onSelect(statKey) : undefined}
+      disabled={!clickable}
+      className={`text-left rounded-2xl border p-5 transition-colors ${
+        active
+          ? "bg-zinc-900 border-zinc-900 shadow-[0_4px_16px_rgb(0,0,0,0.12)]"
+          : "bg-white border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]"
+      } ${clickable ? "hover:border-zinc-300 cursor-pointer" : "cursor-default"} ${active && clickable ? "hover:border-zinc-900" : ""}`}
+    >
+      <Icon size={18} className={active ? "text-zinc-500 mb-3" : "text-zinc-400 mb-3"} strokeWidth={1.5} />
+      <div className={`font-playfair text-2xl ${active ? "text-white" : "text-zinc-900"}`}>{value}</div>
+      <div className={`text-xs font-inter mt-0.5 ${active ? "text-zinc-400" : "text-zinc-500"}`}>{label}</div>
+    </button>
   );
 }
 
@@ -133,6 +149,10 @@ export default function StudioOsDashboard() {
   const [detailBooking, setDetailBooking] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
+  // "Erweiterte Statistiken" is a Pro-plan perk on the pricing page — the
+  // stat tiles only become click-to-drill-down on that plan, defaulting to
+  // revenue history same as before on every other one.
+  const [selectedStat, setSelectedStat] = useState("revenue");
 
   function openThread(projectId) {
     setDetailBooking(null);
@@ -265,11 +285,131 @@ export default function StudioOsDashboard() {
       depositsStripe,
       depositsCash,
       refundsPendingCount: refundsPending.length,
-      history: [...completed].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8),
     };
   }, [bookings]);
 
   const eur = (n) => n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+  const isPro = studio?.subscription_plan === "pro";
+
+  /**
+   * One row shape (`primary`/`secondary`/`value`, optional `action`) for
+   * every drill-down, built once here rather than inline in JSX so the panel
+   * renderer below can stay a single generic list instead of eleven
+   * hand-built ones.
+   */
+  const statDetails = useMemo(() => {
+    const bookingRow = (b) => ({
+      id: b.id,
+      primary: b.customers?.name || "—",
+      secondary: `${b.created_at ? new Date(b.created_at).toLocaleDateString("de-DE") : "—"} · ${TYPE_LABEL[b.appointment_type] || "—"}`,
+      value: b.price_final ? eur(Number(b.price_final)) : b.price_estimated ? `${eur(Number(b.price_estimated))} (geschätzt)` : "—",
+    });
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const monthSessions = bookings
+      .flatMap((b) =>
+        (b.sessions || [])
+          .filter((s) => !["storniert", "no_show"].includes(s.status))
+          .filter((s) => {
+            const t = new Date(s.start_time);
+            return t >= monthStart && t < monthEnd;
+          })
+          .map((s) => ({ booking: b, session: s }))
+      )
+      .sort((a, b) => new Date(a.session.start_time) - new Date(b.session.start_time))
+      .map(({ booking, session }) => ({
+        id: session.id,
+        primary: booking.customers?.name || "—",
+        secondary: new Date(session.start_time).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        value: TYPE_LABEL[booking.appointment_type] || "—",
+      }));
+
+    const customerMap = new Map();
+    bookings.forEach((b) => {
+      if (!b.customer_id) return;
+      const entry = customerMap.get(b.customer_id) || { id: b.customer_id, name: b.customers?.name || "—", count: 0, total: 0 };
+      entry.count += 1;
+      entry.total += Number(b.price_final || 0);
+      customerMap.set(b.customer_id, entry);
+    });
+    const customers = [...customerMap.values()]
+      .sort((a, b) => b.total - a.total)
+      .map((c) => ({ id: c.id, primary: c.name, secondary: `${c.count} Buchung${c.count === 1 ? "" : "en"}`, value: eur(c.total) }));
+
+    const paymentRow = (b, p, method) => ({
+      id: p.id,
+      primary: b.customers?.name || "—",
+      secondary: `${new Date(p.created_at).toLocaleDateString("de-DE")} · ${method}`,
+      value: eur(Number(p.amount || 0)),
+    });
+    const depositsStripeList = bookings.flatMap((b) =>
+      (b.payments || [])
+        .filter((p) => p.type === "anzahlung" && p.status === "paid" && p.stripe_payment_id)
+        .map((p) => paymentRow(b, p, `Stripe · ${p.stripe_payment_id.slice(0, 18)}`))
+    );
+    const depositsCashList = bookings.flatMap((b) =>
+      (b.payments || []).filter((p) => p.type === "anzahlung" && p.status === "paid" && !p.stripe_payment_id).map((p) => paymentRow(b, p, "Bar"))
+    );
+    const refundsPendingList = bookings.flatMap((b) =>
+      (b.payments || [])
+        .filter((p) => p.status === "refund_pending")
+        .map((p) => ({
+          id: p.id,
+          primary: b.customers?.name || "—",
+          secondary: `${new Date(p.created_at).toLocaleDateString("de-DE")} · Anzahlung bar`,
+          value: eur(Number(p.amount || 0)),
+          action: (
+            <button
+              type="button"
+              onClick={() => handleConfirmRefund(p.id)}
+              className="h-8 px-2.5 rounded-lg border border-zinc-200 text-[11px] font-inter text-zinc-600 hover:border-zinc-300 flex-shrink-0"
+            >
+              Erstattet
+            </button>
+          ),
+        }))
+    );
+
+    const completedByDate = [...bookings.filter((b) => b.status === "abgeschlossen" && b.price_final)].sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+    const completedByPrice = [...completedByDate].sort((a, b) => Number(b.price_final || 0) - Number(a.price_final || 0));
+
+    return {
+      total: { title: "Alle Buchungen", subtitle: "Jede Anfrage und jeder Termin", rows: bookings.map(bookingRow), empty: "Noch keine Buchungen" },
+      anfrage: {
+        title: "Offene Anfragen",
+        subtitle: "Noch kein Angebot gesendet oder Antwort ausstehend",
+        rows: bookings.filter((b) => b.status === "anfrage").map(bookingRow),
+        empty: "Keine offenen Anfragen",
+      },
+      in_planung: {
+        title: "In Planung",
+        subtitle: "Angenommen, Termin steht noch bevor",
+        rows: bookings.filter((b) => b.status === "in_planung").map(bookingRow),
+        empty: "Nichts in Planung",
+      },
+      abgeschlossen: {
+        title: "Abgeschlossene Buchungen",
+        subtitle: "Fertig abgerechnet",
+        rows: completedByDate.map(bookingRow),
+        empty: "Noch nichts abgeschlossen",
+      },
+      revenue: { title: "Umsatz-Historie", subtitle: "Zuletzt abgeschlossene Buchungen", rows: completedByDate.slice(0, 8).map(bookingRow), empty: "Noch kein Umsatz erfasst" },
+      customerCount: { title: "Kunden", subtitle: "Nach Gesamtumsatz sortiert", rows: customers, empty: "Noch keine Kunden" },
+      avgPerBooking: { title: "Preise pro Buchung", subtitle: "Höchste zuerst", rows: completedByPrice.map(bookingRow), empty: "Noch kein Umsatz erfasst" },
+      monthlyUsage: { title: "Termine diesen Monat", subtitle: "Chronologisch", rows: monthSessions, empty: "Diesen Monat noch keine Termine" },
+      depositsStripe: { title: "Anzahlungen via Stripe", subtitle: "Automatisch erfasst", rows: depositsStripeList, empty: "Noch keine Stripe-Anzahlungen" },
+      depositsCash: { title: "Anzahlungen bar", subtitle: "Manuell im Studio erfasst", rows: depositsCashList, empty: "Noch keine Bar-Anzahlungen" },
+      refundsPending: { title: "Rückerstattung fällig", subtitle: "Bar ausgezahlt, dann hier bestätigen", rows: refundsPendingList, empty: "Nichts offen" },
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookings]);
+
+  const activePanel = statDetails[selectedStat] || statDetails.revenue;
 
   const filteredBookings = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -416,47 +556,82 @@ export default function StudioOsDashboard() {
             <section>
               <SectionHeader title="Übersicht" subtitle={`Angemeldet als ${staff?.name} · ${staff?.role}`} />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                <StatCard icon={BookOpen} value={stats.total} label="Buchungen" />
-                <StatCard icon={Calendar} value={stats.anfrage} label="Anfragen" />
-                <StatCard icon={LayoutGrid} value={stats.in_planung} label="In Planung" />
-                <StatCard icon={BadgeCheck} value={stats.abgeschlossen} label="Abgeschlossen" />
+                <StatCard icon={BookOpen} value={stats.total} label="Buchungen" statKey="total" active={isPro && selectedStat === "total"} onSelect={isPro ? setSelectedStat : undefined} />
+                <StatCard icon={Calendar} value={stats.anfrage} label="Anfragen" statKey="anfrage" active={isPro && selectedStat === "anfrage"} onSelect={isPro ? setSelectedStat : undefined} />
+                <StatCard icon={LayoutGrid} value={stats.in_planung} label="In Planung" statKey="in_planung" active={isPro && selectedStat === "in_planung"} onSelect={isPro ? setSelectedStat : undefined} />
+                <StatCard icon={BadgeCheck} value={stats.abgeschlossen} label="Abgeschlossen" statKey="abgeschlossen" active={isPro && selectedStat === "abgeschlossen"} onSelect={isPro ? setSelectedStat : undefined} />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                <StatCard icon={Wallet} value={eur(revenueStats.revenue)} label="Umsatz gesamt" />
-                <StatCard icon={Users} value={revenueStats.customerCount} label="Kunden gesamt" />
-                <StatCard icon={TrendingUp} value={eur(revenueStats.avgPerBooking)} label="Ø pro Buchung" />
+                <StatCard icon={Wallet} value={eur(revenueStats.revenue)} label="Umsatz gesamt" statKey="revenue" active={isPro && selectedStat === "revenue"} onSelect={isPro ? setSelectedStat : undefined} />
+                <StatCard icon={Users} value={revenueStats.customerCount} label="Kunden gesamt" statKey="customerCount" active={isPro && selectedStat === "customerCount"} onSelect={isPro ? setSelectedStat : undefined} />
+                <StatCard icon={TrendingUp} value={eur(revenueStats.avgPerBooking)} label="Ø pro Buchung" statKey="avgPerBooking" active={isPro && selectedStat === "avgPerBooking"} onSelect={isPro ? setSelectedStat : undefined} />
                 <StatCard
                   icon={CalendarDays}
                   value={monthlyUsage.limit === Infinity ? `${monthlyUsage.used}` : `${monthlyUsage.used}/${monthlyUsage.limit}`}
                   label="Termine diesen Monat"
+                  statKey="monthlyUsage"
+                  active={isPro && selectedStat === "monthlyUsage"}
+                  onSelect={isPro ? setSelectedStat : undefined}
                 />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                <StatCard icon={CreditCard} value={eur(revenueStats.depositsStripe)} label="Anzahlungen via Stripe" />
-                <StatCard icon={Banknote} value={eur(revenueStats.depositsCash)} label="Anzahlungen bar" />
+                <StatCard
+                  icon={CreditCard}
+                  value={eur(revenueStats.depositsStripe)}
+                  label="Anzahlungen via Stripe"
+                  statKey="depositsStripe"
+                  active={isPro && selectedStat === "depositsStripe"}
+                  onSelect={isPro ? setSelectedStat : undefined}
+                />
+                <StatCard
+                  icon={Banknote}
+                  value={eur(revenueStats.depositsCash)}
+                  label="Anzahlungen bar"
+                  statKey="depositsCash"
+                  active={isPro && selectedStat === "depositsCash"}
+                  onSelect={isPro ? setSelectedStat : undefined}
+                />
                 {revenueStats.refundsPendingCount > 0 && (
-                  <StatCard icon={AlertTriangle} value={revenueStats.refundsPendingCount} label="Rückerstattung fällig (bar)" />
+                  <StatCard
+                    icon={AlertTriangle}
+                    value={revenueStats.refundsPendingCount}
+                    label="Rückerstattung fällig (bar)"
+                    statKey="refundsPending"
+                    active={isPro && selectedStat === "refundsPending"}
+                    onSelect={isPro ? setSelectedStat : undefined}
+                  />
                 )}
               </div>
 
-              <SectionHeader title="Umsatz-Historie" subtitle="Zuletzt abgeschlossene Buchungen" />
-              {revenueStats.history.length === 0 ? (
+              <SectionHeader
+                title={activePanel.title}
+                subtitle={activePanel.subtitle}
+                action={
+                  !isPro ? (
+                    <span className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 bg-zinc-100 rounded-full px-2.5 py-1">
+                      Kacheln anklicken ab Pro
+                    </span>
+                  ) : undefined
+                }
+              />
+              {activePanel.rows.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)]">
-                  <EmptyState heading="Noch kein Umsatz erfasst" subtext="Trag bei abgeschlossenen Buchungen einen Preis ein, um Historie zu sehen." />
+                  <EmptyState heading={activePanel.empty} />
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] divide-y divide-zinc-100">
-                  {revenueStats.history.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between gap-4 p-4">
+                  {activePanel.rows.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-4 p-4">
                       <div className="min-w-0">
-                        <div className="font-inter text-sm text-zinc-900 truncate">{b.customers?.name || "—"}</div>
-                        <div className="text-xs font-inter text-zinc-500 mt-0.5">
-                          {b.created_at && new Date(b.created_at).toLocaleDateString("de-DE")} · {TYPE_LABEL[b.appointment_type]}
-                        </div>
+                        <div className="font-inter text-sm text-zinc-900 truncate">{r.primary}</div>
+                        <div className="text-xs font-inter text-zinc-500 mt-0.5">{r.secondary}</div>
                       </div>
-                      <div className="font-playfair text-sm text-zinc-900 flex-shrink-0">{eur(Number(b.price_final))}</div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {r.value && <span className="font-playfair text-sm text-zinc-900">{r.value}</span>}
+                        {r.action}
+                      </div>
                     </div>
                   ))}
                 </div>
