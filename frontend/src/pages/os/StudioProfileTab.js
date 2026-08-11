@@ -8,7 +8,6 @@ import {
   Link2,
   Loader2,
   ImagePlus,
-  Save,
   AlertTriangle,
   Trash2,
   CreditCard,
@@ -400,47 +399,25 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
       transition={{ type: "spring", stiffness: 280, damping: 24 }}
       className="space-y-4"
     >
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-playfair text-xl text-zinc-900">Profil</h2>
-          <p className="text-xs text-zinc-400 font-inter mt-0.5">Studio-Informationen und öffentliche Darstellung</p>
-        </div>
-        <motion.button
-          type="button"
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={saveAll}
-          disabled={saving}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-inter font-semibold transition-colors disabled:opacity-50 flex-shrink-0 ${
-            saved ? "bg-emerald-600 text-white" : "bg-zinc-900 text-white hover:bg-zinc-800"
-          }`}
-        >
-          {saving ? (
-            <>
-              <Loader2 size={14} className="animate-spin" /> Speichern…
-            </>
-          ) : saved ? (
-            <>
-              <Check size={14} strokeWidth={2} /> Gespeichert
-            </>
-          ) : (
-            <>
-              <Save size={14} strokeWidth={1.5} /> Profil speichern
-            </>
-          )}
-        </motion.button>
+      <div>
+        <h2 className="font-playfair text-xl text-zinc-900">Profil</h2>
+        <p className="text-xs text-zinc-400 font-inter mt-0.5">Studio-Informationen und öffentliche Darstellung</p>
       </div>
 
       {linkUrl && (
-        <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                <Link2 size={14} className="text-zinc-600" strokeWidth={1.5} />
+        <div className="relative overflow-hidden rounded-3xl bg-zinc-900 px-6 py-6">
+          {/* Purely decorative — echoes the glow the landing page's own dark
+              CTA cards use, so this reads as the same "this matters" surface
+              instead of a plain settings row. */}
+          <div className="absolute -right-12 -top-16 w-48 h-48 rounded-full bg-white/[0.06] blur-3xl pointer-events-none" />
+          <div className="relative flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                <Link2 size={18} className="text-white" strokeWidth={1.5} />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-inter font-semibold text-zinc-900 leading-tight">Deine öffentliche Studio-Seite</p>
-                <p className="text-[11px] text-zinc-400 font-inter font-mono truncate">{linkUrl}</p>
+                <p className="text-sm font-inter font-semibold text-white leading-tight">Deine öffentliche Studio-Seite</p>
+                <p className="text-[11px] text-zinc-400 font-inter font-mono truncate mt-0.5">{linkUrl}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -451,17 +428,17 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2500);
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-inter font-semibold transition-colors ${
-                  copied ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                className={`flex items-center gap-1.5 h-10 px-4 rounded-xl text-xs font-inter font-semibold transition-colors ${
+                  copied ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-white/10 text-white border border-white/10 hover:bg-white/15"
                 }`}
               >
                 {copied ? (
                   <>
-                    <Check size={12} strokeWidth={2} /> Kopiert
+                    <Check size={13} strokeWidth={2} /> Kopiert
                   </>
                 ) : (
                   <>
-                    <Copy size={12} strokeWidth={1.5} /> Kopieren
+                    <Copy size={13} strokeWidth={1.5} /> Kopieren
                   </>
                 )}
               </button>
@@ -469,9 +446,9 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                 href={linkUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-inter font-medium text-zinc-600 border border-zinc-200 hover:bg-zinc-50 transition-colors"
+                className="flex items-center gap-1.5 h-10 px-4 rounded-xl text-xs font-inter font-semibold bg-white text-zinc-900 hover:bg-zinc-100 transition-colors"
               >
-                <ExternalLink size={12} strokeWidth={1.5} /> Vorschau
+                <ExternalLink size={13} strokeWidth={2} /> Vorschau
               </a>
             </div>
           </div>
