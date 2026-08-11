@@ -260,10 +260,19 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
   const [accountName, setAccountName] = useState(staff?.name || "");
   const [savingAccountName, setSavingAccountName] = useState(false);
   const [savedAccountName, setSavedAccountName] = useState(false);
+  const [accountPhone, setAccountPhone] = useState(staff?.phone || "");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [savedPhone, setSavedPhone] = useState(false);
+  const [accountEmail, setAccountEmail] = useState(staff?.email || "");
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savedEmail, setSavedEmail] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [resettingMfa, setResettingMfa] = useState(false);
+  const [mfaResetDone, setMfaResetDone] = useState(false);
 
   async function saveAccountName() {
     setSavingAccountName(true);
@@ -274,6 +283,33 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
       setTimeout(() => setSavedAccountName(false), 1500);
     } finally {
       setSavingAccountName(false);
+    }
+  }
+
+  async function saveAccountPhone() {
+    setSavingPhone(true);
+    try {
+      const updated = await studioOsAuth.patchMe({ phone: accountPhone });
+      onStaffUpdate(updated);
+      setSavedPhone(true);
+      setTimeout(() => setSavedPhone(false), 1500);
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
+  async function saveAccountEmail() {
+    setEmailError("");
+    setSavingEmail(true);
+    try {
+      const updated = await studioOsAuth.changeEmail(accountEmail);
+      onStaffUpdate(updated);
+      setSavedEmail(true);
+      setTimeout(() => setSavedEmail(false), 1500);
+    } catch (err) {
+      setEmailError(err.response?.data?.error || "Fehlgeschlagen.");
+    } finally {
+      setSavingEmail(false);
     }
   }
 
@@ -293,6 +329,19 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
       setPasswordError(err.response?.data?.error || "Fehlgeschlagen.");
     } finally {
       setSavingPassword(false);
+    }
+  }
+
+  // Two-factor is mandatory (see StudioOsMfaGate) — "reset" doesn't turn it
+  // off, it just clears the current factor so the gate walks the owner
+  // through setting up a new one the moment they next hit a protected route.
+  async function resetMfa() {
+    setResettingMfa(true);
+    try {
+      await studioOsAuth.mfaUnenroll();
+      setMfaResetDone(true);
+    } finally {
+      setResettingMfa(false);
     }
   }
 
@@ -624,6 +673,25 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                   <SaveButton saving={savingAccountName} saved={savedAccountName} onClick={saveAccountName} />
                 </div>
               </Field>
+              <Field label="Telefon">
+                <div className="flex gap-2">
+                  <Input
+                    type="tel"
+                    value={accountPhone}
+                    onChange={(e) => setAccountPhone(e.target.value)}
+                    placeholder="Für Rückfragen im Team"
+                    className="rounded-xl h-9"
+                  />
+                  <SaveButton saving={savingPhone} saved={savedPhone} onClick={saveAccountPhone} />
+                </div>
+              </Field>
+              <Field label="E-Mail (Login)">
+                <div className="flex gap-2">
+                  <Input type="email" value={accountEmail} onChange={(e) => setAccountEmail(e.target.value)} className="rounded-xl h-9" />
+                  <SaveButton saving={savingEmail} saved={savedEmail} onClick={saveAccountEmail} />
+                </div>
+                {emailError && <p className="text-xs font-inter text-red-600 mt-1">{emailError}</p>}
+              </Field>
               <Field label="Neues Passwort">
                 <div className="flex gap-2">
                   <Input
@@ -637,7 +705,29 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                 </div>
               </Field>
               {passwordError && <p className="text-xs font-inter text-red-600">{passwordError}</p>}
-              <p className="text-[11px] font-inter text-zinc-400">Angemeldet als {staff?.email}</p>
+
+              <div className="pt-1 border-t border-zinc-100" />
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-inter text-zinc-900">Zwei-Faktor-Authentifizierung</div>
+                  <div className="text-[11px] font-inter text-zinc-400">
+                    {mfaResetDone ? "Beim nächsten Login richtest du sie neu ein." : "Für jedes Konto Pflicht, per Authenticator-App."}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetMfa}
+                  disabled={resettingMfa || mfaResetDone}
+                  className="h-9 px-3 rounded-lg border border-zinc-200 text-zinc-600 text-xs font-inter hover:border-zinc-300 disabled:opacity-50 flex-shrink-0 flex items-center gap-1.5"
+                >
+                  {resettingMfa ? <Loader2 size={12} className="animate-spin" /> : mfaResetDone ? <Check size={12} /> : "Zurücksetzen"}
+                </button>
+              </div>
+
+              <p className="text-[11px] font-inter text-zinc-400">
+                Rolle: {staff?.role === "owner" ? "Inhaber" : staff?.role === "admin" ? "Admin" : staff?.role === "artist" ? "Artist" : "Mitarbeiter"}
+              </p>
             </div>
           </SectionDialog>
         )}
