@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Tag } from "lucide-react";
+import { X, Tag, Plus, Trash2 } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { DAY_SLOTS, SLOT_LABEL, slotStartHour } from "../../lib/daySlots";
 import { Button } from "../../components/ui/button";
@@ -29,6 +29,19 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
   // first — the customer's original preferred_date/slot described when they
   // wanted session 1 and would just be stale, confusing prefill here.
   const isFollowUp = (booking.sessions?.length || 0) > 0;
+  // Only a "project" is ever more than one sitting — single_session and
+  // consultation stay a single date/time field, same as always.
+  const isProject = booking.appointment_type === "project";
+
+  // One row per extra sitting beyond the one the main form above already
+  // describes — so a studio that already knows "this sleeve is three
+  // sessions" can lay out the whole plan in one offer instead of sending a
+  // follow-up offer after each one gets accepted.
+  const [extraSessions, setExtraSessions] = useState([]);
+  const addExtraSession = () => setExtraSessions((rows) => [...rows, { date: "", time: "12:00", durationHours: "2" }]);
+  const updateExtraSession = (i, key, value) =>
+    setExtraSessions((rows) => rows.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
+  const removeExtraSession = (i) => setExtraSessions((rows) => rows.filter((_, idx) => idx !== i));
 
   const [form, setForm] = useState(() => {
     const priceTotal = isFollowUp ? "" : booking.price_estimated ?? "";
@@ -69,6 +82,10 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
       setError("Preis, Datum, Uhrzeit und Dauer werden gebraucht.");
       return;
     }
+    if (extraSessions.some((r) => !r.date || !r.time || !r.durationHours)) {
+      setError("Jede weitere Session braucht Datum, Uhrzeit und Dauer — oder entfern sie wieder.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -83,6 +100,12 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
         offerSlot: form.offerSlot,
         offerStartsAt: startsAt.toISOString(),
         notes: form.notes || undefined,
+        additionalSessions: isProject
+          ? extraSessions.map((r) => ({
+              startsAt: new Date(`${r.date}T${r.time}:00`).toISOString(),
+              durationMinutes: Math.round(Number(r.durationHours) * 60),
+            }))
+          : undefined,
       };
 
       // For someone on the waitlist there is no booking yet — it comes into
@@ -97,9 +120,10 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
 
       const { data } = await studioApi.post(`/studios/me/bookings/${booking.id}/offer`, payload);
       onSent(booking.id, data);
-      if (data.clash) {
+      const clashTimes = [data.clash, ...(data.additionalClashes || [])].filter(Boolean).map((c) => new Date(c.startTime).toLocaleString("de-DE"));
+      if (clashTimes.length) {
         window.alert(
-          `Hinweis: Zu dieser Zeit steht bereits ein Termin (${new Date(data.clash.startTime).toLocaleString("de-DE")}). Das Angebot wurde trotzdem gesendet.`
+          `Hinweis: Zu diesen Zeiten steht bereits ein Termin: ${clashTimes.join(", ")}. Das Angebot wurde trotzdem gesendet.`
         );
       }
       onClose();
@@ -216,6 +240,63 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
             </div>
           </div>
 
+          {isProject && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-inter font-semibold text-zinc-500 block">Weitere Sessions in diesem Angebot</label>
+                <button
+                  type="button"
+                  onClick={addExtraSession}
+                  className="flex items-center gap-1 text-[11px] font-inter text-zinc-600 hover:text-zinc-900 transition-colors"
+                >
+                  <Plus size={12} /> Session hinzufügen
+                </button>
+              </div>
+              {extraSessions.length === 0 ? (
+                <p className="text-[11px] font-inter text-zinc-400">
+                  Optional — wenn du den Ablauf schon kennst (z. B. "drei Sitzungen"), leg sie direkt mit an.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {extraSessions.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-xl border border-zinc-200 p-2">
+                      <span className="text-[10px] font-inter text-zinc-400 w-12 flex-shrink-0">Session {i + 2}</span>
+                      <Input
+                        type="date"
+                        value={row.date}
+                        onChange={(e) => updateExtraSession(i, "date", e.target.value)}
+                        className="rounded-lg h-9 text-xs"
+                      />
+                      <Input
+                        type="time"
+                        value={row.time}
+                        onChange={(e) => updateExtraSession(i, "time", e.target.value)}
+                        className="rounded-lg h-9 text-xs w-24 flex-shrink-0"
+                      />
+                      <Input
+                        type="number"
+                        min="0.5"
+                        max="16"
+                        step="0.5"
+                        value={row.durationHours}
+                        onChange={(e) => updateExtraSession(i, "durationHours", e.target.value)}
+                        className="rounded-lg h-9 text-xs w-16 flex-shrink-0"
+                        title="Dauer in Stunden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExtraSession(i)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-zinc-300 hover:text-red-500 transition-colors flex-shrink-0"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Anzahlung (€)</label>
             <Input
@@ -244,8 +325,10 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
 
         <p className="text-[11px] font-inter text-zinc-400 mt-3 leading-snug">
           {Number(form.depositAmount) > 0
-            ? "Sagt der Kunde zu, muss er erst die Anzahlung bezahlen — der Termin steht in deinem Kalender erst danach fix."
-            : "Sagt der Kunde zu, steht der Termin sofort mit dieser Uhrzeit in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag."}
+            ? "Sagt der Kunde zu, muss er erst die Anzahlung bezahlen — der/die Termin(e) stehen in deinem Kalender erst danach fix."
+            : extraSessions.length > 0
+              ? `Sagt der Kunde zu, stehen alle ${extraSessions.length + 1} Termine sofort in deinem Kalender. Verschieben kannst du sie danach jederzeit per Drag.`
+              : "Sagt der Kunde zu, steht der Termin sofort mit dieser Uhrzeit in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag."}
         </p>
 
         <Button

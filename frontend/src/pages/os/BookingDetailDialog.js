@@ -215,6 +215,7 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                       {new Date(o.offer_date).toLocaleDateString("de-DE", { day: "2-digit", month: "long" })}
                       {o.offer_slot && <>, {SLOT_LABEL[o.offer_slot]?.toLowerCase()}</>}
                       {o.deposit_amount > 0 && <> · Anzahlung {eur(o.deposit_amount)}</>}
+                      {o.additional_sessions?.length > 0 && <> · +{o.additional_sessions.length} weitere Session{o.additional_sessions.length === 1 ? "" : "s"}</>}
                     </div>
                     {o.notes && <p className="text-[11px] font-inter text-zinc-500 italic mt-1">"{o.notes}"</p>}
                   </div>
