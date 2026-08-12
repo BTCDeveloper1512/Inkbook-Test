@@ -644,9 +644,14 @@ export default function PublicStudioAccountPage() {
 
                     {openOffer && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 rounded-2xl border border-zinc-900/10 bg-zinc-50 p-4">
-                        <p className="text-xs font-inter font-semibold text-zinc-900 mb-2">Studio-Angebot erhalten</p>
+                        <p className="text-xs font-inter font-semibold text-zinc-900 mb-2">
+                          {/* An existing session means this isn't the project's first offer — said
+                              explicitly, so accepting doesn't read as replacing the session(s)
+                              already fixed, just adding to them. */}
+                          {(b.sessions || []).length > 0 ? "Weitere Session für dein Projekt" : "Studio-Angebot erhalten"}
+                        </p>
                         <div className="grid grid-cols-2 gap-y-1.5 text-xs font-inter mb-3">
-                          <span className="text-zinc-400">Termin</span>
+                          <span className="text-zinc-400">{openOffer.additional_sessions?.length > 0 ? "Termine" : "Termin"}</span>
                           <span className="text-zinc-900 font-medium">
                             {openOffer.offer_starts_at ? (
                               <>
@@ -665,6 +670,19 @@ export default function PublicStudioAccountPage() {
                                 {openOffer.offer_slot && <>, {SLOT_LABEL[openOffer.offer_slot]?.toLowerCase()}</>}
                               </>
                             )}
+                            {openOffer.additional_sessions?.map((s) => (
+                              <React.Fragment key={s.startsAt}>
+                                <br />
+                                {new Date(s.startsAt).toLocaleString("de-DE", {
+                                  weekday: "short",
+                                  day: "2-digit",
+                                  month: "long",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}{" "}
+                                Uhr
+                              </React.Fragment>
+                            ))}
                           </span>
                           <span className="text-zinc-400">Dauer</span>
                           <span className="text-zinc-900 font-medium">{openOffer.duration_minutes} Minuten</span>
