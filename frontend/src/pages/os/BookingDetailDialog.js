@@ -11,6 +11,15 @@ import { SLOT_LABEL } from "../../lib/daySlots";
  */
 
 const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_session: "Termin" };
+// A "project" can take another offer once under way — that's how session 2,
+// 3, ... on the same tattoo gets scheduled. Mirrors the same rule enforced
+// server-side in offers.ts; single_session/consultation stay one-and-done.
+function canOfferAgain(b) {
+  return (
+    ["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) ||
+    (b.appointment_type === "project" && ["in_planung", "laufend"].includes(b.status))
+  );
+}
 const OFFER_STATUS_LABEL = {
   gesendet: "offen",
   angenommen: "angenommen",
@@ -294,7 +303,7 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
           </button>
         </div>
 
-        {["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) && (
+        {canOfferAgain(b) && (
           <div className="sticky bottom-0 bg-white/95 backdrop-blur px-6 py-4 border-t border-zinc-100">
             <button
               type="button"
@@ -304,7 +313,11 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
               }}
               className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-sm transition-colors"
             >
-              {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
+              {b.status === "angebot_gesendet"
+                ? "Angebot ändern"
+                : sessions.length > 0
+                  ? "Weitere Session anbieten"
+                  : "Angebot erstellen"}
             </button>
           </div>
         )}

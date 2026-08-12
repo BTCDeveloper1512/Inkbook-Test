@@ -25,9 +25,13 @@ function slotDefaultTime(slot) {
 export default function OfferModal({ booking, studio, onClose, onSent }) {
   const depositRequired = !!studio?.settings?.depositRequired;
   const depositPercent = Number(studio?.settings?.depositPercent || 0);
+  // A project already under way is being offered its *next* sitting, not its
+  // first — the customer's original preferred_date/slot described when they
+  // wanted session 1 and would just be stale, confusing prefill here.
+  const isFollowUp = (booking.sessions?.length || 0) > 0;
 
   const [form, setForm] = useState(() => {
-    const priceTotal = booking.price_estimated ?? "";
+    const priceTotal = isFollowUp ? "" : booking.price_estimated ?? "";
     return {
       priceTotal,
       // Pre-filled from the studio's deposit setting, but the studio can
@@ -35,9 +39,9 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
       // the right basis, and not every offer needs a deposit.
       depositAmount: depositRequired && priceTotal ? Math.round((Number(priceTotal) * depositPercent) / 100) : "",
       durationHours: "2",
-      offerDate: booking.preferred_date || "",
-      offerSlot: booking.preferred_slot || "nachmittags",
-      offerTime: slotDefaultTime(booking.preferred_slot),
+      offerDate: isFollowUp ? "" : booking.preferred_date || "",
+      offerSlot: isFollowUp ? "nachmittags" : booking.preferred_slot || "nachmittags",
+      offerTime: slotDefaultTime(isFollowUp ? null : booking.preferred_slot),
       notes: "",
     };
   });
@@ -127,7 +131,7 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-playfair text-xl text-zinc-900">Angebot erstellen</h3>
+          <h3 className="font-playfair text-xl text-zinc-900">{isFollowUp ? "Weitere Session anbieten" : "Angebot erstellen"}</h3>
           <button type="button" onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors">
             <X size={18} />
           </button>
@@ -136,9 +140,10 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
         <p className="text-xs text-zinc-500 font-inter mb-4">
           Für <span className="font-semibold text-zinc-800">{booking.customers?.name || "—"}</span>
           {booking.title && <> · <span className="italic">"{booking.title}"</span></>}
+          {isFollowUp && <> · Session {booking.sessions.length + 1}</>}
         </p>
 
-        {(booking.preferred_date || booking.preferred_time) && (
+        {!isFollowUp && (booking.preferred_date || booking.preferred_time) && (
           <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 mb-4">
             <Tag size={12} className="text-zinc-400 shrink-0 mt-0.5" />
             <p className="text-xs text-zinc-600 font-inter">

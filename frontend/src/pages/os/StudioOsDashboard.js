@@ -49,6 +49,15 @@ const MANUAL_STATUS_GROUPS = [
   { label: "Beendet", items: ["abgeschlossen", "abgebrochen"] },
 ];
 const SYSTEM_MANAGED_STATUSES = ["anfrage", "angebot_gesendet", "angenommen", "anzahlung_ausstehend", "abgelehnt"];
+// A "project" can take another offer once under way — that's how session 2,
+// 3, ... on the same tattoo gets scheduled. Mirrors the same rule enforced
+// server-side in offers.ts; single_session/consultation stay one-and-done.
+function canOfferAgain(b) {
+  return (
+    ["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) ||
+    (b.appointment_type === "project" && ["in_planung", "laufend"].includes(b.status))
+  );
+}
 const STATUS_LABEL = {
   anfrage: "Anfrage",
   angebot_gesendet: "Angebot läuft",
@@ -760,13 +769,17 @@ export default function StudioOsDashboard() {
                               {b.in_progress ? "In Bearbeitung" : "Als in Bearbeitung markieren"}
                             </button>
                           )}
-                          {["anfrage", "angebot_gesendet", "abgelehnt"].includes(b.status) && (
+                          {canOfferAgain(b) && (
                             <Button
                               size="sm"
                               onClick={() => setOfferModal(b)}
                               className="h-9 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs"
                             >
-                              {b.status === "angebot_gesendet" ? "Angebot ändern" : "Angebot erstellen"}
+                              {b.status === "angebot_gesendet"
+                                ? "Angebot ändern"
+                                : b.sessions?.length > 0
+                                  ? "Weitere Session anbieten"
+                                  : "Angebot erstellen"}
                             </Button>
                           )}
                           {SYSTEM_MANAGED_STATUSES.includes(b.status) ? (
