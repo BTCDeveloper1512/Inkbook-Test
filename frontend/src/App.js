@@ -18,13 +18,9 @@ import StudioOsLoginPage from "./pages/os/StudioOsLoginPage";
 import StudioOsDashboard from "./pages/os/StudioOsDashboard";
 import StudioOnboardingPage from "./pages/os/StudioOnboardingPage";
 import StudioOsMfaGate from "./pages/os/StudioOsMfaGate";
+import { StudioOsForgotPasswordPage, StudioOsNewPasswordPage } from "./pages/os/StudioOsPasswordResetPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerSettingsPage from "./pages/CustomerSettingsPage";
-import StudioDashboard from "./pages/StudioDashboard";
-import MessagesPage from "./pages/MessagesPage";
-import SubscriptionPage from "./pages/SubscriptionPage";
-import AdminPage from "./pages/AdminPage";
 import ImpressumPage from "./pages/ImpressumPage";
 import VideoTemplate from "./components/video/VideoTemplate.js";
 import StudioGuide from "./pages/StudioGuide";
@@ -60,6 +56,9 @@ function AppRouter() {
         <Route path="/t/:slug/konto" element={<PublicStudioAccountPage />} />
         <Route path="/konto" element={<CustomerStudioPicker />} />
         <Route path="/os/login" element={<StudioOsLoginPage />} />
+        <Route path="/os/passwort-vergessen" element={<StudioOsForgotPasswordPage />} />
+        {/* Ziel des Links aus der Wiederherstellungs-E-Mail (redirectTo im Backend). */}
+        <Route path="/os/passwort-neu" element={<StudioOsNewPasswordPage />} />
         <Route
           path="/os/dashboard"
           element={
@@ -85,26 +84,22 @@ function AppRouter() {
         <Route path="/consent/:bookingId" element={
           <ProtectedRoute><ConsentFormPage /></ProtectedRoute>
         } />
-        <Route path="/messages" element={
-          <ProtectedRoute><MessagesPage /></ProtectedRoute>
-        } />
-        <Route path="/messages/:recipientId" element={
-          <ProtectedRoute><MessagesPage /></ProtectedRoute>
-        } />
-        <Route path="/subscription" element={
-          <ProtectedRoute requiredRole="studio_owner"><SubscriptionPage /></ProtectedRoute>
-        } />
-        <Route path="/dashboard" element={
-          <ProtectedRoute><CustomerDashboard /></ProtectedRoute>
-        } />
+        {/* Altprodukt (FastAPI): diese Seiten sprechen ein anderes Backend mit
+            eigener Anmeldung und eigenen Daten an. Sie sahen benutzbar aus,
+            führten aber in eine Datenwelt, die mit StudioOS nichts zu tun hat.
+            Umleiten statt 404: wer noch ein Lesezeichen hat, landet dort, wo
+            die Sache heute wirklich lebt. Der Seiten-Code bleibt im Repo —
+            zugedreht ist nur die Route, damit das reversibel bleibt.
+            /admin bleibt bewusst frei für den künftigen StudioOS-Adminbereich,
+            der unter /os/admin entsteht. */}
+        <Route path="/dashboard" element={<Navigate to="/konto" replace />} />
+        <Route path="/studio-dashboard" element={<Navigate to="/os/dashboard" replace />} />
+        <Route path="/subscription" element={<Navigate to="/os/dashboard" replace />} />
+        <Route path="/messages" element={<Navigate to="/" replace />} />
+        <Route path="/messages/:recipientId" element={<Navigate to="/" replace />} />
+        <Route path="/admin" element={<Navigate to="/" replace />} />
         <Route path="/settings" element={
           <ProtectedRoute><CustomerSettingsPage /></ProtectedRoute>
-        } />
-        <Route path="/studio-dashboard" element={
-          <ProtectedRoute requiredRole="studio_owner"><StudioDashboard /></ProtectedRoute>
-        } />
-        <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin"><AdminPage /></ProtectedRoute>
         } />
         <Route path="/video" element={<VideoTemplate />} />
         <Route path="/guide" element={<StudioGuide />} />
