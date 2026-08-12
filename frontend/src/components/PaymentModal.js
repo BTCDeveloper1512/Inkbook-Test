@@ -6,7 +6,23 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+
+/**
+ * Deliberately lazy, and a no-op without a configured key. App.js imports the
+ * old product's CustomerDashboard and StudioPage eagerly, which pulls this
+ * module into the initial bundle — so a module-scope loadStripe() ran on
+ * *every* page load, StudioOS included, and threw an unhandled rejection
+ * there. StudioOS has no publishable key on purpose: its deposit and
+ * subscription payments both go through Stripe Checkout redirects, which are
+ * created server-side and need no client-side key.
+ */
+let stripePromise;
+function getStripe() {
+  const key = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+  if (!key) return null;
+  if (!stripePromise) stripePromise = loadStripe(key);
+  return stripePromise;
+}
 
 function formatIban(raw) {
   return (raw || "").replace(/\s/g, "").replace(/(.{4})/g, "$1 ").trim();
@@ -273,7 +289,7 @@ export default function PaymentModal({ session, onClose, onSuccess }) {
 
         {clientSecret && (
           <Elements
-            stripe={stripePromise}
+            stripe={getStripe()}
             options={{ clientSecret, appearance, locale: "de" }}
           >
             <StripeForm session={session} onSuccess={onSuccess} onClose={onClose} />
