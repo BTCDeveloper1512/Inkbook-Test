@@ -736,7 +736,10 @@ export default function StudioOsDashboard() {
                           </div>
                           {b.offers?.some((o) => o.status === "gesendet") && (
                             <div className="text-[11px] font-inter text-zinc-500 mt-1">
-                              Angebot läuft: {Number(b.offers.find((o) => o.status === "gesendet").price_total).toFixed(0)} € ·{" "}
+                              Angebot läuft:{" "}
+                              {b.appointment_type !== "consultation" && (
+                                <>{Number(b.offers.find((o) => o.status === "gesendet").price_total).toFixed(0)} € · </>
+                              )}
                               {b.offers.find((o) => o.status === "gesendet").duration_minutes} Min.
                             </div>
                           )}

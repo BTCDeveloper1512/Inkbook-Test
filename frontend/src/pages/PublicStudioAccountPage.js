@@ -686,8 +686,13 @@ export default function PublicStudioAccountPage() {
                           </span>
                           <span className="text-zinc-400">Dauer</span>
                           <span className="text-zinc-900 font-medium">{openOffer.duration_minutes} Minuten</span>
-                          <span className="text-zinc-400">Gesamtpreis</span>
-                          <span className="text-zinc-900 font-medium">{Number(openOffer.price_total).toFixed(0)} €</span>
+                          {/* A consultation isn't sold — nothing to show a price for. */}
+                          {b.appointment_type !== "consultation" && (
+                            <>
+                              <span className="text-zinc-400">Gesamtpreis</span>
+                              <span className="text-zinc-900 font-medium">{Number(openOffer.price_total).toFixed(0)} €</span>
+                            </>
+                          )}
                           {openOffer.deposit_amount > 0 && (
                             <>
                               <span className="text-zinc-400">Anzahlung</span>

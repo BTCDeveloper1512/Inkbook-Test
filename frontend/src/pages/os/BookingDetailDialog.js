@@ -142,7 +142,7 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                 <span className="inline-flex items-center gap-1">
                   <Euro size={11} className="text-zinc-400" /> {eur(b.price_final)} (final)
                 </span>
-              ) : b.price_estimated != null ? (
+              ) : b.price_estimated ? (
                 <span className="inline-flex items-center gap-1 text-zinc-500">
                   <Euro size={11} className="text-zinc-400" /> {eur(b.price_estimated)} (angeboten)
                 </span>
@@ -205,7 +205,8 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                   <div key={o.id} className="rounded-xl border border-zinc-100 px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-inter font-medium text-zinc-900">
-                        {eur(o.price_total)} · {o.duration_minutes} Min.
+                        {b.appointment_type !== "consultation" && <>{eur(o.price_total)} · </>}
+                        {o.duration_minutes} Min.
                       </span>
                       <span className={`text-[10px] font-inter px-1.5 py-0.5 rounded-full ${OFFER_STATUS_CLS[o.status]}`}>
                         {OFFER_STATUS_LABEL[o.status]}

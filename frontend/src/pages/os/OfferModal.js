@@ -32,6 +32,9 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
   // Only a "project" is ever more than one sitting — single_session and
   // consultation stay a single date/time field, same as always.
   const isProject = booking.appointment_type === "project";
+  // A consultation isn't sold — there's nothing to price or take a deposit
+  // on, so the studio is just proposing when to talk, not what it costs.
+  const isConsultation = booking.appointment_type === "consultation";
 
   // One row per extra sitting beyond the one the main form above already
   // describes — so a studio that already knows "this sleeve is three
@@ -44,14 +47,14 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
   const removeExtraSession = (i) => setExtraSessions((rows) => rows.filter((_, idx) => idx !== i));
 
   const [form, setForm] = useState(() => {
-    const priceTotal = isFollowUp ? "" : booking.price_estimated ?? "";
+    const priceTotal = isFollowUp || isConsultation ? "" : booking.price_estimated ?? "";
     return {
       priceTotal,
       // Pre-filled from the studio's deposit setting, but the studio can
       // still adjust or clear it per offer — a rough estimate isn't always
       // the right basis, and not every offer needs a deposit.
-      depositAmount: depositRequired && priceTotal ? Math.round((Number(priceTotal) * depositPercent) / 100) : "",
-      durationHours: "2",
+      depositAmount: !isConsultation && depositRequired && priceTotal ? Math.round((Number(priceTotal) * depositPercent) / 100) : "",
+      durationHours: isConsultation ? "0.5" : "2",
       offerDate: isFollowUp ? "" : booking.preferred_date || "",
       offerSlot: isFollowUp ? "nachmittags" : booking.preferred_slot || "nachmittags",
       offerTime: slotDefaultTime(isFollowUp ? null : booking.preferred_slot),
@@ -78,8 +81,8 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
   }
 
   async function send() {
-    if (!form.priceTotal || !form.offerDate || !form.offerTime || !form.durationHours) {
-      setError("Preis, Datum, Uhrzeit und Dauer werden gebraucht.");
+    if ((!isConsultation && !form.priceTotal) || !form.offerDate || !form.offerTime || !form.durationHours) {
+      setError(isConsultation ? "Datum, Uhrzeit und Dauer werden gebraucht." : "Preis, Datum, Uhrzeit und Dauer werden gebraucht.");
       return;
     }
     if (extraSessions.some((r) => !r.date || !r.time || !r.durationHours)) {
@@ -93,8 +96,8 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
       // zone, rather than being reassembled server-side from date + time.
       const startsAt = new Date(`${form.offerDate}T${form.offerTime}:00`);
       const payload = {
-        priceTotal: Number(form.priceTotal),
-        depositAmount: form.depositAmount ? Number(form.depositAmount) : undefined,
+        priceTotal: isConsultation ? 0 : Number(form.priceTotal),
+        depositAmount: !isConsultation && form.depositAmount ? Number(form.depositAmount) : undefined,
         durationMinutes: Math.round(Number(form.durationHours) * 60),
         offerDate: form.offerDate,
         offerSlot: form.offerSlot,
@@ -155,7 +158,9 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-playfair text-xl text-zinc-900">{isFollowUp ? "Weitere Session anbieten" : "Angebot erstellen"}</h3>
+          <h3 className="font-playfair text-xl text-zinc-900">
+            {isFollowUp ? "Weitere Session anbieten" : isConsultation ? "Beratungstermin vorschlagen" : "Angebot erstellen"}
+          </h3>
           <button type="button" onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 transition-colors">
             <X size={18} />
           </button>
@@ -180,33 +185,49 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
         )}
 
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Gesamtpreis (€) *</label>
-              <Input
-                type="number"
-                min="0"
-                step="5"
-                placeholder="450"
-                value={form.priceTotal}
-                onChange={(e) => onPriceChange(e.target.value)}
-                className="rounded-xl h-10"
-              />
-            </div>
+          {isConsultation ? (
             <div>
               <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Stunden) *</label>
               <Input
                 type="number"
-                min="0.5"
-                max="16"
-                step="0.5"
-                placeholder="2"
+                min="0.25"
+                max="4"
+                step="0.25"
+                placeholder="0.5"
                 value={form.durationHours}
                 onChange={(e) => set("durationHours", e.target.value)}
                 className="rounded-xl h-10"
               />
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Gesamtpreis (€) *</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="5"
+                  placeholder="450"
+                  value={form.priceTotal}
+                  onChange={(e) => onPriceChange(e.target.value)}
+                  className="rounded-xl h-10"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Dauer (Stunden) *</label>
+                <Input
+                  type="number"
+                  min="0.5"
+                  max="16"
+                  step="0.5"
+                  placeholder="2"
+                  value={form.durationHours}
+                  onChange={(e) => set("durationHours", e.target.value)}
+                  className="rounded-xl h-10"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -297,18 +318,20 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
             </div>
           )}
 
-          <div>
-            <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Anzahlung (€)</label>
-            <Input
-              type="number"
-              min="0"
-              step="5"
-              placeholder="0"
-              value={form.depositAmount}
-              onChange={(e) => set("depositAmount", e.target.value)}
-              className="rounded-xl h-10"
-            />
-          </div>
+          {!isConsultation && (
+            <div>
+              <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Anzahlung (€)</label>
+              <Input
+                type="number"
+                min="0"
+                step="5"
+                placeholder="0"
+                value={form.depositAmount}
+                onChange={(e) => set("depositAmount", e.target.value)}
+                className="rounded-xl h-10"
+              />
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-inter font-semibold text-zinc-500 mb-1 block">Notiz (optional)</label>
@@ -324,11 +347,13 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
         {error && <p className="text-xs font-inter text-red-600 mt-3">{error}</p>}
 
         <p className="text-[11px] font-inter text-zinc-400 mt-3 leading-snug">
-          {Number(form.depositAmount) > 0
-            ? "Sagt der Kunde zu, muss er erst die Anzahlung bezahlen — der/die Termin(e) stehen in deinem Kalender erst danach fix."
-            : extraSessions.length > 0
-              ? `Sagt der Kunde zu, stehen alle ${extraSessions.length + 1} Termine sofort in deinem Kalender. Verschieben kannst du sie danach jederzeit per Drag.`
-              : "Sagt der Kunde zu, steht der Termin sofort mit dieser Uhrzeit in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag."}
+          {isConsultation
+            ? "Sagt der Kunde zu, steht der Beratungstermin sofort in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag."
+            : Number(form.depositAmount) > 0
+              ? "Sagt der Kunde zu, muss er erst die Anzahlung bezahlen — der/die Termin(e) stehen in deinem Kalender erst danach fix."
+              : extraSessions.length > 0
+                ? `Sagt der Kunde zu, stehen alle ${extraSessions.length + 1} Termine sofort in deinem Kalender. Verschieben kannst du sie danach jederzeit per Drag.`
+                : "Sagt der Kunde zu, steht der Termin sofort mit dieser Uhrzeit in deinem Kalender. Verschieben kannst du ihn danach jederzeit per Drag."}
         </p>
 
         <Button
@@ -336,7 +361,7 @@ export default function OfferModal({ booking, studio, onClose, onSent }) {
           disabled={saving}
           className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter mt-4"
         >
-          {saving ? "Wird gesendet…" : "Angebot senden"}
+          {saving ? "Wird gesendet…" : isConsultation ? "Termin vorschlagen" : "Angebot senden"}
         </Button>
       </motion.div>
     </motion.div>
