@@ -58,13 +58,17 @@ function canOfferAgain(b) {
     (b.appointment_type === "project" && ["in_planung", "laufend"].includes(b.status))
   );
 }
+// Deliberately says *who* needs to move next, not just what state the row is
+// in — "Angebot läuft" read as neutral/ongoing, not "you're waiting on the
+// customer right now", which was exactly the thing that was hard to tell at
+// a glance in the list.
 const STATUS_LABEL = {
   anfrage: "Anfrage",
-  angebot_gesendet: "Angebot läuft",
+  angebot_gesendet: "Wartet auf Kunde",
   angenommen: "Angenommen",
-  anzahlung_ausstehend: "Anzahlung ausstehend",
+  anzahlung_ausstehend: "Wartet auf Zahlung",
   abgelehnt: "Abgelehnt",
-  in_planung: "In Planung",
+  in_planung: "Bestätigt",
   laufend: "Läuft",
   abgeschlossen: "Abgeschlossen",
   abgebrochen: "Abgebrochen",
@@ -73,11 +77,15 @@ const STATUS_LABEL = {
 // with the customer", the blue pair is the execution track, green done, red
 // cancelled. Black rather than a colour for the offer so it reads as part of
 // the same monochrome language as the rest of the app.
+// Amber/orange is reserved for "the ball is in the customer's court" —
+// anfrage is the one exception, since a fresh request needs the *studio* to
+// act first, but shares the color because it's equally something sitting in
+// someone's queue rather than settled.
 const STATUS_DOT = {
   anfrage: "bg-amber-500",
-  angebot_gesendet: "bg-zinc-900",
+  angebot_gesendet: "bg-orange-500",
   angenommen: "bg-teal-500",
-  anzahlung_ausstehend: "bg-amber-600",
+  anzahlung_ausstehend: "bg-orange-600",
   abgelehnt: "bg-zinc-400",
   in_planung: "bg-blue-500",
   laufend: "bg-blue-700",
@@ -776,7 +784,16 @@ export default function StudioOsDashboard() {
                             <Button
                               size="sm"
                               onClick={() => setOfferModal(b)}
-                              className="h-9 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs"
+                              className={`h-9 rounded-lg font-inter text-xs ${
+                                // A follow-up on an already-confirmed project is an
+                                // option, not something waiting on the studio — kept
+                                // visually quieter than the solid black "this needs
+                                // you" buttons (first offer, revising a pending one),
+                                // so the two don't compete for attention in the list.
+                                b.status !== "angebot_gesendet" && b.sessions?.length > 0
+                                  ? "border border-zinc-200 text-zinc-600 hover:border-zinc-400 bg-white"
+                                  : "bg-zinc-900 hover:bg-zinc-800 text-white"
+                              }`}
                             >
                               {b.status === "angebot_gesendet"
                                 ? "Angebot ändern"

@@ -313,7 +313,15 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
                 onClose();
                 onCreateOffer(b);
               }}
-              className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-sm transition-colors"
+              className={`w-full h-11 rounded-xl font-inter text-sm transition-colors ${
+                // Same reasoning as the Buchungen list: adding an optional extra
+                // session to an already-confirmed project isn't a pending action,
+                // so it doesn't get the same solid black "do this" treatment as
+                // an actual first offer or one still awaiting the customer.
+                b.status !== "angebot_gesendet" && sessions.length > 0
+                  ? "border border-zinc-200 text-zinc-600 hover:border-zinc-400 bg-white"
+                  : "bg-zinc-900 hover:bg-zinc-800 text-white"
+              }`}
             >
               {b.status === "angebot_gesendet"
                 ? "Angebot ändern"
