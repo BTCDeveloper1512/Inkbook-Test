@@ -1,13 +1,29 @@
-import React, { useState } from "react";
+import React from "react";
 import SiteHeader from "../components/SiteHeader";
 import { Link } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+
+/**
+ * Beschreibt bewusst das, was die Software nachweislich tut — nicht das, was
+ * eine Vorlage üblicherweise aufzählt. Konkret nachgesehen: Supabase (Postgres
+ * + Auth + Storage, Projekt in eu-central-1/Frankfurt), Stripe für Abo und
+ * Anzahlungen, zwei httpOnly-Session-Cookies, Zwei-Faktor per TOTP, Trennung
+ * der Kundendaten pro Studio über Row-Level-Security.
+ *
+ * Kein Tracking, keine Analyse-Dienste, keine Werbenetzwerke — deshalb steht
+ * hier auch nichts darüber. Kommt später etwas dazu, gehört es hier ergänzt.
+ */
 
 const Section = ({ title, children }) => (
-  <div className="mb-8">
-    <h2 className="font-playfair text-xl font-semibold text-zinc-900 mb-4">{title}</h2>
+  <div className="mb-9 last:mb-0">
+    <h2 className="font-playfair text-lg font-semibold text-zinc-900 mb-3">{title}</h2>
     <div className="text-sm text-zinc-600 font-inter leading-relaxed space-y-3">{children}</div>
   </div>
+);
+
+const Placeholder = ({ label }) => (
+  <span className="inline-block bg-amber-50 border border-amber-200 text-amber-700 text-xs px-2 py-0.5 rounded font-inter font-medium">
+    [{label}]
+  </span>
 );
 
 export default function DatenschutzPage() {
@@ -18,104 +34,137 @@ export default function DatenschutzPage() {
         <div className="mb-12">
           <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-3">Rechtliches</p>
           <h1 className="font-playfair text-4xl font-semibold text-zinc-900 mb-2">Datenschutzerklärung</h1>
-          <p className="text-sm text-zinc-500 font-inter">Gemäß DSGVO (EU) 2016/679 und BDSG</p>
+          <p className="text-sm text-zinc-500 font-inter">
+            Stand: <Placeholder label="Monat Jahr" />
+          </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-zinc-100 p-8 space-y-0">
-          <Section title="1. Verantwortlicher">
+        <div className="bg-white rounded-2xl border border-zinc-100 p-8">
+          <Section title="Verantwortlich">
             <p>
-              Verantwortlich für die Datenverarbeitung auf dieser Website ist StudioOS (Anschrift folgt,
-              siehe <Link to="/impressum" className="text-zinc-900 underline">Impressum</Link>).
+              Verantwortlich für die Verarbeitung ist <Placeholder label="Firmenname" />,{" "}
+              <Placeholder label="Anschrift" />. Kontakt siehe{" "}
+              <Link to="/impressum" className="underline text-zinc-900">Impressum</Link>.
+            </p>
+            <p>
+              Wichtig zur Einordnung: Für die Daten seiner eigenen Kundinnen und Kunden ist das jeweilige{" "}
+              <span className="font-medium text-zinc-800">Studio verantwortlich</span>. Der Anbieter verarbeitet
+              diese Daten in dessen Auftrag als Auftragsverarbeiter (Art. 28 DSGVO).
             </p>
           </Section>
 
-          <Section title="2. Erhobene Daten">
-            <p>Wir erheben und verarbeiten folgende personenbezogene Daten:</p>
+          <Section title="Welche Daten verarbeitet werden">
+            <p>
+              <span className="font-medium text-zinc-800">Studio-Konten:</span> Name, E-Mail-Adresse, optional
+              Telefonnummer, Rolle im Studio, Zeitpunkt der letzten Anmeldung sowie die Angaben zum Studio selbst
+              (Name, Adresse, Öffnungszeiten, Beschreibung, Bilder).
+            </p>
+            <p>
+              <span className="font-medium text-zinc-800">Kundenkonten:</span> Name, E-Mail-Adresse, optional
+              Telefonnummer, die eigenen Anfragen und Termine, hochgeladene Referenzbilder, Nachrichten mit dem
+              Studio sowie vom Studio hinterlegte Notizen.
+            </p>
+            <p>
+              <span className="font-medium text-zinc-800">Zahlungen:</span> Betrag, Zeitpunkt, Status und die
+              Vorgangs-Kennung von Stripe. Vollständige Kartendaten werden zu keinem Zeitpunkt an den Anbieter
+              übermittelt oder von ihm gespeichert.
+            </p>
+          </Section>
+
+          <Section title="Zwecke und Rechtsgrundlagen">
             <ul className="list-disc pl-5 space-y-1">
-              <li>Name und E-Mail-Adresse bei der Registrierung</li>
-              <li>Buchungsdaten (Termin, Studio, Artist)</li>
-              <li>Kommunikationsdaten (Chat-Nachrichten mit Studios)</li>
-              <li>Technische Daten (IP-Adresse, Browser, Geräteinformationen)</li>
-              <li>Newsletter-Anmeldung (nur E-Mail, sofern freiwillig angegeben)</li>
+              <li>Bereitstellung der Software und Abwicklung von Terminen — Art. 6 Abs. 1 lit. b DSGVO</li>
+              <li>Abrechnung des Abonnements — Art. 6 Abs. 1 lit. b DSGVO</li>
+              <li>Sicherheit der Konten, insbesondere Zwei-Faktor-Authentifizierung — Art. 6 Abs. 1 lit. f DSGVO</li>
+              <li>Gesetzliche Aufbewahrung von Rechnungsdaten — Art. 6 Abs. 1 lit. c DSGVO</li>
             </ul>
           </Section>
 
-          <Section title="3. Zweck der Datenverarbeitung">
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Bereitstellung und Betrieb der StudioOS-Plattform</li>
-              <li>Abwicklung von Buchungen und Terminen</li>
-              <li>Kommunikation zwischen Kunden und Studios</li>
-              <li>Zahlungsabwicklung über Stripe (eigene Datenschutzrichtlinie)</li>
-              <li>E-Mail-Benachrichtigungen via Resend</li>
-              <li>Versand des Newsletters (nur mit ausdrücklicher Einwilligung)</li>
-            </ul>
-          </Section>
-
-          <Section title="4. Rechtsgrundlage">
+          <Section title="Trennung der Daten zwischen Studios">
             <p>
-              Die Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung),
-              Art. 6 Abs. 1 lit. a DSGVO (Einwilligung) sowie Art. 6 Abs. 1 lit. f DSGVO (berechtigte Interessen).
+              Jedes Studio sieht ausschliesslich seine eigenen Kundinnen und Kunden. Die Trennung wird nicht allein
+              durch die Anwendung hergestellt, sondern durch die Datenbank selbst erzwungen (Row-Level-Security in
+              Postgres): eine Abfrage kann Daten eines fremden Studios technisch nicht zurückgeben.
             </p>
-          </Section>
-
-          <Section title="5. Datenweitergabe">
-            <p>Ihre Daten werden nicht an Dritte verkauft. Eine Weitergabe erfolgt ausschließlich an:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Stripe Inc. (Zahlungsabwicklung) – <a href="https://stripe.com/de/privacy" target="_blank" rel="noopener noreferrer" className="underline">Datenschutz Stripe</a></li>
-              <li>Resend Inc. (E-Mail-Versand) – <a href="https://resend.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">Datenschutz Resend</a></li>
-              <li>Anthropic / OpenAI (KI-Support, anonymisiert)</li>
-            </ul>
-          </Section>
-
-          <Section title="6. Speicherdauer">
             <p>
-              Personenbezogene Daten werden nur so lange gespeichert, wie es für die jeweiligen Zwecke
-              erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen (in der Regel max. 10 Jahre
-              für Geschäftsdaten).
+              Wer bei mehreren Studios Kunde ist, hat dort jeweils einen eigenen, voneinander getrennten Datensatz —
+              auch wenn die Anmeldung mit derselben E-Mail-Adresse erfolgt.
             </p>
           </Section>
 
-          <Section title="7. Cookies">
+          <Section title="Eingesetzte Dienstleister">
             <p>
-              StudioOS setzt technisch notwendige Cookies für die Grundfunktionalität (Session, Authentifizierung)
-              sowie optionale Cookies für Analytics und Marketing ein. Detaillierte Einstellungen können
-              jederzeit über den Cookie-Banner (unten auf der Seite) angepasst werden.
+              <span className="font-medium text-zinc-800">Supabase</span> — Datenbank, Anmeldung und Dateispeicher.
+              Das Projekt liegt in der Region eu-central-1 (Frankfurt am Main). Es besteht ein Vertrag zur
+              Auftragsverarbeitung.
             </p>
-          </Section>
-
-          <Section title="8. Ihre Rechte">
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Auskunft über gespeicherte Daten (Art. 15 DSGVO)</li>
-              <li>Berichtigung unrichtiger Daten (Art. 16 DSGVO)</li>
-              <li>Löschung Ihrer Daten (Art. 17 DSGVO)</li>
-              <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
-              <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
-              <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO)</li>
-              <li>Widerruf einer erteilten Einwilligung (Art. 7 Abs. 3 DSGVO)</li>
-            </ul>
-            <p className="mt-3">
-              Zur Ausübung Ihrer Rechte wenden Sie sich an: <span className="text-zinc-900 font-medium">datenschutz@inkbook.de</span> (folgt noch)
-            </p>
-          </Section>
-
-          <Section title="9. Beschwerderecht">
             <p>
-              Sie haben das Recht, sich bei einer Datenschutzaufsichtsbehörde zu beschweren,
-              z. B. beim Bundesbeauftragten für den Datenschutz und die Informationsfreiheit (BfDI).
+              <span className="font-medium text-zinc-800">Stripe</span> — Abwicklung des Abonnements und der
+              Anzahlungen. Die Zahlungsdaten werden unmittelbar bei Stripe eingegeben und verarbeitet.
+            </p>
+            <p>
+              <span className="font-medium text-zinc-800">
+                <Placeholder label="Hosting-Anbieter" />
+              </span>{" "}
+              — Betrieb der Anwendung.
+            </p>
+            <p>
+              Soweit dabei Daten in Drittländer übermittelt werden, geschieht dies auf Grundlage der
+              Standardvertragsklauseln der EU-Kommission.
             </p>
           </Section>
 
-          <div className="pt-6 border-t border-zinc-100">
-            <p className="text-xs text-zinc-400 font-inter">
-              Stand: April 2026 · Diese Datenschutzerklärung wird bei Bedarf aktualisiert.
+          <Section title="Cookies">
+            <p>
+              Es werden ausschliesslich technisch notwendige Cookies gesetzt: zwei Sitzungs-Cookies, die die
+              Anmeldung aufrechterhalten — getrennt für die Studio- und die Kundenseite, damit beide Anmeldungen im
+              selben Browser nebeneinander bestehen können. Sie sind httpOnly, also für Skripte im Browser nicht
+              lesbar.
             </p>
-          </div>
+            <p>
+              Es findet kein Tracking statt. Es werden keine Analyse- oder Werbedienste eingebunden und keine Profile
+              gebildet. Die Entscheidung im Cookie-Hinweis wird lokal im Browser gespeichert und nicht an den Server
+              übermittelt.
+            </p>
+          </Section>
+
+          <Section title="Speicherdauer">
+            <p>
+              Daten werden gelöscht, sobald sie für die genannten Zwecke nicht mehr erforderlich sind. Löscht ein
+              Studio sein Konto, werden die zugehörigen Buchungen, Termine, Angebote und Kundendaten entfernt.
+              Rechnungsdaten werden für die Dauer der gesetzlichen Aufbewahrungsfristen (regelmässig zehn Jahre)
+              vorgehalten.
+            </p>
+          </Section>
+
+          <Section title="Deine Rechte">
+            <p>
+              Es bestehen die Rechte auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17),
+              Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21
+              DSGVO) sowie das Recht, sich bei einer Aufsichtsbehörde zu beschweren.
+            </p>
+            <p>
+              Betrifft die Anfrage Daten, die bei einem Studio als Kunde entstanden sind, ist zuerst dieses Studio
+              zuständig. Der Anbieter unterstützt dabei.
+            </p>
+            <p>
+              Kontakt für Datenschutzanfragen: <Placeholder label="E-Mail-Adresse" />
+            </p>
+          </Section>
+
+          <Section title="Datensicherheit">
+            <p>
+              Die Übertragung erfolgt verschlüsselt über HTTPS. Passwörter werden nur als Hash gespeichert. Für
+              Studio-Konten ist die Zwei-Faktor-Authentifizierung verpflichtend. Eingriffe durch den
+              Plattform-Support werden protokolliert.
+            </p>
+          </Section>
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-4 text-xs text-zinc-400 font-inter">
+        <div className="flex gap-6 mt-8 text-xs text-zinc-400 font-inter">
           <Link to="/impressum" className="hover:text-zinc-700 transition-colors">Impressum</Link>
           <Link to="/agb" className="hover:text-zinc-700 transition-colors">AGB</Link>
-          
+          <Link to="/ueber-uns" className="hover:text-zinc-700 transition-colors">Über uns</Link>
         </div>
       </div>
     </div>
