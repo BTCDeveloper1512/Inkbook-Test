@@ -10,6 +10,7 @@ import StudioOsLoginPage from "./pages/os/StudioOsLoginPage";
 import StudioOsDashboard from "./pages/os/StudioOsDashboard";
 import StudioOnboardingPage from "./pages/os/StudioOnboardingPage";
 import StudioOsMfaGate from "./pages/os/StudioOsMfaGate";
+import StudioOsAdminPage from "./pages/os/StudioOsAdminPage";
 import { StudioOsForgotPasswordPage, StudioOsNewPasswordPage } from "./pages/os/StudioOsPasswordResetPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ImpressumPage from "./pages/ImpressumPage";
@@ -61,6 +62,17 @@ function AppRouter() {
           element={
             <StudioOsMfaGate>
               <StudioOnboardingPage />
+            </StudioOsMfaGate>
+          }
+        />
+
+        {/* Auch der Adminbereich geht durch das MFA-Gate — ein Konto mit
+            Zugriff auf alle Studios ist ein lohnenderes Ziel als eines. */}
+        <Route
+          path="/os/admin"
+          element={
+            <StudioOsMfaGate>
+              <StudioOsAdminPage />
             </StudioOsMfaGate>
           }
         />
