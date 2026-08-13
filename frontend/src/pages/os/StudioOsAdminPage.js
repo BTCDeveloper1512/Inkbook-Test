@@ -281,17 +281,22 @@ export default function StudioOsAdminPage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <select
                         value={s.subscription_plan || "kostenlos"}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          // React snaps a controlled <select> back to its old value the
+                          // instant onChange returns (state isn't updated until confirm) —
+                          // so the target plan must be captured now, not read lazily from
+                          // e.target.value inside run(), which would resolve to the old value.
+                          const nextPlan = e.target.value;
                           setConfirm({
                             title: "Tarif ändern",
                             body: `„${s.name}" wird auf ${
-                              PLANS.find((p) => p.value === e.target.value)?.label
+                              PLANS.find((p) => p.value === nextPlan)?.label
                             } gesetzt. Das ändert nur den Tarif in StudioOS — das Stripe-Abo bleibt unberührt.`,
                             confirmLabel: "Tarif setzen",
                             needsReason: true,
-                            run: (reason) => adminApi.setPlan(s.id, e.target.value, reason),
-                          })
-                        }
+                            run: (reason) => adminApi.setPlan(s.id, nextPlan, reason),
+                          });
+                        }}
                         className="h-9 rounded-lg border border-zinc-200 bg-white text-xs font-inter px-2 text-zinc-700"
                       >
                         {PLANS.map((p) => (
