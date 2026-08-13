@@ -489,7 +489,12 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-5">
           <StudioOSWordmark markSize={22} textSize="text-sm" />
           <div className="flex flex-wrap items-center justify-center gap-5">
+            {/* "Über uns" und "FAQ" existierten als fertige Seiten, waren aber
+                von nirgends verlinkt und damit nur über die direkte URL
+                erreichbar. */}
             {[
+              { to: "/ueber-uns", label: "Über uns" },
+              { to: "/faq", label: "FAQ" },
               { to: "/impressum", label: "Impressum" },
               { to: "/datenschutz", label: "Datenschutz" },
               { to: "/agb", label: "AGB" },
@@ -498,6 +503,12 @@ export default function LandingPage() {
                 {l.label}
               </Link>
             ))}
+            <a
+              href="mailto:support@studioos.de?subject=Support-Anfrage"
+              className="text-xs font-inter text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              Support
+            </a>
           </div>
           <p className="text-xs font-inter text-zinc-400">© 2026 StudioOS</p>
         </div>

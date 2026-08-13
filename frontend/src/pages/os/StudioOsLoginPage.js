@@ -143,6 +143,15 @@ export default function StudioOsLoginPage() {
             {loading ? <Loader2 size={16} className="animate-spin" /> : mode === "login" ? "Anmelden" : "Studio anlegen"}
           </Button>
         </form>
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={() => navigate("/os/passwort-vergessen")}
+            className="w-full text-center text-xs font-inter text-zinc-400 hover:text-zinc-600 mt-3"
+          >
+            Passwort vergessen?
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {

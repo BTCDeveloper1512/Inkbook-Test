@@ -150,19 +150,116 @@ function VerifyMode({ onDone }) {
   );
 }
 
+// sessionStorage, not localStorage: an unfinished enrollment is scoped to the
+// tab it was started in and shouldn't outlive it. Holds a secret, so it's
+// cleared the moment the factor is verified.
+const ENROLLMENT_KEY = "studioos.mfaEnrollment";
+
+function readCachedEnrollment() {
+  try {
+    const raw = sessionStorage.getItem(ENROLLMENT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.factorId && parsed?.qrCode ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheEnrollment(value) {
+  try {
+    if (value) sessionStorage.setItem(ENROLLMENT_KEY, JSON.stringify(value));
+    else sessionStorage.removeItem(ENROLLMENT_KEY);
+  } catch {
+    /* private mode / storage disabled — setup still works, just not across reloads */
+  }
+}
+
+/**
+ * Supabase hands the TOTP QR over as `data:image/svg+xml;utf-8,<svg …>`.
+ * That's a malformed data URI — `utf-8` isn't a `name=value` media-type
+ * parameter — so it can't be trusted in an `<img src>`; the markup after the
+ * comma, though, is a perfectly good inline SVG. Injecting the whole string
+ * unchanged (what this used to do) rendered the prefix as literal text above
+ * the code. Base64 variants are a valid URI and go straight into an <img>.
+ */
+function qrSource(raw) {
+  const qr = (raw || "").trim();
+  if (/^data:[^,]*;base64,/i.test(qr)) return { src: qr };
+  const prefix = /^data:[^,]*,/.exec(qr);
+  const body = prefix ? qr.slice(prefix[0].length) : qr;
+  // Percent-encoded payloads are also in circulation; a bare "<" means it isn't.
+  return { svg: withViewBox(body.startsWith("<") ? body : decodeURIComponent(body)) };
+}
+
+/**
+ * The QR arrives with a pixel width/height but no viewBox. Sizing such an SVG
+ * with CSS only resizes its viewport — the modules keep drawing at their
+ * original scale, so the box shows the top-left corner of the code and a phone
+ * has no complete code to scan. Deriving the viewBox from the declared
+ * dimensions makes the content scale along with the box.
+ */
+function withViewBox(svg) {
+  const open = /<svg\b[^>]*>/i.exec(svg);
+  if (!open || /\bviewBox\s*=/i.test(open[0])) return svg;
+  const w = /\bwidth\s*=\s*"?([\d.]+)/i.exec(open[0]);
+  const h = /\bheight\s*=\s*"?([\d.]+)/i.exec(open[0]);
+  if (!w || !h) return svg;
+  const patched = open[0].replace(/<svg\b/i, `<svg viewBox="0 0 ${w[1]} ${h[1]}" preserveAspectRatio="xMidYMid meet"`);
+  return svg.replace(open[0], patched);
+}
+
 /** No factor yet — mandatory, so this is a wall, not an offer. */
 function SetupMode({ onDone }) {
   const [enrollment, setEnrollment] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState("");
+  // Enrolling creates a factor server-side, so this must fire exactly once per
+  // mount — StrictMode's dev double-invoke would otherwise leave a dead factor
+  // behind on every visit to this screen.
+  const startedRef = useRef(false);
 
   useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    // The QR and secret can't be re-fetched for an existing factor, so they're
+    // held here for the length of the tab: a reload mid-setup (or a dev-server
+    // hot reload) then continues with the same factor instead of silently
+    // replacing the secret the authenticator app was just given.
+    const cached = readCachedEnrollment();
     studioOsAuth
-      .mfaEnroll()
-      .then(setEnrollment)
+      .mfaEnroll(cached?.factorId)
+      .then((res) => {
+        // `reused` means the server kept the factor and sent no QR — the one
+        // to display is the cached one. Guarded anyway: an enrollment without
+        // a QR would leave this screen on a spinner forever.
+        const next = res.reused ? cached : res;
+        if (!next?.qrCode) return restart();
+        cacheEnrollment(next);
+        setEnrollment(next);
+      })
       .catch((err) => setLoadError(err.response?.data?.error || "Einrichtung konnte nicht gestartet werden."));
   }, []);
+
+  /**
+   * Escape hatch for a setup that can't be rescued: the app was given a secret
+   * from an attempt whose factor is long gone, so every code it produces is
+   * checked against something else. Dropping the cache and enrolling without
+   * a reuse id sweeps the old factor and starts clean.
+   */
+  async function restart() {
+    cacheEnrollment(null);
+    setEnrollment(null);
+    setError("");
+    setLoadError("");
+    try {
+      const res = await studioOsAuth.mfaEnroll();
+      cacheEnrollment(res);
+      setEnrollment(res);
+    } catch (err) {
+      setLoadError(err.response?.data?.error || "Einrichtung konnte nicht gestartet werden.");
+    }
+  }
 
   async function submit(code) {
     setSubmitting(true);
@@ -170,6 +267,7 @@ function SetupMode({ onDone }) {
     try {
       const challenge = await studioOsAuth.mfaChallenge(enrollment.factorId);
       await studioOsAuth.mfaVerify(enrollment.factorId, challenge.challengeId, code);
+      cacheEnrollment(null);
       onDone();
     } catch (err) {
       setError(err.response?.data?.error || "Code ist falsch. Neu versuchen.");
@@ -192,15 +290,33 @@ function SetupMode({ onDone }) {
         </div>
       ) : (
         <>
-          <div
-            className="w-40 h-40 mx-auto mb-4 rounded-xl border border-zinc-100 bg-white p-2"
-            dangerouslySetInnerHTML={{ __html: enrollment.qrCode }}
-          />
+          {(() => {
+            const qr = qrSource(enrollment.qrCode);
+            // 176px rather than 160: phone cameras want a bit more to lock
+            // onto, and the white p-3 padding is the code's quiet zone — most
+            // scanners fail on a QR that runs right up against a border.
+            const box = "w-44 h-44 mx-auto mb-4 rounded-xl border border-zinc-100 bg-white p-3 overflow-hidden";
+            return qr.src ? (
+              <div className={box}>
+                <img src={qr.src} alt="QR-Code für die Authenticator-App" className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <div className={`${box} [&>svg]:block [&>svg]:w-full [&>svg]:h-full`} dangerouslySetInnerHTML={{ __html: qr.svg }} />
+            );
+          })()}
           <details className="mb-4">
             <summary className="text-[11px] font-inter text-zinc-400 cursor-pointer text-center">Code manuell eingeben</summary>
-            <p className="text-[11px] font-inter font-mono text-zinc-600 text-center mt-2 break-all">{enrollment.secret}</p>
+            <p className="text-[11px] font-inter text-zinc-400 text-center mt-2">Als „Schlüssel" / „Setup key" in der App eintragen, Typ: zeitbasiert (TOTP).</p>
+            <p className="text-xs font-inter font-mono tracking-wider text-zinc-700 text-center mt-1.5 break-all">{enrollment.secret}</p>
           </details>
           <OtpForm onSubmit={submit} submitting={submitting} error={error} submitLabel="Bestätigen & aktivieren" />
+          <button
+            type="button"
+            onClick={restart}
+            className="w-full text-[11px] font-inter text-zinc-400 hover:text-zinc-600 mt-3 transition-colors"
+          >
+            Code passt nicht? Neuen QR-Code erzeugen
+          </button>
         </>
       )}
     </CodeShell>

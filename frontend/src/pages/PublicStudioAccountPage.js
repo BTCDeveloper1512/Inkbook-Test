@@ -25,6 +25,14 @@ const STATUS_LABEL = {
 const TYPE_LABEL = { consultation: "Beratung", project: "Projekt", single_session: "Termin" };
 const CLOSED = ["abgeschlossen", "abgebrochen"];
 
+const SECTIONS = [
+  { id: "heute", label: "Heute", icon: Clock, subtitle: "Was heute ansteht" },
+  { id: "anstehend", label: "Anstehend", icon: CalendarCheck, subtitle: "Deine kommenden Termine und offenen Angebote" },
+  { id: "vergangen", label: "Vergangen", icon: CheckCircle, subtitle: "Abgeschlossen oder storniert" },
+  { id: "warteliste", label: "Warteliste", icon: Hourglass, subtitle: "Plätze, auf die du wartest" },
+  { id: "nachrichten", label: "Nachrichten", icon: MessageCircle, subtitle: "Dein Chat mit dem Studio, je Buchung" },
+];
+
 /** Earliest session that still counts — a cancelled one shouldn't set the date. */
 function nextSession(b) {
   return (b.sessions || [])
@@ -208,6 +216,7 @@ export default function PublicStudioAccountPage() {
   );
   const selectedThread = threads.find((t) => t.booking.id === selectedThreadId) || threads[0];
   const staffOnline = !!studio?.staff_last_seen_at && Date.now() - new Date(studio.staff_last_seen_at).getTime() < 45_000;
+  const activeSection = SECTIONS.find((s) => s.id === tab) || SECTIONS[1];
 
   useEffect(() => {
     if (tab === "nachrichten" && selectedThread) markThreadRead(selectedThread.booking);
@@ -432,7 +441,64 @@ export default function PublicStudioAccountPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-6">
+        {/* Same shape as the studio dashboard: a sticky rail that names where
+            you are and what needs attention, so a customer with several
+            bookings isn't navigating by a row of pills that all look alike. */}
+        <aside className="md:w-52 flex-shrink-0">
+          <div className="md:sticky md:top-8 space-y-4">
+            <div className="bg-zinc-900 rounded-2xl p-4">
+              <div className="text-[10px] font-inter uppercase tracking-widest text-zinc-500 mb-1">Dein Konto</div>
+              <div className="font-playfair text-white text-base leading-tight mb-1">{studio?.name || "Studio"}</div>
+              <div className="text-[11px] font-inter text-zinc-400 truncate">{customer?.name || customer?.email}</div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="bg-white/10 rounded-xl px-3 py-2">
+                  <div className="font-playfair text-white text-lg leading-none">{stats.offen}</div>
+                  <div className="text-[9px] font-inter uppercase tracking-wide text-zinc-400 mt-1">Offen</div>
+                </div>
+                <div className="bg-white/10 rounded-xl px-3 py-2">
+                  <div className="font-playfair text-white text-lg leading-none">{stats.bestaetigt}</div>
+                  <div className="text-[9px] font-inter uppercase tracking-wide text-zinc-400 mt-1">Bestätigt</div>
+                </div>
+              </div>
+            </div>
+
+            <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1">
+              {SECTIONS.map(({ id, label, icon: Icon }) => {
+                const badge =
+                  id === "nachrichten"
+                    ? unreadMessages
+                    : id === "heute"
+                      ? groups.heute.length
+                      : id === "warteliste"
+                        ? waitlist.length
+                        : id === "anstehend"
+                          ? groups.anstehend.length
+                          : 0;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTab(id)}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-inter whitespace-nowrap transition-colors flex-shrink-0 ${
+                      tab === id ? "bg-white shadow-card text-zinc-900 font-medium" : "text-zinc-500 hover:bg-white/60"
+                    }`}
+                  >
+                    <Icon size={15} strokeWidth={1.5} />
+                    {label}
+                    {badge > 0 && (
+                      <span className="ml-auto text-[10px] font-inter bg-zinc-900 text-white rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
+        <main className="flex-1 min-w-0">
         {depositBanner && (
           <div
             className={`mb-4 rounded-2xl px-4 py-3 text-xs font-inter flex items-start justify-between gap-3 ${
@@ -455,45 +521,11 @@ export default function PublicStudioAccountPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {[
-            { icon: Hourglass, value: stats.offen, label: "Offen" },
-            { icon: CalendarCheck, value: stats.bestaetigt, label: "Bestätigt" },
-            { icon: XCircle, value: stats.storniert, label: "Storniert" },
-          ].map(({ icon: Icon, value, label }, i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-2xl shadow-card px-4 py-3"
-            >
-              <Icon size={15} className="text-zinc-400 mb-2" strokeWidth={1.5} />
-              <div className="font-playfair text-xl text-zinc-900">{value}</div>
-              <div className="text-[10px] font-inter uppercase tracking-wide text-zinc-400 mt-0.5">{label}</div>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="flex gap-1 mb-5 bg-white rounded-2xl shadow-card p-1.5 w-fit max-w-full overflow-x-auto">
-          {[
-            { id: "heute", label: `Heute (${groups.heute.length})` },
-            { id: "anstehend", label: `Anstehend (${groups.anstehend.length})` },
-            { id: "vergangen", label: `Vergangen (${groups.vergangen.length})` },
-            { id: "warteliste", label: `Warteliste (${waitlist.length})` },
-            { id: "nachrichten", label: `Nachrichten (${threads.length})` },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-inter font-medium transition-colors ${
-                tab === t.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="font-playfair text-lg text-zinc-900">{activeSection.label}</h2>
+            <p className="text-xs font-inter text-zinc-500 mt-0.5">{activeSection.subtitle}</p>
+          </div>
         </div>
 
         {tab === "nachrichten" ? (
@@ -776,7 +808,8 @@ export default function PublicStudioAccountPage() {
             </AnimatePresence>
           </div>
         )}
-      </main>
+        </main>
+      </div>
 
       <AnimatePresence>
         {cancelTarget && (

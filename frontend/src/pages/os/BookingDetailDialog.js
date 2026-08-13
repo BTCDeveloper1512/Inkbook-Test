@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Mail, Clock, Euro, Image as ImageIcon, CalendarDays, MessageCircle, ChevronRight, Banknote, RotateCcw } from "lucide-react";
+import { X, Mail, Clock, Euro, Image as ImageIcon, CalendarDays, MessageCircle, ChevronRight, Banknote, RotateCcw, Activity } from "lucide-react";
 import { SLOT_LABEL } from "../../lib/daySlots";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger } from "../../components/ui/select";
 
 /**
  * Everything known about one booking in one place. The list row can only
@@ -20,6 +21,20 @@ function canOfferAgain(b) {
     (b.appointment_type === "project" && ["in_planung", "laufend"].includes(b.status))
   );
 }
+// anfrage/angebot_gesendet/angenommen/anzahlung_ausstehend/abgelehnt are
+// outputs of the offer/deposit pipeline (createOffer, /respond,
+// confirmDepositPaid) — staff picking one by hand would leave a project
+// "confirmed" with no session behind it, or an offer nobody actually sent.
+// Only the three states with no automated path are editable. This control
+// used to sit in every list row, where a 150px dropdown on some rows and a
+// small text badge on others was the single biggest source of visual noise
+// in the Buchungen list; it belongs with the rest of this booking's details.
+const MANUAL_STATUS_GROUPS = [
+  { label: "Umsetzung", items: ["laufend"] },
+  { label: "Beendet", items: ["abgeschlossen", "abgebrochen"] },
+];
+const SYSTEM_MANAGED_STATUSES = ["anfrage", "angebot_gesendet", "angenommen", "anzahlung_ausstehend", "abgelehnt"];
+
 const OFFER_STATUS_LABEL = {
   gesendet: "offen",
   angenommen: "angenommen",
@@ -43,7 +58,20 @@ function Row({ label, children }) {
   );
 }
 
-export default function BookingDetailDialog({ booking, statusLabel, statusDot, onClose, onCreateOffer, onOpenThread, onDepositCash, onConfirmRefund }) {
+export default function BookingDetailDialog({
+  booking,
+  statusLabel,
+  statusDot,
+  onClose,
+  onCreateOffer,
+  onOpenThread,
+  onDepositCash,
+  onConfirmRefund,
+  onUpdateStatus,
+  onToggleInProgress,
+  statusLabels = {},
+  statusDots = {},
+}) {
   const b = booking;
   const offers = [...(b.offers || [])].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
   const sessions = [...(b.sessions || [])].sort((x, y) => new Date(x.start_time) - new Date(y.start_time));
@@ -115,6 +143,55 @@ export default function BookingDetailDialog({ booking, statusLabel, statusDot, o
         </div>
 
         <div className="px-6 py-4 space-y-5">
+          {(SYSTEM_MANAGED_STATUSES.includes(b.status) ? b.status === "anfrage" : !!onUpdateStatus) && (
+            <section>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Activity size={12} className="text-zinc-400" />
+                <span className="text-[10px] font-inter uppercase tracking-widest text-zinc-400">Status</span>
+              </div>
+              {b.status === "anfrage" ? (
+                // Nothing to set by hand on a fresh request — the only useful
+                // switch is the "I'm on it" flag so colleagues don't answer twice.
+                <button
+                  type="button"
+                  onClick={() => onToggleInProgress?.(b.id, !b.in_progress)}
+                  className={`w-full h-10 rounded-xl text-xs font-inter border transition-colors ${
+                    b.in_progress ? "border-amber-300 bg-amber-50 text-amber-700" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
+                  }`}
+                >
+                  {b.in_progress ? "In Bearbeitung — Markierung entfernen" : "Als in Bearbeitung markieren"}
+                </button>
+              ) : (
+                <Select value={b.status} onValueChange={(v) => onUpdateStatus?.(b.id, v)}>
+                  <SelectTrigger className="w-full rounded-xl h-10 text-xs font-inter">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDot}`} />
+                      <span className="truncate">{statusLabel}</span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {MANUAL_STATUS_GROUPS.map((group, gi) => (
+                      <React.Fragment key={group.label}>
+                        {gi > 0 && <SelectSeparator />}
+                        <SelectGroup>
+                          <SelectLabel className="text-[10px] font-inter uppercase tracking-widest text-zinc-400 px-2 py-1">{group.label}</SelectLabel>
+                          {group.items.map((s) => (
+                            <SelectItem key={s} value={s} className="text-xs font-inter rounded-lg">
+                              <span className="flex items-center gap-2">
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusDots[s]}`} />
+                                {statusLabels[s] || s}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </React.Fragment>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </section>
+          )}
+
           <section>
             <Row label="E-Mail">
               {b.customers?.email && (

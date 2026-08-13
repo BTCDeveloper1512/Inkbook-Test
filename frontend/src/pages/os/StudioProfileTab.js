@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -131,8 +132,16 @@ function ImageUploadField({ label, value, onChange }) {
  * BookingDetailDialog, so a settings section reads like the rest of the
  * app's modals instead of a one-off pattern.
  */
+/**
+ * Portalled to <body> on purpose. This tab's whole content sits inside a
+ * motion.div that animates in with a transform, and a transformed ancestor
+ * becomes the containing block for `position: fixed` — so a dialog opened
+ * while that spring is still running centred itself on the *panel* and then
+ * snapped to the middle once the transform was cleared. Escaping the subtree
+ * fixes it for good, no matter what any ancestor animates later.
+ */
 function SectionDialog({ title, subtitle, tone, onClose, children }) {
-  return (
+  return createPortal(
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
       initial={{ opacity: 0 }}
@@ -164,7 +173,8 @@ function SectionDialog({ title, subtitle, tone, onClose, children }) {
         </div>
         {children}
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
@@ -187,10 +197,19 @@ function FolderTile({ icon, color, title, subtitle, badge, onClick }) {
   );
 }
 
-export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaffUpdate }) {
+export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaffUpdate, initialSection, onSectionConsumed }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [openSection, setOpenSection] = useState(null);
+  const [openSection, setOpenSection] = useState(initialSection || null);
+
+  // Lets the dashboard hand someone straight to a section (a locked stat tile
+  // opens "Abrechnung" on the upgrade button). Cleared right away so closing
+  // the dialog doesn't immediately reopen it.
+  useEffect(() => {
+    if (!initialSection) return;
+    setOpenSection(initialSection);
+    onSectionConsumed?.();
+  }, [initialSection, onSectionConsumed]);
   const linkUrl = studio?.slug ? `${window.location.origin}/t/${studio.slug}` : "";
 
   const [name, setName] = useState(studio?.name || "");
