@@ -1,5 +1,5 @@
 import React from "react";
-import Navbar from "../components/Navbar";
+import SiteHeader from "../components/SiteHeader";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 
@@ -13,7 +13,7 @@ const ValueCard = ({ title, text }) => (
 export default function UeberUnsPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
-      <Navbar />
+      <SiteHeader />
 
       {/* Hero */}
       <div className="bg-zinc-900 text-white py-24 px-6">
@@ -111,7 +111,7 @@ export default function UeberUnsPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              to="/register"
+              to="/os/login"
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-sm font-inter font-medium bg-white text-zinc-900 hover:bg-zinc-100 transition-colors"
             >
               Kostenlos registrieren
@@ -130,7 +130,7 @@ export default function UeberUnsPage() {
           <Link to="/impressum" className="hover:text-zinc-700 transition-colors">Impressum</Link>
           <Link to="/datenschutz" className="hover:text-zinc-700 transition-colors">Datenschutz</Link>
           <Link to="/agb" className="hover:text-zinc-700 transition-colors">AGB</Link>
-          <Link to="/faq" className="hover:text-zinc-700 transition-colors">FAQ</Link>
+          
         </div>
       </div>
     </div>

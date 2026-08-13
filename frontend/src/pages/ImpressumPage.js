@@ -1,5 +1,5 @@
 import React from "react";
-import Navbar from "../components/Navbar";
+import SiteHeader from "../components/SiteHeader";
 import { Link } from "react-router-dom";
 
 const Section = ({ title, children }) => (
@@ -16,7 +16,7 @@ const Placeholder = ({ label }) => (
 export default function ImpressumPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
-      <Navbar />
+      <SiteHeader />
       <div className="max-w-3xl mx-auto px-6 py-16">
         <div className="mb-12">
           <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-3">Rechtliches</p>
@@ -71,7 +71,7 @@ export default function ImpressumPage() {
         <div className="mt-8 flex flex-wrap gap-4 text-xs text-zinc-400 font-inter">
           <Link to="/datenschutz" className="hover:text-zinc-700 transition-colors">Datenschutz</Link>
           <Link to="/agb" className="hover:text-zinc-700 transition-colors">AGB</Link>
-          <Link to="/faq" className="hover:text-zinc-700 transition-colors">FAQ</Link>
+          
         </div>
       </div>
     </div>

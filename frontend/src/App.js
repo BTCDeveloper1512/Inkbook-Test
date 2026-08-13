@@ -1,16 +1,7 @@
 import "./i18n";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import CookieBanner from "./components/CookieBanner";
-import SupportChat from "./components/SupportChat";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PWAInstallBanner from "./components/PWAInstallBanner";
-import AuthCallback from "./pages/AuthCallback";
 import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import StudioPage from "./pages/StudioPage";
 import PublicStudioPage from "./pages/PublicStudioPage";
 import PublicStudioAccountPage from "./pages/PublicStudioAccountPage";
 import CustomerStudioPicker from "./pages/CustomerStudioPicker";
@@ -20,41 +11,37 @@ import StudioOnboardingPage from "./pages/os/StudioOnboardingPage";
 import StudioOsMfaGate from "./pages/os/StudioOsMfaGate";
 import { StudioOsForgotPasswordPage, StudioOsNewPasswordPage } from "./pages/os/StudioOsPasswordResetPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import CustomerSettingsPage from "./pages/CustomerSettingsPage";
 import ImpressumPage from "./pages/ImpressumPage";
-import VideoTemplate from "./components/video/VideoTemplate.js";
-import StudioGuide from "./pages/StudioGuide";
 import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
-import FAQPage from "./pages/FAQPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
-import ActivatePage from "./pages/ActivatePage";
-import ConsentFormPage from "./pages/ConsentFormPage";
 import { InkNotifyMount } from "./components/InkNotify";
 import "./App.css";
 
+/**
+ * Nur noch StudioOS. Das alte FastAPI-Produkt aus der Replit-Zeit ist samt
+ * eigener Anmeldung (AuthContext), eigenem Backend-Ordner und allen zugehörigen
+ * Seiten entfernt — es gibt jetzt genau ein Produkt, eine Anmeldung und einen
+ * Session-Begriff.
+ *
+ * Alte Pfade leiten weiter statt zu 404en: Lesezeichen und geteilte Links aus
+ * der Zeit davor landen dort, wo die Sache heute lebt.
+ */
 function AppRouter() {
-  const location = useLocation();
-  if (location.hash?.includes("session_id=")) {
-    return <AuthCallback />;
-  }
-
   return (
     <>
       <Routes>
-        <Route path="/"              element={<LandingPage />} />
-        <Route path="/home"          element={<LandingPage />} />
-        <Route path="/search"        element={<Navigate to="/" replace />} />
-        <Route path="/login"         element={<LoginPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/register"      element={<RegisterPage />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/studios/:studioId" element={<StudioPage />} />
-        <Route path="/s/:slug" element={<StudioPage />} />
-        {/* New backend (StudioOS TS/Supabase): the actual public studio page going forward. */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/home" element={<LandingPage />} />
+
+        {/* Öffentliche Studioseite — der einzige Weg zu einem Studio, es gibt
+            bewusst keine Suche und kein Verzeichnis. */}
         <Route path="/t/:slug" element={<PublicStudioPage />} />
         <Route path="/t/:slug/konto" element={<PublicStudioAccountPage />} />
         <Route path="/konto" element={<CustomerStudioPicker />} />
+
+        {/* Studio-Seite. Alles hinter dem Login läuft durch StudioOsMfaGate,
+            weil Zwei-Faktor für jedes Studio-Konto Pflicht ist. */}
         <Route path="/os/login" element={<StudioOsLoginPage />} />
         <Route path="/os/passwort-vergessen" element={<StudioOsForgotPasswordPage />} />
         {/* Ziel des Links aus der Wiederherstellungs-E-Mail (redirectTo im Backend). */}
@@ -75,38 +62,33 @@ function AppRouter() {
             </StudioOsMfaGate>
           }
         />
-        <Route path="/impressum"     element={<ImpressumPage />} />
-        <Route path="/datenschutz"   element={<DatenschutzPage />} />
-        <Route path="/agb"           element={<AGBPage />} />
-        <Route path="/faq"           element={<FAQPage />} />
-        <Route path="/ueber-uns"     element={<UeberUnsPage />} />
-        <Route path="/activate"      element={<ActivatePage />} />
-        <Route path="/consent/:bookingId" element={
-          <ProtectedRoute><ConsentFormPage /></ProtectedRoute>
-        } />
-        {/* Altprodukt (FastAPI): diese Seiten sprechen ein anderes Backend mit
-            eigener Anmeldung und eigenen Daten an. Sie sahen benutzbar aus,
-            führten aber in eine Datenwelt, die mit StudioOS nichts zu tun hat.
-            Umleiten statt 404: wer noch ein Lesezeichen hat, landet dort, wo
-            die Sache heute wirklich lebt. Der Seiten-Code bleibt im Repo —
-            zugedreht ist nur die Route, damit das reversibel bleibt.
-            /admin bleibt bewusst frei für den künftigen StudioOS-Adminbereich,
-            der unter /os/admin entsteht. */}
+
+        <Route path="/impressum" element={<ImpressumPage />} />
+        <Route path="/datenschutz" element={<DatenschutzPage />} />
+        <Route path="/agb" element={<AGBPage />} />
+        <Route path="/ueber-uns" element={<UeberUnsPage />} />
+
+        {/* Pfade des alten Produkts. Sie standen für eine andere Datenwelt mit
+            eigener Anmeldung — wer noch einen Link hat, soll nicht ins Leere
+            laufen, sondern beim heutigen Gegenstück ankommen. */}
         <Route path="/dashboard" element={<Navigate to="/konto" replace />} />
+        <Route path="/settings" element={<Navigate to="/konto" replace />} />
         <Route path="/studio-dashboard" element={<Navigate to="/os/dashboard" replace />} />
         <Route path="/subscription" element={<Navigate to="/os/dashboard" replace />} />
+        <Route path="/login" element={<Navigate to="/os/login" replace />} />
+        <Route path="/register" element={<Navigate to="/os/login" replace />} />
+        <Route path="/reset-password" element={<Navigate to="/os/passwort-vergessen" replace />} />
         <Route path="/messages" element={<Navigate to="/" replace />} />
         <Route path="/messages/:recipientId" element={<Navigate to="/" replace />} />
         <Route path="/admin" element={<Navigate to="/" replace />} />
-        <Route path="/settings" element={
-          <ProtectedRoute><CustomerSettingsPage /></ProtectedRoute>
-        } />
-        <Route path="/video" element={<VideoTemplate />} />
-        <Route path="/guide" element={<StudioGuide />} />
+        <Route path="/search" element={<Navigate to="/" replace />} />
+        <Route path="/faq" element={<Navigate to="/" replace />} />
+        <Route path="/guide" element={<Navigate to="/" replace />} />
+        <Route path="/studios/:studioId" element={<Navigate to="/" replace />} />
+        <Route path="/s/:slug" element={<Navigate to="/" replace />} />
+
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-      <CookieBanner />
-      <SupportChat />
       <PWAInstallBanner />
       <InkNotifyMount />
     </>
@@ -116,9 +98,7 @@ function AppRouter() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRouter />
-      </AuthProvider>
+      <AppRouter />
     </BrowserRouter>
   );
 }
