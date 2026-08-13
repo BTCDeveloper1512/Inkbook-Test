@@ -1,6 +1,7 @@
 import "./i18n";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PWAInstallBanner from "./components/PWAInstallBanner";
+import CookieBanner from "./components/CookieBanner";
 import LandingPage from "./pages/LandingPage";
 import PublicStudioPage from "./pages/PublicStudioPage";
 import PublicStudioAccountPage from "./pages/PublicStudioAccountPage";
@@ -89,6 +90,7 @@ function AppRouter() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <CookieBanner />
       <PWAInstallBanner />
       <InkNotifyMount />
     </>
