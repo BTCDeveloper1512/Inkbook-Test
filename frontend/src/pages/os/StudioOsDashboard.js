@@ -370,7 +370,13 @@ export default function StudioOsDashboard() {
         // A failed poll is not a failed payment — keep trying until the budget
         // runs out, then say so honestly instead of claiming either outcome.
       }
-      if (tries >= 10) return setBillingBanner("timeout");
+      // Stripe fires several preliminary events (charge, invoice, payment
+      // method) before checkout.session.completed itself, so the webhook
+      // that actually flips the plan can land well past what feels like a
+      // generous budget — a real run observed ~10s just for that ordering,
+      // before network/queueing delay on top. 60s of headroom keeps a slow
+      // but successful sync from surfacing as a false "contact support".
+      if (tries >= 30) return setBillingBanner("timeout");
       timer = setTimeout(poll, 2000);
     };
     timer = setTimeout(poll, 1500);
