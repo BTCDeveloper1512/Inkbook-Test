@@ -16,6 +16,7 @@ import ImpressumPage from "./pages/ImpressumPage";
 import DatenschutzPage from "./pages/DatenschutzPage";
 import AGBPage from "./pages/AGBPage";
 import UeberUnsPage from "./pages/UeberUnsPage";
+import FAQPage from "./pages/FAQPage";
 import { InkNotifyMount } from "./components/InkNotify";
 import "./App.css";
 
@@ -68,6 +69,7 @@ function AppRouter() {
         <Route path="/datenschutz" element={<DatenschutzPage />} />
         <Route path="/agb" element={<AGBPage />} />
         <Route path="/ueber-uns" element={<UeberUnsPage />} />
+        <Route path="/faq" element={<FAQPage />} />
 
         {/* Pfade des alten Produkts. Sie standen für eine andere Datenwelt mit
             eigener Anmeldung — wer noch einen Link hat, soll nicht ins Leere
@@ -83,7 +85,6 @@ function AppRouter() {
         <Route path="/messages/:recipientId" element={<Navigate to="/" replace />} />
         <Route path="/admin" element={<Navigate to="/" replace />} />
         <Route path="/search" element={<Navigate to="/" replace />} />
-        <Route path="/faq" element={<Navigate to="/" replace />} />
         <Route path="/guide" element={<Navigate to="/" replace />} />
         <Route path="/studios/:studioId" element={<Navigate to="/" replace />} />
         <Route path="/s/:slug" element={<Navigate to="/" replace />} />

@@ -1,12 +1,23 @@
 import React from "react";
 import SiteHeader from "../components/SiteHeader";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { Layers, Link2, ShieldCheck, ArrowRight } from "lucide-react";
 
-const ValueCard = ({ title, text }) => (
+/**
+ * Die alte Fassung warb mit Bewertungen und einem Verzeichnis — beides gibt
+ * es nicht und soll es nicht geben. Diese Seite erklärt stattdessen die zwei
+ * Entscheidungen, die das Produkt von den üblichen Terminkalendern
+ * unterscheiden: denken in Projekten statt in Einzelterminen, und kein
+ * Discovery-Pfad.
+ */
+
+const Pillar = ({ icon: Icon, title, children }) => (
   <div className="bg-white rounded-2xl border border-zinc-100 p-6">
-    <h3 className="font-playfair text-lg font-semibold text-zinc-900 mb-2">{title}</h3>
-    <p className="text-sm text-zinc-500 font-inter leading-relaxed">{text}</p>
+    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center mb-4">
+      <Icon size={17} className="text-zinc-600" strokeWidth={1.5} />
+    </div>
+    <h3 className="font-inter font-semibold text-sm text-zinc-900 mb-2">{title}</h3>
+    <p className="text-sm text-zinc-600 font-inter leading-relaxed">{children}</p>
   </div>
 );
 
@@ -14,123 +25,88 @@ export default function UeberUnsPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <SiteHeader />
-
-      {/* Hero */}
-      <div className="bg-zinc-900 text-white py-24 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-xs tracking-widest uppercase text-zinc-500 font-inter mb-4">Über StudioOS</p>
-          <h1 className="font-playfair text-5xl font-semibold mb-6 leading-tight">
-            Tattoo-Buchungen.<br />Neu gedacht.
+      <div className="max-w-3xl mx-auto px-6 py-16">
+        <div className="mb-12">
+          <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-3">Über uns</p>
+          <h1 className="font-playfair text-4xl font-semibold text-zinc-900 mb-4 leading-tight">
+            Software für Studios, kein Marktplatz
           </h1>
-          <p className="text-base text-zinc-400 font-inter leading-relaxed max-w-xl mx-auto">
-            StudioOS verbindet Tattoo-Enthusiasten mit den besten Studios und Artists Deutschlands –
-            einfach, transparent und ohne Wartezeiten.
-          </p>
-        </div>
-      </div>
-
-      <div className="max-w-3xl mx-auto px-6 py-16 space-y-16">
-
-        {/* Mission */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-8">
-          <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-3">Unsere Mission</p>
-          <h2 className="font-playfair text-3xl font-semibold text-zinc-900 mb-4">
-            Tattoos zugänglicher machen.
-          </h2>
-          <p className="text-sm text-zinc-600 font-inter leading-relaxed mb-4">
-            Wir glauben, dass jeder Mensch Zugang zu erstklassigen Tattoo-Artists verdient –
-            unabhängig von Ort oder persönlichen Kontakten. StudioOS macht es möglich,
-            das perfekte Studio zu finden, Artists zu vergleichen und direkt zu buchen.
-          </p>
-          <p className="text-sm text-zinc-400 font-inter leading-relaxed italic">
-            Weitere Details über unsere Geschichte und Vision folgen in Kürze.
+          <p className="text-base text-zinc-600 font-inter leading-relaxed">
+            StudioOS bündelt Anfragen, Angebote, Termine und Absprachen an einem Ort — damit abends nicht noch
+            Nachrichten sortiert werden müssen, sondern Feierabend ist.
           </p>
         </div>
 
-        {/* Values */}
-        <div>
-          <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-6">Unsere Werte</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ValueCard
-              title="Vertrauen"
-              text="Verifizierte Studios, echte Bewertungen und transparente Preise – damit du sicher buchst."
-            />
-            <ValueCard
-              title="Qualität"
-              text="Wir kuratieren die besten Studios und unterstützen Artists dabei, ihr Portfolio zu zeigen."
-            />
-            <ValueCard
-              title="Einfachheit"
-              text="Von der Suche bis zur Buchung in wenigen Klicks. Kein Telefonieren, kein Warten."
-            />
-            <ValueCard
-              title="Community"
-              text="StudioOS verbindet eine Gemeinschaft von Ink-Liebhabern und talentierten Künstlern."
-            />
+        <div className="bg-white rounded-2xl border border-zinc-100 p-8 mb-8">
+          <h2 className="font-playfair text-xl font-semibold text-zinc-900 mb-4">Warum es das gibt</h2>
+          <div className="text-sm text-zinc-600 font-inter leading-relaxed space-y-4">
+            <p>
+              Ein Tattoo ist selten ein Termin. Es ist eine Idee, ein Kostenvoranschlag, ein Hin und Her über
+              Motiv und Größe, eine Sitzung, dann noch eine — und irgendwo dazwischen zwanzig Nachrichten auf drei
+              Kanälen. Die üblichen Buchungssysteme kennen davon nur den einen Termin und lassen den Rest im
+              Posteingang liegen.
+            </p>
+            <p>
+              StudioOS ist um das gebaut, was tatsächlich zusammengehört: das Projekt. Alle Sitzungen, alle
+              Referenzbilder, alle Absprachen und alle Zahlungen hängen an einer Sache statt verstreut zu sein.
+            </p>
+            <p>
+              Und weil geschätzte und tatsächliche Dauer beide erfasst werden, wird die Planung mit jeder Sitzung
+              ein Stück genauer — statt dass die Erfahrung im Kopf einer einzelnen Person bleibt.
+            </p>
           </div>
         </div>
 
-        {/* Founder */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-8">
-          <p className="text-xs tracking-widest uppercase text-zinc-400 font-inter mb-8">Der Gründer</p>
-          <div className="flex flex-col sm:flex-row gap-8 items-start">
-            <div className="flex-shrink-0 mx-auto sm:mx-0">
-              <img
-                src="https://customer-assets.emergentagent.com/job_artist-connect-82/artifacts/mbnukf0c_fd29300d-306b-4d46-897e-8117f2919c2d.png"
-                alt="Founder"
-                className="w-36 h-36 rounded-2xl object-cover object-top shadow-md"
-              />
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <div className="inline-block px-2.5 py-0.5 bg-zinc-100 rounded-full text-[10px] tracking-widest uppercase font-inter text-zinc-500 mb-3">
-                Founder &amp; Developer
-              </div>
-              <p className="font-playfair text-xl font-semibold text-zinc-900 mb-3 leading-snug">
-                IT-Background. Tattoo-Passion.<br className="hidden sm:block" /> Eine Idee daraus gemacht.
-              </p>
-              <p className="text-sm text-zinc-500 font-inter leading-relaxed">
-                Als ausgebildeter Fachinformatiker und leidenschaftlicher Tech-Enthusiast arbeite ich seit Jahren
-                in der IT-Branche. Parallel entdeckte ich das Tätowieren für mich – und merkte schnell,
-                wie umständlich die gesamte Welt rund um Studio-Termine, Kommunikation und Buchungen ist.
-                Verstreute Messenger, keine Übersicht, keine einfache Möglichkeit für Kunden zu buchen.
-              </p>
-              <p className="text-sm text-zinc-500 font-inter leading-relaxed mt-3">
-                StudioOS ist meine Antwort darauf: Eine Plattform, die Termine, Chats, Studio-Profile
-                und Kundenverwaltung in einem vereint – durchdacht, modern und speziell für
-                die Tattoo-Community entwickelt.
-              </p>
-            </div>
+        <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <Pillar icon={Layers} title="Projekte statt Einzeltermine">
+            Mehrere Sitzungen an einem Motiv bleiben zusammen — samt Verlauf, Referenzen und Zahlungen.
+          </Pillar>
+          <Pillar icon={Link2} title="Deine Kunden bleiben deine">
+            Kein Verzeichnis, keine Suche, kein Ranking. Deine Seite ist nur über den Link erreichbar, den du selbst
+            verteilst.
+          </Pillar>
+          <Pillar icon={ShieldCheck} title="Getrennt und in der EU">
+            Server in Frankfurt. Kundendaten liegen pro Studio getrennt — erzwungen von der Datenbank, nicht bloß
+            versprochen.
+          </Pillar>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-zinc-100 p-8 mb-8">
+          <h2 className="font-playfair text-xl font-semibold text-zinc-900 mb-4">Was wir bewusst nicht tun</h2>
+          <div className="text-sm text-zinc-600 font-inter leading-relaxed space-y-3">
+            <p>
+              Viele Plattformen in diesem Feld verdienen daran, Kunden zwischen Studios zu verteilen. Das heißt: Wer
+              dich gefunden hat, sieht daneben drei andere. Und wer aufhört zu zahlen, verschwindet aus der Suche.
+            </p>
+            <p className="font-medium text-zinc-800">
+              Diesen Hebel gibt es hier nicht, weil es die Suche nicht gibt.
+            </p>
+            <p>
+              Keine Bewertungen, kein Ranking, keine Verlinkung zwischen Studios, keine Weitergabe von Kundendaten.
+              StudioOS ist Werkzeug, nicht Zwischenhändler — bezahlt wird für die Software, nicht für Sichtbarkeit.
+            </p>
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="bg-zinc-900 rounded-2xl p-8 text-center">
-          <p className="font-playfair text-2xl text-white mb-2">Werde Teil von StudioOS.</p>
-          <p className="text-sm text-zinc-400 font-inter mb-6">
-            Ob Studio-Inhaber oder Tattoo-Fan – StudioOS ist für dich gemacht.
+        <div className="rounded-2xl bg-zinc-900 px-8 py-10 text-center">
+          <h2 className="font-playfair text-2xl text-white mb-3">In ein paar Minuten eingerichtet</h2>
+          <p className="text-sm font-inter text-zinc-400 mb-6 max-w-md mx-auto leading-relaxed">
+            Konto anlegen, Öffnungszeiten eintragen, Link teilen — die erste Anfrage kann noch heute reinkommen.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/os/login"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-sm font-inter font-medium bg-white text-zinc-900 hover:bg-zinc-100 transition-colors"
-            >
-              Kostenlos registrieren
-              <ArrowRight size={14} strokeWidth={1.5} />
-            </Link>
-            <Link
-              to="/register?role=studio"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-sm font-inter font-medium border border-zinc-700 text-zinc-300 hover:border-zinc-500 transition-colors"
-            >
-              Studio einrichten
-            </Link>
-          </div>
+          <Link
+            to="/os/login"
+            className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-white text-zinc-900 hover:bg-zinc-100 font-inter text-sm transition-colors"
+          >
+            Studio kostenlos anlegen
+            <ArrowRight size={16} />
+          </Link>
         </div>
 
-        <div className="flex flex-wrap gap-4 text-xs text-zinc-400 font-inter">
+        <div className="flex gap-6 mt-8 text-xs text-zinc-400 font-inter">
           <Link to="/impressum" className="hover:text-zinc-700 transition-colors">Impressum</Link>
           <Link to="/datenschutz" className="hover:text-zinc-700 transition-colors">Datenschutz</Link>
           <Link to="/agb" className="hover:text-zinc-700 transition-colors">AGB</Link>
-          
+          <Link to="/faq" className="hover:text-zinc-700 transition-colors">FAQ</Link>
         </div>
       </div>
     </div>

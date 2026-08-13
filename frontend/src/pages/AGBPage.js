@@ -197,6 +197,7 @@ export default function AGBPage() {
           <Link to="/impressum" className="hover:text-zinc-700 transition-colors">Impressum</Link>
           <Link to="/datenschutz" className="hover:text-zinc-700 transition-colors">Datenschutz</Link>
           <Link to="/ueber-uns" className="hover:text-zinc-700 transition-colors">Über uns</Link>
+          <Link to="/faq" className="hover:text-zinc-700 transition-colors">FAQ</Link>
         </div>
       </div>
     </div>

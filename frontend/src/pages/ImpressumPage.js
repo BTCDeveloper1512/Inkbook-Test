@@ -111,6 +111,7 @@ export default function ImpressumPage() {
           <Link to="/datenschutz" className="hover:text-zinc-700 transition-colors">Datenschutz</Link>
           <Link to="/agb" className="hover:text-zinc-700 transition-colors">AGB</Link>
           <Link to="/ueber-uns" className="hover:text-zinc-700 transition-colors">Über uns</Link>
+          <Link to="/faq" className="hover:text-zinc-700 transition-colors">FAQ</Link>
         </div>
       </div>
     </div>
