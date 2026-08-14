@@ -353,6 +353,32 @@ export default function StudioOsDashboard() {
     setBillingBanner(billing === "success" ? "confirming" : "cancel");
   }, []);
 
+  // ready | interrupted
+  const [connectBanner, setConnectBanner] = useState(null);
+
+  // Return from the Stripe Connect onboarding flow. Unlike the billing
+  // checkout above this doesn't need a poll-and-wait loop: the sync call
+  // reads the account straight from Stripe, so the answer is already known
+  // by the time this call returns — no webhook race to wait out.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeConnect = params.get("stripeConnect");
+    if (!stripeConnect) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    if (stripeConnect === "refresh") {
+      setConnectBanner("interrupted");
+      return;
+    }
+    studioApi
+      .post("/studios/me/stripe-connect/sync")
+      .then(() => studioApi.get("/studios/me"))
+      .then(({ data }) => {
+        setStudio(data);
+        setConnectBanner(data.stripe_connect_charges_enabled ? "ready" : "interrupted");
+      })
+      .catch(() => setConnectBanner("interrupted"));
+  }, []);
+
   useEffect(() => {
     if (billingBanner !== "confirming" || loading || !studio) return;
     const before = studio.subscription_plan;
@@ -394,6 +420,11 @@ export default function StudioOsDashboard() {
 
   function goToUpgrade() {
     setProfileSection("abrechnung");
+    setTab("profil");
+  }
+
+  function goToPayouts() {
+    setProfileSection("auszahlungen");
     setTab("profil");
   }
 
@@ -720,6 +751,11 @@ export default function StudioOsDashboard() {
     await refreshBookings();
   }
 
+  async function handleFinalPaymentCash(projectId) {
+    await studioApi.post(`/studios/me/bookings/${projectId}/final-payment-cash`);
+    await refreshBookings();
+  }
+
   async function handleConfirmRefund(paymentId) {
     await studioApi.patch(`/studios/me/payments/${paymentId}/confirm-refund`);
     await refreshBookings();
@@ -863,6 +899,29 @@ export default function StudioOsDashboard() {
                   <X size={13} />
                 </button>
               )}
+            </div>
+          )}
+
+          {connectBanner && (
+            <div
+              className={`mb-4 rounded-2xl px-4 py-3 text-xs font-inter flex items-start justify-between gap-3 ${
+                connectBanner === "ready" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                {connectBanner === "ready" && "Auszahlungen eingerichtet — Kunden können jetzt online bezahlen."}
+                {connectBanner === "interrupted" && (
+                  <>
+                    Die Einrichtung ist noch nicht abgeschlossen.{" "}
+                    <button type="button" onClick={goToPayouts} className="underline underline-offset-2">
+                      Fortsetzen
+                    </button>
+                  </>
+                )}
+              </span>
+              <button type="button" onClick={() => setConnectBanner(null)} className="opacity-60 hover:opacity-100 flex-shrink-0">
+                <X size={13} />
+              </button>
             </div>
           )}
           {tab === "uebersicht" && (
@@ -1221,6 +1280,7 @@ export default function StudioOsDashboard() {
                 onOpenThread={openThread}
                 onDepositCash={handleDepositCash}
                 onConfirmRefund={handleConfirmRefund}
+                onFinalPaymentCash={handleFinalPaymentCash}
                 onUpdateStatus={updateStatus}
                 onToggleInProgress={toggleInProgress}
                 statusLabels={STATUS_LABEL}

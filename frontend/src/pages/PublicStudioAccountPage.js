@@ -40,6 +40,14 @@ function nextSession(b) {
     .sort((a, c) => new Date(a.start_time) - new Date(c.start_time))[0];
 }
 
+/** What's still owed — price_final minus every payment already paid (the deposit counts toward it, same as the backend's outstandingBalance). */
+function outstandingOf(b) {
+  if (b.price_final == null) return 0;
+  const paid = (b.payments || []).filter((p) => p.status === "paid").reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstanding = Number(b.price_final) - paid;
+  return outstanding > 0.004 ? outstanding : 0;
+}
+
 /**
  * A customer's dashboard at ONE studio. Their identity is global but their
  * record is per studio, so this is scoped to /t/:slug — /konto picks the
@@ -71,6 +79,9 @@ export default function PublicStudioAccountPage() {
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [depositBanner, setDepositBanner] = useState(null);
+  // Which of the two payment flows depositBanner is currently reporting on —
+  // same confirming/success/error/cancel states, different wording.
+  const [paymentKind, setPaymentKind] = useState("deposit");
 
   // Landing back here from the Stripe Checkout redirect. Only the tab switch
   // happens immediately — whether the deposit actually confirmed depends on
@@ -137,6 +148,7 @@ export default function PublicStudioAccountPage() {
     const projectId = params.get("project");
     const sessionId = params.get("session_id");
     if (deposit === "cancel") {
+      setPaymentKind("deposit");
       setDepositBanner("cancel");
       return;
     }
@@ -147,9 +159,41 @@ export default function PublicStudioAccountPage() {
     if (depositConfirmRequested.current) return;
     depositConfirmRequested.current = true;
 
+    setPaymentKind("deposit");
     setDepositBanner("confirming");
     studioApi
       .post(`/t/${slug}/bookings/${projectId}/deposit-confirm`, { sessionId })
+      .then(() => setDepositBanner("success"))
+      .catch(() => setDepositBanner("error"))
+      .finally(() => {
+        load();
+        window.history.replaceState(null, "", window.location.pathname);
+      });
+    // Only ever meant to run once, right after the redirect lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Same synchronous-confirm reasoning as the deposit effect above, for the
+  // restzahlung's own redirect (finalPayment=success rather than deposit=success).
+  const finalPaymentConfirmRequested = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const finalPayment = params.get("finalPayment");
+    const projectId = params.get("project");
+    const sessionId = params.get("session_id");
+    if (finalPayment === "cancel") {
+      setPaymentKind("final");
+      setDepositBanner("cancel");
+      return;
+    }
+    if (finalPayment !== "success" || !projectId || !sessionId) return;
+    if (finalPaymentConfirmRequested.current) return;
+    finalPaymentConfirmRequested.current = true;
+
+    setPaymentKind("final");
+    setDepositBanner("confirming");
+    studioApi
+      .post(`/t/${slug}/bookings/${projectId}/final-payment-confirm`, { sessionId })
       .then(() => setDepositBanner("success"))
       .catch(() => setDepositBanner("error"))
       .finally(() => {
@@ -279,6 +323,19 @@ export default function PublicStudioAccountPage() {
     } catch (err) {
       setRespondError((prev) => ({ ...prev, [projectId]: err.response?.data?.error || "Konnte nicht gestartet werden." }));
       setResumingDeposit(null);
+    }
+  }
+
+  const [payingFinal, setPayingFinal] = useState(null);
+
+  async function payFinalBalance(projectId) {
+    setPayingFinal(projectId);
+    try {
+      const { data } = await studioApi.post(`/t/${slug}/bookings/${projectId}/final-payment-checkout`);
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      setRespondError((prev) => ({ ...prev, [projectId]: err.response?.data?.error || "Konnte nicht gestartet werden." }));
+      setPayingFinal(null);
     }
   }
 
@@ -524,11 +581,14 @@ export default function PublicStudioAccountPage() {
           >
             <span>
               {depositBanner === "confirming" && "Zahlung wird bestätigt…"}
-              {depositBanner === "success" && "Zahlung erhalten — dein Termin steht jetzt fest."}
+              {depositBanner === "success" &&
+                (paymentKind === "final" ? "Zahlung erhalten — die Restzahlung ist beglichen." : "Zahlung erhalten — dein Termin steht jetzt fest.")}
               {depositBanner === "error" &&
                 "Die Zahlung konnte noch nicht bestätigt werden. Das kann kurz dauern — lade die Seite gleich neu, oder wende dich ans Studio."}
               {depositBanner === "cancel" &&
-                "Die Zahlung wurde nicht abgeschlossen. Der Termin ist noch nicht reserviert — du kannst es erneut versuchen."}
+                (paymentKind === "final"
+                  ? "Die Zahlung wurde nicht abgeschlossen. Du kannst es jederzeit erneut versuchen."
+                  : "Die Zahlung wurde nicht abgeschlossen. Der Termin ist noch nicht reserviert — du kannst es erneut versuchen.")}
             </span>
             {depositBanner !== "confirming" && (
               <button type="button" onClick={() => setDepositBanner(null)} className="opacity-60 hover:opacity-100 flex-shrink-0">
@@ -801,6 +861,23 @@ export default function PublicStudioAccountPage() {
                           className="w-full h-10 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-inter text-xs"
                         >
                           {resumingDeposit === b.id ? "…" : "Jetzt Anzahlung bezahlen"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {outstandingOf(b) > 0 && (
+                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-xs font-inter font-semibold text-amber-800 mb-1">Restzahlung offen</p>
+                        <p className="text-[11px] font-inter text-amber-700 mb-3">
+                          Noch {outstandingOf(b).toFixed(2)} € offen — dein Studio sagt dir, wie du sonst zahlen kannst.
+                        </p>
+                        {respondError[b.id] && <p className="text-xs font-inter text-red-600 mb-2">{respondError[b.id]}</p>}
+                        <Button
+                          onClick={() => payFinalBalance(b.id)}
+                          disabled={payingFinal === b.id}
+                          className="w-full h-10 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-inter text-xs"
+                        >
+                          {payingFinal === b.id ? "…" : "Restzahlung bezahlen"}
                         </Button>
                       </div>
                     )}

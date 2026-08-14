@@ -67,6 +67,7 @@ export default function BookingDetailDialog({
   onOpenThread,
   onDepositCash,
   onConfirmRefund,
+  onFinalPaymentCash,
   onUpdateStatus,
   onToggleInProgress,
   statusLabels = {},
@@ -90,6 +91,27 @@ export default function BookingDetailDialog({
       setDepositError(err.response?.data?.error || "Konnte nicht vermerkt werden.");
     } finally {
       setDepositBusy(false);
+    }
+  }
+
+  // Same math as the backend's outstandingBalance: price_final minus every
+  // paid payment, deposit included — so a deposit already covering the
+  // final price never shows a phantom balance still owed.
+  const paidTotal = (b.payments || []).filter((p) => p.status === "paid").reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstanding = b.price_final != null ? Number(b.price_final) - paidTotal : 0;
+  const restzahlungPayment = (b.payments || []).find((p) => p.type === "restzahlung");
+  const [finalPaymentBusy, setFinalPaymentBusy] = useState(false);
+  const [finalPaymentError, setFinalPaymentError] = useState("");
+
+  async function handleFinalPaymentCash() {
+    setFinalPaymentBusy(true);
+    setFinalPaymentError("");
+    try {
+      await onFinalPaymentCash?.(b.id);
+    } catch (err) {
+      setFinalPaymentError(err.response?.data?.error || "Konnte nicht vermerkt werden.");
+    } finally {
+      setFinalPaymentBusy(false);
     }
   }
 
@@ -360,6 +382,41 @@ export default function BookingDetailDialog({
                   >
                     <RotateCcw size={11} />
                     {depositBusy ? "…" : "Rückerstattung bestätigt (bar ausgezahlt)"}
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+
+          {(restzahlungPayment || outstanding > 0) && (
+            <section>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Banknote size={12} className="text-zinc-400" />
+                <span className="text-[10px] font-inter uppercase tracking-widest text-zinc-400">Restzahlung</span>
+              </div>
+              <div className="rounded-xl border border-zinc-100 px-3 py-2.5">
+                {restzahlungPayment ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-inter font-medium text-zinc-900">{eur(restzahlungPayment.amount)}</span>
+                    <span className="text-[10px] font-inter px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                      {restzahlungPayment.stripe_payment_id ? "Bezahlt · Stripe" : "Bezahlt · Bar"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-inter text-zinc-500">Noch {eur(outstanding)} offen</span>
+                    <span className="text-[10px] font-inter px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">ausstehend</span>
+                  </div>
+                )}
+                {finalPaymentError && <p className="text-[11px] font-inter text-red-600 mt-2">{finalPaymentError}</p>}
+                {!restzahlungPayment && outstanding > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleFinalPaymentCash}
+                    disabled={finalPaymentBusy}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-1.5 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-inter transition-colors"
+                  >
+                    {finalPaymentBusy ? "…" : "Restzahlung bar erhalten"}
                   </button>
                 )}
               </div>

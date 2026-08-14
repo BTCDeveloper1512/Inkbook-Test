@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Scale,
   UserCog,
+  Wallet,
 } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
@@ -398,6 +399,22 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
     }
   }
 
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState("");
+  const connectReady = !!studio?.stripe_connect_charges_enabled;
+
+  async function startConnectOnboarding() {
+    setConnectBusy(true);
+    setConnectError("");
+    try {
+      const { data } = await studioApi.post("/studios/me/stripe-connect/onboarding");
+      window.location.href = data.url;
+    } catch (err) {
+      setConnectError(err.response?.data?.error || "Konnte die Einrichtung nicht öffnen.");
+      setConnectBusy(false);
+    }
+  }
+
   async function deleteStudio() {
     setDeleting(true);
     setDeleteError("");
@@ -481,6 +498,14 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
         <FolderTile icon={ShieldCheck} color="#52525b" title="Richtlinien" subtitle="Anzahlung, Storno" onClick={() => setOpenSection("richtlinien")} />
         <FolderTile icon={Scale} color="#52525b" title="Rechtliches" subtitle="Impressum, DSGVO" onClick={() => setOpenSection("recht")} />
         <FolderTile icon={CreditCard} color="#52525b" title="Abrechnung" subtitle={planInfo(currentPlan).label} onClick={() => setOpenSection("abrechnung")} />
+        <FolderTile
+          icon={Wallet}
+          color="#52525b"
+          title="Auszahlungen"
+          subtitle={connectReady ? "Eingerichtet" : "Noch offen"}
+          badge={connectReady ? undefined : 1}
+          onClick={() => setOpenSection("auszahlungen")}
+        />
         <FolderTile icon={UserCog} color="#52525b" title="Dein Konto" subtitle={staff?.email} onClick={() => setOpenSection("konto")} />
         {isOwner && (
           <FolderTile icon={Trash2} color="#dc2626" title="Studio löschen" subtitle="Unwiderruflich" onClick={() => setOpenSection("loeschen")} />
@@ -656,6 +681,38 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
                 </button>
               )}
               {billingError && <p className="text-[11px] font-inter text-red-600">{billingError}</p>}
+            </div>
+          </SectionDialog>
+        )}
+
+        {openSection === "auszahlungen" && (
+          <SectionDialog title="Auszahlungen" subtitle="Wohin Anzahlungen und Restzahlungen fließen" onClose={() => setOpenSection(null)}>
+            <div className="space-y-3">
+              <div className="rounded-xl bg-zinc-50 px-3 py-2.5">
+                <div className="text-sm font-inter font-semibold text-zinc-900">
+                  {connectReady ? "Auszahlungen eingerichtet" : studio?.stripe_connect_account_id ? "Einrichtung angefangen" : "Noch nicht eingerichtet"}
+                </div>
+                <div className="text-[11px] font-inter text-zinc-400 mt-0.5">
+                  {connectReady
+                    ? "Anzahlungen und Restzahlungen gehen direkt auf dein Stripe-Konto."
+                    : "Ohne abgeschlossene Einrichtung können Kunden nicht online bezahlen."}
+                </div>
+              </div>
+
+              {!isOwner ? (
+                <p className="text-[11px] font-inter text-zinc-400">Nur der Studio-Inhaber kann die Auszahlung einrichten.</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startConnectOnboarding}
+                  disabled={connectBusy}
+                  className="w-full h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white font-inter text-xs flex items-center justify-center gap-1.5"
+                >
+                  {connectBusy ? <Loader2 size={13} className="animate-spin" /> : <Wallet size={12} />}
+                  {connectReady ? "Bei Stripe verwalten" : studio?.stripe_connect_account_id ? "Einrichtung fortsetzen" : "Jetzt einrichten"}
+                </button>
+              )}
+              {connectError && <p className="text-[11px] font-inter text-red-600">{connectError}</p>}
             </div>
           </SectionDialog>
         )}
