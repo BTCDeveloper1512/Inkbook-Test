@@ -36,6 +36,7 @@ const MAX_RECORD_SECONDS = 120;
 export default function ChatThread({ messages, onSend, sending, viewerRole, uploadPath, locked, lockedReason, presence }) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(null); // { url, type: 'image'|'audio' }
+  const [sendError, setSendError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -98,19 +99,34 @@ export default function ChatThread({ messages, onSend, sending, viewerRole, uplo
     setRecording(false);
   }
 
+  /**
+   * Clearing the composer only on success, not before the send: a failed
+   * request used to wipe the typed text or attachment first, so a network
+   * blip looked exactly like a sent message and the content was simply gone.
+   * On failure the draft/attachment comes back so nothing is lost, and
+   * sendError says what happened instead of leaving it to look like it sent.
+   */
   async function submit(e) {
     e.preventDefault();
     if (sending || uploading) return;
+    setSendError("");
     if (pending) {
-      const attachment = pending;
-      setPending(null);
-      await onSend({ body: "", attachmentUrl: attachment.url, attachmentType: attachment.type });
+      try {
+        await onSend({ body: "", attachmentUrl: pending.url, attachmentType: pending.type });
+        setPending(null);
+      } catch (err) {
+        setSendError(err.response?.data?.error || "Senden fehlgeschlagen — bitte erneut versuchen.");
+      }
       return;
     }
     const body = draft.trim();
     if (!body) return;
-    setDraft("");
-    await onSend({ body });
+    try {
+      await onSend({ body });
+      setDraft("");
+    } catch (err) {
+      setSendError(err.response?.data?.error || "Senden fehlgeschlagen — bitte erneut versuchen.");
+    }
   }
 
   return (
@@ -150,6 +166,7 @@ export default function ChatThread({ messages, onSend, sending, viewerRole, uplo
         <p className="text-[11px] font-inter text-zinc-400 text-center mt-3 py-2 border-t border-zinc-100">{lockedReason}</p>
       ) : (
         <div className="mt-3 flex-shrink-0">
+          {sendError && <p className="text-[11px] font-inter text-red-600 mb-2">{sendError}</p>}
           {pending && (
             <div className="flex items-center gap-2 mb-2 bg-zinc-50 rounded-xl px-2.5 py-1.5">
               {pending.type === "image" ? (

@@ -254,12 +254,14 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
             : b
         )
       );
-      await studioApi.patch(`/studios/me/sessions/${item.id}`, {
+      const { data } = await studioApi.patch(`/studios/me/sessions/${item.id}`, {
         startTime,
         artistId,
         estimatedDurationMinutes: preview.duration,
       });
-      setError("");
+      // The server now checks too (it didn't before), same stance as sending
+      // an offer: warn, don't block — a studio may knowingly double-book.
+      setError(data.clash ? `Hinweis: Zu dieser Zeit steht bereits ein Termin (${new Date(data.clash.startTime).toLocaleString("de-DE")}). Trotzdem umgebucht.` : "");
     } catch (err) {
       onBookingsChange(() => snapshot);
       setError(err.response?.data?.error || "Termin konnte nicht gespeichert werden — Änderung zurückgenommen.");
