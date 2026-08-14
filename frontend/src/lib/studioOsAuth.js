@@ -27,6 +27,18 @@ export const studioOsAuth = {
   verifyEmail: (accessToken, refreshToken, expiresIn) =>
     studioApi.post("/auth/verify-email", { accessToken, refreshToken, expiresIn }).then((r) => r.data),
 
+  // Team invites. getInvite is the public lookup the accept page opens with
+  // (who invited you, as what) before it knows which of the two forms to
+  // show; acceptInvite is the brand-new-identity path (token pair from
+  // Supabase's own invite mail, sets a password); acceptInviteExisting is
+  // for an email that already had an account (proves it via password
+  // instead).
+  getInvite: (inviteId) => studioApi.get(`/auth/invites/${inviteId}`).then((r) => r.data),
+  acceptInvite: (inviteId, { accessToken, refreshToken, expiresIn, name, password }) =>
+    studioApi.post(`/auth/invites/${inviteId}/accept`, { accessToken, refreshToken, expiresIn, name, password }).then((r) => r.data),
+  acceptInviteExisting: (inviteId, password) =>
+    studioApi.post(`/auth/invites/${inviteId}/accept-existing`, { password }).then((r) => r.data),
+
   // Two-factor. Enroll and challenge/verify are separate calls because
   // enrolling only creates the factor — Supabase doesn't consider it real
   // until a challenge for it has actually been answered correctly once,

@@ -13,6 +13,7 @@ import StudioOsMfaGate from "./pages/os/StudioOsMfaGate";
 import StudioOsAdminPage from "./pages/os/StudioOsAdminPage";
 import { StudioOsForgotPasswordPage, StudioOsNewPasswordPage } from "./pages/os/StudioOsPasswordResetPage";
 import StudioOsEmailConfirmedPage from "./pages/os/StudioOsEmailConfirmedPage";
+import StudioOsInviteAcceptPage from "./pages/os/StudioOsInviteAcceptPage";
 import CustomerEmailConfirmedPage from "./pages/CustomerEmailConfirmedPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ImpressumPage from "./pages/ImpressumPage";
@@ -56,6 +57,10 @@ function AppRouter() {
         <Route path="/os/passwort-neu" element={<StudioOsNewPasswordPage />} />
         {/* Ziel des Links aus der Registrierungs-Bestätigungs-E-Mail. */}
         <Route path="/os/email-bestaetigt" element={<StudioOsEmailConfirmedPage />} />
+        {/* Ziel des Einladungslinks — sowohl Supabases eigener invite-Mail
+            (neue Identität, Token-Paar im Fragment) als auch unserer eigenen
+            Mail für eine bereits bestehende Identität (kein Fragment). */}
+        <Route path="/os/einladung/:inviteId" element={<StudioOsInviteAcceptPage />} />
         <Route
           path="/os/dashboard"
           element={

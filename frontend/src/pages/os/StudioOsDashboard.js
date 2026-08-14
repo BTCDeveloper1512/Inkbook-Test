@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   ChevronDown,
   Lock,
+  UserPlus,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { studioApi } from "../../lib/studioApi";
@@ -37,6 +38,7 @@ import BookingDetailDialog from "./BookingDetailDialog";
 import NachrichtenTab from "./NachrichtenTab";
 import StudioProfileTab from "./StudioProfileTab";
 import StudioArtistsTab from "./StudioArtistsTab";
+import StudioTeamTab from "./StudioTeamTab";
 import StudioCalendarTab from "./StudioCalendarTab";
 import StudioAnalytics, { PERIODS } from "./StudioAnalytics";
 
@@ -131,6 +133,7 @@ const NAV_ITEMS = [
   { key: "kalender", label: "Kalender", icon: CalendarDays },
   { key: "warteliste", label: "Warteliste", icon: Bell, badgeFrom: "waitlist" },
   { key: "artists", label: "Artists", icon: Users },
+  { key: "team", label: "Team", icon: UserPlus },
   { key: "profil", label: "Profil & Link", icon: Settings2 },
 ];
 
@@ -1177,6 +1180,13 @@ export default function StudioOsDashboard() {
             <section>
               <SectionHeader title="Artists" subtitle="Dein Team, sichtbar auf der Buchungsseite" />
               <StudioArtistsTab artists={artists} bookings={bookings} onArtistsChange={setArtists} />
+            </section>
+          )}
+
+          {tab === "team" && (
+            <section>
+              <SectionHeader title="Team" subtitle="Wer Zugriff auf dieses Studio hat" />
+              <StudioTeamTab staff={staff} />
             </section>
           )}
 
