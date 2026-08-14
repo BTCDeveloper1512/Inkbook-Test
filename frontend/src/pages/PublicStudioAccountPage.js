@@ -57,6 +57,9 @@ export default function PublicStudioAccountPage() {
   const [loggingIn, setLoggingIn] = useState(false);
   const [responding, setResponding] = useState(null);
   const [respondError, setRespondError] = useState({});
+  const [unverifiedOfferId, setUnverifiedOfferId] = useState(null);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
+  const [confirmationResent, setConfirmationResent] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
   const [tab, setTab] = useState("anstehend");
@@ -235,6 +238,7 @@ export default function PublicStudioAccountPage() {
   async function respondToOffer(offerId, accept) {
     setResponding(offerId);
     setRespondError((prev) => ({ ...prev, [offerId]: "" }));
+    setUnverifiedOfferId(null);
     try {
       const { data } = await studioApi.post(`/t/${slug}/offers/${offerId}/respond`, { accept });
       // A deposit is required: the slot isn't held until the payment lands,
@@ -248,7 +252,20 @@ export default function PublicStudioAccountPage() {
       setResponding(null);
     } catch (err) {
       setRespondError((prev) => ({ ...prev, [offerId]: err.response?.data?.error || "Konnte nicht gesendet werden." }));
+      if (err.response?.data?.code === "email_unverified") setUnverifiedOfferId(offerId);
       setResponding(null);
+    }
+  }
+
+  async function resendOwnConfirmation() {
+    setResendingConfirmation(true);
+    try {
+      await studioApi.post("/auth/customer/resend-confirmation", { email: customer?.email });
+    } catch {
+      // Same stance as everywhere else this resend exists: nothing to reveal either way.
+    } finally {
+      setResendingConfirmation(false);
+      setConfirmationResent(true);
     }
   }
 
@@ -740,6 +757,16 @@ export default function PublicStudioAccountPage() {
                             : "Mit deiner Zusage ist der Termin verbindlich gebucht."}
                         </p>
                         {respondError[openOffer.id] && <p className="text-xs font-inter text-red-600 mb-2">{respondError[openOffer.id]}</p>}
+                        {unverifiedOfferId === openOffer.id && (
+                          <button
+                            type="button"
+                            onClick={resendOwnConfirmation}
+                            disabled={resendingConfirmation}
+                            className="text-xs font-inter text-zinc-900 underline underline-offset-2 mb-2 block"
+                          >
+                            {resendingConfirmation ? "Wird gesendet…" : confirmationResent ? "Erneut gesendet" : "Bestätigungslink erneut senden"}
+                          </button>
+                        )}
                         <div className="flex gap-2">
                           <Button
                             onClick={() => respondToOffer(openOffer.id, true)}

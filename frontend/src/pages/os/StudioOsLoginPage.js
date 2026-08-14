@@ -7,6 +7,7 @@ import { StudioOSWordmark } from "../../components/StudioOSLogo";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { EmailConfirmationPendingShell } from "./StudioOsEmailConfirmedPage";
 
 /**
  * Studio-staff login/registration for the new backend. Separate from the
@@ -23,24 +24,47 @@ export default function StudioOsLoginPage() {
   const [studioName, setStudioName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false); // login blocked pending confirmation
+  const [pendingEmail, setPendingEmail] = useState(""); // set once registration itself is done
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
     setError("");
+    setUnverified(false);
     setLoading(true);
     try {
       if (mode === "login") {
         await studioOsAuth.login(email, password);
         navigate("/os/dashboard");
       } else {
-        await studioOsAuth.register(email, password, name, studioName);
-        navigate("/os/onboarding");
+        const data = await studioOsAuth.register(email, password, name, studioName);
+        if (data.pendingVerification) setPendingEmail(data.email);
+        else navigate("/os/onboarding"); // defensive: older backend, session already set
       }
     } catch (err) {
+      if (err.response?.data?.code === "email_unverified") setUnverified(true);
       setError(err.response?.data?.error || "Etwas ist schiefgelaufen.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function resend(targetEmail) {
+    setResending(true);
+    try {
+      await studioOsAuth.resendConfirmation(targetEmail);
+    } catch {
+      // Same stance as forgot-password: nothing to reveal either way.
+    } finally {
+      setResending(false);
+      setResent(true);
+    }
+  }
+
+  if (pendingEmail) {
+    return <EmailConfirmationPendingShell email={pendingEmail} onResend={() => resend(pendingEmail)} resending={resending} resent={resent} />;
   }
 
   if (!role) {
@@ -138,6 +162,16 @@ export default function StudioOsLoginPage() {
           </div>
 
           {error && <p className="text-xs text-red-600 font-inter">{error}</p>}
+          {unverified && (
+            <button
+              type="button"
+              onClick={() => resend(email)}
+              disabled={resending}
+              className="text-xs font-inter text-zinc-900 underline underline-offset-2"
+            >
+              {resending ? "Wird gesendet…" : resent ? "Erneut gesendet" : "Bestätigungslink erneut senden"}
+            </button>
+          )}
 
           <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter mt-2">
             {loading ? <Loader2 size={16} className="animate-spin" /> : mode === "login" ? "Anmelden" : "Studio anlegen"}

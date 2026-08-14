@@ -203,41 +203,91 @@ export default function StudioBookingWidget({ slug, artists }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
+  const [confirmationResent, setConfirmationResent] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+
+  const bookingPayload = () => ({
+    appointmentType,
+    artistId: artistId || undefined,
+    title: title || undefined,
+    motifDescription: motif || undefined,
+    preferredDate: preferredDateStr(),
+    preferredSlot: slot,
+    preferredTime: wishTime || undefined,
+    referenceImages,
+  });
+
   async function submitBooking() {
     setSubmitting(true);
     setAuthError("");
+    setUnverified(false);
     try {
-      // Establish (or create) the customer identity for this studio first.
-      const authPayload = { email, password, ...(authMode === "register" ? { name } : {}) };
-      const authEndpoint = authMode === "register" ? "register" : "login";
+      if (authMode === "register") {
+        // Bundled into one call: a brand-new account is created unconfirmed
+        // (see auth-customer.ts), and Supabase refuses to issue a session for
+        // that no matter what — so there is no session this request could
+        // otherwise ride on. The account is still real and the booking still
+        // goes in; only actions past this point (viewing status, accepting
+        // an offer) need the confirmation link that's on its way.
+        let data;
+        try {
+          ({ data } = await studioApi.post(`/t/${slug}/auth/register`, { email, password, name, booking: bookingPayload() }));
+        } catch (err) {
+          // Rare edge case: this e-mail already has an account from another
+          // studio, and that account itself was never confirmed — there's no
+          // password to check against safely, so the backend asks for that
+          // confirmation first rather than guessing.
+          if (err.response?.data?.code === "email_unverified") {
+            setUnverified(true);
+            throw new Error(err.response.data.error);
+          }
+          throw err;
+        }
+        if (data.pendingVerification) {
+          setResult({ project: data.booking });
+          setPendingVerification(true);
+          setStep(4);
+          return;
+        }
+        // Reused identity, already confirmed elsewhere: register signed them
+        // in for real and the booking already landed too.
+        setResult({ project: data.booking });
+        setStep(4);
+        return;
+      }
+
       try {
-        await studioApi.post(`/t/${slug}/auth/${authEndpoint}`, authPayload);
+        await studioApi.post(`/t/${slug}/auth/login`, { email, password });
       } catch (err) {
-        if (authMode === "login" && err.response?.status === 401) {
-          throw new Error("E-Mail oder Passwort ist falsch.");
+        if (err.response?.data?.code === "email_unverified") {
+          setUnverified(true);
+          throw new Error(err.response.data.error);
         }
-        if (authMode === "register" && err.response?.status === 400) {
-          throw new Error(err.response.data?.error || "Registrierung fehlgeschlagen.");
-        }
+        if (err.response?.status === 401) throw new Error("E-Mail oder Passwort ist falsch.");
         throw err;
       }
 
-      const { data } = await studioApi.post(`/t/${slug}/bookings`, {
-        appointmentType,
-        artistId: artistId || undefined,
-        title: title || undefined,
-        motifDescription: motif || undefined,
-        preferredDate: preferredDateStr(),
-        preferredSlot: slot,
-        preferredTime: wishTime || undefined,
-        referenceImages,
-      });
+      const { data } = await studioApi.post(`/t/${slug}/bookings`, bookingPayload());
       setResult(data);
       setStep(4);
     } catch (err) {
       setAuthError(err.message || err.response?.data?.error || "Etwas ist schiefgelaufen.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    setResendingConfirmation(true);
+    try {
+      await studioApi.post("/auth/customer/resend-confirmation", { email });
+    } catch {
+      // Same stance as everywhere else this resend exists: nothing to reveal either way.
+    } finally {
+      setResendingConfirmation(false);
+      setConfirmationResent(true);
     }
   }
 
@@ -463,6 +513,16 @@ export default function StudioBookingWidget({ slug, artists }) {
             </div>
 
             {authError && <p className="text-xs text-red-600 font-inter mt-3">{authError}</p>}
+            {unverified && (
+              <button
+                type="button"
+                onClick={resendConfirmation}
+                disabled={resendingConfirmation}
+                className="text-xs font-inter text-zinc-900 underline underline-offset-2 mt-1.5"
+              >
+                {resendingConfirmation ? "Wird gesendet…" : confirmationResent ? "Erneut gesendet" : "Bestätigungslink erneut senden"}
+              </button>
+            )}
 
             <div className="flex gap-3 mt-6">
               <Button variant="outline" onClick={() => setStep(2)} className="h-11 rounded-xl font-inter">
@@ -487,6 +547,7 @@ export default function StudioBookingWidget({ slug, artists }) {
             <h3 className="font-playfair text-xl text-zinc-900 mb-1">Anfrage gesendet</h3>
             <p className="text-sm text-zinc-500 font-inter mb-4">
               Das Studio meldet sich bei dir, sobald der Termin bestätigt ist.
+              {pendingVerification && " Bestätige noch deine E-Mail-Adresse — den Link dafür haben wir dir gerade geschickt — dann kannst du später auch Angebote annehmen."}
             </p>
             <a href={`/t/${slug}/konto`} className="text-xs font-inter text-zinc-500 underline hover:text-zinc-800">
               Alle meine Termine ansehen

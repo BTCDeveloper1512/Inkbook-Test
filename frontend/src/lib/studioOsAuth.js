@@ -21,6 +21,12 @@ export const studioOsAuth = {
   resetPassword: (accessToken, refreshToken, password) =>
     studioApi.post("/auth/reset-password", { accessToken, refreshToken, password }).then((r) => r.data),
 
+  // E-Mail-Bestätigung nach der Registrierung. `resendConfirmation` antwortet
+  // wie `forgotPassword` immer gleich, egal ob es das Konto gibt.
+  resendConfirmation: (email) => studioApi.post("/auth/resend-confirmation", { email }).then((r) => r.data),
+  verifyEmail: (accessToken, refreshToken, expiresIn) =>
+    studioApi.post("/auth/verify-email", { accessToken, refreshToken, expiresIn }).then((r) => r.data),
+
   // Two-factor. Enroll and challenge/verify are separate calls because
   // enrolling only creates the factor — Supabase doesn't consider it real
   // until a challenge for it has actually been answered correctly once,

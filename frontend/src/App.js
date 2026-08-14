@@ -12,6 +12,8 @@ import StudioOnboardingPage from "./pages/os/StudioOnboardingPage";
 import StudioOsMfaGate from "./pages/os/StudioOsMfaGate";
 import StudioOsAdminPage from "./pages/os/StudioOsAdminPage";
 import { StudioOsForgotPasswordPage, StudioOsNewPasswordPage } from "./pages/os/StudioOsPasswordResetPage";
+import StudioOsEmailConfirmedPage from "./pages/os/StudioOsEmailConfirmedPage";
+import CustomerEmailConfirmedPage from "./pages/CustomerEmailConfirmedPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ImpressumPage from "./pages/ImpressumPage";
 import DatenschutzPage from "./pages/DatenschutzPage";
@@ -42,6 +44,9 @@ function AppRouter() {
         <Route path="/t/:slug" element={<PublicStudioPage />} />
         <Route path="/t/:slug/konto" element={<PublicStudioAccountPage />} />
         <Route path="/konto" element={<CustomerStudioPicker />} />
+        {/* Ziel des Links aus der Bestätigungs-E-Mail — generisch, nicht
+            Studio-gebunden, weil die Kunden-Identität studioübergreifend ist. */}
+        <Route path="/konto/email-bestaetigt" element={<CustomerEmailConfirmedPage />} />
 
         {/* Studio-Seite. Alles hinter dem Login läuft durch StudioOsMfaGate,
             weil Zwei-Faktor für jedes Studio-Konto Pflicht ist. */}
@@ -49,6 +54,8 @@ function AppRouter() {
         <Route path="/os/passwort-vergessen" element={<StudioOsForgotPasswordPage />} />
         {/* Ziel des Links aus der Wiederherstellungs-E-Mail (redirectTo im Backend). */}
         <Route path="/os/passwort-neu" element={<StudioOsNewPasswordPage />} />
+        {/* Ziel des Links aus der Registrierungs-Bestätigungs-E-Mail. */}
+        <Route path="/os/email-bestaetigt" element={<StudioOsEmailConfirmedPage />} />
         <Route
           path="/os/dashboard"
           element={
