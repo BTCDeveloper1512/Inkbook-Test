@@ -42,6 +42,11 @@ import StudioTeamTab from "./StudioTeamTab";
 import StudioCalendarTab from "./StudioCalendarTab";
 import StudioAnalytics, { PERIODS } from "./StudioAnalytics";
 
+// Ranked the same way the backend's ROLE_RANK is (plugins/auth.ts) — used to
+// gate the calendar-import UI, which the blocked-slots routes restrict to
+// admin/owner.
+const ROLE_RANK = { staff: 1, artist: 2, admin: 3, owner: 4 };
+
 // Deliberately says *who* needs to move next, not just what state the row is
 // in — "Angebot läuft" read as neutral/ongoing, not "you're waiting on the
 // customer right now", which was exactly the thing that was hard to tell at
@@ -327,6 +332,7 @@ export default function StudioOsDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [waitlist, setWaitlist] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
   const [offerModal, setOfferModal] = useState(null);
   const [detailBooking, setDetailBooking] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -502,6 +508,21 @@ export default function StudioOsDashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Own request, own error handling: blocked-slot import is admin/owner-only
+  // on the backend, so a staff/artist login gets a 403 here — that's expected,
+  // not a reason to bounce the whole dashboard to the login screen.
+  const refreshBlockedSlots = useCallback(async () => {
+    try {
+      const { data } = await studioApi.get("/studios/me/blocked-slots");
+      setBlockedSlots(data);
+    } catch {
+      setBlockedSlots([]);
+    }
+  }, []);
+  useEffect(() => {
+    if (staff && ROLE_RANK[staff.role] >= ROLE_RANK.admin) refreshBlockedSlots();
+  }, [staff, refreshBlockedSlots]);
 
   // A customer accepting an offer puts a booking straight into this calendar,
   // so the dashboard has to hear about writes it didn't make itself.
@@ -1188,6 +1209,9 @@ export default function StudioOsDashboard() {
                 onBookingsChange={setBookings}
                 onCreateOffer={setOfferModal}
                 onRefresh={refreshBookings}
+                staff={staff}
+                blockedSlots={blockedSlots}
+                onBlockedSlotsChange={refreshBlockedSlots}
               />
             </section>
           )}

@@ -1,11 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, AlertTriangle, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, Inbox, UploadCloud, Trash2, CalendarOff } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { artistColor, initials } from "../../lib/artistColors";
 import { SLOT_LABEL } from "../../lib/daySlots";
 import { Button } from "../../components/ui/button";
 import SessionDialog from "./SessionDialog";
+
+// Ranked the same way the backend's ROLE_RANK is (plugins/auth.ts) — the
+// blocked-slots import/manage routes are admin/owner-only, so the sidebar
+// card that calls them stays hidden for staff/artist logins.
+const ROLE_RANK = { staff: 1, artist: 2, admin: 3, owner: 4 };
 
 /**
  * The studio's day planner: one column per artist, and a rail listing requests
@@ -74,7 +79,42 @@ function laneLayout(sessions) {
   return { lanes, laneCount: Math.max(1, laneEnds.length) };
 }
 
-export default function StudioCalendarTab({ bookings, artists, studio, onBookingsChange, onCreateOffer, onRefresh }) {
+/**
+ * A blocked slot can span several days (a week of "Urlaub" imported from an
+ * .ics file), but the grid only ever draws one day at a time — so it's cut
+ * into one segment per day it touches, each clamped to that day's own
+ * midnight-to-midnight window.
+ */
+function splitByDay(startISO, endISO) {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const segments = [];
+  let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  while (cursor < end) {
+    const nextDay = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+    const segStart = start > cursor ? start : cursor;
+    const segEnd = end < nextDay ? end : nextDay;
+    segments.push({
+      day: cursor,
+      startMin: Math.round((segStart - cursor) / 60000),
+      duration: Math.max(SNAP_MIN, Math.round((segEnd - segStart) / 60000)),
+    });
+    cursor = nextDay;
+  }
+  return segments;
+}
+
+export default function StudioCalendarTab({
+  bookings,
+  artists,
+  studio,
+  onBookingsChange,
+  onCreateOffer,
+  onRefresh,
+  staff,
+  blockedSlots = [],
+  onBlockedSlotsChange,
+}) {
   const [day, setDay] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -84,6 +124,53 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
   const [dragView, setDragView] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importMessage, setImportMessage] = useState("");
+  const fileInputRef = useRef(null);
+
+  const isAdmin = ROLE_RANK[staff?.role] >= ROLE_RANK.admin;
+
+  const importBatches = useMemo(() => {
+    const byBatch = new Map();
+    for (const b of blockedSlots) {
+      if (!b.import_batch_id) continue;
+      const entry = byBatch.get(b.import_batch_id) || { id: b.import_batch_id, count: 0, source: b.source, createdAt: b.created_at };
+      entry.count += 1;
+      if (new Date(b.created_at) < new Date(entry.createdAt)) entry.createdAt = b.created_at;
+      byBatch.set(b.import_batch_id, entry);
+    }
+    return [...byBatch.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [blockedSlots]);
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportError("");
+    setImportMessage("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await studioApi.post("/studios/me/blocked-slots/import", form);
+      setImportMessage(`${data.imported} Termine importiert${data.skipped ? `, ${data.skipped} übersprungen` : ""}.`);
+      await onBlockedSlotsChange?.();
+    } catch (err) {
+      setImportError(err.response?.data?.error || "Import fehlgeschlagen.");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function deleteImportBatch(batchId) {
+    try {
+      await studioApi.delete(`/studios/me/blocked-slots/batch/${batchId}`);
+      await onBlockedSlotsChange?.();
+    } catch (err) {
+      setImportError(err.response?.data?.error || "Import konnte nicht entfernt werden.");
+    }
+  }
 
   const isWeek = view === "woche";
 
@@ -159,6 +246,7 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       bookings.flatMap((b) =>
         (b.sessions || []).map((s) => ({
           id: s.id,
+          type: "session",
           raw: s,
           project: b,
           isQueue: false,
@@ -171,6 +259,32 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
     [bookings]
   );
 
+  // Imported/manual blocks — no project, no customer, just time an artist (or
+  // the whole studio, when artist_id is null) isn't available. Expanded per
+  // day and, for a studio-wide block, per artist column, so the grid can
+  // treat them exactly like a session for layout purposes.
+  const allBlocked = useMemo(
+    () =>
+      blockedSlots.flatMap((b) => {
+        // A studio-wide block (no artist_id) has to stay visible even for a
+        // studio with no artists set up yet, so "Ohne Artist" is always one
+        // of its columns, not just a fallback for the real artist list.
+        const targetArtistIds = b.artist_id ? [b.artist_id] : [...artists.map((a) => a.id), UNASSIGNED];
+        return splitByDay(b.start_time, b.end_time).flatMap((seg) =>
+          targetArtistIds.map((artistId) => ({
+            id: `${b.id}:${dateKey(seg.day)}:${artistId}`,
+            type: "blocked",
+            raw: { ...b, start_time: new Date(seg.day.getTime() + seg.startMin * 60000).toISOString() },
+            title: b.title || "Blockiert",
+            startMin: seg.startMin,
+            duration: seg.duration,
+            artistId,
+          }))
+        );
+      }),
+    [blockedSlots, artists]
+  );
+
   // Requests still waiting for an offer. Since an accepted offer now creates
   // its own session, nothing arrives on the calendar unplaced — so the rail
   // earns its space by showing what still needs a price and a time.
@@ -179,10 +293,12 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
     [bookings]
   );
 
+  const allItems = useMemo(() => [...allSessions, ...allBlocked], [allSessions, allBlocked]);
+
   const dayColumns = useMemo(() => {
     const placed = isWeek
-      ? allSessions.filter((s) => weekDays.some((d) => sameDay(s.raw.start_time, d)))
-      : allSessions.filter((s) => sameDay(s.raw.start_time, day));
+      ? allItems.filter((s) => weekDays.some((d) => sameDay(s.raw.start_time, d)))
+      : allItems.filter((s) => sameDay(s.raw.start_time, day));
     return columns.map((col) => {
       const items = isWeek
         ? placed.filter((s) => dateKey(new Date(s.raw.start_time)) === col.id)
@@ -200,7 +316,7 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
       }
       return { ...col, items, lanes, laneCount, conflicts };
     });
-  }, [allSessions, columns, day, isWeek, weekDays]);
+  }, [allItems, columns, day, isWeek, weekDays]);
 
   const selected = useMemo(() => allSessions.find((s) => s.id === selectedId) || null, [allSessions, selectedId]);
 
@@ -370,7 +486,8 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
                 >
                   <div className="font-playfair text-base text-zinc-900">{rangeLabel}</div>
                   <div className="text-[11px] font-inter text-zinc-400">
-                    {dayColumns.reduce((n, c) => n + c.items.length, 0)} Termine · {fmt(dayStartMin)}–{fmt(dayEndMin)}
+                    {dayColumns.reduce((n, c) => n + c.items.filter((i) => i.type !== "blocked").length, 0)} Termine ·{" "}
+                    {fmt(dayStartMin)}–{fmt(dayEndMin)}
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -485,8 +602,37 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
                   const lane = col.lanes.get(s.id) || 0;
                   const colLeft = (colIdx / columns.length) * 100;
                   const colWidth = 100 / columns.length;
-                  const isDragging = dragView?.item?.id === s.id && dragView?.moved;
                   const conflict = col.conflicts.has(s.id);
+
+                  if (s.type === "blocked") {
+                    return (
+                      <div
+                        key={s.id}
+                        title={s.title}
+                        className={`absolute rounded-lg px-2 py-1 overflow-hidden bg-zinc-100 border border-dashed ${
+                          conflict ? "border-red-400" : "border-zinc-300"
+                        }`}
+                        style={{
+                          top: (s.startMin - dayStartMin) * PX_PER_MIN,
+                          height: Math.max(22, s.duration * PX_PER_MIN - 2),
+                          left: `calc(${colLeft}% + ${(lane * colWidth) / col.laneCount}% + 3px)`,
+                          width: `calc(${colWidth / col.laneCount}% - 6px)`,
+                          backgroundImage:
+                            "repeating-linear-gradient(135deg, rgba(113,113,122,0.12) 0, rgba(113,113,122,0.12) 4px, transparent 4px, transparent 9px)",
+                        }}
+                      >
+                        <div className="flex items-center gap-1 text-[10px] font-inter font-medium text-zinc-600 truncate leading-tight">
+                          <CalendarOff size={10} className="flex-shrink-0" />
+                          <span className="truncate">{s.title}</span>
+                        </div>
+                        <div className="text-[9px] font-inter text-zinc-400 truncate">
+                          {fmt(s.startMin)}–{fmt(s.startMin + s.duration)}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const isDragging = dragView?.item?.id === s.id && dragView?.moved;
                   return (
                     <motion.div
                       key={s.id}
@@ -603,6 +749,54 @@ export default function StudioCalendarTab({ bookings, artists, studio, onBooking
             Anfrage anklicken, um ein Angebot mit Uhrzeit zu senden. Bestehende Blöcke lassen sich verschieben und an der Unterkante verlängern.
           </p>
         </div>
+
+        {isAdmin && (
+          <div className="bg-white rounded-2xl border border-black/[0.04] shadow-[0_4px_16px_rgb(0,0,0,0.04)] p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <UploadCloud size={13} className="text-zinc-400" />
+              <span className="text-[11px] font-inter font-medium text-zinc-600 uppercase tracking-wide">Kalender importieren</span>
+            </div>
+            <p className="text-[10px] font-inter text-zinc-400 mb-2 leading-snug">
+              .ics-Export (Google, iPhone, Outlook) oder Excel/CSV mit Spalten Datum, Startzeit, Endzeit, Mitarbeiter, Titel.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".ics,.csv,.xlsx,.xls"
+              onChange={handleImportFile}
+              disabled={importing}
+              className="block w-full text-[10px] font-inter text-zinc-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-inter file:font-medium file:bg-zinc-900 file:text-white hover:file:bg-zinc-800 disabled:opacity-50"
+            />
+            {importing && <p className="text-[10px] font-inter text-zinc-400 mt-2">Importiere…</p>}
+            {importMessage && <p className="text-[10px] font-inter text-emerald-600 mt-2">{importMessage}</p>}
+            {importError && <p className="text-[10px] font-inter text-red-600 mt-2">{importError}</p>}
+
+            {importBatches.length > 0 && (
+              <div className="mt-3 space-y-1.5 border-t border-zinc-100 pt-2.5">
+                {importBatches.map((batch) => (
+                  <div key={batch.id} className="flex items-center justify-between gap-1.5 rounded-lg bg-zinc-50 px-2 py-1.5">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-inter font-medium text-zinc-700 truncate">
+                        {batch.count} Termine · {batch.source === "ics_import" ? "iCal" : "Excel/CSV"}
+                      </div>
+                      <div className="text-[9px] font-inter text-zinc-400">
+                        {new Date(batch.createdAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteImportBatch(batch.id)}
+                      title="Import entfernen"
+                      className="flex-shrink-0 p-1 rounded-md text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
