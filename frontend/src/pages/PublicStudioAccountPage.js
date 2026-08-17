@@ -7,6 +7,7 @@ import { useLiveUpdates } from "../lib/useLiveUpdates";
 import { SLOT_LABEL } from "../lib/daySlots";
 import { StudioOSWordmark } from "../components/StudioOSLogo";
 import ChatThread from "../components/ChatThread";
+import HealthConsentModal from "./HealthConsentModal";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -279,7 +280,9 @@ export default function PublicStudioAccountPage() {
     }
   }
 
-  async function respondToOffer(offerId, accept) {
+  const [consentTarget, setConsentTarget] = useState(null); // { offerId, projectId }
+
+  async function respondToOffer(offerId, accept, projectId) {
     setResponding(offerId);
     setRespondError((prev) => ({ ...prev, [offerId]: "" }));
     setUnverifiedOfferId(null);
@@ -295,10 +298,24 @@ export default function PublicStudioAccountPage() {
       await load();
       setResponding(null);
     } catch (err) {
+      // The health declaration has to exist before this can succeed —
+      // rather than a dead-end error, this opens the form and retries the
+      // exact same accept once it's been submitted.
+      if (err.response?.data?.code === "consent_required" && projectId) {
+        setConsentTarget({ offerId, projectId });
+        setResponding(null);
+        return;
+      }
       setRespondError((prev) => ({ ...prev, [offerId]: err.response?.data?.error || "Konnte nicht gesendet werden." }));
       if (err.response?.data?.code === "email_unverified") setUnverifiedOfferId(offerId);
       setResponding(null);
     }
+  }
+
+  function onConsentSubmitted() {
+    const target = consentTarget;
+    setConsentTarget(null);
+    if (target) respondToOffer(target.offerId, true, target.projectId);
   }
 
   async function resendOwnConfirmation() {
@@ -829,7 +846,7 @@ export default function PublicStudioAccountPage() {
                         )}
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => respondToOffer(openOffer.id, true)}
+                            onClick={() => respondToOffer(openOffer.id, true, b.id)}
                             disabled={responding === openOffer.id}
                             className="flex-1 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-inter text-xs"
                           >
@@ -969,6 +986,18 @@ export default function PublicStudioAccountPage() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {consentTarget && (
+          <HealthConsentModal
+            slug={slug}
+            projectId={consentTarget.projectId}
+            studio={studio}
+            onClose={() => setConsentTarget(null)}
+            onSubmitted={onConsentSubmitted}
+          />
         )}
       </AnimatePresence>
     </div>

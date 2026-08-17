@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { X, Mail, Clock, Euro, Image as ImageIcon, CalendarDays, MessageCircle, ChevronRight, Banknote, RotateCcw, Activity } from "lucide-react";
+import { X, Mail, Clock, Euro, Image as ImageIcon, CalendarDays, MessageCircle, ChevronRight, Banknote, RotateCcw, Activity, HeartPulse, AlertTriangle } from "lucide-react";
 import { SLOT_LABEL } from "../../lib/daySlots";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger } from "../../components/ui/select";
 
@@ -79,6 +79,11 @@ export default function BookingDetailDialog({
   const eur = (n) => `${Number(n).toFixed(0)} €`;
   const unreadMessages = (b.messages || []).filter((m) => m.sender === "customer" && !m.read_at).length;
   const depositPayment = (b.payments || []).find((p) => p.type === "anzahlung");
+  // Unlike payments/sessions/messages, health_consents has a unique
+  // project_id — PostgREST detects that and embeds it as a single object,
+  // not an array (verified against the real API, not assumed).
+  const consent = b.health_consents;
+  const flaggedAnswers = (consent?.answers || []).filter((a) => a.answer);
   const [depositBusy, setDepositBusy] = useState(false);
   const [depositError, setDepositError] = useState("");
 
@@ -419,6 +424,53 @@ export default function BookingDetailDialog({
                     {finalPaymentBusy ? "…" : "Restzahlung bar erhalten"}
                   </button>
                 )}
+              </div>
+            </section>
+          )}
+
+          {consent && (
+            <section>
+              <div className="flex items-center gap-1.5 mb-2">
+                <HeartPulse size={12} className="text-zinc-400" />
+                <span className="text-[10px] font-inter uppercase tracking-widest text-zinc-400">Gesundheits-Einverständnis</span>
+              </div>
+              <div className="rounded-xl border border-zinc-100 px-3 py-2.5 space-y-2">
+                {flaggedAnswers.length > 0 && (
+                  <div className="rounded-lg bg-amber-50 px-2.5 py-2 space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-800">
+                      <AlertTriangle size={11} />
+                      <span className="text-[11px] font-inter font-medium">Achtung bei diesen Angaben</span>
+                    </div>
+                    {flaggedAnswers.map((a, i) => (
+                      <p key={i} className="text-[11px] font-inter text-amber-700 pl-[18px]">
+                        {a.question}
+                        {a.detail && <span className="text-amber-600"> — {a.detail}</span>}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <details>
+                  <summary className="text-[11px] font-inter text-zinc-500 cursor-pointer">Alle Antworten anzeigen ({(consent.answers || []).length})</summary>
+                  <div className="mt-1.5 space-y-1">
+                    {(consent.answers || []).map((a, i) => (
+                      <div key={i} className="text-[11px] font-inter flex items-start justify-between gap-2">
+                        <span className="text-zinc-600">{a.question}</span>
+                        <span className={`flex-shrink-0 ${a.answer ? "text-amber-700" : "text-zinc-400"}`}>{a.answer ? "Ja" : "Nein"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+                {consent.notes && <p className="text-[11px] font-inter text-zinc-600 italic">„{consent.notes}"</p>}
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <span className="text-[11px] font-inter text-zinc-500">
+                    {consent.signer_name} · {new Date(consent.created_at).toLocaleDateString("de-DE")}
+                  </span>
+                </div>
+                <img
+                  src={consent.signature_data_url}
+                  alt="Unterschrift"
+                  className="h-14 object-contain bg-zinc-50 rounded-lg border border-zinc-100 px-2"
+                />
               </div>
             </section>
           )}

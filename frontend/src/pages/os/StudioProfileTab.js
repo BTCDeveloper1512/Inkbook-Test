@@ -19,10 +19,12 @@ import {
   Scale,
   UserCog,
   Wallet,
+  Plus,
 } from "lucide-react";
 import { studioApi } from "../../lib/studioApi";
 import { studioOsAuth } from "../../lib/studioOsAuth";
 import { PLAN_LIMITS, planInfo } from "../../lib/plans";
+import { DEFAULT_HEALTH_QUESTIONS } from "../../lib/healthConsent";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -231,6 +233,13 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
   const [depositRequired, setDepositRequired] = useState(studio?.settings?.depositRequired || false);
   const [depositPercent, setDepositPercent] = useState(String(studio?.settings?.depositPercent || 20));
   const [cancellationHours, setCancellationHours] = useState(String(studio?.settings?.cancellationHours || 48));
+  const [healthConsentRequired, setHealthConsentRequired] = useState(studio?.settings?.healthConsentRequired || false);
+  // Seeded from the studio's own saved list, falling back to the starter
+  // template the first time (nothing saved yet).
+  const [healthConsentQuestions, setHealthConsentQuestions] = useState(
+    studio?.settings?.healthConsentQuestions?.length ? studio.settings.healthConsentQuestions : DEFAULT_HEALTH_QUESTIONS
+  );
+  const [newQuestion, setNewQuestion] = useState("");
 
   // Images write straight through — there is nothing to "draft" about picking
   // a file, and holding it back until save would only invite losing it.
@@ -265,6 +274,8 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
           depositRequired,
           depositPercent: depositRequired ? Number(depositPercent) || 0 : 0,
           cancellationHours: Number(cancellationHours) || 0,
+          healthConsentRequired,
+          healthConsentQuestions,
         },
       });
       onStudioUpdate(data);
@@ -273,6 +284,19 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
     } finally {
       setSaving(false);
     }
+  }
+
+  function addHealthQuestion() {
+    const v = newQuestion.trim();
+    if (!v) return;
+    setHealthConsentQuestions((prev) => [...prev, v]);
+    setNewQuestion("");
+  }
+  function editHealthQuestion(index, value) {
+    setHealthConsentQuestions((prev) => prev.map((q, i) => (i === index ? value : q)));
+  }
+  function removeHealthQuestion(index) {
+    setHealthConsentQuestions((prev) => prev.filter((_, i) => i !== index));
   }
 
   // The account sits on a different endpoint, so it keeps its own controls.
@@ -599,6 +623,44 @@ export default function StudioProfileTab({ studio, staff, onStudioUpdate, onStaf
               <Field label="Kostenlose Stornierung bis (Std. vorher)">
                 <Input type="number" min="0" value={cancellationHours} onChange={(e) => setCancellationHours(e.target.value)} className="rounded-xl h-9" />
               </Field>
+              <Toggle
+                checked={healthConsentRequired}
+                onChange={setHealthConsentRequired}
+                label="Gesundheits-Einverständnis verlangen"
+                hint="Kunde füllt vor der Zusage ein Formular mit Gesundheitsfragen und Unterschrift aus"
+              />
+              <AnimatePresence initial={false}>
+                {healthConsentRequired && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2">
+                    <Label className="text-[11px] font-inter text-zinc-500 block">Fragen im Formular</Label>
+                    <div className="space-y-1.5">
+                      {healthConsentQuestions.map((q, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <Input value={q} onChange={(e) => editHealthQuestion(i, e.target.value)} className="rounded-lg h-8 text-xs flex-1" />
+                          <button type="button" onClick={() => removeHealthQuestion(i)} className="p-1.5 rounded-lg hover:bg-red-50 flex-shrink-0" title="Entfernen">
+                            <Trash2 size={12} className="text-zinc-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={newQuestion}
+                        onChange={(e) => setNewQuestion(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addHealthQuestion())}
+                        placeholder="Neue Frage — Enter"
+                        className="rounded-lg h-8 text-xs flex-1"
+                      />
+                      <button type="button" onClick={addHealthQuestion} className="p-1.5 rounded-lg border border-zinc-200 hover:border-zinc-400 flex-shrink-0">
+                        <Plus size={12} className="text-zinc-500" />
+                      </button>
+                    </div>
+                    <p className="text-[10px] font-inter text-zinc-400">
+                      Risikoaufklärung und DSGVO-Einwilligung werden zusätzlich fest angezeigt, unabhängig von dieser Liste.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <Toggle
                 checked={isActive}
                 onChange={setIsActive}
