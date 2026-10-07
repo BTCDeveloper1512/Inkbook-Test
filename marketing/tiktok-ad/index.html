@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>StudioOS TikTok Ad</title>
+<style>
+@font-face { font-family: "Playfair"; src: url(fonts/PlayfairDisplay-normal.woff2) format("woff2"); font-weight: 400 900; font-style: normal; font-display: block; }
+@font-face { font-family: "Playfair"; src: url(fonts/PlayfairDisplay-italic.woff2) format("woff2"); font-weight: 400 900; font-style: italic; font-display: block; }
+
+:root {
+  --ink: #09090b; --z900: #18181b; --z800: #27272a; --z700: #3f3f46; --z600: #52525b; --z500: #71717a;
+  --z400: #a1a1aa; --z300: #d4d4d8; --z200: #e4e4e7; --z100: #f4f4f5; --z50: #fafafa;
+  --em: #10b981; --em-bg: #ecfdf5; --em-tx: #047857; --am-bg: #fffbeb; --am-tx: #b45309;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
+body { font-family: "Inter", sans-serif; -webkit-font-smoothing: antialiased; color: white; }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+#cam { position: absolute; inset: 0; transform-origin: 540px 900px; }
+.scene { position: absolute; inset: 0; overflow: hidden; display: none; }
+.dark { background: radial-gradient(120% 80% at 50% 40%, #1a1a1e 0%, #09090b 60%); color: white; }
+.light { background: radial-gradient(120% 80% at 50% 35%, #ffffff 0%, #f4f4f5 70%); color: var(--ink); }
+.abs { position: absolute; }
+.cx { position: absolute; left: 0; right: 0; margin-inline: auto; width: fit-content; }
+.serif { font-family: "Playfair", serif; }
+.label { font-size: 26px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600; }
+.w { will-change: transform, opacity; }
+
+/* grid lines that give the light scenes a "design canvas" feel */
+.grid::before { content: ""; position: absolute; inset: -200px; background-image:
+  linear-gradient(to right, rgba(9,9,11,.045) 1px, transparent 1px),
+  linear-gradient(to bottom, rgba(9,9,11,.045) 1px, transparent 1px);
+  background-size: 90px 90px; transform: translate(var(--gx,0px), var(--gy,0px)); }
+.dark.grid::before { background-image:
+  linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px),
+  linear-gradient(to bottom, rgba(255,255,255,.04) 1px, transparent 1px); }
+
+/* ---------- Hook ---------- */
+.notif { position: absolute; width: 640px; padding: 26px 30px; border-radius: 34px; display: flex; gap: 22px; align-items: center;
+  background: rgba(39,39,42,.95); border: 1px solid rgba(255,255,255,.08); box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+.notif .ic { width: 72px; height: 72px; border-radius: 20px; flex: none; display: grid; place-items: center; }
+.notif .ic svg { width: 40px; height: 40px; }
+.notif .tt { font-size: 24px; font-weight: 600; color: #fff; display: flex; justify-content: space-between; }
+.notif .tt span { color: var(--z400); font-weight: 500; font-size: 21px; }
+.notif .bd { font-size: 26px; color: var(--z300); margin-top: 4px; white-space: nowrap; }
+.notif .txt { flex: 1; min-width: 0; }
+#hookWord { top: 820px; font-size: 190px; font-weight: 800; letter-spacing: -.045em; line-height: 1; text-shadow: 0 20px 80px rgba(0,0,0,.8); z-index: 5; white-space: nowrap; }
+#hookWord.it { font-family: "Playfair", serif; font-style: italic; font-weight: 700; letter-spacing: -.02em; font-size: 240px; }
+#hookTop { top: 250px; font-size: 34px; color: var(--z400); font-weight: 500; z-index: 6; }
+#badge { top: 640px; z-index: 6; background: #ef4444; color: white; font-weight: 800; font-size: 46px; padding: 10px 30px; border-radius: 999px; box-shadow: 0 10px 40px rgba(239,68,68,.5); }
+
+/* ---------- Logo ---------- */
+.mark { position: absolute; width: 300px; height: 300px; }
+.mark .tile { position: absolute; inset: 0; border-radius: 75px; background: linear-gradient(160deg, #27272a, #09090b); border: 2px solid rgba(255,255,255,.12);
+  box-shadow: 0 40px 120px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12); }
+.mark .bar { position: absolute; left: 64px; background: white; transform-origin: left center; }
+.mark .b1 { top: 80px; width: 171px; height: 38px; border-radius: 19px; }
+.mark .b2 { top: 139px; width: 118px; height: 32px; border-radius: 16px; background: rgba(255,255,255,.65); }
+.mark .b3 { top: 193px; width: 150px; height: 32px; border-radius: 16px; background: rgba(255,255,255,.35); }
+.wordmark { font-family: "Playfair", serif; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; }
+.wordmark b { font-weight: 800; }
+.wordmark .ch { display: inline-block; }
+.mask { overflow: hidden; padding: 0 10px 20px; }
+
+/* ---------- Phone ---------- */
+.phone { position: absolute; width: 500px; height: 1030px; border-radius: 74px; background: #0b0b0d; padding: 14px;
+  box-shadow: 0 0 0 2px #2a2a2e, 0 60px 140px rgba(9,9,11,.35), 0 20px 40px rgba(9,9,11,.2); }
+.phone .scr { position: relative; width: 100%; height: 100%; border-radius: 60px; background: var(--z50); overflow: hidden; color: var(--ink); }
+.phone .island { position: absolute; top: 18px; left: 50%; margin-left: -62px; width: 124px; height: 36px; border-radius: 20px; background: #000; z-index: 3; }
+.sb { height: 74px; display: flex; justify-content: space-between; align-items: center; padding: 14px 40px 0; font-size: 21px; font-weight: 600; }
+.url { margin: 6px 22px 0; height: 52px; border-radius: 16px; background: white; border: 1px solid var(--z200); display: flex; align-items: center; gap: 10px; padding: 0 18px; font-size: 19px; color: var(--z600); }
+.cover { margin: 18px 22px 0; height: 210px; border-radius: 26px; position: relative; overflow: hidden; background: linear-gradient(135deg, #27272a, #09090b); }
+.cover .av { position: absolute; left: 26px; bottom: 24px; width: 82px; height: 82px; border-radius: 22px; background: white; display: grid; place-items: center; }
+.cover .nm { position: absolute; left: 124px; bottom: 50px; font-family: "Playfair", serif; font-size: 34px; font-weight: 700; color: white; }
+.cover .sub { position: absolute; left: 124px; bottom: 24px; font-size: 18px; color: var(--z400); }
+.ph-sec { margin: 26px 26px 0; font-size: 17px; letter-spacing: .16em; text-transform: uppercase; color: var(--z500); font-weight: 600; }
+.chips { display: flex; gap: 12px; margin: 14px 22px 0; }
+.chip { flex: 1; height: 62px; border-radius: 18px; background: white; border: 1px solid var(--z200); display: grid; place-items: center; font-size: 21px; font-weight: 600; color: var(--z700); position: relative; overflow: hidden; }
+.chip .fill { position: absolute; inset: 0; background: var(--ink); transform-origin: center; }
+.chip span { position: relative; }
+.days { display: flex; gap: 10px; margin: 14px 22px 0; }
+.day { flex: 1; height: 92px; border-radius: 18px; background: white; border: 1px solid var(--z200); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.day .fill { position: absolute; inset: 0; background: var(--ink); }
+.day small, .day b { position: relative; }
+.day small { font-size: 15px; color: var(--z500); font-weight: 600; }
+.day b { font-size: 28px; font-weight: 700; margin-top: 2px; }
+.slots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 14px 22px 0; }
+.slot { height: 58px; border-radius: 16px; background: white; border: 1px solid var(--z200); display: grid; place-items: center; font-size: 21px; font-weight: 600; position: relative; overflow: hidden; color: var(--z700); }
+.slot .fill { position: absolute; inset: 0; background: var(--ink); }
+.slot span { position: relative; }
+.cta { position: absolute; left: 22px; right: 22px; bottom: 44px; height: 92px; border-radius: 26px; background: var(--ink); color: white; font-size: 25px; font-weight: 600; display: grid; place-items: center; overflow: hidden; }
+.cta .ok { position: absolute; inset: 0; background: var(--em); display: flex; align-items: center; justify-content: center; gap: 12px; }
+.touch { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; background: rgba(9,9,11,.18); border: 3px solid rgba(9,9,11,.45); z-index: 20; }
+.touch.l { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.7); }
+
+.card { position: absolute; background: white; border-radius: 34px; border: 1px solid var(--z200); box-shadow: 0 40px 100px rgba(9,9,11,.16), 0 8px 24px rgba(9,9,11,.06); color: var(--ink); }
+.qrcard { width: 330px; padding: 30px; }
+.qrcard .qr { width: 270px; height: 270px; display: grid; grid-template-columns: repeat(25, 1fr); }
+.qrcard .qr i { display: block; }
+.qrcard .t { font-size: 20px; letter-spacing: .14em; text-transform: uppercase; color: var(--z500); font-weight: 600; margin-bottom: 18px; }
+.qrcard .u { font-size: 21px; font-weight: 600; margin-top: 18px; }
+.ncard { width: 470px; padding: 26px 28px; display: flex; gap: 20px; align-items: center; }
+.ncard .ic { width: 66px; height: 66px; border-radius: 18px; background: var(--ink); display: grid; place-items: center; flex: none; }
+.ncard .a { font-size: 19px; color: var(--z500); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.ncard .b { font-size: 26px; font-weight: 700; margin-top: 4px; }
+.ncard .c { font-size: 21px; color: var(--z600); margin-top: 2px; }
+
+.hl { font-family: "Playfair", serif; font-weight: 700; font-size: 84px; line-height: 1.02; letter-spacing: -.02em; text-align: center; }
+.hl .mut { color: var(--z400); }
+.line { display: block; overflow: hidden; padding-bottom: 10px; }
+.line > span { display: inline-block; }
+
+/* ---------- Calendar ---------- */
+.cal { width: 940px; height: 1000px; padding: 34px; }
+.cal .top { display: flex; justify-content: space-between; align-items: center; }
+.cal .top .d { font-family: "Playfair", serif; font-size: 44px; font-weight: 700; }
+.cal .top .p { font-size: 20px; padding: 10px 20px; border-radius: 999px; background: var(--z100); font-weight: 600; color: var(--z600); }
+.cal .heads { display: grid; grid-template-columns: 90px 1fr 1fr; margin-top: 28px; gap: 14px; }
+.cal .hd { display: flex; align-items: center; gap: 14px; font-size: 24px; font-weight: 700; }
+.cal .hd i { width: 46px; height: 46px; border-radius: 50%; background: var(--z200); display: grid; place-items: center; font-style: normal; font-size: 19px; }
+.cal .body { position: absolute; left: 34px; right: 34px; top: 190px; height: 760px; }
+.cal .row { position: absolute; left: 0; right: 0; height: 1px; background: var(--z200); }
+.cal .row b { position: absolute; left: 0; top: -13px; font-size: 19px; font-weight: 600; color: var(--z400); }
+.ev { position: absolute; border-radius: 20px; padding: 16px 20px; overflow: hidden; }
+.ev .n { font-size: 22px; font-weight: 700; }
+.ev .s { font-size: 18px; margin-top: 4px; opacity: .7; }
+.ev.k { background: var(--ink); color: white; }
+.ev.g { background: var(--z100); color: var(--ink); border: 1px solid var(--z200); }
+.ev.drag { background: var(--ink); color: white; box-shadow: 0 0 0 4px white, 0 0 0 7px var(--ink); }
+.toast { width: 760px; padding: 26px 30px; display: flex; gap: 20px; align-items: center; border-radius: 30px; background: var(--ink); color: white; box-shadow: 0 30px 80px rgba(9,9,11,.35); }
+.toast .ck { width: 56px; height: 56px; border-radius: 50%; background: var(--em); display: grid; place-items: center; flex: none; }
+.toast .a { font-size: 25px; font-weight: 700; }
+.toast .b { font-size: 21px; color: var(--z400); margin-top: 2px; }
+.ghost { position: absolute; border-radius: 20px; border: 3px dashed var(--z300); }
+
+/* ---------- Chat ---------- */
+.proj { padding: 18px 30px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); display: flex; gap: 16px; align-items: center; font-size: 24px; color: var(--z300); white-space: nowrap; }
+.proj i { width: 14px; height: 14px; border-radius: 50%; background: var(--em); box-shadow: 0 0 0 6px rgba(16,185,129,.2); }
+.bub { position: absolute; border-radius: 40px; padding: 26px 32px; font-size: 32px; line-height: 1.3; max-width: 700px; }
+.bub.in { background: var(--z800); color: white; border-bottom-left-radius: 12px; }
+.bub.out { background: white; color: var(--ink); border-bottom-right-radius: 12px; }
+.bub .who { font-size: 20px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--z400); margin-bottom: 10px; }
+.bub.out .who { color: var(--z500); }
+.imgb { padding: 14px; }
+.imgb .pic { width: 460px; height: 440px; border-radius: 30px; background: #f5f2ea; display: grid; place-items: center; overflow: hidden; }
+.voice { display: flex; align-items: center; gap: 20px; }
+.voice .pl { width: 70px; height: 70px; border-radius: 50%; background: white; display: grid; place-items: center; flex: none; }
+.voice .wf { display: flex; align-items: center; gap: 6px; height: 70px; }
+.voice .wf i { display: block; width: 7px; border-radius: 4px; background: var(--z400); }
+.voice .tm { font-size: 22px; color: var(--z400); font-variant-numeric: tabular-nums; }
+.typing { display: flex; gap: 10px; padding: 30px 34px; }
+.typing i { width: 16px; height: 16px; border-radius: 50%; background: var(--z500); display: block; }
+
+/* ---------- Deposit ---------- */
+.dep { width: 860px; padding: 44px; }
+.dep .r1 { display: flex; justify-content: space-between; align-items: center; }
+.dep .who { display: flex; gap: 18px; align-items: center; }
+.dep .who i { width: 70px; height: 70px; border-radius: 50%; background: var(--z200); display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 26px; }
+.dep .who b { font-size: 30px; display: block; }
+.dep .who small { font-size: 21px; color: var(--z500); }
+.pill { position: relative; height: 54px; padding: 0 26px; border-radius: 999px; font-size: 21px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap; }
+.pill.am { background: var(--am-bg); color: var(--am-tx); border: 1px solid #fde68a; }
+.pill.ok { background: var(--em-bg); color: var(--em-tx); border: 1px solid #a7f3d0; }
+.dep .amt { margin-top: 44px; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; color: var(--z500); font-weight: 600; }
+.dep .num { font-size: 150px; font-weight: 800; letter-spacing: -.05em; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.dep .bar { margin-top: 30px; height: 16px; border-radius: 8px; background: var(--z100); overflow: hidden; }
+.dep .bar i { display: block; height: 100%; background: var(--ink); border-radius: 8px; transform-origin: left; }
+.dep .rows { margin-top: 36px; border-top: 1px solid var(--z200); }
+.dep .rw { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; border-bottom: 1px solid var(--z200); font-size: 25px; }
+.dep .rw span { color: var(--z500); }
+.dep .rw b { display: flex; gap: 12px; align-items: center; }
+.bigck { width: 230px; height: 230px; }
+
+/* ---------- Rapid ---------- */
+.rw-word { font-size: 150px; font-weight: 800; letter-spacing: -.05em; white-space: nowrap; line-height: 1; }
+.rw-ic { width: 150px; height: 150px; border-radius: 40px; background: white; display: grid; place-items: center; }
+.rw-ic svg { width: 76px; height: 76px; }
+
+/* ---------- End ---------- */
+.btn { height: 128px; padding: 0 60px; border-radius: 36px; background: white; color: var(--ink); font-size: 40px; font-weight: 700; display: flex; align-items: center; gap: 18px; position: relative; overflow: hidden; white-space: nowrap; box-shadow: 0 30px 90px rgba(255,255,255,.12); }
+.btn .shine { position: absolute; top: -20px; bottom: -20px; width: 120px; background: linear-gradient(90deg, transparent, rgba(9,9,11,.12), transparent); transform: skewX(-20deg); }
+
+/* ---------- Overlays ---------- */
+#flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 50; }
+#vig { position: absolute; inset: 0; pointer-events: none; z-index: 40; background: radial-gradient(130% 90% at 50% 45%, transparent 55%, rgba(0,0,0,.35) 100%); }
+#grain { position: absolute; inset: -100px; pointer-events: none; z-index: 41; opacity: .07; mix-blend-mode: overlay; }
+#wipe { position: absolute; inset: 0; z-index: 30; display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="cam">
+
+<!-- 1 · HOOK -->
+<section class="scene dark grid" id="s1">
+  <div class="cx label w" id="hookTop" style="letter-spacing:.2em">Dein Studio-Alltag</div>
+  <div id="notifs"></div>
+  <div class="cx w" id="badge">12</div>
+  <div class="cx w" id="hookWord">DMs.</div>
+</section>
+
+<!-- 2 · LOGO -->
+<section class="scene dark" id="s2">
+  <div class="abs w" id="logoGroup" style="left:0;top:0;width:1080px;height:1920px">
+    <div class="mark" id="mk" style="left:390px;top:620px">
+      <div class="tile w" id="mkTile"></div>
+      <div class="bar b1 w" id="mkB1"></div>
+      <div class="bar b2 w" id="mkB2"></div>
+      <div class="bar b3 w" id="mkB3"></div>
+    </div>
+    <div class="cx mask" style="top:1000px"><div class="wordmark w" id="wm" style="font-size:150px"></div></div>
+    <div class="cx w" id="tag" style="top:1250px;font-size:40px;color:var(--z400);font-weight:500;letter-spacing:-.01em">Mehr Zeit für Kunst.</div>
+  </div>
+</section>
+
+<!-- 3 · BOOKING -->
+<section class="scene light grid" id="s3">
+  <div class="cx label w" id="s3l" style="top:190px;color:var(--z500)">01 — Dein Buchungslink</div>
+  <div class="cx hl" style="top:250px">
+    <span class="line"><span class="w" id="s3h1">Kunden buchen</span></span>
+    <span class="line" style="margin-top:-14px"><span class="w mut" id="s3h2">direkt bei dir.</span></span>
+  </div>
+  <div class="phone w" id="ph" style="left:290px;top:520px">
+    <div class="scr">
+      <div class="island"></div>
+      <div class="sb"><span>9:41</span><span style="display:flex;gap:8px;align-items:center"><svg width="30" height="18" viewBox="0 0 30 18"><rect x="0" y="11" width="5" height="7" rx="1.5" fill="#09090b"/><rect x="8" y="7" width="5" height="11" rx="1.5" fill="#09090b"/><rect x="16" y="3" width="5" height="15" rx="1.5" fill="#09090b"/><rect x="24" y="0" width="5" height="18" rx="1.5" fill="#09090b"/></svg><svg width="40" height="20" viewBox="0 0 40 20"><rect x="1" y="1" width="33" height="18" rx="5" fill="none" stroke="#09090b" stroke-width="2" opacity=".4"/><rect x="4" y="4" width="26" height="12" rx="3" fill="#09090b"/><rect x="36" y="7" width="3" height="6" rx="1.5" fill="#09090b" opacity=".4"/></svg></span></div>
+      <div class="url"><svg width="18" height="20" viewBox="0 0 18 20"><rect x="2" y="9" width="14" height="10" rx="3" fill="#71717a"/><path d="M5 9V6a4 4 0 0 1 8 0v3" fill="none" stroke="#71717a" stroke-width="2.4"/></svg>studioos-cloud.de/dein-studio</div>
+      <div class="cover">
+        <svg width="100%" height="100%" style="position:absolute;inset:0;opacity:.18"><defs><pattern id="pp" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M0 40L40 0" stroke="white" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#pp)"/></svg>
+        <div class="av"><svg width="50" height="50" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#09090B"/><rect x="6" y="7.5" width="16" height="3.5" rx="1.75" fill="white"/><rect x="6" y="13" width="11" height="3" rx="1.5" fill="rgba(255,255,255,0.65)"/><rect x="6" y="18" width="14" height="3" rx="1.5" fill="rgba(255,255,255,0.35)"/></svg></div>
+        <div class="nm">Dein Studio</div>
+        <div class="sub">Tattoo · Piercing · PMU</div>
+      </div>
+      <div class="ph-sec">Was möchtest du buchen?</div>
+      <div class="chips">
+        <div class="chip" id="chipT"><div class="fill w"></div><span>Tattoo</span></div>
+        <div class="chip"><span>Piercing</span></div>
+        <div class="chip"><span>PMU</span></div>
+      </div>
+      <div class="ph-sec">Tag wählen</div>
+      <div class="days" id="days"></div>
+      <div class="ph-sec">Freie Zeiten</div>
+      <div class="slots" id="slots"></div>
+      <div class="cta" id="cta"><span>Anfrage senden</span><div class="ok w" id="ctaOk"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>Anfrage gesendet</div></div>
+      <div class="touch w" id="tch" style="display:none"></div>
+    </div>
+  </div>
+  <div class="card qrcard w" id="qr" style="left:0px;top:545px">
+    <div class="t">Buchungslink</div>
+    <div class="qr" id="qrg"></div>
+    <div class="u">Im Studio · Bio · WhatsApp</div>
+  </div>
+  <div class="card ncard w" id="nc" style="left:560px;top:1250px">
+    <div class="ic"><svg width="38" height="38" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" fill="none" stroke="white" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 21a2 2 0 0 0 4 0" fill="none" stroke="white" stroke-width="2.2"/></svg></div>
+    <div><div class="a">Neue Anfrage</div><div class="b">Tattoo · Do 13:30</div><div class="c">landet direkt bei dir</div></div>
+  </div>
+</section>
+
+<!-- 4 · CALENDAR -->
+<section class="scene light grid" id="s4">
+  <div class="cx label w" id="s4l" style="top:190px;color:var(--z500)">02 — Kalender</div>
+  <div class="cx hl" style="top:250px">
+    <span class="line"><span class="w" id="s4h1">Umbuchen?</span></span>
+    <span class="line" style="margin-top:-14px"><span class="w mut" id="s4h2">Einfach ziehen.</span></span>
+  </div>
+  <div class="card cal w" id="cal" style="left:70px;top:510px">
+    <div class="top"><div class="d">Heute</div><div class="p">2 Artists · 5 Termine</div></div>
+    <div class="heads"><div></div><div class="hd"><i>L</i>Lena</div><div class="hd"><i>M</i>Max</div></div>
+    <div class="body" id="calBody"></div>
+  </div>
+  <div class="cx toast w" id="toast" style="top:1330px">
+    <div class="ck"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div><div class="a">Kunde automatisch informiert</div><div class="b">Termin verschoben · 12:30 → 15:30</div></div>
+  </div>
+</section>
+
+<!-- 5 · CHAT -->
+<section class="scene dark grid" id="s5">
+  <div class="cx label w" id="s5l" style="top:190px;color:var(--z500)">03 — Absprachen</div>
+  <div class="cx hl" style="top:250px;color:white">
+    <span class="line"><span class="w" id="s5h1">Alles im Projekt.</span></span>
+    <span class="line" style="margin-top:-14px"><span class="w mut" id="s5h2" style="color:var(--z500)">Nicht in WhatsApp.</span></span>
+  </div>
+  <div class="cx proj w" id="proj" style="top:520px"><i></i>Projekt · Fineline Rose · Session 1/2</div>
+  <div class="bub in imgb w" id="bImg" style="left:70px;top:620px">
+    <div class="pic"><svg id="rose" width="400" height="400" viewBox="0 0 200 200" fill="none" stroke="#18181b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path class="rp" d="M100 70c-8-4-18 0-18 10s10 16 20 14 14-12 8-20-20-6-22 4 8 16 16 12"/>
+      <path class="rp" d="M78 74c-10 8-12 24-2 34s30 10 40-2 8-30-4-38"/>
+      <path class="rp" d="M74 86c-14 6-16 30 0 40s44 4 48-14"/>
+      <path class="rp" d="M98 128c2 20-2 34-8 52"/>
+      <path class="rp" d="M96 150c-14-10-30-8-36 2 14 6 28 4 36-2z"/>
+      <path class="rp" d="M98 140c10-12 26-14 34-6-10 10-24 12-34 6z"/>
+    </svg></div>
+  </div>
+  <div class="bub in w" id="bVoice" style="left:70px;top:1110px">
+    <div class="voice"><div class="pl"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="#09090b"/></svg></div><div class="wf" id="wf"></div><div class="tm" id="vt">0:12</div></div>
+  </div>
+  <div class="bub out typing w" id="bTyp" style="right:70px;top:1270px"><i></i><i></i><i></i></div>
+  <div class="bub out w" id="bOut" style="right:70px;top:1270px;width:620px">Sieht top aus! Entwurf kommt bis Freitag.</div>
+</section>
+
+<!-- 6 · DEPOSIT -->
+<section class="scene light grid" id="s6">
+  <div class="cx label w" id="s6l" style="top:190px;color:var(--z500)">04 — Anzahlungen</div>
+  <div class="cx hl" style="top:250px">
+    <span class="line"><span class="w" id="s6h1">Anzahlung rein.</span></span>
+    <span class="line" style="margin-top:-14px"><span class="w mut" id="s6h2">Termin sicher.</span></span>
+  </div>
+  <div class="card dep w" id="dep" style="left:110px;top:540px">
+    <div class="r1">
+      <div class="who"><i>J</i><div><b>Julia K.</b><small>Fineline Rose · Session 1</small></div></div>
+      <div style="position:relative;width:250px;height:54px">
+        <div class="pill am w" id="pAm" style="position:absolute;right:0">Ausstehend</div>
+        <div class="pill ok w" id="pOk" style="position:absolute;right:0"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#047857" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Bezahlt</div>
+      </div>
+    </div>
+    <div class="amt">Anzahlung</div>
+    <div class="num" id="num">0,00 €</div>
+    <div class="bar"><i class="w" id="depBar"></i></div>
+    <div class="rows">
+      <div class="rw"><span>Zahlungsart</span><b>Karte · via Stripe</b></div>
+      <div class="rw"><span>Termin</span><b id="tStat">Do · 13:30</b></div>
+    </div>
+  </div>
+  <svg class="bigck abs w" id="bigck" style="left:425px;top:1330px" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="46" fill="#10b981"/>
+    <path id="ckp" d="M28 51l15 15 30-31" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="70" stroke-dashoffset="70"/>
+  </svg>
+</section>
+
+<!-- 7 · RAPID -->
+<section class="scene dark grid" id="s7">
+  <div id="rapid"></div>
+</section>
+
+<!-- 8 · MANTRA -->
+<section class="scene light" id="s8">
+  <div class="cx hl" style="top:600px;font-size:150px;line-height:1">
+    <span class="line"><span class="w" id="m1">Mehr Zeit</span></span>
+    <span class="line" style="margin-top:-10px"><span class="w" id="m2"><i style="font-weight:600">für Kunst.</i></span></span>
+  </div>
+  <div class="cx w" id="m3" style="top:1060px;font-size:60px;font-weight:600;color:var(--z500);letter-spacing:-.02em;white-space:nowrap">
+    Weniger Zeit für <span style="position:relative;display:inline-block">Chaos.<i id="strike" style="position:absolute;left:-6px;right:-6px;top:52%;height:7px;background:#09090b;border-radius:4px;transform-origin:left"></i></span>
+  </div>
+</section>
+
+<!-- 9 · END -->
+<section class="scene dark" id="s9">
+  <div class="mark" id="emk" style="left:440px;top:470px;width:200px;height:200px">
+    <div class="tile" style="border-radius:50px"></div>
+    <div class="bar w" id="eb1" style="left:43px;top:53px;width:114px;height:25px;border-radius:13px;background:white"></div>
+    <div class="bar w" id="eb2" style="left:43px;top:93px;width:79px;height:21px;border-radius:11px;background:rgba(255,255,255,.65)"></div>
+    <div class="bar w" id="eb3" style="left:43px;top:129px;width:100px;height:21px;border-radius:11px;background:rgba(255,255,255,.35)"></div>
+  </div>
+  <div class="cx mask" style="top:720px"><div class="wordmark w" id="ewm" style="font-size:130px"></div></div>
+  <div class="cx w" id="eTag" style="top:925px;font-size:38px;color:var(--z400);font-weight:500;white-space:nowrap">Die Studio-Software für Tattoo, Piercing &amp; PMU.</div>
+  <div class="cx btn w" id="eBtn" style="top:1080px"><div class="shine" id="shine"></div>Kostenlos starten <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="#09090b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="cx w" id="eUrl" style="top:1250px;font-size:46px;font-weight:700;letter-spacing:-.01em">studioos-cloud.de</div>
+  <div class="cx w" id="eNote" style="top:1325px;font-size:27px;color:var(--z500);white-space:nowrap">Keine Kreditkarte nötig · In Minuten eingerichtet</div>
+</section>
+
+</div>
+<div id="wipe"></div>
+<svg id="grain" width="1280" height="2120"><filter id="nf"><feTurbulence id="turb" type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="1" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#nf)"/></svg>
+<div id="vig"></div>
+<div id="flash"></div>
+</div>
+
+<script>
+/* ======================================================================
+   Deterministic timeline: renderFrame(t) fully defines the frame at t
+   seconds, so the renderer can step through time frame by frame.
+   ====================================================================== */
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, p) => a + (b - a) * p;
+const E = {
+  lin: (p) => p,
+  outExpo: (p) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p)),
+  inExpo: (p) => (p <= 0 ? 0 : Math.pow(2, 10 * p - 10)),
+  inOutExpo: (p) => (p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2),
+  outCubic: (p) => 1 - Math.pow(1 - p, 3),
+  inCubic: (p) => p * p * p,
+  inOutCubic: (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+  outQuint: (p) => 1 - Math.pow(1 - p, 5),
+  outBack: (p) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); },
+};
+const tw = (t, a, b, from, to, e = E.outExpo) => lerp(from, to, e(clamp((t - a) / (b - a))));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+/* damped spring 0→1 (overshoots), starts at time a */
+function spring(t, a, k = 260, d = 16) {
+  if (t <= a) return 0;
+  const x = t - a, w = Math.sqrt(k), z = d / (2 * w);
+  if (z < 1) { const wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * x) * (Math.cos(wd * x) + ((z * w) / wd) * Math.sin(wd * x)); }
+  return 1 - Math.exp(-w * x) * (1 + w * x);
+}
+function S(el, o = {}) {
+  const { x = 0, y = 0, s = 1, sx, sy, r = 0, rx = 0, ry = 0, o: op = 1, blur = 0, bx = 0 } = o;
+  el.style.transform = `translate3d(${x}px,${y}px,0) perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${r}deg) scale(${sx ?? s},${sy ?? s})`;
+  el.style.opacity = clamp(op);
+  el.style.filter = blur > 0.15 ? `blur(${blur.toFixed(2)}px)` : "none";
+}
+/* seeded random for repeatable "chaos" */
+function rng(seed) { return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
+
+/* text reveal: line slides up from its mask with a little blur */
+function lineIn(el, t, a, dur = 0.7, dist = 130) {
+  const p = prog(t, a, a + dur);
+  S(el, { y: lerp(dist, 0, E.outExpo(p)), o: p > 0 ? 1 : 0, blur: lerp(10, 0, E.outExpo(p)) });
+}
+
+/* ---------------- Timeline ---------------- */
+const SC = {
+  s1: [0, 2.55], s2: [2.5, 4.95], s3: [4.9, 8.25], s4: [8.0, 11.3], s5: [11.1, 14.4],
+  s6: [14.2, 16.75], s7: [16.6, 18.6], s8: [18.5, 20.6], s9: [20.4, 99],
+};
+const DURATION = 24.0;
+
+/* ---------------- Build DOM ---------------- */
+const ICONS = {
+  dm: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="white" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.2" fill="white"/></svg>',
+  wa: '<svg viewBox="0 0 24 24"><path d="M4 20l1.3-4A8 8 0 1 1 8.5 19z" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>',
+  call: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>',
+  xls: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" fill="none" stroke="white" stroke-width="2"/><path d="M4 9h16M4 15h16M10 3v18" stroke="white" stroke-width="2"/></svg>',
+  cal: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="white" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
+  img: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="white" stroke-width="2"/><circle cx="9" cy="10" r="2" fill="white"/><path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="white" stroke-width="2"/></svg>',
+  euro: '<svg viewBox="0 0 24 24"><path d="M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
+};
+const NOTIFS = [
+  ["dm", "#c13584", "Instagram", "jetzt", "Hast du nächste Woche was frei?"],
+  ["wa", "#22c55e", "WhatsApp", "jetzt", "Kann ich doch erst um 15 Uhr?? 🙏"],
+  ["call", "#3b82f6", "Telefon", "1 Min.", "3 verpasste Anrufe"],
+  ["xls", "#16a34a", "Termine_final_v3.xlsx", "2 Min.", "Datei wurde geändert"],
+  ["dm", "#c13584", "Instagram", "3 Min.", "Was kostet ein Sleeve?"],
+  ["euro", "#f59e0b", "Erinnerung", "5 Min.", "Anzahlung noch offen"],
+  ["img", "#8b5cf6", "WhatsApp", "8 Min.", "Wo war das Referenzbild?"],
+  ["cal", "#ef4444", "Kalender", "heute", "Kunde nicht erschienen"],
+  ["wa", "#22c55e", "WhatsApp", "jetzt", "Bin 20 Min später da"],
+  ["dm", "#c13584", "Instagram", "jetzt", "Machst du auch Cover-ups?"],
+  ["call", "#3b82f6", "Telefon", "jetzt", "Unbekannt · Mailbox (2)"],
+  ["xls", "#16a34a", "Kunden_ALT.xlsx", "jetzt", "Konflikt beim Speichern"],
+];
+const notifEls = [];
+(function buildNotifs() {
+  const r = rng(7), host = $("notifs");
+  NOTIFS.forEach((n, i) => {
+    const d = document.createElement("div");
+    d.className = "notif w";
+    d.innerHTML = `<div class="ic" style="background:${n[1]}">${ICONS[n[0]]}</div><div class="txt"><div class="tt">${n[2]}<span>${n[3]}</span></div><div class="bd">${n[4]}</div></div>`;
+    const col = i % 2, x = col ? 330 + r() * 120 : 20 + r() * 120;
+    const y = 300 + ((i * 113) % 1150) + r() * 60;
+    d.style.left = x + "px"; d.style.top = y + "px";
+    host.appendChild(d);
+    notifEls.push({ el: d, x, y, rot: (r() - 0.5) * 14, t0: 0.05 + i * 0.13, dir: col ? 1 : -1 });
+  });
+})();
+
+function buildWordmark(el) {
+  el.innerHTML = "";
+  [..."Studio"].forEach((c) => { const s = document.createElement("span"); s.className = "ch"; s.textContent = c; el.appendChild(s); });
+  [..."OS"].forEach((c) => { const s = document.createElement("b"); s.className = "ch"; s.textContent = c; el.appendChild(s); });
+  return [...el.children];
+}
+const wmChars = buildWordmark($("wm"));
+const ewmChars = buildWordmark($("ewm"));
+
+/* QR (real, encodes https://studioos-cloud.de) */
+const QR = [[1,1,1,1,1,1,1,0,1,0,1,1,0,1,1,0,0,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,1,0,1,1,1,1,0,0,1,0,1,0,1,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,0,1,1,0,1,1,1,0,0,1,0,1,1,1,0,1],[1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,1,1,0,1,0,1,1,1,0,1],[1,0,1,1,1,0,1,0,1,0,0,0,1,1,1,0,0,0,1,0,1,1,1,0,1],[1,0,0,0,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0],[1,0,0,1,1,1,1,1,1,0,0,0,0,0,1,1,0,1,0,0,1,0,1,1,1],[0,0,1,0,0,1,0,1,0,0,1,0,1,1,1,1,0,1,0,1,1,1,1,1,0],[0,1,0,0,1,1,1,1,0,1,0,1,0,1,0,1,1,0,1,1,0,1,0,0,1],[0,1,0,1,0,1,0,1,1,0,0,0,1,0,1,1,0,1,1,0,0,1,1,1,1],[1,0,0,1,0,1,1,1,0,1,1,0,1,0,0,0,1,0,1,0,0,0,0,0,1],[1,1,1,1,1,1,0,0,1,1,1,0,0,1,0,1,1,1,0,0,1,0,0,1,0],[1,1,0,1,0,1,1,0,0,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1],[1,0,1,1,0,1,0,1,0,1,1,1,0,0,0,1,0,1,1,1,0,1,1,0,1],[1,0,0,1,0,1,1,1,1,0,1,0,1,1,0,0,1,1,1,1,1,0,1,1,0],[0,0,0,0,0,0,0,0,1,1,0,1,1,0,0,0,1,0,0,0,1,0,1,1,0],[1,1,1,1,1,1,1,0,1,1,0,1,0,1,0,0,1,0,1,0,1,0,0,0,1],[1,0,0,0,0,0,1,0,1,1,1,0,0,1,1,1,1,0,0,0,1,0,0,1,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,0,0,1,1,1,1,1,1,0,0,0,0],[1,0,1,1,1,0,1,0,1,0,1,1,0,1,1,1,1,1,1,0,0,0,0,1,1],[1,0,1,1,1,0,1,0,0,0,1,1,1,1,0,1,1,1,0,0,1,1,1,1,1],[1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1,1,1,0,1,1,1],[1,1,1,1,1,1,1,0,1,1,1,1,1,0,0,0,1,1,1,0,0,1,0,0,1]];
+const qrCells = [];
+(function () {
+  const g = $("qrg");
+  QR.forEach((row, y) => row.forEach((v, x) => {
+    const i = document.createElement("i");
+    i.style.background = v ? "#09090b" : "transparent";
+    g.appendChild(i); if (v) qrCells.push({ el: i, d: Math.hypot(x - 12, y - 12) });
+  }));
+})();
+
+/* phone days + slots */
+const dayEls = [], slotEls = [];
+(function () {
+  [["Mo", 11], ["Di", 12], ["Mi", 13], ["Do", 14], ["Fr", 15]].forEach(([a, b], i) => {
+    const d = document.createElement("div"); d.className = "day";
+    d.innerHTML = `<div class="fill w"></div><small>${a}</small><b>${b}</b>`;
+    $("days").appendChild(d); dayEls.push(d);
+  });
+  ["11:00", "13:30", "16:00"].forEach((s) => {
+    const d = document.createElement("div"); d.className = "slot";
+    d.innerHTML = `<div class="fill w"></div><span>${s}</span>`;
+    $("slots").appendChild(d); slotEls.push(d);
+  });
+})();
+
+/* calendar */
+const CAL = { hourH: 92, col0: 104, colW: 386, gap: 14 };
+const calEvents = [];
+(function () {
+  const body = $("calBody");
+  for (let h = 10; h <= 18; h++) {
+    const r = document.createElement("div"); r.className = "row";
+    r.style.top = (h - 10) * CAL.hourH + "px";
+    r.innerHTML = `<b>${h}:00</b>`;
+    r.style.left = "0";
+    body.appendChild(r);
+  }
+  const ev = (col, from, to, name, sub, cls) => {
+    const d = document.createElement("div"); d.className = "ev w " + cls;
+    d.style.left = CAL.col0 + col * (CAL.colW + CAL.gap) + "px";
+    d.style.width = CAL.colW + "px";
+    d.style.top = (from - 10) * CAL.hourH + 6 + "px";
+    d.style.height = (to - from) * CAL.hourH - 12 + "px";
+    d.innerHTML = `<div class="n">${name}</div><div class="s">${sub}</div>`;
+    body.appendChild(d); calEvents.push(d); return d;
+  };
+  ev(0, 10, 12, "Fineline Rose", "Session 1 · 2 h", "g");
+  ev(0, 14.5, 17.5, "Sleeve", "Session 4 · 3 h", "k");
+  ev(1, 10.5, 12.5, "Piercing · Helix", "2 Termine", "g");
+  ev(1, 13, 15, "Cover-up", "Beratung + Stencil", "g");
+  const gh = document.createElement("div"); gh.className = "ghost w"; gh.id = "ghost";
+  gh.style.left = CAL.col0 + "px"; gh.style.width = CAL.colW + "px";
+  gh.style.top = (12.5 - 10) * CAL.hourH + 6 + "px"; gh.style.height = 1.5 * CAL.hourH - 12 + "px";
+  body.appendChild(gh);
+  const dr = ev(0, 12.5, 14, "Mini Script", "Julia K. · 1,5 h", "drag"); dr.id = "drag";
+  const tc = document.createElement("div"); tc.className = "touch w"; tc.id = "calTouch"; body.appendChild(tc);
+})();
+
+/* waveform */
+const wfBars = [];
+(function () { const r = rng(3); for (let i = 0; i < 30; i++) { const b = document.createElement("i"); b.dataset.h = 14 + r() * 52; $("wf").appendChild(b); wfBars.push(b); } })();
+
+/* rapid fire words */
+const RAPID = [
+  ["Warteliste.", '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#09090b" stroke-width="2.2"/><path d="M12 7v5l3 2" fill="none" stroke="#09090b" stroke-width="2.2" stroke-linecap="round"/></svg>'],
+  ["Projekte.", '<svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z M3 13l9 5 9-5" fill="none" stroke="#09090b" stroke-width="2.2" stroke-linejoin="round"/></svg>'],
+  ["QR-Code.", '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#09090b" stroke-width="2.2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#09090b" stroke-width="2.2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#09090b" stroke-width="2.2"/><path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="#09090b"/></svg>'],
+  ["DSGVO.", '<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="#09090b" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="#09090b" stroke-width="2.2" stroke-linecap="round"/></svg>'],
+  ["Server in DE.", '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2" fill="none" stroke="#09090b" stroke-width="2.2"/><rect x="3" y="13" width="18" height="7" rx="2" fill="none" stroke="#09090b" stroke-width="2.2"/><circle cx="7" cy="7.5" r="1.2" fill="#09090b"/><circle cx="7" cy="16.5" r="1.2" fill="#09090b"/></svg>'],
+];
+const rapidEls = RAPID.map(([w, ic]) => {
+  const g = document.createElement("div"); g.className = "abs w"; g.style.cssText = "left:0;top:0;width:1080px;height:1920px";
+  g.innerHTML = `<div class="cx rw-ic" style="top:640px">${ic}</div><div class="cx rw-word" style="top:850px">${w}</div>`;
+  $("rapid").appendChild(g); return g;
+});
+const rapidSub = document.createElement("div");
+rapidSub.className = "cx w"; rapidSub.style.cssText = "top:1060px;font-size:40px;color:#a1a1aa;font-weight:500;white-space:nowrap";
+rapidSub.textContent = "Alles an einem Ort.";
+$("rapid").appendChild(rapidSub);
+
+/* ---------------- Scenes ---------------- */
+let camShake = 0;
+const HOOK_WORDS = [
+  [0.0, "DMs."], [0.32, "WhatsApp."], [0.62, "Anrufe."], [0.9, "No-Shows."], [1.16, "Excel."], [1.4, "Zettel."], [1.62, "Chaos.", true],
+];
+function scene1(t) {
+  // drifting grid
+  $("s1").style.setProperty("--gy", (t * 40) % 90 + "px");
+  S($("hookTop"), { y: tw(t, 0, 0.5, -30, 0), o: tw(t, 0, 0.4, 0, 1) * tw(t, 1.6, 1.8, 1, 0, E.lin) });
+  // current word
+  let cur = HOOK_WORDS[0];
+  for (const w of HOOK_WORDS) if (t >= w[0]) cur = w;
+  const hw = $("hookWord");
+  if (hw.textContent !== cur[1]) hw.textContent = cur[1];
+  hw.className = "cx w" + (cur[2] ? " it" : "");
+  const lt = t - cur[0];
+  const pop = cur[2] ? lerp(1.6, 1, E.outExpo(clamp(lt / 0.35))) : lerp(1.28, 1, E.outExpo(clamp(lt / 0.22)));
+  const implode = prog(t, 2.05, 2.5);
+  S(hw, { s: pop * lerp(1, 0.2, E.inExpo(implode)), blur: lerp(cur[2] ? 22 : 12, 0, E.outExpo(clamp(lt / 0.18))) + implode * 20,
+    o: clamp(lt / 0.06) * (1 - E.inExpo(implode)), y: cur[2] ? tw(lt, 0, .4, 40, 0) : 0 });
+  // notifications: pop in, jitter, then get sucked into the centre
+  notifEls.forEach((n, i) => {
+    const sp = spring(t, n.t0, 300, 18);
+    const cx = 540 - (n.x + 320), cy = 920 - (n.y + 60);
+    const suck = E.inExpo(prog(t, 1.85 + i * 0.012, 2.3 + i * 0.012));
+    const jig = Math.sin(t * 40 + i) * 3 * clamp((t - 1.0) * 2);
+    S(n.el, {
+      x: lerp(n.dir * 140 * (1 - sp), cx, suck) + jig,
+      y: lerp(60 * (1 - sp), cy, suck),
+      s: lerp(0.6 + 0.4 * sp, 0.05, suck),
+      r: lerp(n.rot * sp, n.rot * 6, suck),
+      o: clamp(sp * 3) * (1 - suck * suck) * (t > n.t0 ? 1 : 0) * lerp(1, 0.45, prog(t, 1.62, 1.75)),
+      blur: suck * 14,
+    });
+  });
+  // red badge counting up
+  const count = Math.min(99, Math.floor(12 + Math.pow(prog(t, 0.2, 1.8), 1.6) * 90));
+  $("badge").textContent = count >= 99 ? "99+" : String(count);
+  const bp = spring(t, 0.15, 400, 14);
+  const bump = 1 + 0.12 * Math.max(0, Math.sin((t * 12) % Math.PI));
+  S($("badge"), { s: bp * bump * (1 - E.inExpo(prog(t, 1.9, 2.3))), o: t > 0.15 ? 1 - prog(t, 2.0, 2.3) : 0 });
+  camShake = 2 + 10 * prog(t, 0.3, 1.9) * (t < 2.05 ? 1 : 0);
+}
+
+function scene2(t) {
+  const l = t - 2.5; // local time
+  // Bars draw in from a point, tile grows behind them
+  const bars = [$("mkB1"), $("mkB2"), $("mkB3")];
+  bars.forEach((b, i) => {
+    const p = prog(l, 0.05 + i * 0.07, 0.55 + i * 0.07);
+    S(b, { sx: E.outExpo(p), sy: lerp(.4, 1, E.outExpo(p)), x: lerp(-40, 0, E.outExpo(p)), o: p > 0 ? 1 : 0 });
+  });
+  const ts = spring(l, 0.25, 240, 17);
+  S($("mkTile"), { s: lerp(0.4, 1, ts), o: clamp(ts * 2), r: lerp(-14, 0, ts) });
+  // Wordmark letters rise from the mask, staggered
+  wmChars.forEach((c, i) => {
+    const p = prog(l, 0.45 + i * 0.04, 1.0 + i * 0.04);
+    S(c, { y: lerp(190, 0, E.outExpo(p)), r: lerp(8, 0, E.outExpo(p)), o: p > 0 ? 1 : 0 });
+  });
+  const tp = prog(l, 0.95, 1.6);
+  S($("tag"), { y: lerp(30, 0, E.outExpo(tp)), o: E.outCubic(tp), blur: lerp(8, 0, tp) });
+  // Zoom-through: the camera dives into the top bar until it becomes the white screen
+  const z = prog(l, 1.82, 2.42);
+  const zs = lerp(1, 70, E.inExpo(z));
+  const g = $("logoGroup");
+  // bar 1 center in group coordinates
+  const bx = 390 + 64 + 85, by = 620 + 80 + 19;
+  g.style.transformOrigin = `${bx}px ${by}px`;
+  S(g, { s: zs * lerp(0.96, 1.04, prog(l, 0, 1.8)), x: lerp(0, 540 - bx, E.inOutCubic(z)), y: lerp(0, 960 - by, E.inOutCubic(z)) });
+  $("wm").parentElement.style.opacity = 1 - prog(l, 1.82, 2.0);
+  $("tag").style.opacity = Math.min(+$("tag").style.opacity, 1 - prog(l, 1.82, 1.95));
+  camShake = l < 0.6 ? 14 * (1 - prog(l, 0.05, 0.6)) : 0;
+}
+
+function phoneTouch(t, path) {
+  // path: [[time, x, y, pressed]...] inside phone screen coordinates
+  const el = $("tch");
+  if (t < path[0][0]) { el.style.display = "none"; return; }
+  el.style.display = "block";
+  let i = 0; while (i < path.length - 1 && t >= path[i + 1][0]) i++;
+  const a = path[i], b = path[Math.min(i + 1, path.length - 1)];
+  const p = b === a ? 1 : E.inOutCubic(prog(t, a[0], b[0]));
+  const press = path.reduce((m, q) => (q[3] && t >= q[0] && t < q[0] + 0.3 ? 1 - Math.abs((t - q[0]) / 0.15 - 1) : m), 0);
+  const last = path[path.length - 1][0];
+  S(el, { x: lerp(a[1], b[1], p), y: lerp(a[2], b[2], p), s: 1 - press * 0.3, o: clamp((t - path[0][0]) * 6) * (1 - prog(t, last, last + 0.25)) });
+  el.style.left = "0px"; el.style.top = "0px";
+}
+
+function scene3(t) {
+  const l = t - 4.9;
+  $("s3").style.setProperty("--gy", -l * 30 + "px");
+  // The scene starts as pure white (continuation of the zoom-through)
+  S($("s3l"), { o: tw(l, 0.15, 0.5, 0, 1), y: tw(l, 0.15, 0.6, 20, 0) });
+  lineIn($("s3h1"), l, 0.12); lineIn($("s3h2"), l, 0.22);
+  // Phone rises in with a 3D tilt, then floats
+  const pp = spring(l, 0.1, 140, 17);
+  const exit = E.inExpo(prog(l, 3.05, 3.35));
+  S($("ph"), { y: lerp(1300, 0, pp) + Math.sin(l * 1.6) * 6, rx: lerp(38, 0, pp), r: lerp(-6, 0, pp), x: lerp(0, -1300, exit), blur: exit * 30 });
+  // touch interactions on the phone screen
+  phoneTouch(l, [[0.85, 330, 900], [1.05, 120, 452, 1], [1.35, 300, 590], [1.55, 316, 590, 1], [1.85, 236, 734, 1], [2.15, 236, 900], [2.35, 236, 955, 1], [2.6, 236, 955]]);
+  const fillIn = (el, at) => { const p = E.outExpo(prog(l, at, at + 0.3)); S(el.querySelector(".fill"), { s: p, o: p > 0 ? 1 : 0 }); el.style.color = p > 0.5 ? "white" : ""; el.querySelectorAll("small").forEach((s) => (s.style.color = p > 0.5 ? "#a1a1aa" : "")); };
+  fillIn($("chipT"), 1.12); fillIn(dayEls[3], 1.62); fillIn(slotEls[1], 1.92);
+  dayEls.forEach((d, i) => i !== 3 && S(d.querySelector(".fill"), { o: 0 }));
+  slotEls.forEach((d, i) => i !== 1 && S(d.querySelector(".fill"), { o: 0 }));
+  const ok = prog(l, 2.42, 2.75);
+  S($("ctaOk"), { y: lerp(92, 0, E.outExpo(ok)), o: ok > 0 ? 1 : 0 });
+  S($("cta"), { s: 1 - 0.04 * Math.sin(Math.PI * prog(l, 2.35, 2.55)) });
+  // QR card flies in from the left, cells ripple out from the centre
+  const qp = spring(l, 0.55, 200, 16);
+  S($("qr"), { x: lerp(-500, 0, qp) + lerp(0, -1300, exit) + Math.sin(l * 1.3 + 1) * 5, y: Math.cos(l * 1.2) * 8, r: lerp(-30, -7, qp), s: 0.82, o: clamp(qp * 2), blur: exit * 30 });
+  qrCells.forEach((c) => { const p = E.outBack(prog(l, 0.7 + c.d * 0.022, 0.95 + c.d * 0.022)); c.el.style.transform = `scale(${p})`; });
+  // incoming request notification after "send"
+  const np = spring(l, 2.7, 220, 15);
+  S($("nc"), { x: lerp(500, 0, np) + lerp(0, -1300, exit), r: lerp(14, 4, np), s: lerp(.8, 1, np), o: clamp(np * 2), y: Math.sin(l * 1.4) * 6, blur: exit * 30 });
+  camShake = 0;
+}
+
+function scene4(t) {
+  const l = t - 8.0;
+  $("s4").style.setProperty("--gx", -l * 30 + "px");
+  const enter = E.outExpo(prog(l, 0.2, 0.7));
+  S($("s4l"), { o: tw(l, 0.3, 0.6, 0, 1) });
+  lineIn($("s4h1"), l, 0.3); lineIn($("s4h2"), l, 0.4);
+  const exit = prog(l, 2.9, 3.3);
+  S($("cal"), { x: lerp(1300, 0, enter), blur: (1 - enter) * 30, ry: lerp(-25, 0, enter), s: lerp(1, 0.94, E.inOutCubic(exit)) });
+  calEvents.forEach((e, i) => { if (e.id === "drag") return; const p = spring(l, 0.45 + i * 0.06, 260, 18); S(e, { s: lerp(.85, 1, p), o: clamp(p * 2) }); });
+  // drag: pick up -> move to Max 15:30 -> drop
+  const dr = $("drag");
+  const pick = E.outBack(prog(l, 1.05, 1.3));
+  const mv = E.inOutCubic(prog(l, 1.3, 2.0));
+  const drop = E.outBack(prog(l, 2.0, 2.25));
+  const dx = (CAL.colW + CAL.gap) * mv, dy = (15.5 - 12.5) * CAL.hourH * mv;
+  const lift = pick - drop;
+  const dp = spring(l, 0.6, 260, 18);
+  S(dr, { x: dx, y: dy, s: (1 + 0.06 * lift) * lerp(.85, 1, dp), r: 2.5 * lift * Math.sin(Math.PI * clamp(mv * 1.0 + 0.0)) + lift * 1.5, o: clamp(dp * 2) });
+  dr.style.boxShadow = `0 0 0 4px white, 0 0 0 7px #09090b, 0 ${30 * lift}px ${60 * lift}px rgba(9,9,11,${0.3 * lift})`;
+  dr.style.zIndex = 5;
+  S($("ghost"), { o: prog(l, 1.15, 1.3) * (1 - prog(l, 2.1, 2.4)) });
+  // touch indicator follows the block
+  const tc = $("calTouch");
+  const tx0 = CAL.col0 + 200, ty0 = (12.5 - 10) * CAL.hourH + 60;
+  const tin = prog(l, 0.75, 1.05);
+  S(tc, { x: tx0 + dx + lerp(120, 0, E.outCubic(tin)), y: ty0 + dy + lerp(160, 0, E.outCubic(tin)), s: 1 - 0.25 * lift, o: tin * (1 - prog(l, 2.25, 2.45)) });
+  tc.style.left = "0px"; tc.style.top = "0px";
+  const tp = spring(l, 2.2, 240, 17);
+  S($("toast"), { y: lerp(260, 0, tp), s: lerp(.9, 1, tp), o: clamp(tp * 2) });
+  camShake = 0;
+}
+
+function scene5(t) {
+  const l = t - 11.1;
+  $("s5").style.setProperty("--gy", l * 30 + "px");
+  S($("s5l"), { o: tw(l, 0.3, 0.6, 0, 1) });
+  lineIn($("s5h1"), l, 0.25); lineIn($("s5h2"), l, 0.35);
+  const pj = spring(l, 0.4, 260, 18);
+  S($("proj"), { s: lerp(.7, 1, pj), o: clamp(pj * 2) });
+  const bi = spring(l, 0.55, 200, 15);
+  S($("bImg"), { x: lerp(-200, 0, bi), y: lerp(80, 0, bi), s: lerp(.6, 1, bi), r: lerp(-8, 0, bi), o: clamp(bi * 2) });
+  document.querySelectorAll("#rose .rp").forEach((p, i) => {
+    const len = 260; p.style.strokeDasharray = len;
+    p.style.strokeDashoffset = len * (1 - E.inOutCubic(prog(l, 0.75 + i * 0.12, 1.4 + i * 0.12)));
+  });
+  const bv = spring(l, 1.05, 200, 15);
+  S($("bVoice"), { x: lerp(-200, 0, bv), y: lerp(80, 0, bv), s: lerp(.6, 1, bv), o: clamp(bv * 2) });
+  const played = prog(l, 1.3, 2.6);
+  wfBars.forEach((b, i) => {
+    const h = +b.dataset.h * (0.75 + 0.25 * Math.sin(l * 14 + i));
+    b.style.height = h + "px";
+    b.style.background = i / wfBars.length < played ? "#ffffff" : "#71717a";
+  });
+  $("vt").textContent = "0:" + String(Math.floor(lerp(12, 0, played) )).padStart(2, "0");
+  // typing → reply
+  const ty = spring(l, 1.65, 300, 18), tyOut = prog(l, 2.15, 2.25);
+  S($("bTyp"), { s: lerp(.5, 1, ty) * (1 - tyOut), o: clamp(ty * 2) * (1 - tyOut) });
+  [...$("bTyp").children].forEach((d, i) => S(d, { y: Math.sin(l * 14 - i * 0.9) * 6, o: 0.5 + 0.5 * Math.sin(l * 14 - i * 0.9) }));
+  const ro = spring(l, 2.2, 220, 15);
+  S($("bOut"), { x: lerp(200, 0, ro), y: lerp(80, 0, ro), s: lerp(.6, 1, ro), r: lerp(6, 0, ro), o: clamp(ro * 2) });
+  camShake = 0;
+}
+
+function scene6(t) {
+  const l = t - 14.2;
+  $("s6").style.setProperty("--gy", -l * 30 + "px");
+  S($("s6l"), { o: tw(l, 0.3, 0.6, 0, 1) });
+  lineIn($("s6h1"), l, 0.25); lineIn($("s6h2"), l, 0.35);
+  const dp = spring(l, 0.25, 160, 17);
+  S($("dep"), { y: lerp(1200, 0, dp), rx: lerp(30, 0, dp) });
+  const cnt = E.outQuint(prog(l, 0.75, 1.6));
+  $("num").textContent = (100 * cnt).toFixed(2).replace(".", ",") + " €";
+  S($("depBar"), { sx: cnt });
+  const paid = prog(l, 1.6, 1.85);
+  S($("pAm"), { y: lerp(0, -60, E.inExpo(paid)), o: 1 - paid });
+  const okp = spring(l, 1.7, 300, 16);
+  S($("pOk"), { y: lerp(60, 0, clamp(okp)), s: lerp(.6, 1, okp), o: clamp(okp * 2) });
+  $("tStat").innerHTML = l > 1.75 ? '<span style="color:#047857">Bestätigt ✓</span>' : "Do · 13:30";
+  const ck = spring(l, 1.75, 260, 13);
+  S($("bigck"), { s: ck, r: lerp(-90, 0, clamp(ck)), o: clamp(ck * 3) });
+  $("ckp").style.strokeDashoffset = 70 * (1 - E.outCubic(prog(l, 1.9, 2.2)));
+  camShake = l > 1.75 && l < 2.0 ? 6 * (1 - prog(l, 1.75, 2.0)) : 0;
+}
+
+function scene7(t) {
+  const l = t - 16.6;
+  const step = 0.3;
+  rapidEls.forEach((g, i) => {
+    const a = 0.08 + i * step, lt = l - a;
+    const inP = E.outExpo(clamp(lt / 0.2));
+    const out = E.inExpo(clamp((lt - step + 0.04) / 0.12));
+    const last = i === rapidEls.length - 1;
+    const outEff = last ? E.inExpo(prog(l, 1.75, 1.95)) : out;
+    S(g, { s: lerp(1.5, 1, inP) * lerp(1, 0.7, outEff), y: lerp(0, -260, outEff), blur: (1 - inP) * 18 + outEff * 22, o: (lt >= 0 ? 1 : 0) * (1 - outEff) });
+  });
+  const sp = prog(l, 1.32, 1.6);
+  S(rapidSub, { y: lerp(30, 0, E.outExpo(sp)), o: sp * (1 - prog(l, 1.75, 1.95)) });
+  // punch per word
+  const k = ((l - 0.08) % step) / step;
+  camShake = l > 0.08 && l < 1.6 ? 9 * Math.max(0, 1 - k * 4) : 0;
+}
+
+function scene8(t) {
+  const l = t - 18.5;
+  lineIn($("m1"), l, 0.1, 0.8, 170); lineIn($("m2"), l, 0.22, 0.8, 170);
+  const m3 = prog(l, 0.75, 1.2);
+  S($("m3"), { y: lerp(30, 0, E.outExpo(m3)), o: m3 });
+  S($("strike"), { sx: E.inOutExpo(prog(l, 1.25, 1.6)) });
+  // slow push in
+  const push = lerp(1, 1.05, E.inOutCubic(prog(l, 0, 2.1)));
+  $("s8").style.transform = `scale(${push})`;
+  camShake = 0;
+}
+
+function scene9(t) {
+  const l = t - 20.4;
+  const ms = spring(l, 0.1, 220, 14);
+  S($("emk"), { s: ms, r: lerp(-30, 0, clamp(ms)), o: clamp(ms * 3) });
+  ["eb1", "eb2", "eb3"].forEach((id, i) => { const p = prog(l, 0.25 + i * 0.06, 0.7 + i * 0.06); S($(id), { sx: E.outExpo(p), o: p > 0 ? 1 : 0 }); });
+  ewmChars.forEach((c, i) => { const p = prog(l, 0.35 + i * 0.035, 0.9 + i * 0.035); S(c, { y: lerp(170, 0, E.outExpo(p)), o: p > 0 ? 1 : 0 }); });
+  const tg = prog(l, 0.8, 1.3); S($("eTag"), { y: lerp(24, 0, E.outExpo(tg)), o: tg });
+  const bt = spring(l, 1.05, 240, 15);
+  const pulse = 1 + 0.025 * Math.sin(Math.max(0, l - 1.8) * 5);
+  S($("eBtn"), { s: lerp(.6, 1, bt) * pulse, o: clamp(bt * 2) });
+  S($("shine"), { x: lerp(-200, 900, ((l - 1.5) % 1.4) / 0.9) });
+  const u = prog(l, 1.3, 1.8); S($("eUrl"), { y: lerp(24, 0, E.outExpo(u)), o: u });
+  const n = prog(l, 1.5, 2.0); S($("eNote"), { o: n });
+  camShake = 0;
+}
+
+/* ---------------- Transitions & global ---------------- */
+function renderFrame(t) {
+  const fns = { s1: scene1, s2: scene2, s3: scene3, s4: scene4, s5: scene5, s6: scene6, s7: scene7, s8: scene8, s9: scene9 };
+  for (const [id, [a, b]] of Object.entries(SC)) {
+    const on = t >= a && t < b;
+    $(id).style.display = on ? "block" : "none";
+  }
+  // Paint order: later scenes on top; each fn only runs while visible.
+  camShake = 0;
+  for (const [id, [a, b]] of Object.entries(SC)) if (t >= a && t < b) fns[id](t);
+
+  /* scene-to-scene masks */
+  // s2 over s1: hard cut on flash
+  $("s2").style.clipPath = "none";
+  // s3 appears when the zoom-through has filled the screen
+  $("s3").style.clipPath = "none";
+  // s4 slides in from the right as a whip pan
+  if (t < 8.25) { const p = E.inOutExpo(prog(t, 8.0, 8.25)); $("s4").style.clipPath = `inset(0 0 0 ${lerp(100, 0, p)}%)`; } else $("s4").style.clipPath = "none";
+  // s5 dark circle grows from the dropped block
+  if (t < 11.6) { const p = E.inOutExpo(prog(t, 11.1, 11.55)); $("s5").style.clipPath = `circle(${lerp(0, 2300, p)}px at 760px 1060px)`; } else $("s5").style.clipPath = "none";
+  // s6 light panel wipes up
+  if (t < 14.6) { const p = E.inOutExpo(prog(t, 14.2, 14.55)); $("s6").style.clipPath = `inset(${lerp(100, 0, p)}% 0 0 0 round 60px)`; } else $("s6").style.clipPath = "none";
+  // s7 slams in from the big check
+  if (t < 16.85) { const p = E.inOutExpo(prog(t, 16.6, 16.85)); $("s7").style.clipPath = `circle(${lerp(0, 2300, p)}px at 540px 1445px)`; } else $("s7").style.clipPath = "none";
+  // s8 bars wipe
+  if (t < 18.8) { const p = E.inOutExpo(prog(t, 18.5, 18.8)); $("s8").style.clipPath = `inset(${lerp(50, 0, p)}% 0 ${lerp(50, 0, p)}% 0)`; } else $("s8").style.clipPath = "none";
+  // s9 iris close / open
+  if (t < 20.75) { const p = E.inOutExpo(prog(t, 20.4, 20.75)); $("s9").style.clipPath = `circle(${lerp(0, 2300, p)}px at 540px 570px)`; } else $("s9").style.clipPath = "none";
+
+  // outgoing scenes get pushed / scaled for parallax during the masks
+  const pushOut = (id, a, b, fn) => { if (t >= a && t < b) { const p = E.inOutExpo(prog(t, a, b)); $(id).style.transform = fn(p); } else if (id !== "s8") $(id).style.transform = ""; };
+  pushOut("s3", 8.0, 8.25, (p) => `translateX(${-300 * p}px)`);
+  pushOut("s4", 11.1, 11.55, (p) => `scale(${1 - 0.1 * p})`);
+  pushOut("s5", 14.2, 14.55, (p) => `translateY(${-400 * p}px) scale(${1 - 0.06 * p})`);
+  pushOut("s6", 16.6, 16.85, (p) => `scale(${1 + 0.25 * p})`);
+  pushOut("s7", 18.5, 18.8, (p) => `scale(${1 - 0.15 * p})`);
+
+  // flashes on the big beats
+  const fl = Math.max(
+    1 - prog(t, 2.5, 2.75),           // logo hit
+    t >= 4.82 && t < 4.9 ? prog(t, 4.82, 4.9) : 0,
+    t >= 16.6 ? 0.35 * (1 - prog(t, 16.82, 17.1)) * (t > 16.82 ? 1 : 0) : 0
+  ) * (t >= 2.5 && t < 2.75 || t >= 4.82 && t < 4.9 || t > 16.82 && t < 17.1 ? 1 : 0);
+  $("flash").style.opacity = fl;
+
+  // camera shake (smooth noise) + subtle global breathing zoom
+  const sh = camShake;
+  const sx = (Math.sin(t * 61.3) + Math.sin(t * 37.9 + 1)) * 0.5 * sh, sy = (Math.sin(t * 53.1 + 2) + Math.sin(t * 29.7)) * 0.5 * sh;
+  $("cam").style.transform = `translate(${sx}px,${sy}px) rotate(${sx * 0.03}deg)`;
+
+  // vignette only reads on dark scenes; grain flickers every frame
+  $("turb").setAttribute("seed", Math.floor(t * 30) % 97);
+  $("grain").style.transform = `translate(${(Math.floor(t * 30) * 37) % 100 - 50}px, ${(Math.floor(t * 30) * 53) % 100 - 50}px)`;
+}
+
+window.renderFrame = renderFrame;
+window.DURATION = DURATION;
+window.__ready = document.fonts.ready.then(() => document.fonts.load('700 80px "Playfair"')).then(() => document.fonts.load('italic 700 80px "Playfair"')).then(() => true);
+
+/* preview mode: open the file in a browser to watch it in real time */
+if (!location.search.includes("render")) {
+  const t0 = performance.now();
+  const loop = () => { renderFrame(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+  window.__ready.then(loop);
+}
+</script>
+</body>
+</html>
